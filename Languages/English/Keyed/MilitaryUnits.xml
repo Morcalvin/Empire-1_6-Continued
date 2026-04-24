@@ -148,11 +148,13 @@
 	<FCReturnToPlayer>Return To Player</FCReturnToPlayer>
 	<FCSellPawnInfo>Value will be added to next bill from the settlement</FCSellPawnInfo>
 	<FCPrisonerCaptureInfo>Prisoner: {0} has been enslaved and delivered to {1}</FCPrisonerCaptureInfo>
-	<FCCantSendWithDangerLevel>You can't send a prisoner to your settlements when the map has a danger level of {0}!</FCCantSendWithDangerLevel>
-	<FCFloatMenuOptionSendPrisonerToSettlement>{0} - Settlement Level: {1}, Prisoners: {2}</FCFloatMenuOptionSendPrisonerToSettlement>
 	<FCAPrisonerIsBeingDeliveredToYou>A prisoner is being delivered to you</FCAPrisonerIsBeingDeliveredToYou>
 	<FCNoPrisoners>No prisoners at this settlement.</FCNoPrisoners>
+	<FCNoPrisonersInCaravan>No prisoners in this caravan.</FCNoPrisonersInCaravan>
 	<FCPrisonerWindowTitle>Prisoners — {0}</FCPrisonerWindowTitle>
+	<FCTransferPrisonerToSettlement>Transfer prisoner to settlement</FCTransferPrisonerToSettlement>
+	<FCTransferPrisonerOption>Transfer {0}</FCTransferPrisonerOption>
+	<FCTransferPrisonerGizmoDesc>Select a prisoner from this caravan to hand over to the settlement.</FCTransferPrisonerGizmoDesc>
 
 	<!-- Mercenary -->
 	<FCRequestMercenary>Request Mercenary</FCRequestMercenary>

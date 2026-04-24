@@ -150,7 +150,6 @@
 Please report this if you don't get your colonists sent to defend back, or your military never comes off cooldown.</FCErrorEndingAttackDescription>
 
 	<!-- Deployment -->
-	<FCSendToSettlement>Send To Settlement</FCSendToSettlement>
 	<FCNotEnoughSilverToDeploySquad>You do not have enough silver to re-deploy that squad!</FCNotEnoughSilverToDeploySquad>
 	<FCXDaysToRedeploy>{0} days are left until the ability to re-deploy squads is refreshed</FCXDaysToRedeploy>
 	<FCDropPodDeploymentOption>Drop-Pod</FCDropPodDeploymentOption>

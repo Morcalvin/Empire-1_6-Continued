@@ -60,10 +60,5 @@ namespace FactionColonies
             }
         }
 
-        public static void SendPrisoner(Pawn prisoner, WorldSettlementFC settlement)
-        {
-            settlement.AddPrisoner(prisoner);
-            prisoner.DeSpawn();
-        }
     }
 }

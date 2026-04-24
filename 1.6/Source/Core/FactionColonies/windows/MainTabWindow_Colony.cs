@@ -25,7 +25,8 @@ namespace FactionColonies
             "FCBills".Translate(),
             "FCEvents".Translate(),
             "FCMilitary".Translate(),
-            "FCEdicts".Translate()
+            "FCEdicts".Translate(),
+            "FCPrisoners".Translate()
         };
         private Dictionary<string, Action<Rect>> overviewFuncs = new Dictionary<string, Action<Rect>>();
 
@@ -51,6 +52,9 @@ namespace FactionColonies
         // ===== MILITARY STATE =====
         private Vector2 militaryScroll;
         private MilitaryFC militaryFC;
+
+        // ===== PRISONERS STATE =====
+        private Vector2 prisonersScroll;
 
         // ===== SORTED LIST CACHES =====
         private List<BillFC> cachedSortedBills;
@@ -112,6 +116,14 @@ namespace FactionColonies
                 EdictTabDrawer.OnTabSwitch();
             }, () => curTab == overviewTabs[4]));
             overviewFuncs.Add(overviewTabs[4], DrawEdictsTab);
+            // Prisoners tab
+            tabs.Add(new TabRecord(overviewTabs[5], delegate
+            {
+                curTab = overviewTabs[5];
+                PrisonerUtil.CullNullPrisoners(faction);
+                prisonersScroll = Vector2.zero;
+            }, () => curTab == overviewTabs[5]));
+            overviewFuncs.Add(overviewTabs[5], DrawPrisonersTab);
         }
 
         public override void PostClose()
@@ -2257,6 +2269,135 @@ namespace FactionColonies
                     return "FCMilPowerTipNoMilitary".Translate();
             }
             return "";
+        }
+
+        // ===== PRISONERS TAB =====
+
+        private void DrawPrisonersTab(Rect rect)
+        {
+            float x = rect.x;
+            float y = rect.y;
+            float width = rect.width;
+
+            // --- Header: faction icon + name label (matches Military tab style) ---
+            float buttonHeight = 35f;
+
+            Rect iconRect = new Rect(x + margin, y + margin, buttonHeight, buttonHeight);
+            Widgets.ButtonImage(iconRect, faction.factionIcon);
+
+            Rect labelBox = new Rect(iconRect.xMax + margin, y + margin, rect.xMax - iconRect.xMax - (margin * 2), buttonHeight);
+            Rect labelTextBox = new Rect(labelBox.x + margin, labelBox.y, labelBox.width - (margin * 2), labelBox.height);
+
+            GameFont fontBefore = Text.Font;
+            TextAnchor anchorBefore = Text.Anchor;
+            Color origColor = GUI.color;
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.DrawHighlight(labelBox);
+            Widgets.Label(labelTextBox, faction.name ?? "");
+
+            y += buttonHeight + margin * 2;
+
+            // --- Tally prisoners across all settlements ---
+            int totalPrisoners = 0;
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                totalPrisoners += faction.settlements[i].prisonerList?.Count ?? 0;
+            }
+
+            float tableY = y;
+            float tableH = rect.yMax - tableY - margin;
+            if (tableH <= 0f)
+            {
+                Text.Font = fontBefore;
+                Text.Anchor = anchorBefore;
+                return;
+            }
+
+            // Empty state
+            if (totalPrisoners == 0)
+            {
+                Text.Font = GameFont.Medium;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = Color.gray;
+                Widgets.Label(new Rect(rect.x, tableY + tableH * 0.35f, rect.width, 40f),
+                    "FCNoPrisoners".Translate());
+                GUI.color = origColor;
+                Text.Font = fontBefore;
+                Text.Anchor = anchorBefore;
+                return;
+            }
+
+            // --- Scrollable grouped list ---
+            const float pad = 4f;
+            const float sectionHeaderH = 32f;
+            const float rowGap = 2f;
+            const float sectionGap = 8f;
+
+            float innerX = x + margin + pad;
+            float innerW = width - (margin + pad) * 2f;
+
+            float contentH = 0f;
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                int count = faction.settlements[i].prisonerList?.Count ?? 0;
+                if (count == 0) continue;
+                contentH += sectionHeaderH + count * (PrisonerUtil.RowHeight + rowGap) + sectionGap;
+            }
+
+            Rect viewRect = new Rect(innerX, tableY, innerW, tableH);
+            Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref prisonersScroll, contentH);
+
+            float cy = 0f;
+            int altIndex = 0;
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                WorldSettlementFC s = faction.settlements[i];
+                if (s.prisonerList is null || s.prisonerList.Count == 0) continue;
+
+                // Section header: settlement accent + name (clickable) + count badge
+                Color settlementAccent = AccentUtil.GetSettlementAccent(s);
+                Widgets.DrawBoxSolid(new Rect(0f, cy, PrisonerUtil.AccentWidth, sectionHeaderH), settlementAccent);
+
+                float headerContentX = PrisonerUtil.AccentWidth + 6f;
+                const float countColW = 90f;
+                Rect nameRect = new Rect(headerContentX, cy, scrollRect.width - headerContentX - countColW - 4f, sectionHeaderH);
+
+                Text.Font = GameFont.Medium;
+                Text.Anchor = TextAnchor.MiddleLeft;
+                GUI.color = settlementAccent;
+                Widgets.Label(nameRect, s.Name);
+                GUI.color = origColor;
+
+                if (Mouse.IsOver(nameRect))
+                    Widgets.DrawHighlight(nameRect);
+                if (Widgets.ButtonInvisible(nameRect))
+                    Find.WindowStack.Add(new SettlementWindowFc(s));
+
+                Rect countRect = new Rect(scrollRect.width - countColW - 4f, cy, countColW, sectionHeaderH);
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.MiddleRight;
+                GUI.color = Color.gray;
+                Widgets.Label(countRect, "(" + s.prisonerList.Count + ")");
+                GUI.color = origColor;
+
+                cy += sectionHeaderH;
+
+                for (int j = 0; j < s.prisonerList.Count; j++)
+                {
+                    Rect rowBox = new Rect(0f, cy, scrollRect.width, PrisonerUtil.RowHeight);
+                    PrisonerUtil.DrawPrisonerRow(rowBox, s.prisonerList[j], s, altIndex++, null);
+                    cy += PrisonerUtil.RowHeight + rowGap;
+                }
+
+                cy += sectionGap;
+            }
+
+            ScrollUtil.EndScrollView();
+
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
         }
 
     }

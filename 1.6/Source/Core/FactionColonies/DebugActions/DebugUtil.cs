@@ -124,7 +124,8 @@ namespace FactionColonies
                     {
                         foreach (Pawn pawn in selected)
                         {
-                            TravelUtil.SendPrisoner(pawn, settlement);
+                            settlement.AddPrisoner(pawn);
+                            if (pawn.Spawned) pawn.DeSpawn();
 
                             foreach (var bed in Find.Maps.Where(map => map.IsPlayerHome).SelectMany(map =>
                                 map.listerBuildings.allBuildingsColonist).OfType<Building_Bed>())
