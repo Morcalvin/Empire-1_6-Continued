@@ -2332,8 +2332,8 @@ namespace FactionColonies
             // --- Scrollable grouped list ---
             const float pad = 4f;
             const float sectionHeaderH = 32f;
-            const float rowGap = 2f;
-            const float sectionGap = 8f;
+            const float rowGap = 1f;
+            const float sectionGap = 6f;
 
             float innerX = x + margin + pad;
             float innerW = width - (margin + pad) * 2f;
@@ -2356,8 +2356,10 @@ namespace FactionColonies
                 WorldSettlementFC s = faction.settlements[i];
                 if (s.prisonerList is null || s.prisonerList.Count == 0) continue;
 
-                // Section header: settlement accent + name (clickable) + count badge
+                // Section header: framed box wrapping accent + name (clickable) + count badge
                 Color settlementAccent = AccentUtil.GetSettlementAccent(s);
+                Rect headerBoxRect = new Rect(0f, cy, scrollRect.width, sectionHeaderH);
+                Widgets.DrawMenuSection(headerBoxRect);
                 Widgets.DrawBoxSolid(new Rect(0f, cy, PrisonerUtil.AccentWidth, sectionHeaderH), settlementAccent);
 
                 float headerContentX = PrisonerUtil.AccentWidth + 6f;
@@ -2384,9 +2386,10 @@ namespace FactionColonies
 
                 cy += sectionHeaderH;
 
+                const float prisonerRowIndent = 16f;
                 for (int j = 0; j < s.prisonerList.Count; j++)
                 {
-                    Rect rowBox = new Rect(0f, cy, scrollRect.width, PrisonerUtil.CompactRowHeight);
+                    Rect rowBox = new Rect(prisonerRowIndent, cy, scrollRect.width - prisonerRowIndent, PrisonerUtil.CompactRowHeight);
                     PrisonerUtil.DrawPrisonerRowCompact(rowBox, s.prisonerList[j], s, altIndex++, null);
                     cy += PrisonerUtil.CompactRowHeight + rowGap;
                 }

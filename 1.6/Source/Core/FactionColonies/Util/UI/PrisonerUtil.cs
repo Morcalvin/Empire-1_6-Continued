@@ -15,11 +15,11 @@ namespace FactionColonies
     public static class PrisonerUtil
     {
         public const float RowHeight = 95f;
-        public const float CompactRowHeight = 48f;
+        public const float CompactRowHeight = 46f;
         public const float AccentWidth = 4f;
 
         private const float portraitW = 70f;
-        private const float compactPortraitSz = 40f;
+        private const float compactPortraitSz = 38f;
         private const float infoBtnSz = 18f;
         private const float gap = 4f;
         private const float rightColW = 128f;
@@ -30,9 +30,6 @@ namespace FactionColonies
         private static readonly FieldInfo hostFactionField =
             typeof(Pawn_GuestTracker).GetField("hostFactionInt", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        /* Removes any FCPrisoner entries whose backing Pawn has gone null
-           (e.g., a mod interaction destroyed the pawn without removing the
-           wrapper). Call on window open to defend against save corruption. */
         public static int CullNullPrisoners(WorldSettlementFC settlement)
         {
             if (settlement?.prisonerList is null) return 0;
@@ -78,9 +75,6 @@ namespace FactionColonies
             return false;
         }
 
-        /* Moves a single prisoner from a caravan into the settlement's prisonerList.
-           AddPrisoner wraps the pawn in FCPrisoner, which in turn sets guest status
-           to Prisoner of PlayerColonyFaction and dirties the settlement stats cache. */
         public static void TransferFromCaravan(Pawn pawn, Caravan caravan, WorldSettlementFC settlement)
         {
             if (pawn is null || caravan is null || settlement is null) return;
@@ -89,8 +83,6 @@ namespace FactionColonies
             settlement.AddPrisoner(pawn);
         }
 
-        /* Opens the FloatMenu listing every prisoner currently in the caravan,
-           with "transfer to settlement" as the only action per-prisoner. */
         public static void DoTransferMenu(Caravan caravan, WorldSettlementFC settlement)
         {
             if (caravan is null || settlement is null) return;
@@ -216,8 +208,30 @@ namespace FactionColonies
             Find.WindowStack.Add(new FloatMenu(wlList));
         }
 
-        /* Rich 95px prisoner row: portrait + name/info + health + workload + trend,
-           and a right column with market value, origin faction, and Actions. */
+        /* "Jonathan, Novelist" — title segment colorized via SubtleGrayColor.
+           Falls back to just the name when the pawn has no backstory title. */
+        private static string BuildNameWithTitle(Pawn pawn)
+        {
+            if (pawn is null) return "unknown";
+            string name = pawn.Name?.ToStringShort ?? "unknown";
+            string title = pawn.story?.TitleShortCap;
+            if (string.IsNullOrEmpty(title)) return name;
+            return name + (", " + title).Colorize(ColoredText.SubtleGrayColor);
+        }
+
+        /* "Male, age 63 (115) of New Arrivals" — vanilla pawn descriptor. */
+        private static string BuildSubtitle(Pawn pawn)
+        {
+            if (pawn is null) return "";
+            try { return pawn.MainDesc(writeFaction: true); }
+            catch { return ""; }
+        }
+
+        /* Rich 95px prisoner row (settlement window).
+           Three content rows next to the portrait:
+             Row 1: Name, TitleShort (gray) ............... [info]      | $value
+             Row 2: Male, age 63 (115) of New Arrivals                  | [Actions]
+             Row 3: [== health 100 ===== +4/tick ====]                  | [Workload] */
         public static void DrawPrisonerRow(Rect box, FCPrisoner prisoner, WorldSettlementFC settlement, int altIndex, Action onRemoved)
         {
             GameFont fontBefore = Text.Font;
@@ -230,7 +244,7 @@ namespace FactionColonies
                 Widgets.DrawHighlight(box);
             }
 
-            // Origin-faction accent strip (left edge)
+            // Faction-of-origin accent strip (left edge)
             Color accentColor = prisoner.prisoner?.Faction?.Color ?? Color.gray;
             Widgets.DrawBoxSolid(new Rect(box.x, box.y, AccentWidth, box.height), accentColor);
 
@@ -243,29 +257,58 @@ namespace FactionColonies
                 UIUtil.DrawPawnPortrait(portraitRect, prisoner.prisoner, 1.2f);
             }
 
-            // Center column layout
-            float cx = contentStartX + portraitW + gap + pad;
-            float cw = box.xMax - cx - rightColW - pad;
+            // Center + right column geometry
+            float centerX = portraitRect.xMax + gap + pad;
+            float rightX = box.xMax - rightColW - pad;
+            float centerW = rightX - centerX - gap;
 
-            // Info card button (18x18), centered vertically in the name row
-            float nameRowY = box.y + pad;
-            float nameH = 24f;
-            Rect infoRect = new Rect(cx, nameRowY + (nameH - infoBtnSz) / 2f, infoBtnSz, infoBtnSz);
+            const float row1H = 24f;
+            const float row2H = 22f;
+            const float row3H = 22f;
+            const float rowGap = 2f;
+
+            float row1Y = box.y + pad;
+            float row2Y = row1Y + row1H + rowGap;
+            float row3Y = row2Y + row2H + rowGap;
+
+            /* ROW 1: name + title + info button (center), value (right) */
+            Rect infoRect = new Rect(centerX + centerW - infoBtnSz, row1Y + (row1H - infoBtnSz) / 2f, infoBtnSz, infoBtnSz);
+
+            float nameW = centerW - infoBtnSz - 4f;
+            Rect nameRect = new Rect(centerX, row1Y, nameW, row1H);
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(nameRect, BuildNameWithTitle(prisoner.prisoner));
+
             if (prisoner.prisoner is object)
             {
                 UIUtil.InfoCardThing(infoRect, prisoner.prisoner);
             }
 
-            // Name (right of info button)
-            float nameX = cx + infoBtnSz + 4f;
-            float nameW = cw - infoBtnSz - 4f;
-            Rect nameRect = new Rect(nameX, nameRowY, nameW, nameH);
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(nameRect, prisoner.prisoner?.Name.ToStringShort ?? "unknown");
+            Rect valueRect = new Rect(rightX, row1Y, rightColW, row1H);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(valueRect, "$" + (int)(prisoner.prisoner?.MarketValue ?? 0));
 
-            // Health bar
-            Rect healthBarRect = new Rect(cx, nameRect.yMax + 2f, cw, 14f);
+            /* ROW 2: subtitle (gender, age, faction) | Actions */
+            Rect subtitleRect = new Rect(centerX, row2Y, centerW, row2H);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = ColoredText.SubtleGrayColor;
+            Widgets.Label(subtitleRect, BuildSubtitle(prisoner.prisoner));
+            GUI.color = origColor;
+
+            Rect actionsRect = new Rect(rightX, row2Y, rightColW, row2H);
+            if (UIUtil.ButtonFlat(actionsRect, "FCActions".Translate()))
+            {
+                DoActionsMenu(prisoner, settlement, onRemoved);
+            }
+
+            /* ROW 3: health bar with embedded trend | Workload */
+            float healthBarH = 16f;
+            float healthBarY = row3Y + (row3H - healthBarH) / 2f;
+            const float trendW = 60f;
+            Rect healthBarRect = new Rect(centerX, healthBarY, centerW - trendW - 5f, healthBarH);
             float healthFrac = prisoner.health / 100f;
             Color healthColor = AccentUtil.GetStatColor(prisoner.health, false);
             UIUtil.DrawProgressBarColors(healthBarRect, healthFrac, healthBarBg, healthColor);
@@ -273,40 +316,19 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleCenter;
             Widgets.Label(healthBarRect, "Health".Translate().CapitalizeFirst() + ": " + (int)prisoner.health);
 
-            // Workload button + trend indicator
-            Rect workloadRect = new Rect(cx, healthBarRect.yMax + 4f, 150f, 22f);
             GetWorkloadPresentation(prisoner.workload, out string wlLabel, out string wlTrend, out Color wlTrendColor);
 
-            if (Widgets.ButtonText(workloadRect, "FCWorkload".Translate().CapitalizeFirst() + ": " + wlLabel))
-            {
-                OpenWorkloadFloatMenu(prisoner, settlement);
-            }
-
-            Rect trendRect = new Rect(workloadRect.xMax + 4f, workloadRect.y, 60f, 22f);
-            Text.Font = GameFont.Tiny;
-            Text.Anchor = TextAnchor.MiddleLeft;
+            // Trend indicator anchored to the right end of the bar
+            Rect trendRect = new Rect(healthBarRect.xMax + 4f, healthBarRect.y, trendW, healthBarRect.height);
+            Text.Anchor = TextAnchor.MiddleRight;
             GUI.color = wlTrendColor;
             Widgets.Label(trendRect, wlTrend);
             GUI.color = origColor;
 
-            // Right column: market value + origin faction + actions (fixed 22f)
-            float rx = box.xMax - rightColW - pad;
-
-            Rect valueRect = new Rect(rx, box.y + pad, rightColW, 20f);
-            Text.Font = GameFont.Tiny;
-            Text.Anchor = TextAnchor.MiddleRight;
-            Widgets.Label(valueRect, "$" + (int)(prisoner.prisoner?.MarketValue ?? 0));
-
-            Rect factionRect = new Rect(rx, valueRect.yMax + 2f, rightColW, 14f);
-            Text.Font = GameFont.Tiny;
-            Text.Anchor = TextAnchor.MiddleRight;
-            string factionName = prisoner.prisoner?.Faction is object ? (string)prisoner.prisoner.Faction.NameColored : "";
-            Widgets.Label(factionRect, factionName);
-
-            Rect actionsBtn = new Rect(rx, factionRect.yMax + 4f, rightColW, 22f);
-            if (UIUtil.ButtonFlat(actionsBtn, "FCActions".Translate()))
+            Rect workloadRect = new Rect(rightX, row3Y, rightColW, row3H);
+            if (UIUtil.ButtonFlat(workloadRect, "FCWorkload".Translate().CapitalizeFirst() + ": " + wlLabel))
             {
-                DoActionsMenu(prisoner, settlement, onRemoved);
+                OpenWorkloadFloatMenu(prisoner, settlement);
             }
 
             Text.Font = fontBefore;
@@ -314,29 +336,28 @@ namespace FactionColonies
             GUI.color = origColor;
         }
 
-        /* Compact 48px row used in the faction-wide Prisoners tab.
-           Layout (left→right, top→bottom):
-             accent(4) | portrait(40) | [info]+name+health  | workload | actions
-           Drops the trend indicator and origin-faction label. */
+        /* Compact 56px prisoner row (faction-wide tab).
+           Two rows next to a 40×40 portrait:
+             Top:    [i] Name, Title ... ... ... ... Male, 63 of NewArr.   $value
+             Bottom: [== bar 100 ==] +4/tick                  [Workload] [Actions] */
         public static void DrawPrisonerRowCompact(Rect box, FCPrisoner prisoner, WorldSettlementFC settlement, int altIndex, Action onRemoved)
         {
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
             Color origColor = GUI.color;
 
-            Widgets.DrawMenuSection(box);
-            if (altIndex % 2 == 0)
+            bool isHighlighted = altIndex % 2 == 0;
+            if (isHighlighted)
             {
                 Widgets.DrawHighlight(box);
             }
 
-            // Faction accent
             Color accentColor = prisoner.prisoner?.Faction?.Color ?? Color.gray;
             Widgets.DrawBoxSolid(new Rect(box.x, box.y, AccentWidth, box.height), accentColor);
 
             float contentStartX = box.x + AccentWidth;
 
-            // Portrait (40×40 centered vertically)
+            // Portrait — vertically centered in the row
             float portraitY = box.y + (box.height - compactPortraitSz) / 2f;
             Rect portraitRect = new Rect(contentStartX + pad, portraitY, compactPortraitSz, compactPortraitSz);
             if (prisoner.prisoner is object)
@@ -344,54 +365,91 @@ namespace FactionColonies
                 UIUtil.DrawPawnPortrait(portraitRect, prisoner.prisoner, 1.2f);
             }
 
-            // Right-side button stack: workload (left), actions (right)
-            const float actionsW = 90f;
-            const float workloadW = 120f;
-            const float btnH = 22f;
-            const float btnGap = 4f;
+            const float topRowH = 22f;
+            const float botRowH = 20f;
+            const float rowGap = 0f;
 
-            float actionsX = box.xMax - pad - actionsW;
-            float workloadX = actionsX - btnGap - workloadW;
             float topY = box.y + pad;
+            float botY = topY + topRowH + rowGap;
 
-            Rect workloadRect = new Rect(workloadX, topY, workloadW, btnH);
-            GetWorkloadPresentation(prisoner.workload, out string wlLabel, out string wlTrend, out Color wlTrendColor);
-            if (Widgets.ButtonText(workloadRect, "FCWorkload".Translate().CapitalizeFirst() + ": " + wlLabel))
-            {
-                OpenWorkloadFloatMenu(prisoner, settlement);
-            }
+            // Center column starts right of portrait
+            float centerX = portraitRect.xMax + (pad * 2);
+            float rightEdge = box.xMax - pad;
 
-            Rect actionsRect = new Rect(actionsX, topY, actionsW, btnH);
-            if (UIUtil.ButtonFlat(actionsRect, "FCActions".Translate()))
-            {
-                DoActionsMenu(prisoner, settlement, onRemoved);
-            }
+            /* Button geometry (computed up front so the top-row subtitle can right-align
+               to the trend's right edge on the row below). */
+            const float actionsW = 90f;
+            const float workloadW = 130f;
+            const float btnGap = 4f;
+            const float trendW = 50f;
 
-            // Market value: right-aligned on the bottom row beneath the buttons
-            float valueY = topY + btnH + 2f;
-            Rect valueRect = new Rect(workloadX, valueY, workloadW + btnGap + actionsW, 14f);
+            float actionsX = rightEdge - actionsW;
+            float workloadX = actionsX - btnGap - workloadW;
+            float trendRightEdge = workloadX - btnGap;
+            float trendLeftEdge = trendRightEdge - trendW;
+
+            /* TOP ROW */
+            // Far right: $value
+            const float valueW = 70f;
+            Rect valueRect = new Rect(rightEdge - valueW, topY, valueW, topRowH);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
             Widgets.Label(valueRect, "$" + (int)(prisoner.prisoner?.MarketValue ?? 0));
 
-            // Center block: info + name on top, health bar below
-            float centerX = portraitRect.xMax + (pad * 2);
-            float centerW = workloadRect.x - centerX - btnGap;
-            float nameH = 24f;
-            Rect infoRect = new Rect(centerX, topY + (nameH - infoBtnSz) / 2f, infoBtnSz, infoBtnSz);
+            // Subtitle (gender, age, faction) right-aligned to the trend's right edge below
+            const float subtitleW = 220f;
+            Rect subtitleRect = new Rect(trendRightEdge - subtitleW, topY, subtitleW, topRowH);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            GUI.color = ColoredText.SubtleGrayColor;
+            Widgets.Label(subtitleRect, BuildSubtitle(prisoner.prisoner));
+            GUI.color = origColor;
+
+            // Left of center: info button + name+title
+            Rect infoRect = new Rect(centerX, topY + (topRowH - infoBtnSz) / 2f, infoBtnSz, infoBtnSz);
             if (prisoner.prisoner is object)
             {
                 UIUtil.InfoCardThing(infoRect, prisoner.prisoner);
             }
 
             float nameX = centerX + infoBtnSz + 4f;
-            float nameW = centerW - infoBtnSz - 4f;
-            Rect nameRect = new Rect(nameX, topY, nameW, nameH);
+            float nameW = subtitleRect.x - nameX - 4f;
+            Rect nameRect = new Rect(nameX, topY, nameW, topRowH);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(nameRect, prisoner.prisoner?.Name.ToStringShort ?? "unknown");
+            Widgets.Label(nameRect, BuildNameWithTitle(prisoner.prisoner));
 
-            Rect healthBarRect = new Rect(centerX, nameRect.yMax + 2f, centerW, 14f);
+            /* BOTTOM ROW */
+            // Buttons render in Tiny font, with row-alt highlight tracking
+            Text.Font = GameFont.Tiny;
+
+            Rect actionsRect = new Rect(actionsX, botY, actionsW, botRowH);
+            if (UIUtil.ButtonFlat(actionsRect, "FCActions".Translate(), highlighted: isHighlighted))
+            {
+                DoActionsMenu(prisoner, settlement, onRemoved);
+            }
+
+            GetWorkloadPresentation(prisoner.workload, out string wlLabel, out string wlTrend, out Color wlTrendColor);
+            Rect workloadRect = new Rect(workloadX, botY, workloadW, botRowH);
+            if (UIUtil.ButtonFlat(workloadRect, "FCWorkload".Translate().CapitalizeFirst() + ": " + wlLabel, highlighted: isHighlighted))
+            {
+                OpenWorkloadFloatMenu(prisoner, settlement);
+            }
+
+            // Left of buttons: trend label (right-aligned, in trend color)
+            Rect trendRect = new Rect(trendLeftEdge, botY, trendW, botRowH);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            GUI.color = wlTrendColor;
+            Widgets.Label(trendRect, wlTrend);
+            GUI.color = origColor;
+
+            // Health bar fills the remaining left side, vertically centered
+            float healthBarH = 14f;
+            float healthBarY = botY + (botRowH - healthBarH) / 2f;
+            float healthBarX = centerX;
+            float healthBarW = trendRect.x - healthBarX - 4f;
+            Rect healthBarRect = new Rect(healthBarX, healthBarY, healthBarW, healthBarH);
             float healthFrac = prisoner.health / 100f;
             Color healthColor = AccentUtil.GetStatColor(prisoner.health, false);
             UIUtil.DrawProgressBarColors(healthBarRect, healthFrac, healthBarBg, healthColor);
