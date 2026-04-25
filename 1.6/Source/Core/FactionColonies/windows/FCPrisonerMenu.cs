@@ -37,16 +37,23 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Title bar
-            Rect titleRect = new Rect(inRect.x, inRect.y, inRect.width, titleHeight);
+            // Title bar — reserve ~40px on the right for the "(N)" badge and truncate
+            // the title label instead of wrapping to a second line.
+            const float countBadgeW = 40f;
+            Rect titleRect = new Rect(inRect.x, inRect.y, inRect.width - countBadgeW, titleHeight);
+            Rect countRect = new Rect(titleRect.xMax, inRect.y, countBadgeW, titleHeight);
+
+            bool wordWrapBefore = Text.WordWrap;
+            Text.WordWrap = false;
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
             Widgets.Label(titleRect, "FCPrisonerWindowTitle".Translate(settlement.Name));
+            Text.WordWrap = wordWrapBefore;
 
             if (prisoners.Count > 0)
             {
                 Text.Anchor = TextAnchor.MiddleRight;
-                UIUtil.DrawColoredLabel(titleRect, "(" + prisoners.Count + ")", Color.gray);
+                UIUtil.DrawColoredLabel(countRect, "(" + prisoners.Count + ")", Color.gray);
             }
 
             // Divider

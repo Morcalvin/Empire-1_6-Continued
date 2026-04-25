@@ -2343,7 +2343,7 @@ namespace FactionColonies
             {
                 int count = faction.settlements[i].prisonerList?.Count ?? 0;
                 if (count == 0) continue;
-                contentH += sectionHeaderH + count * (PrisonerUtil.RowHeight + rowGap) + sectionGap;
+                contentH += sectionHeaderH + count * (PrisonerUtil.CompactRowHeight + rowGap) + sectionGap;
             }
 
             Rect viewRect = new Rect(innerX, tableY, innerW, tableH);
@@ -2386,9 +2386,9 @@ namespace FactionColonies
 
                 for (int j = 0; j < s.prisonerList.Count; j++)
                 {
-                    Rect rowBox = new Rect(0f, cy, scrollRect.width, PrisonerUtil.RowHeight);
-                    PrisonerUtil.DrawPrisonerRow(rowBox, s.prisonerList[j], s, altIndex++, null);
-                    cy += PrisonerUtil.RowHeight + rowGap;
+                    Rect rowBox = new Rect(0f, cy, scrollRect.width, PrisonerUtil.CompactRowHeight);
+                    PrisonerUtil.DrawPrisonerRowCompact(rowBox, s.prisonerList[j], s, altIndex++, null);
+                    cy += PrisonerUtil.CompactRowHeight + rowGap;
                 }
 
                 cy += sectionGap;
