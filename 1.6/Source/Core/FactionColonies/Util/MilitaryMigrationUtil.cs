@@ -39,8 +39,8 @@ namespace FactionColonies
                 if (settlement is null) continue;
                 var comp = settlement.MilitaryComp;
                 if (comp is null) continue;
-                if (comp.militaryBusy) return true;
-                if (comp.isUnderAttack) return true;
+                if (comp._legacyMilitaryBusy) return true;
+                if (comp._legacyIsUnderAttack) return true;
                 if (comp.activeWaves is object && comp.activeWaves.Count > 0) return true;
             }
 
@@ -84,9 +84,9 @@ namespace FactionColonies
 
                 // Offensive op in flight (Traveling phase): comp has militaryJob set to a
                 // handler-driven job (Raid / Capture / Enslave) and a pending arrival event.
-                if (comp.militaryBusy && comp.militaryJob is object && comp.militaryJob.Handler is object)
+                if (comp._legacyMilitaryBusy && comp._legacyMilitaryJob is object && comp._legacyMilitaryJob.Handler is object)
                 {
-                    FCEvent arrival = FindPendingArrivalEvent(faction, settlement.Tile, comp.militaryJob);
+                    FCEvent arrival = FindPendingArrivalEvent(faction, settlement.Tile, comp._legacyMilitaryJob);
                     if (arrival is object)
                     {
                         MilitaryOperation op = ReconstructOffensiveOp(manager, settlement, comp, arrival);
@@ -98,8 +98,8 @@ namespace FactionColonies
                         }
                     }
                 }
-                // Offensive op in cooldown: comp.militaryJob = Cooldown + cooldownMilitary event.
-                else if (comp.militaryBusy && comp.militaryJob == MilitaryJobDefOf.Cooldown)
+                // Offensive op in cooldown: comp._legacyMilitaryJob = Cooldown + cooldownMilitary event.
+                else if (comp._legacyMilitaryBusy && comp._legacyMilitaryJob == MilitaryJobDefOf.Cooldown)
                 {
                     FCEvent cooldown = faction.FindEventByDefAndLocation(FCEventDefOf.cooldownMilitary, settlement.Tile);
                     if (cooldown is object)
@@ -113,9 +113,17 @@ namespace FactionColonies
                         }
                     }
                 }
+                // Deploy op: handler-less, no FCEvent. Squad is physically on a player map.
+                // Pre-Phase-6 the squad's isDeployed flag tracked this; with the legacy field
+                // gone we rely on comp._legacyMilitaryJob = Deploy to reconstruct the op.
+                else if (comp._legacyMilitaryBusy && comp._legacyMilitaryJob == MilitaryJobDefOf.Deploy)
+                {
+                    MilitaryOperation op = ReconstructDeployOp(manager, settlement, comp);
+                    if (op is object) migratedCount++;
+                }
 
-                // Defensive warning pending: comp.isUnderAttack + settlementBeingAttacked event.
-                if (comp.isUnderAttack)
+                // Defensive warning pending: comp._legacyIsUnderAttack + settlementBeingAttacked event.
+                if (comp._legacyIsUnderAttack)
                 {
                     FCEvent warning = faction.FindEventByDefAndLocation(FCEventDefOf.settlementBeingAttacked, settlement.Tile);
                     if (warning is object && warning.linkedOperationId < 0)
@@ -166,19 +174,19 @@ namespace FactionColonies
             WorldSettlementFC home, WorldObjectComp_SettlementMilitary comp, FCEvent arrival)
         {
             // Resolve target world object from the comp's recorded location.
-            WorldObject target = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(comp.militaryLocation);
-            if (target is null) target = Find.WorldObjects.SettlementAt(comp.militaryLocation);
+            WorldObject target = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(comp._legacyMilitaryLocation);
+            if (target is null) target = Find.WorldObjects.SettlementAt(comp._legacyMilitaryLocation);
             if (target is null) return null;
 
             int newId = manager.nextOperationId++;
-            var op = new MilitaryOperation(newId, comp.militaryJob, comp.militaryLocation, target);
+            var op = new MilitaryOperation(newId, comp._legacyMilitaryJob, comp._legacyMilitaryLocation, target);
             op.phase = MilitaryOperationPhase.Traveling;
             op.nextPhaseTick = arrival.timeTillTrigger;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = home;
             op.aggressor.squad = comp.militarySquad;
             op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSettlement(home, isAttacking: true);
-            op.defender.faction = comp.militaryEnemy;
+            op.defender.faction = comp._legacyMilitaryEnemy;
             manager.Register(op);
             return op;
         }
@@ -190,6 +198,22 @@ namespace FactionColonies
             var op = new MilitaryOperation(newId, MilitaryJobDefOf.Cooldown, home.Tile, home);
             op.phase = MilitaryOperationPhase.CooldownPending;
             op.nextPhaseTick = cooldown.timeTillTrigger;
+            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.homeSettlement = home;
+            op.aggressor.squad = comp.militarySquad;
+            manager.Register(op);
+            return op;
+        }
+
+        private static MilitaryOperation ReconstructDeployOp(MilitaryOperationManager manager,
+            WorldSettlementFC home, WorldObjectComp_SettlementMilitary comp)
+        {
+            int newId = manager.nextOperationId++;
+            // Old saves stored comp._legacyMilitaryLocation as currentMap.Index (a buggy int cast that
+            // didn't match any real tile). Use the home settlement's tile instead — the squad's
+            // physical map presence is tracked by the spawned pawns, not by the op's targetTile.
+            var op = new MilitaryOperation(newId, MilitaryJobDefOf.Deploy, home.Tile, home);
+            op.phase = MilitaryOperationPhase.Engaged;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = home;
             op.aggressor.squad = comp.militarySquad;

@@ -63,20 +63,14 @@ namespace FactionColonies
             }
 
             equippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
-            squad.isDeployed = true;
             squad.orderLocation = dropPosition;
-            squad.timeDeployed = Find.TickManager.TicksGame;
             Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), "FCDeploymentSuccessDesc".Translate(settlement.Name, currentMap.Parent.LabelCap), LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
 
-            settlement.MilitaryComp.SendMilitary(currentMap.Index, MilitaryJobDefOf.Deploy, 1, null);
-            LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);
+            // Phase 6: Deploy is a manager op now. CreateDeployOp registers the squad, sets
+            // phase=Engaged, and fires LifecycleRegistry.InvokeOnSquadDeployed for us.
+            FactionCache.MilitaryManager?.CreateDeployOp(settlement, currentMap.Tile);
 
-            if (settlement.MilitaryComp.militarySquad != squad)
-            {
-#pragma warning disable 0618 // Deploy is a handler-less state job; no MilitaryOperation exists, so legacy hook is the only path
-                LifecycleRegistry.InvokeOnSquadDeployed(settlement, MilitaryJobDefOf.Deploy, true);
-#pragma warning restore 0618
-            }
+            LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);
         }
 
         /// <summary>

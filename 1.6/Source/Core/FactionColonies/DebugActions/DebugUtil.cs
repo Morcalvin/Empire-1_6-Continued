@@ -515,14 +515,13 @@ namespace FactionColonies
                             IntVec3 dropPosition = UI.MouseCell();
                             parms.spawnCenter = dropPosition;
 
-                            settlement.MilitaryComp.militarySquad.isDeployed = true;
                             settlement.MilitaryComp.militarySquad.orderLocation = dropPosition;
-                            settlement.MilitaryComp.militarySquad.timeDeployed = Find.TickManager.TicksGame;
 
                             var debugEquippedPawns = settlement.MilitaryComp.militarySquad.AllEquippedMercenaryPawns.ToList();
                             PawnsArrivalModeWorkerUtility.DropInDropPodsNearSpawnCenter(parms, debugEquippedPawns);
                             debugEquippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
-                            settlement.MilitaryComp.militarySquad.isDeployed = true;
+                            // Phase 6: register the deploy op so squad.IsDeployed reflects the state.
+                            FactionCache.MilitaryManager?.CreateDeployOp(settlement, Find.CurrentMap.Tile);
                             DebugTools.curTool = null;
                         });
                     }));

@@ -151,8 +151,10 @@ namespace FactionColonies
                 LogUtil.Error($"Error when destroying pawns in DespawnSquad: {e}");
             }
 
-            squad.InitiateCooldownEvent();
-            squad.isDeployed = false;
+            // Resolve the squad's op directly. Skip cooldown — debug action wants the squad
+            // immediately freed.
+            MilitaryOperation op = squad.Operation;
+            if (op is object) FactionCache.MilitaryManager?.Unregister(op);
             FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(squad);
         }
 

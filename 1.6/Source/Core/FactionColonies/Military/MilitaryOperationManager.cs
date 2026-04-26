@@ -310,6 +310,33 @@ namespace FactionColonies
             // No replacement defender — op.defender keeps its target-settlement default.
         }
 
+        /// <summary>
+        /// Creates a "deploy" operation: the empire's squad is spawned on a player map (typically
+        /// the home colony) for direct combat support. Unlike offensive ops, there's no arrival
+        /// event — the squad is already physical when this fires. The op stays in <c>Engaged</c>
+        /// until the squad's lord finalizes (via <see cref="MilitaryOperation.CompleteBattle"/>),
+        /// then transitions through cooldown like any other op.
+        /// </summary>
+        public MilitaryOperation CreateDeployOp(WorldSettlementFC homeSettlement, PlanetTile deployTile)
+        {
+            if (homeSettlement is null) throw new ArgumentNullException(nameof(homeSettlement));
+
+            int newId = nextOperationId++;
+            // Use the current map's WorldObject as the targetObject if present, otherwise null.
+            WorldObject targetObject = Find.WorldObjects.WorldObjectAt<WorldObject>(deployTile);
+            var op = new MilitaryOperation(newId, MilitaryJobDefOf.Deploy, deployTile, targetObject);
+            op.phase = MilitaryOperationPhase.Engaged;
+            op.phaseStartedTick = Find.TickManager.TicksGame;
+            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.homeSettlement = homeSettlement;
+            op.aggressor.squad = homeSettlement.MilitaryComp?.militarySquad;
+            // No defender — Deploy isn't an attack operation, just squad presence.
+
+            Register(op);
+            LifecycleRegistry.InvokeOnSquadDeployed(op);
+            return op;
+        }
+
         /// <summary>Get-or-create a <see cref="BattlefieldContext"/> for <paramref name="tile"/>.</summary>
         public BattlefieldContext GetOrCreateBattlefield(PlanetTile tile)
         {

@@ -119,15 +119,10 @@ namespace FactionColonies
                     op.defender.force = newForce;
                     op.externalDefenderSource = null;
 
-                    // Apply foreign-defender legacy DefendFriendlySettlement marker for back-compat.
-                    var defComp = settlementOfMilitaryForce.MilitaryComp;
-                    if (defComp is object)
-                    {
-                        defComp.militaryBusy = true;
-                        defComp.militaryJob = MilitaryJobDefOf.DefendFriendlySettlement;
-                        defComp.militaryLocation = evt.location;
-                        defComp.militaryEnemy = op.aggressor?.faction;
-                    }
+                    // The foreign defender's DefendFriendlySettlement commitment is now derived
+                    // from op.defender.homeSettlement via the comp's computed properties
+                    // (militaryBusy / militaryJob / militaryLocation / militaryEnemy). No shadow
+                    // writes needed.
 
                     Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
                         settlementOfMilitaryForce.Name, homeSettlement?.Name ?? "", newForce.militaryLevel),
@@ -139,12 +134,8 @@ namespace FactionColonies
                 evt.militaryForceDefending = newForce;
                 evt.externalDefenderSource = null;
 
-                // Sync target comp shadows so legacy readers see the right defender force.
-                WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
-                if (target?.MilitaryComp is object)
-                {
-                    target.MilitaryComp.defenderForce = newForce;
-                }
+                // comp.defenderForce is now a computed property reading from op.defender.force,
+                // so updating op.defender.force above is sufficient — no shadow write needed.
                 return;
             }
 
@@ -182,12 +173,7 @@ namespace FactionColonies
                 evt.militaryForceDefending = op.defender.force;
                 evt.externalDefenderSource = defender.WorldObject;
 
-                WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
-                if (target?.MilitaryComp is object)
-                {
-                    target.MilitaryComp.defenderForce = op.defender.force;
-                }
-
+                // comp.defenderForce is computed from op.defender.force.
                 Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),
                     MessageTypeDefOf.NeutralEvent);
                 return;
@@ -212,19 +198,9 @@ namespace FactionColonies
                 return;
             }
 
-            // Foreign Empire settlement being replaced: clear its DefendFriendlySettlement marker.
-            WorldSettlementFC currentDefender = op.defender?.homeSettlement;
-            if (currentDefender is object && currentDefender != homeSettlement)
-            {
-                var defComp = currentDefender.MilitaryComp;
-                if (defComp is object)
-                {
-                    defComp.militaryBusy = false;
-                    defComp.militaryJob = MilitaryJobDefOf.Undefined;
-                    defComp.militaryLocation = PlanetTile.Invalid;
-                    defComp.militaryEnemy = null;
-                }
-            }
+            // Foreign Empire settlement being replaced: clearing op.defender.homeSettlement
+            // will be the caller's responsibility (it sets a new defender). The comp's computed
+            // properties auto-update.
         }
 
         public static MilitaryForce ReturnDefendingMilitaryForce(FCEvent evt)
@@ -287,7 +263,7 @@ namespace FactionColonies
                 settlementOfMilitaryForce, homeDefendingForce: tmpMilitaryForce);
 
             if (target?.MilitaryComp is null) return;
-            target.MilitaryComp.defenderForce = evt.militaryForceDefending;
+            // comp.defenderForce is computed from manager state — no shadow write needed.
 
             if (settlementOfMilitaryForce == homeSettlement)
             {
@@ -330,11 +306,7 @@ namespace FactionColonies
             evt.externalDefenderSource = defender.WorldObject;
             defender.OnDefenseStarted(evt.settlementFCDefending);
 
-            WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
-            if (target?.MilitaryComp is object)
-            {
-                target.MilitaryComp.defenderForce = evt.militaryForceDefending;
-            }
+            // comp.defenderForce is now a computed property — no shadow write needed.
 
             Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),
                 MessageTypeDefOf.NeutralEvent);

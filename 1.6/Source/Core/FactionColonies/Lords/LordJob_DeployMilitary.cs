@@ -237,8 +237,9 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Idempotent finalization: triggers cooldown, clears deployment state, and
-        /// despawns any orphaned squad pawns still on the map (e.g. downed mercs).
+        /// Idempotent finalization: completes the deploy op (which schedules the squad's cooldown
+        /// event and fires lifecycle hooks), and despawns any orphaned squad pawns still on the
+        /// map (e.g. downed mercs).
         /// </summary>
         private void FinalizeDeployment()
         {
@@ -247,8 +248,17 @@ namespace FactionColonies
 
             if (squad is object)
             {
-                squad.InitiateCooldownEvent();
-                squad.isDeployed = false;
+                // Find the deploy op and complete it. This schedules the cooldown event linked
+                // to the op (which on fire transitions the op to Resolved and unregisters it),
+                // and fires LifecycleRegistry.OnBattleResolved → OnSquadRecalled.
+                MilitaryOperation op = squad.Operation;
+                if (op is object && op.kind == MilitaryJobDefOf.Deploy
+                    && op.phase == MilitaryOperationPhase.Engaged)
+                {
+                    // Deploy isn't a battle — synthesize a result so CompleteBattle's
+                    // victory-flag computation has something to read.
+                    op.CompleteBattle(new BattleResult { winner = BattleWinner.Defender });
+                }
                 FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(squad);
 
                 // Despawn orphaned downed/stuck mercs still on the map

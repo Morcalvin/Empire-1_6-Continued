@@ -17,9 +17,7 @@ namespace FactionColonies
         public List<Mercenary> mercenaries = new List<Mercenary>();
         public List<Mercenary> animals = new List<Mercenary>();
         public WorldSettlementFC settlement;
-        public bool isDeployed;
         public bool isExtraSquad;
-        public int timeDeployed;
         /// <summary>Current target tile for the squad's deployment lord. Initially set to the
         /// drop position by <c>MilitaryUtil.SpawnSquad</c>; updated when the player issues a
         /// "move here" command via <see cref="DeployedMilitaryCommandMenu"/>.</summary>
@@ -46,7 +44,9 @@ namespace FactionColonies
             Scribe_Values.Look(ref name, "name");
             Scribe_Collections.Look(ref mercenaries, "mercenaries", LookMode.Deep);
             Scribe_Collections.Look(ref animals, "animals", LookMode.Deep);
-            Scribe_Values.Look(ref isDeployed, "isDeployed");
+            // isDeployed/timeDeployed: legacy fields removed. isDeployed/timeDeployed are now
+            // computed properties derived from the squad's MilitaryOperation. Old saves' XML
+            // values are silently ignored on load.
             Scribe_Values.Look(ref isExtraSquad, "isExtraSquad");
             Scribe_Values.Look(ref hitMap, "hitMap");
             Scribe_References.Look(ref outfit, "outfit");
@@ -55,7 +55,6 @@ namespace FactionColonies
             Scribe_Collections.Look(ref UsedApparelList, "UsedApparelList", LookMode.Reference);
             Scribe_References.Look(ref settlement, "Settlement");
             Scribe_Values.Look(ref tickChanged, "tickChanged");
-            Scribe_Values.Look(ref timeDeployed, "timeDeployed", -1);
             Scribe_Values.Look(ref orderLocation, "orderLocation");
             Scribe_Values.Look(ref militaryOrder, "militaryOrder", MilitaryOrder.Undefined);
             Scribe_Values.Look(ref hasLord, "hasLord");
@@ -103,10 +102,18 @@ namespace FactionColonies
         /// and reflects the canonical op state.</summary>
         public MilitaryOperation Operation => FactionCache.MilitaryManager?.GetOpForSquad(this);
 
-        /// <summary>True when this squad is in any active op (offensive, defensive, or cooldown).
-        /// Falls back to the legacy <see cref="isDeployed"/> flag during the Phase 2 transition
-        /// window when not all entry points have been migrated yet.</summary>
-        public bool IsBusy => Operation is object || isDeployed;
+        /// <summary>True when this squad is in any active op (offensive, defensive, deploy, or cooldown).</summary>
+        public bool IsBusy => Operation is object;
+
+        /// <summary>True when the squad has an active <c>Deploy</c> op in <c>Engaged</c> phase
+        /// (squad pawns are deployed on a player map). Replaces the legacy <c>isDeployed</c> field.</summary>
+        public bool isDeployed => Operation is object
+                               && Operation.kind == MilitaryJobDefOf.Deploy
+                               && Operation.phase == MilitaryOperationPhase.Engaged;
+
+        /// <summary>Tick at which the squad's current Deploy op started, or -1 if no deploy op active.
+        /// Replaces the legacy <c>timeDeployed</c> field.</summary>
+        public int timeDeployed => isDeployed ? Operation.phaseStartedTick : -1;
 
         public WorldSettlementFC getSettlement
         {
@@ -745,15 +752,5 @@ namespace FactionColonies
             return null;
         }
 
-        /// <summary>
-        /// Makes the squad go into cooldown. Only works on a settlement's main squad while deployed.
-        /// </summary>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool InitiateCooldownEvent()
-        {
-            if (isExtraSquad || !isDeployed) return false;
-            settlement?.MilitaryComp?.CooldownMilitaryFinal();
-            return true;
-        }
     }
 }
