@@ -41,7 +41,9 @@ namespace FactionColonies
                 if (comp is null) continue;
                 if (comp._legacyMilitaryBusy) return true;
                 if (comp._legacyIsUnderAttack) return true;
-                if (comp.activeWaves is object && comp.activeWaves.Count > 0) return true;
+                if (comp._legacyActiveWaves is object && comp._legacyActiveWaves.Count > 0) return true;
+                if (comp._legacyAttackers is object && comp._legacyAttackers.Count > 0) return true;
+                if (comp._legacyDefenders is object && comp._legacyDefenders.Count > 0) return true;
             }
 
             // Also check for any pending military events. If a pre-refactor save has events but
@@ -136,12 +138,31 @@ namespace FactionColonies
                             migratedCount++;
                         }
                     }
-                    else if (comp.activeWaves is object && comp.activeWaves.Count > 0)
+                    else if (comp._legacyActiveWaves is object && comp._legacyActiveWaves.Count > 0)
                     {
                         // Mid-battle save: warning event already consumed, battle in progress
                         // on the comp. Reconstruct an op so EndBattle can fire CompleteBattle on it.
                         MilitaryOperation op = ReconstructEngagedDefensiveOp(manager, settlement, comp);
                         if (op is object) migratedCount++;
+                    }
+                }
+
+                // Drain the comp's legacy battle pawn / wave / counter buffers into the
+                // BattlefieldContext for this settlement's tile (Phase 7 storage). Runs whenever
+                // any of the legacy collections are populated, regardless of whether an op was
+                // reconstructed above — covers the mid-battle save case where waves still hold
+                // pawns even if the op state is otherwise clean.
+                if (HasLegacyBattleState(comp))
+                {
+                    BattlefieldContext bf = manager.GetOrCreateBattlefield(settlement.Tile);
+                    if (bf is object)
+                    {
+                        if (comp._legacyAttackers is object) bf.attackerPawns.AddRange(comp._legacyAttackers);
+                        if (comp._legacyDefenders is object) bf.defenderPawns.AddRange(comp._legacyDefenders);
+                        if (comp._legacyDraftedNPCs is object) bf.draftedNPCs.AddRange(comp._legacyDraftedNPCs);
+                        if (comp._legacyActiveWaves is object) bf.activeWaves.AddRange(comp._legacyActiveWaves);
+                        bf.battleMapInitialized = comp._legacyBattleMapInitialized;
+                        bf.initialDefenderCount = comp._legacyInitialDefenderCount;
                     }
                 }
             }
@@ -239,12 +260,24 @@ namespace FactionColonies
             return op;
         }
 
+        private static bool HasLegacyBattleState(WorldObjectComp_SettlementMilitary comp)
+        {
+            return (comp._legacyAttackers is object && comp._legacyAttackers.Count > 0)
+                || (comp._legacyDefenders is object && comp._legacyDefenders.Count > 0)
+                || (comp._legacyDraftedNPCs is object && comp._legacyDraftedNPCs.Count > 0)
+                || (comp._legacyActiveWaves is object && comp._legacyActiveWaves.Count > 0)
+                || comp._legacyBattleMapInitialized
+                || comp._legacyInitialDefenderCount > 0;
+        }
+
         private static MilitaryOperation ReconstructEngagedDefensiveOp(MilitaryOperationManager manager,
             WorldSettlementFC settlement, WorldObjectComp_SettlementMilitary comp)
         {
             // Mid-battle: pull force info from the first active wave. EndBattle will fire
             // CompleteBattle on this op when the battle resolves naturally.
-            DefenseWave wave = comp.activeWaves.Count > 0 ? comp.activeWaves[0] : null;
+            DefenseWave wave = comp._legacyActiveWaves != null && comp._legacyActiveWaves.Count > 0
+                ? comp._legacyActiveWaves[0]
+                : null;
             if (wave is null) return null;
 
             int newId = manager.nextOperationId++;
