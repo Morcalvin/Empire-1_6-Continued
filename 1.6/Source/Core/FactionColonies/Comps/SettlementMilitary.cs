@@ -1449,8 +1449,49 @@ namespace FactionColonies
                 {
                     LoseBattle(faction);
                 }
-                LogUtil.Message("WorldSettlementFC.EndBattle: Handling foreign defenders...");
-                CooldownMilitary(remaining, won);
+
+                // Phase 2: walk defensive ops at this tile, fire CompleteBattle on each.
+                // Each op fires its own LifecycleRegistry.OnBattleResolved, schedules its own
+                // cooldown event linked to itself, and (via FactionFC's hook) updates the
+                // foreign defender's comp shadow to Cooldown. This replaces the legacy per-wave
+                // CooldownMilitary loop.
+                MilitaryOperationManager manager = FactionCache.MilitaryManager;
+                if (manager is object)
+                {
+                    BattleResult resultForOps = battleResult ?? new BattleResult
+                    {
+                        winner = won ? BattleWinner.Defender : BattleWinner.Attacker
+                    };
+                    var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
+                    if (opsAtTile.Count > 0)
+                    {
+                        // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
+                        var snapshot = new List<MilitaryOperation>(opsAtTile);
+                        foreach (MilitaryOperation op in snapshot)
+                        {
+                            if (op is null) continue;
+                            if (!op.IsDefensive) continue;
+                            if (op.phase == MilitaryOperationPhase.CooldownPending
+                                || op.phase == MilitaryOperationPhase.Resolved) continue;
+                            try { op.CompleteBattle(resultForOps); }
+                            catch (Exception innerEx)
+                            {
+                                LogUtil.Error($"EndBattle: op id={op.id} threw in CompleteBattle: {innerEx}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Legacy fallback: no ops registered (loaded mid-battle from pre-refactor
+                        // save). Run the old per-wave settlement cooldown so existing flow works.
+                        LogUtil.Message("WorldSettlementFC.EndBattle: No manager ops at tile; falling back to legacy CooldownMilitary.");
+                        CooldownMilitary(remaining, won);
+                    }
+                }
+                else
+                {
+                    CooldownMilitary(remaining, won);
+                }
             }
             catch (Exception e)
             {
@@ -1458,7 +1499,6 @@ namespace FactionColonies
             }
             isUnderAttack = false;
             battleMapInitialized = false;
-            LifecycleRegistry.InvokeOnBattleResolved(WorldSettlement, MilitaryJobDefOf.DefendFriendlySettlement, won, battleResult);
         }
 
         private void ClearAttackState()
@@ -1911,7 +1951,9 @@ namespace FactionColonies
             }
 
             bool victory = result != null && result.AttackerVictory;
+#pragma warning disable 0618 // legacy ProcessMilitaryEvent path; only fires for pre-refactor save data without linkedOperationId
             LifecycleRegistry.InvokeOnBattleResolved(WorldSettlement, resolvedJob, victory, result);
+#pragma warning restore 0618
             CooldownMilitaryFinal();
         }
 
@@ -1924,7 +1966,9 @@ namespace FactionColonies
             militaryLocation = PlanetTile.Invalid;
             militaryEnemy = null;
 
+#pragma warning disable 0618 // legacy ReturnMilitary path; only fires for pre-refactor save data
             LifecycleRegistry.InvokeOnSquadRecalled(WorldSettlement);
+#pragma warning restore 0618
 
             if (militarySquad != null)
                 FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(militarySquad);

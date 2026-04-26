@@ -1,4 +1,3 @@
-﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using FactionColonies.util;
@@ -10,6 +9,13 @@ namespace FactionColonies
 {
     public static class MilitaryUtilFC
     {
+        /// <summary>
+        /// Schedules a defensive operation against an Empire settlement: creates a
+        /// <see cref="MilitaryOperation"/> via the manager, runs auto-defender selection,
+        /// and queues the 24-hour <c>settlementBeingAttacked</c> warning event linked back
+        /// to the op. Returns true on success, false if the attack was rejected (already
+        /// under attack or no comp).
+        /// </summary>
         public static bool AttackPlayerSettlement(MilitaryForce attackingForce, WorldSettlementFC settlement, Faction enemyFaction)
         {
             if (settlement?.MilitaryComp is null)
@@ -35,258 +41,190 @@ namespace FactionColonies
                 return false;
             }
 
-            FactionFC factionfc = FactionCache.FactionComp;
-
-            FCEvent tmp = FCEventMaker.MakeEvent(FCEventDefOf.settlementBeingAttacked);
-            tmp.hasCustomDescription = true;
-            tmp.timeTillTrigger = Find.TickManager.TicksGame + GenDate.TicksPerDay;
-            tmp.location = settlement.Tile;
-            tmp.hasDestination = true;
-            tmp.customDescription = "FCSettlementAboutToBeAttacked".Translate(settlement.Name, enemyFaction.Name);
-            tmp.militaryForceDefending = MilitaryForce.CreateMilitaryForceFromSettlement(settlement);
-            tmp.militaryForceDefendingFaction = FactionCache.PlayerColonyFaction;
-            tmp.militaryForceAttacking = attackingForce;
-            tmp.militaryForceAttackingFaction = enemyFaction;
-            tmp.settlementFCDefending = settlement;
-
-            WorldSettlementFC highest = null;
-
-            foreach (WorldSettlementFC settlementCompare in factionfc.settlements)
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is null)
             {
-                if (settlementCompare == settlement) continue;
-
-                var mc = settlementCompare.MilitaryComp;
-                if (mc == null) continue;
-
-                if (mc.autoDefend && !mc.militaryBusy && !mc.isUnderAttack
-                    && DefenseValidatorRegistry.CanDefend(settlementCompare, settlement)
-                    && (highest == null || settlementCompare.settlementMilitaryLevel > highest.settlementMilitaryLevel))
-                {
-                    highest = settlementCompare;
-                }
+                LogUtil.Error("AttackPlayerSettlement: MilitaryManager unavailable.");
+                return false;
             }
 
-            // Also check external auto-defenders (e.g., defensive outposts)
-            IAutoDefender bestExternalDefender = AutoDefenderRegistry.FindBestDefender(settlement.Tile, 0);
-
-            if (highest != null && highest.settlementMilitaryLevel > settlement.settlementMilitaryLevel)
-            {
-                int externalLevel = bestExternalDefender != null ? bestExternalDefender.MilitaryLevel : 0;
-                if (highest.settlementMilitaryLevel >= externalLevel)
-                {
-                    ChangeDefendingMilitaryForce(tmp, highest);
-                }
-                else if (bestExternalDefender != null)
-                {
-                    tmp.militaryForceDefending = bestExternalDefender.CreateDefendingForce();
-                    tmp.externalDefenderSource = bestExternalDefender.WorldObject;
-                    bestExternalDefender.OnDefenseStarted(settlement);
-                    tmp.customDescription += "\n\n" + "FCExternalDefenderAutoAssigned".Translate(bestExternalDefender.WorldObject.LabelCap);
-                }
-            }
-            else if (bestExternalDefender != null && bestExternalDefender.MilitaryLevel > settlement.settlementMilitaryLevel)
-            {
-                tmp.militaryForceDefending = bestExternalDefender.CreateDefendingForce();
-                tmp.externalDefenderSource = bestExternalDefender.WorldObject;
-                bestExternalDefender.OnDefenseStarted(settlement);
-                tmp.customDescription += "\n\n" + "FCExternalDefenderAutoAssigned".Translate(bestExternalDefender.WorldObject.LabelCap);
-            }
-
-            settlement.MilitaryComp.defenderForce = tmp.militaryForceDefending;
-            settlement.MilitaryComp.attackerForce = tmp.militaryForceAttacking;
-
-            FactionCache.FactionComp.AddEvent(tmp);
-
-            double winChance = SimulateBattleFc.CalculateDefenderWinChance(tmp.militaryForceAttacking, tmp.militaryForceDefending);
-            tmp.customDescription += "\n\n" + "FCBattleForecast".Translate(
-                tmp.militaryForceAttacking.forceRemaining,
-                tmp.militaryForceAttacking.militaryEfficiency.ToString("0.##"),
-                tmp.militaryForceDefending.DefensivePower,
-                tmp.militaryForceDefending.militaryEfficiency.ToString("0.##"),
-                (winChance * 100).ToString("F0"));
-            if (FCSettings.battleMode == BattleMode.Hybrid)
-                tmp.customDescription += "\n\n" + "FCSettlementAttackHybridHint".Translate();
-            settlement.MilitaryComp.isUnderAttack = true;
-
-            Find.LetterStack.ReceiveLetter("FCSettlementInDanger".Translate(), tmp.customDescription,
-                LetterDefOf.ThreatBig, new LookTargets(Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(settlement.Tile)));
-
-            return true;
+            // Manager handles op creation, auto-defender selection, warning event scheduling
+            // (with linkedOperationId), and the "settlement in danger" letter.
+            MilitaryOperation op = manager.CreateDefensiveOp(settlement, attackingForce, enemyFaction);
+            return op is object;
         }
 
         /// <summary>
         /// Attacks an external <see cref="IRaidTarget"/> registered via <see cref="RaidTargetRegistry"/>.
-        /// Creates a <c>settlementBeingAttacked</c> event with the same 24-hour warning as settlement raids.
-        /// Auto-defend logic checks both Empire settlements and <see cref="AutoDefenderRegistry"/> entries.
+        /// Routes through <see cref="MilitaryOperationManager.CreateDefensiveOp"/> with the target's
+        /// world object as the op's <c>targetObject</c>. The 24-hour warning, auto-defender selection,
+        /// and forecast letter all happen inside the manager.
         /// </summary>
         public static void AttackRaidTarget(MilitaryForce attackingForce, IRaidTarget target, Faction enemyFaction)
         {
-            FactionFC factionfc = FactionCache.FactionComp;
-
-            FCEvent tmp = FCEventMaker.MakeEvent(FCEventDefOf.settlementBeingAttacked);
-            tmp.hasCustomDescription = true;
-            tmp.timeTillTrigger = Find.TickManager.TicksGame + GenDate.TicksPerDay;
-            tmp.location = target.Tile;
-            tmp.hasDestination = true;
-            tmp.customDescription = "FCSettlementAboutToBeAttacked".Translate(target.Name, enemyFaction.Name);
-
-            // Create a default defending force from the target's military level
-            double defLevel = Math.Max(1, target.MilitaryLevel);
-            double defEfficiency = 1.0;
-            defEfficiency *= factionfc.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending);
-            defLevel += factionfc.GetStatValue(FCStatDefOf.militaryLevelBonusDefending);
-            tmp.militaryForceDefending = new MilitaryForce(defLevel, defEfficiency, null, FactionCache.PlayerColonyFaction);
-            tmp.militaryForceDefendingFaction = FactionCache.PlayerColonyFaction;
-            tmp.militaryForceAttacking = attackingForce;
-            tmp.militaryForceAttackingFaction = enemyFaction;
-            tmp.settlementFCDefending = target.WorldObject;
-
-            // Check Empire settlements for auto-defend
-            WorldSettlementFC highestSettlement = null;
-            foreach (WorldSettlementFC settlementCompare in factionfc.settlements)
+            if (target?.WorldObject is null) return;
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is null)
             {
-                if (settlementCompare.MilitaryComp != null &&
-                    settlementCompare.MilitaryComp.autoDefend && !settlementCompare.MilitaryComp.militaryBusy &&
-                    !settlementCompare.MilitaryComp.isUnderAttack &&
-                    (highestSettlement == null || settlementCompare.settlementMilitaryLevel > highestSettlement.settlementMilitaryLevel))
-                {
-                    highestSettlement = settlementCompare;
-                }
+                LogUtil.Error("AttackRaidTarget: MilitaryManager unavailable.");
+                return;
             }
 
-            // Check external auto-defenders
-            IAutoDefender bestExternalDefender = AutoDefenderRegistry.FindBestDefender(target.Tile, 0);
-
-            // Pick the stronger defender (Empire settlement vs external)
-            int externalLevel = bestExternalDefender != null ? bestExternalDefender.MilitaryLevel : 0;
-
-            if (highestSettlement != null && highestSettlement.settlementMilitaryLevel >= externalLevel)
+            MilitaryOperation op = manager.CreateDefensiveOp(target.WorldObject, attackingForce, enemyFaction);
+            if (op is object)
             {
-                // Empire settlement defends — assign its force and mark it as busy
-                tmp.militaryForceDefending = MilitaryForce.CreateMilitaryForceFromSettlement(highestSettlement);
-                highestSettlement.MilitaryComp?.SendMilitary(target.Tile, MilitaryJobDefOf.DefendFriendlySettlement, -1, enemyFaction);
+                target.IsUnderAttack = true;
             }
-            else if (bestExternalDefender != null)
-            {
-                tmp.militaryForceDefending = bestExternalDefender.CreateDefendingForce();
-                tmp.externalDefenderSource = bestExternalDefender.WorldObject;
-                bestExternalDefender.OnDefenseStarted(target.WorldObject);
-                tmp.customDescription += "\n\n" + "FCExternalDefenderAutoAssigned".Translate(bestExternalDefender.WorldObject.LabelCap);
-            }
-
-            target.IsUnderAttack = true;
-            factionfc.AddEvent(tmp);
-
-            double winChance = SimulateBattleFc.CalculateDefenderWinChance(tmp.militaryForceAttacking, tmp.militaryForceDefending);
-            tmp.customDescription += "\n\n" + "FCBattleForecast".Translate(
-                tmp.militaryForceAttacking.forceRemaining,
-                tmp.militaryForceAttacking.militaryEfficiency.ToString("0.##"),
-                tmp.militaryForceDefending.DefensivePower,
-                tmp.militaryForceDefending.militaryEfficiency.ToString("0.##"),
-                (winChance * 100).ToString("F0"));
-
-            Find.LetterStack.ReceiveLetter("FCSettlementInDanger".Translate(), tmp.customDescription,
-                LetterDefOf.ThreatBig, new LookTargets(target.WorldObject));
         }
 
+        /// <summary>
+        /// Replaces the defending side of the op linked to <paramref name="evt"/> with a new
+        /// Empire settlement (<paramref name="settlementOfMilitaryForce"/>). If there's no linked
+        /// op (legacy save data), falls through to the pre-Phase-2 event-mutation path.
+        /// </summary>
         public static void ChangeDefendingMilitaryForce(FCEvent evt, WorldSettlementFC settlementOfMilitaryForce)
         {
             FactionFC factionfc = FactionCache.FactionComp;
-            MilitaryForce tmpMilitaryForce = null;
+            if (factionfc is null) return;
             WorldSettlementFC homeSettlement = factionfc.ReturnSettlementByLocation(evt.location);
-            if (evt.militaryForceDefending.homeSettlement != null
-                && settlementOfMilitaryForce == evt.militaryForceDefending.homeSettlement)
-            {
-                Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
-                return;
-            }
 
-            WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperation op = manager?.GetOp(evt.linkedOperationId);
 
-            if (evt.militaryForceDefending.homeSettlement != null
-                && evt.militaryForceDefending.homeSettlement != factionfc.ReturnSettlementByLocation(evt.location))
+            if (op is object)
             {
-                //if the forces defending aren't the forces belonging to the settlement
-                evt.militaryForceDefending.homeSettlement.MilitaryComp?.ReturnMilitary(false);
-            }
-            else if (evt.externalDefenderSource != null)
-            {
-                IAutoDefender autoDefender = AutoDefenderRegistry.FindByWorldObject(evt.externalDefenderSource);
-                autoDefender?.OnDefenseReplaced();
+                if (settlementOfMilitaryForce == op.defender?.homeSettlement)
+                {
+                    Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
+                    return;
+                }
+
+                // Release the previous defender's commitment (foreign settlement marker or external).
+                ReleaseCurrentDefender(op, homeSettlement);
+
+                MilitaryForce newForce;
+                if (settlementOfMilitaryForce == homeSettlement)
+                {
+                    newForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement);
+                    op.defender.homeSettlement = homeSettlement;
+                    op.defender.force = newForce;
+                    op.externalDefenderSource = null;
+                    Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
+                }
+                else
+                {
+                    MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
+                    newForce = MilitaryForce.CreateMilitaryForceFromSettlement(settlementOfMilitaryForce, homeDefendingForce: homeForce);
+                    op.defender.homeSettlement = settlementOfMilitaryForce;
+                    op.defender.force = newForce;
+                    op.externalDefenderSource = null;
+
+                    // Apply foreign-defender legacy DefendFriendlySettlement marker for back-compat.
+                    var defComp = settlementOfMilitaryForce.MilitaryComp;
+                    if (defComp is object)
+                    {
+                        defComp.militaryBusy = true;
+                        defComp.militaryJob = MilitaryJobDefOf.DefendFriendlySettlement;
+                        defComp.militaryLocation = evt.location;
+                        defComp.militaryEnemy = op.aggressor?.faction;
+                    }
+
+                    Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
+                        settlementOfMilitaryForce.Name, homeSettlement?.Name ?? "", newForce.militaryLevel),
+                        LetterDefOf.NeutralEvent);
+                }
+
+                // Mirror the new force onto the warning event so legacy comp.StartDefence (which
+                // reads evt.militaryForceDefending directly) sees the updated defender.
+                evt.militaryForceDefending = newForce;
                 evt.externalDefenderSource = null;
-            }
 
-            if (settlementOfMilitaryForce != homeSettlement)
-            {
-                tmpMilitaryForce =
-                    MilitaryForce.CreateMilitaryForceFromSettlement(
-                        factionfc.ReturnSettlementByLocation(evt.location), true);
-            }
-
-            factionfc.RemoveMilitaryTarget(evt.location);
-            evt.militaryForceDefending =
-                MilitaryForce.CreateMilitaryForceFromSettlement(settlementOfMilitaryForce,
-                    homeDefendingForce: tmpMilitaryForce);
-
-            if (target.MilitaryComp == null)
-            {
-                LogUtil.Warning($"ChangeDefendingMilitaryForce: target settlement {target.Name} has no MilitaryComp. Aborting.");
+                // Sync target comp shadows so legacy readers see the right defender force.
+                WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
+                if (target?.MilitaryComp is object)
+                {
+                    target.MilitaryComp.defenderForce = newForce;
+                }
                 return;
             }
-            target.MilitaryComp.defenderForce = evt.militaryForceDefending;
 
-            if (settlementOfMilitaryForce == homeSettlement)
-            {
-                //if home settlement is reseting to defense
-                Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
-            }
-            else
-            {
-                //if settlement is foreign
-                settlementOfMilitaryForce.MilitaryComp?.SendMilitary(evt.settlementFCDefending.Tile, MilitaryJobDefOf.DefendFriendlySettlement, -1, evt.militaryForceAttackingFaction);
-                Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch"
-                    .Translate(settlementOfMilitaryForce.Name,
-                        factionfc.ReturnSettlementByLocation(evt.location).Name,
-                        evt.militaryForceDefending.militaryLevel), LetterDefOf.NeutralEvent);
-            }
+            // Legacy fallback (no linked op — e.g. pre-refactor save mid-warning).
+            ChangeDefendingMilitaryForce_Legacy(evt, settlementOfMilitaryForce, factionfc, homeSettlement);
         }
 
+        /// <summary>
+        /// Replaces the op's defender with the given external <see cref="IAutoDefender"/>.
+        /// Falls back to the legacy event-mutation path when no linked op exists.
+        /// </summary>
         public static void ChangeDefendingToExternalForce(FCEvent evt, IAutoDefender defender)
         {
             FactionFC factionfc = FactionCache.FactionComp;
+            if (factionfc is null) return;
 
-            if (evt.externalDefenderSource != null && evt.externalDefenderSource == defender.WorldObject)
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperation op = manager?.GetOp(evt.linkedOperationId);
+
+            if (op is object)
             {
-                Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
+                if (op.externalDefenderSource is object && op.externalDefenderSource == defender.WorldObject)
+                {
+                    Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
+                    return;
+                }
+
+                ReleaseCurrentDefender(op, factionfc.ReturnSettlementByLocation(evt.location));
+
+                op.defender.homeSettlement = null;
+                op.defender.force = defender.CreateDefendingForce();
+                op.externalDefenderSource = defender.WorldObject;
+                defender.OnDefenseStarted(evt.settlementFCDefending ?? op.targetObject);
+
+                evt.militaryForceDefending = op.defender.force;
+                evt.externalDefenderSource = defender.WorldObject;
+
+                WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
+                if (target?.MilitaryComp is object)
+                {
+                    target.MilitaryComp.defenderForce = op.defender.force;
+                }
+
+                Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),
+                    MessageTypeDefOf.NeutralEvent);
                 return;
             }
 
-            // Clean up current defender
-            if (evt.militaryForceDefending.homeSettlement != null
-                && evt.militaryForceDefending.homeSettlement != factionfc.ReturnSettlementByLocation(evt.location))
+            // Legacy fallback.
+            ChangeDefendingToExternalForce_Legacy(evt, defender, factionfc);
+        }
+
+        /// <summary>
+        /// Clears the previous defender's commitment markers (foreign settlement's
+        /// DefendFriendlySettlement shadow or external auto-defender's OnDefenseReplaced).
+        /// </summary>
+        private static void ReleaseCurrentDefender(MilitaryOperation op, WorldSettlementFC homeSettlement)
+        {
+            // External defender being replaced: notify it.
+            if (op.externalDefenderSource is object)
             {
-                evt.militaryForceDefending.homeSettlement.MilitaryComp?.ReturnMilitary(false);
-            }
-            else if (evt.externalDefenderSource != null)
-            {
-                IAutoDefender old = AutoDefenderRegistry.FindByWorldObject(evt.externalDefenderSource);
+                IAutoDefender old = AutoDefenderRegistry.FindByWorldObject(op.externalDefenderSource);
                 old?.OnDefenseReplaced();
+                op.externalDefenderSource = null;
+                return;
             }
 
-            // Assign new external defender
-            factionfc.RemoveMilitaryTarget(evt.location);
-            evt.militaryForceDefending = defender.CreateDefendingForce();
-            evt.externalDefenderSource = defender.WorldObject;
-            defender.OnDefenseStarted(evt.settlementFCDefending);
-
-            WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
-            if (target?.MilitaryComp != null)
+            // Foreign Empire settlement being replaced: clear its DefendFriendlySettlement marker.
+            WorldSettlementFC currentDefender = op.defender?.homeSettlement;
+            if (currentDefender is object && currentDefender != homeSettlement)
             {
-                target.MilitaryComp.defenderForce = evt.militaryForceDefending;
+                var defComp = currentDefender.MilitaryComp;
+                if (defComp is object)
+                {
+                    defComp.militaryBusy = false;
+                    defComp.militaryJob = MilitaryJobDefOf.Undefined;
+                    defComp.militaryLocation = PlanetTile.Invalid;
+                    defComp.militaryEnemy = null;
+                }
             }
-
-            Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),
-                MessageTypeDefOf.NeutralEvent);
         }
 
         public static MilitaryForce ReturnDefendingMilitaryForce(FCEvent evt)
@@ -302,6 +240,104 @@ namespace FactionColonies
         public static IReadOnlyList<FCEvent> ReturnMilitaryEventsByLocation(PlanetTile location)
         {
             return FactionCache.FactionComp.FindAllEventsByDefAndLocation(FCEventDefOf.settlementBeingAttacked, location);
+        }
+
+        /* -*-*-*-*- Legacy fallback paths -*-*-*-*-
+         * Used when a defensive event has no linkedOperationId (pre-refactor save loaded
+         * mid-warning). They mutate the FCEvent's militaryForce* fields directly and dispatch
+         * the foreign defender's DefendFriendlySettlement marker via the comp's legacy
+         * SendMilitary code path. Kept for save-format back-compat for one version.
+         */
+
+        private static void ChangeDefendingMilitaryForce_Legacy(FCEvent evt, WorldSettlementFC settlementOfMilitaryForce,
+            FactionFC factionfc, WorldSettlementFC homeSettlement)
+        {
+            MilitaryForce tmpMilitaryForce = null;
+
+            if (evt.militaryForceDefending?.homeSettlement is object
+                && settlementOfMilitaryForce == evt.militaryForceDefending.homeSettlement)
+            {
+                Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+
+            WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
+
+            if (evt.militaryForceDefending?.homeSettlement is object
+                && evt.militaryForceDefending.homeSettlement != homeSettlement)
+            {
+#pragma warning disable 0618
+                evt.militaryForceDefending.homeSettlement.MilitaryComp?.ReturnMilitary(false);
+#pragma warning restore 0618
+            }
+            else if (evt.externalDefenderSource is object)
+            {
+                IAutoDefender autoDefender = AutoDefenderRegistry.FindByWorldObject(evt.externalDefenderSource);
+                autoDefender?.OnDefenseReplaced();
+                evt.externalDefenderSource = null;
+            }
+
+            if (settlementOfMilitaryForce != homeSettlement)
+            {
+                tmpMilitaryForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
+            }
+
+            factionfc.RemoveMilitaryTarget(evt.location);
+            evt.militaryForceDefending = MilitaryForce.CreateMilitaryForceFromSettlement(
+                settlementOfMilitaryForce, homeDefendingForce: tmpMilitaryForce);
+
+            if (target?.MilitaryComp is null) return;
+            target.MilitaryComp.defenderForce = evt.militaryForceDefending;
+
+            if (settlementOfMilitaryForce == homeSettlement)
+            {
+                Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
+            }
+            else
+            {
+                settlementOfMilitaryForce.MilitaryComp?.SendMilitary(
+                    evt.settlementFCDefending.Tile, MilitaryJobDefOf.DefendFriendlySettlement, -1,
+                    evt.militaryForceAttackingFaction);
+                Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
+                    settlementOfMilitaryForce.Name, homeSettlement?.Name ?? "", evt.militaryForceDefending.militaryLevel),
+                    LetterDefOf.NeutralEvent);
+            }
+        }
+
+        private static void ChangeDefendingToExternalForce_Legacy(FCEvent evt, IAutoDefender defender, FactionFC factionfc)
+        {
+            if (evt.externalDefenderSource is object && evt.externalDefenderSource == defender.WorldObject)
+            {
+                Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+
+            if (evt.militaryForceDefending?.homeSettlement is object
+                && evt.militaryForceDefending.homeSettlement != factionfc.ReturnSettlementByLocation(evt.location))
+            {
+#pragma warning disable 0618
+                evt.militaryForceDefending.homeSettlement.MilitaryComp?.ReturnMilitary(false);
+#pragma warning restore 0618
+            }
+            else if (evt.externalDefenderSource is object)
+            {
+                IAutoDefender old = AutoDefenderRegistry.FindByWorldObject(evt.externalDefenderSource);
+                old?.OnDefenseReplaced();
+            }
+
+            factionfc.RemoveMilitaryTarget(evt.location);
+            evt.militaryForceDefending = defender.CreateDefendingForce();
+            evt.externalDefenderSource = defender.WorldObject;
+            defender.OnDefenseStarted(evt.settlementFCDefending);
+
+            WorldSettlementFC target = Find.World.worldObjects.WorldObjectAt<WorldSettlementFC>(evt.location);
+            if (target?.MilitaryComp is object)
+            {
+                target.MilitaryComp.defenderForce = evt.militaryForceDefending;
+            }
+
+            Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),
+                MessageTypeDefOf.NeutralEvent);
         }
     }
 }

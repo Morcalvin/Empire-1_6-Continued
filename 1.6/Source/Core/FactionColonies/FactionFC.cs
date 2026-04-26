@@ -1624,7 +1624,7 @@ namespace FactionColonies
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
 
-            // Comp shadow update for offensive ops with a handler — these were migrated in 2e.
+            // Comp shadow update for offensive ops with a handler — migrated in 2e.
             if (op.IsOffensive && op.aggressor?.homeSettlement is object && op.kind?.Handler is object)
             {
                 var comp = op.aggressor.homeSettlement.MilitaryComp;
@@ -1635,6 +1635,33 @@ namespace FactionColonies
                     comp.militaryLocation = op.targetTile;
                     if (op.defender?.faction is object) comp.militaryEnemy = op.defender.faction;
                     if (op.kind.occupiesTarget) AddMilitaryTarget(op.targetTile);
+                }
+            }
+
+            // Comp shadow update for defensive ops — migrated in 2f.
+            if (op.IsDefensive)
+            {
+                WorldSettlementFC targetSettlement = op.targetObject as WorldSettlementFC;
+                var targetComp = targetSettlement?.MilitaryComp;
+                if (targetComp is object)
+                {
+                    targetComp.isUnderAttack = true;
+                    targetComp.attackerForce = op.aggressor?.force;
+                    targetComp.defenderForce = op.defender?.force;
+                }
+                // Foreign defender legacy DefendFriendlySettlement marker so any code that still
+                // checks militaryBusy / militaryJob on the foreign defender sees the commitment.
+                WorldSettlementFC defender = op.defender?.homeSettlement;
+                if (defender is object && defender != targetSettlement)
+                {
+                    var defenderComp = defender.MilitaryComp;
+                    if (defenderComp is object)
+                    {
+                        defenderComp.militaryBusy = true;
+                        defenderComp.militaryJob = MilitaryJobDefOf.DefendFriendlySettlement;
+                        defenderComp.militaryLocation = op.targetTile;
+                        defenderComp.militaryEnemy = op.aggressor?.faction;
+                    }
                 }
             }
 
@@ -1664,6 +1691,33 @@ namespace FactionColonies
                 }
             }
 
+            // Comp shadow clear for defensive ops.
+            if (op.IsDefensive)
+            {
+                WorldSettlementFC targetSettlement = op.targetObject as WorldSettlementFC;
+                var targetComp = targetSettlement?.MilitaryComp;
+                if (targetComp is object)
+                {
+                    targetComp.isUnderAttack = false;
+                    targetComp.attackerForce = null;
+                    targetComp.defenderForce = null;
+                }
+                WorldSettlementFC defender = op.defender?.homeSettlement;
+                if (defender is object && defender != targetSettlement)
+                {
+                    var defenderComp = defender.MilitaryComp;
+                    if (defenderComp is object)
+                    {
+                        defenderComp.militaryBusy = false;
+                        defenderComp.militaryJob = MilitaryJobDefOf.Undefined;
+                        defenderComp.militaryLocation = PlanetTile.Invalid;
+                        defenderComp.militaryEnemy = null;
+                        if (defenderComp.militarySquad is object)
+                            militaryCustomizationUtil?.RegisterSquadInjuries(defenderComp.militarySquad);
+                    }
+                }
+            }
+
             ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
         }
 
@@ -1684,6 +1738,23 @@ namespace FactionColonies
                     comp.militaryJob = MilitaryJobDefOf.Cooldown;
                     comp.militaryLocation = op.aggressor.homeSettlement.Tile;
                     comp.militaryEnemy = null;
+                }
+            }
+            // Defensive ops: foreign defender (if any) enters cooldown; the defended settlement
+            // already had its WinBattle/LoseBattle effects applied in comp.EndBattle prior.
+            if (op.IsDefensive)
+            {
+                WorldSettlementFC targetSettlement = op.targetObject as WorldSettlementFC;
+                WorldSettlementFC defender = op.defender?.homeSettlement;
+                if (defender is object && defender != targetSettlement)
+                {
+                    var defenderComp = defender.MilitaryComp;
+                    if (defenderComp is object)
+                    {
+                        defenderComp.militaryJob = MilitaryJobDefOf.Cooldown;
+                        defenderComp.militaryLocation = defender.Tile;
+                        defenderComp.militaryEnemy = null;
+                    }
                 }
             }
 

@@ -73,7 +73,9 @@ namespace FactionColonies
 
             if (settlement.MilitaryComp.militarySquad != squad)
             {
+#pragma warning disable 0618 // Deploy is a handler-less state job; no MilitaryOperation exists, so legacy hook is the only path
                 LifecycleRegistry.InvokeOnSquadDeployed(settlement, MilitaryJobDefOf.Deploy, true);
+#pragma warning restore 0618
             }
         }
 

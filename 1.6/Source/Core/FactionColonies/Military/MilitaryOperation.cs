@@ -310,19 +310,46 @@ namespace FactionColonies
                 BeginEngagement();
 
                 MilitaryJobHandler handler = kind?.Handler;
-                if (handler is object && handler.ResolvesManually)
+                if (handler is object)
                 {
-                    try { handler.OnManualResolve(this); }
-                    catch (Exception e)
+                    // Offensive op (handler-driven). Manual handlers own when CompleteBattle fires.
+                    if (handler.ResolvesManually)
                     {
-                        LogUtil.Error($"MilitaryOperation.OnEventFired: handler {handler.GetType().Name} threw in OnManualResolve: {e}");
-                        // Fall back to auto-resolve so the op doesn't get stuck.
-                        AutoResolveAndComplete();
+                        try { handler.OnManualResolve(this); }
+                        catch (Exception e)
+                        {
+                            LogUtil.Error($"MilitaryOperation.OnEventFired: handler {handler.GetType().Name} threw in OnManualResolve: {e}");
+                            AutoResolveAndComplete();
+                        }
+                        return;
                     }
-                    // Submod is responsible for calling CompleteBattle when its manual battle ends.
+                    AutoResolveAndComplete();
                     return;
                 }
 
+                // Defensive op (no handler). Delegate to comp.StartDefence so the existing
+                // map-generation / pawn-spawning / auto-resolve logic runs unchanged. EndBattle
+                // walks ops at the tile and fires CompleteBattle on each, which fires lifecycle
+                // hooks and schedules the cooldown event linked back to this op.
+                if (IsDefensive)
+                {
+                    WorldObjectComp_SettlementMilitary defComp = (targetObject as WorldSettlementFC)?.MilitaryComp;
+                    if (defComp is object)
+                    {
+                        try { defComp.StartDefence(evt, () => { }); }
+                        catch (Exception e)
+                        {
+                            LogUtil.Error($"MilitaryOperation.OnEventFired: comp.StartDefence threw for op id={id}: {e}");
+                            AutoResolveAndComplete();
+                        }
+                        return;
+                    }
+                    // Target has no comp (external IRaidTarget) — auto-resolve via simulator.
+                    AutoResolveAndComplete();
+                    return;
+                }
+
+                // Fallback: shouldn't happen normally.
                 AutoResolveAndComplete();
                 return;
             }

@@ -4,6 +4,12 @@ using System.Linq;
 using UnityEngine;
 using Verse;
 
+// Test fixtures intentionally implement the legacy [Obsolete] IBattleModifier /
+// ILifecycleParticipant interfaces and exercise the legacy registry overloads to verify
+// back-compat with pre-migration submods. The op-aware overloads have parallel coverage
+// elsewhere; suppressing the deprecation warnings is intentional for this file.
+#pragma warning disable 0618
+
 namespace FactionColonies
 {
     public static class RegistryTests

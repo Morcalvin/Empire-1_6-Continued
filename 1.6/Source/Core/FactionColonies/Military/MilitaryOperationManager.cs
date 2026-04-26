@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using FactionColonies.util;
 
 namespace FactionColonies
 {
@@ -149,8 +150,17 @@ namespace FactionColonies
         /// <summary>
         /// Creates a defensive operation: <paramref name="attackerFaction"/> launches
         /// <paramref name="attackerForce"/> at <paramref name="target"/> (an Empire settlement
-        /// or external <see cref="IRaidTarget"/>). Returns the registered op. Schedules a
-        /// 24-hour <c>settlementBeingAttacked</c> warning event linked to the op.
+        /// or external <see cref="IRaidTarget"/>). Returns the registered op (or <c>null</c> if
+        /// rejected — already-active defense, missing target comp, etc).
+        /// <para>Runs auto-defender selection: scans Empire settlements with <c>autoDefend</c>
+        /// for the strongest non-busy non-attacked one that beats the target's level, plus the
+        /// best <see cref="IAutoDefender"/> registry entry in range. Whichever is stronger wins;
+        /// if a foreign defender wins, its comp gets a legacy <c>DefendFriendlySettlement</c>
+        /// marker for back-compat with code that still checks <c>militaryBusy</c>/<c>militaryJob</c>.</para>
+        /// <para>Schedules the 24-hour <c>settlementBeingAttacked</c> warning event linked back
+        /// to the op via <see cref="FCEvent.linkedOperationId"/>. The event also carries the
+        /// force fields so legacy <c>comp.StartDefence</c> can consume it unchanged when the
+        /// op fires the manual-battle path.</para>
         /// </summary>
         public MilitaryOperation CreateDefensiveOp(WorldObject target, MilitaryForce attackerForce,
             Faction attackerFaction)
@@ -158,9 +168,18 @@ namespace FactionColonies
             if (target is null) throw new ArgumentNullException(nameof(target));
             if (attackerForce is null) throw new ArgumentNullException(nameof(attackerForce));
 
+            FactionFC factionFC = FactionCache.FactionComp;
+            if (factionFC is null) return null;
+
+            // Resolve the target settlement (when target is a WorldSettlementFC) so we can run
+            // the auto-defender selection. External raid targets get a force generated from
+            // their virtual military level via the IAutoDefender path or stay as-is.
+            WorldSettlementFC targetSettlement = target as WorldSettlementFC;
+
             int newId = nextOperationId++;
-            // Defensive ops have no MilitaryJobDef — kind is null. CompleteBattle handles a null
-            // handler via the simulator directly.
+            // Defensive ops have no MilitaryJobDef — kind is null. CompleteBattle skips the
+            // handler.ApplyResult dispatch when no handler is set; settlement-side effects come
+            // from comp.EndBattle / op.CompleteBattle's defensive path.
             var op = new MilitaryOperation(newId, null, target.Tile, target);
             op.phase = MilitaryOperationPhase.Scheduled;
             op.nextPhaseTick = Find.TickManager.TicksGame + GenDate.TicksPerDay;
@@ -169,24 +188,126 @@ namespace FactionColonies
             op.aggressor.force = attackerForce;
 
             op.defender.faction = FactionCache.PlayerColonyFaction;
-            if (target is WorldSettlementFC ws)
+            if (targetSettlement is object)
             {
-                op.defender.homeSettlement = ws;
-                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(ws);
+                op.defender.homeSettlement = targetSettlement;
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement);
             }
-            else
-            {
-                // External raid target — caller fills in defender.force later (or it stays the
-                // settlement-derived default once an auto-defender is assigned).
-            }
+            // For external raid targets, defender.force is set below by the auto-defender path.
 
             Register(op);
 
-            // Schedule the 24-hour warning. Defensive ops own their wakeup directly (no handler).
-            op.ScheduleEvent(FCEventDefOf.settlementBeingAttacked, target.Tile, GenDate.TicksPerDay);
+            // Auto-defender selection. Picks the strongest replacement defender (Empire foreign
+            // settlement or external IAutoDefender) if it beats whatever the op currently uses.
+            ApplyAutoDefenderSelection(op, target, targetSettlement, factionFC);
+
+            // Schedule the warning event. Force fields are populated so legacy comp.StartDefence
+            // (driven from op.OnEventFired's manual-battle branch) can consume the event.
+            FCEvent warningEvent = op.ScheduleEvent(
+                FCEventDefOf.settlementBeingAttacked, target.Tile, GenDate.TicksPerDay);
+            if (warningEvent is object)
+            {
+                warningEvent.militaryForceAttacking = op.aggressor.force;
+                warningEvent.militaryForceAttackingFaction = op.aggressor.faction;
+                warningEvent.militaryForceDefending = op.defender.force;
+                warningEvent.militaryForceDefendingFaction = op.defender.faction;
+                warningEvent.settlementFCDefending = target;
+                warningEvent.externalDefenderSource = op.externalDefenderSource;
+                warningEvent.hasDestination = true;
+
+                // Description + win-chance forecast (mirrors old AttackPlayerSettlement letter).
+                string desc = "FCSettlementAboutToBeAttacked".Translate(target.Label, attackerFaction?.Name ?? "").ToString();
+                if (op.aggressor.force is object && op.defender.force is object)
+                {
+                    double winChance = SimulateBattleFc.CalculateDefenderWinChance(op.aggressor.force, op.defender.force);
+                    desc += "\n\n" + "FCBattleForecast".Translate(
+                        op.aggressor.force.forceRemaining,
+                        op.aggressor.force.militaryEfficiency.ToString("0.##"),
+                        op.defender.force.DefensivePower,
+                        op.defender.force.militaryEfficiency.ToString("0.##"),
+                        (winChance * 100).ToString("F0"));
+                }
+                if (op.externalDefenderSource is object)
+                {
+                    desc += "\n\n" + "FCExternalDefenderAutoAssigned".Translate(op.externalDefenderSource.LabelCap);
+                }
+                if (FCSettings.battleMode == BattleMode.Hybrid)
+                    desc += "\n\n" + "FCSettlementAttackHybridHint".Translate();
+                warningEvent.hasCustomDescription = true;
+                warningEvent.customDescription = desc;
+            }
 
             LifecycleRegistry.InvokeOnSquadDeployed(op);
+
+            // "Settlement in danger" letter, mirrors old AttackPlayerSettlement.
+            try
+            {
+                Find.LetterStack.ReceiveLetter(
+                    "FCSettlementInDanger".Translate(),
+                    warningEvent?.customDescription ?? "",
+                    LetterDefOf.ThreatBig,
+                    new LookTargets(target));
+            }
+            catch (Exception e)
+            {
+                LogUtil.Error($"CreateDefensiveOp: failed sending FCSettlementInDanger letter: {e}");
+            }
+
             return op;
+        }
+
+        /// <summary>
+        /// Runs auto-defender selection for a freshly-created defensive op.
+        /// Mutates <paramref name="op"/>'s <c>defender</c> participant if a stronger foreign
+        /// settlement or external <see cref="IAutoDefender"/> is selected.
+        /// </summary>
+        private static void ApplyAutoDefenderSelection(MilitaryOperation op, WorldObject target,
+            WorldSettlementFC targetSettlement, FactionFC factionFC)
+        {
+            // Find strongest eligible Empire foreign defender.
+            WorldSettlementFC bestForeign = null;
+            foreach (WorldSettlementFC candidate in factionFC.settlements)
+            {
+                if (candidate == targetSettlement) continue;
+                var mc = candidate.MilitaryComp;
+                if (mc is null) continue;
+                if (!mc.autoDefend || mc.militaryBusy || mc.isUnderAttack) continue;
+                if (targetSettlement is object && !DefenseValidatorRegistry.CanDefend(candidate, targetSettlement)) continue;
+                if (bestForeign is null || candidate.settlementMilitaryLevel > bestForeign.settlementMilitaryLevel)
+                {
+                    bestForeign = candidate;
+                }
+            }
+
+            // Find best external auto-defender in range.
+            IAutoDefender bestExternal = AutoDefenderRegistry.FindBestDefender(target.Tile, 0);
+
+            int targetLevel = targetSettlement?.settlementMilitaryLevel ?? 0;
+            int foreignLevel = bestForeign?.settlementMilitaryLevel ?? 0;
+            int externalLevel = bestExternal?.MilitaryLevel ?? 0;
+
+            // Foreign settlement wins if it beats both the target's level and any external option.
+            if (bestForeign is object && foreignLevel > targetLevel && foreignLevel >= externalLevel)
+            {
+                MilitaryForce homeForce = targetSettlement is object
+                    ? MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement, isAttacking: true)
+                    : null;
+                op.defender.homeSettlement = bestForeign;
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeign, homeDefendingForce: homeForce);
+                op.externalDefenderSource = null;
+                return;
+            }
+
+            // External wins if it beats the target's level (and the foreign was not stronger).
+            if (bestExternal is object && externalLevel > targetLevel)
+            {
+                op.defender.force = bestExternal.CreateDefendingForce();
+                op.externalDefenderSource = bestExternal.WorldObject;
+                bestExternal.OnDefenseStarted(target);
+                return;
+            }
+
+            // No replacement defender — op.defender keeps its target-settlement default.
         }
 
         /// <summary>Get-or-create a <see cref="BattlefieldContext"/> for <paramref name="tile"/>.</summary>
