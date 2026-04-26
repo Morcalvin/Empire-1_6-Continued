@@ -60,31 +60,70 @@ namespace FactionColonies
                 activeOps = new List<MilitaryOperation>();
         }
 
-        /* -*-*-*-*- Lifecycle -*-*-*-*-
-         * Phase 2 fills these.
-         */
+        /* -*-*-*-*- Lifecycle -*-*-*-*- */
 
+        /// <summary>
+        /// Register <paramref name="op"/> on this battlefield. Idempotent. Clears
+        /// <see cref="awaitingPlayerExit"/> so a re-engagement (new attack arriving while the
+        /// player is still on a post-battle map) gets a fresh battle window. The actual
+        /// pawn / lord spawning is the caller's responsibility (typically via
+        /// <see cref="SpawnParticipantOnMap"/> after Join).
+        /// </summary>
         public void Join(MilitaryOperation op)
         {
-            throw new NotImplementedException("BattlefieldContext.Join filled in Phase 2.");
+            if (op is null) return;
+            if (activeOps is null) activeOps = new List<MilitaryOperation>();
+            if (!activeOps.Contains(op)) activeOps.Add(op);
+            awaitingPlayerExit = false;
         }
 
+        /// <summary>
+        /// Remove <paramref name="op"/> from this battlefield. If no ops remain and the player
+        /// is still on the map, transitions into <see cref="awaitingPlayerExit"/>; otherwise the
+        /// context is cleaned up out of the manager. Pawn / lord cleanup is left to
+        /// the comp / map's own removal path; this method only manages op membership.
+        /// </summary>
         public void Detach(MilitaryOperation op)
         {
-            throw new NotImplementedException("BattlefieldContext.Detach filled in Phase 2.");
+            if (op is null) return;
+            activeOps?.Remove(op);
+
+            if (activeOps == null || activeOps.Count == 0)
+            {
+                bool playerOnMap = map is object && map.mapPawns?.FreeColonistsSpawnedCount > 0;
+                if (playerOnMap)
+                {
+                    awaitingPlayerExit = true;
+                }
+                else
+                {
+                    awaitingPlayerExit = false;
+                    FactionCache.MilitaryManager?.RemoveBattlefield(tile);
+                }
+            }
         }
 
+        /// <summary>
+        /// Spawn the participant's pawns onto this battlefield's map and attach them to the
+        /// appropriate side's lord. Phase 2 continuation will fill this in with the spawning
+        /// logic currently in <c>SettlementMilitary.SpawnWaveAttackers</c> /
+        /// <c>GenerateWaveReinforcements</c>.
+        /// </summary>
         public void SpawnParticipantOnMap(MilitaryOperationParticipant participant)
         {
-            throw new NotImplementedException("BattlefieldContext.SpawnParticipantOnMap filled in Phase 2.");
+            throw new NotImplementedException(
+                "BattlefieldContext.SpawnParticipantOnMap is filled in by Phase 2 continuation.");
         }
 
-        /// <summary>Called when a new op joins while <see cref="awaitingPlayerExit"/> is true.
+        /// <summary>
+        /// Called when a new op joins while <see cref="awaitingPlayerExit"/> is true.
         /// Spawns fresh attacker pawns/lord on the existing map; if defender pawns survived,
-        /// rebuilds the defender lord.</summary>
+        /// rebuilds the defender lord. Phase 2 continuation work.
+        /// </summary>
         public void TryReengage(MilitaryOperation op)
         {
-            throw new NotImplementedException("BattlefieldContext.TryReengage filled in Phase 2.");
+            throw new NotImplementedException(
+                "BattlefieldContext.TryReengage is filled in by Phase 2 continuation.");
         }
     }
 }

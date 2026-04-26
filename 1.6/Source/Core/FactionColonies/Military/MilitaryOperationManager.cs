@@ -68,37 +68,144 @@ namespace FactionColonies
             if (_bySettlement is null) _bySettlement = new Dictionary<WorldSettlementFC, List<MilitaryOperation>>();
         }
 
-        /* -*-*-*-*- Mutation -*-*-*-*-
-         * Phase 2 fills these.
-         */
+        /* -*-*-*-*- Mutation -*-*-*-*- */
 
+        /// <summary>Adds <paramref name="op"/> to the active list and updates indices.
+        /// Idempotent: registering the same op twice is a no-op.</summary>
         public void Register(MilitaryOperation op)
         {
-            throw new NotImplementedException("MilitaryOperationManager.Register filled in Phase 2.");
+            if (op is null) return;
+            if (active is null) active = new List<MilitaryOperation>();
+            if (active.Contains(op)) return;
+            active.Add(op);
+            IndexAdd(op);
         }
 
+        /// <summary>Removes <paramref name="op"/> from the active list, drops it from indices,
+        /// and detaches from any <see cref="BattlefieldContext"/>. Safe to call after <c>op.Resolve</c>
+        /// has already removed map state.</summary>
         public void Unregister(MilitaryOperation op)
         {
-            throw new NotImplementedException("MilitaryOperationManager.Unregister filled in Phase 2.");
+            if (op is null) return;
+            // Detach first so the context can clean up before the op's tile reference is wiped.
+            if (op.battlefieldRef.Valid)
+            {
+                BattlefieldContext ctx = GetBattlefield(op.battlefieldRef);
+                ctx?.Detach(op);
+            }
+            IndexRemove(op);
+            if (active is object) active.Remove(op);
         }
 
         /// <summary>Tick driver. Replaces FCEventMaker's military switch — military events
-        /// dispatch via op.OnEventFired in the new model.</summary>
+        /// dispatch via op.OnEventFired in the new model. Currently a no-op (event-driven).</summary>
         public void Tick()
         {
-            // Phase 2 implements; safe no-op in Phase 1 since no ops exist yet.
+            // Reserved for future op-driven timer work (e.g. checking for stalled manual battles).
         }
 
+        /// <summary>
+        /// Creates an offensive operation: empire <paramref name="homeSettlement"/> sends its
+        /// squad on a job (raid / capture / enslave / defend-friendly) against
+        /// <paramref name="target"/> belonging to <paramref name="enemy"/>. Returns the
+        /// registered op. The handler's <see cref="MilitaryJobHandler.OnOpCreated"/> is called
+        /// after registration so it can schedule the arrival event and send any letters.
+        /// </summary>
         public MilitaryOperation CreateOffensiveOp(WorldSettlementFC homeSettlement, WorldObject target,
-            MilitaryJobDef jobDef, Faction enemy)
+            MilitaryJobDef jobDef, Faction enemy, int timeToFinish)
         {
-            throw new NotImplementedException("MilitaryOperationManager.CreateOffensiveOp filled in Phase 2.");
+            if (homeSettlement is null) throw new ArgumentNullException(nameof(homeSettlement));
+            if (target is null) throw new ArgumentNullException(nameof(target));
+            if (jobDef is null) throw new ArgumentNullException(nameof(jobDef));
+
+            int newId = nextOperationId++;
+            var op = new MilitaryOperation(newId, jobDef, target.Tile, target);
+            op.phase = MilitaryOperationPhase.Traveling;
+            op.nextPhaseTick = Find.TickManager.TicksGame + Math.Max(0, timeToFinish);
+
+            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.homeSettlement = homeSettlement;
+            op.aggressor.squad = homeSettlement.MilitaryComp?.militarySquad;
+            op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
+
+            op.defender.faction = enemy;
+            // op.defender.force is computed lazily in BeginEngagement via CreateMilitaryForceFromFaction.
+
+            Register(op);
+
+            try
+            {
+                jobDef.Handler?.OnOpCreated(op);
+            }
+            catch (Exception e)
+            {
+                LogUtil.Error($"MilitaryOperationManager.CreateOffensiveOp: handler {jobDef.Handler?.GetType().Name} threw in OnOpCreated: {e}");
+            }
+
+            LifecycleRegistry.InvokeOnSquadDeployed(op);
+            return op;
         }
 
+        /// <summary>
+        /// Creates a defensive operation: <paramref name="attackerFaction"/> launches
+        /// <paramref name="attackerForce"/> at <paramref name="target"/> (an Empire settlement
+        /// or external <see cref="IRaidTarget"/>). Returns the registered op. Schedules a
+        /// 24-hour <c>settlementBeingAttacked</c> warning event linked to the op.
+        /// </summary>
         public MilitaryOperation CreateDefensiveOp(WorldObject target, MilitaryForce attackerForce,
             Faction attackerFaction)
         {
-            throw new NotImplementedException("MilitaryOperationManager.CreateDefensiveOp filled in Phase 2.");
+            if (target is null) throw new ArgumentNullException(nameof(target));
+            if (attackerForce is null) throw new ArgumentNullException(nameof(attackerForce));
+
+            int newId = nextOperationId++;
+            // Defensive ops have no MilitaryJobDef — kind is null. CompleteBattle handles a null
+            // handler via the simulator directly.
+            var op = new MilitaryOperation(newId, null, target.Tile, target);
+            op.phase = MilitaryOperationPhase.Scheduled;
+            op.nextPhaseTick = Find.TickManager.TicksGame + GenDate.TicksPerDay;
+
+            op.aggressor.faction = attackerFaction;
+            op.aggressor.force = attackerForce;
+
+            op.defender.faction = FactionCache.PlayerColonyFaction;
+            if (target is WorldSettlementFC ws)
+            {
+                op.defender.homeSettlement = ws;
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(ws);
+            }
+            else
+            {
+                // External raid target — caller fills in defender.force later (or it stays the
+                // settlement-derived default once an auto-defender is assigned).
+            }
+
+            Register(op);
+
+            // Schedule the 24-hour warning. Defensive ops own their wakeup directly (no handler).
+            op.ScheduleEvent(FCEventDefOf.settlementBeingAttacked, target.Tile, GenDate.TicksPerDay);
+
+            LifecycleRegistry.InvokeOnSquadDeployed(op);
+            return op;
+        }
+
+        /// <summary>Get-or-create a <see cref="BattlefieldContext"/> for <paramref name="tile"/>.</summary>
+        public BattlefieldContext GetOrCreateBattlefield(PlanetTile tile)
+        {
+            if (battlefields is null) battlefields = new Dictionary<PlanetTile, BattlefieldContext>();
+            if (!battlefields.TryGetValue(tile, out BattlefieldContext ctx))
+            {
+                ctx = new BattlefieldContext(tile);
+                battlefields[tile] = ctx;
+            }
+            return ctx;
+        }
+
+        /// <summary>Removes the battlefield at <paramref name="tile"/> from the manager.
+        /// Does not clean up its map / pawns — that's the context's job during <c>Detach</c>.</summary>
+        internal void RemoveBattlefield(PlanetTile tile)
+        {
+            if (battlefields is object) battlefields.Remove(tile);
         }
 
         /* -*-*-*-*- Queries -*-*-*-*-
