@@ -1,4 +1,5 @@
 ﻿using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Verse;
@@ -133,8 +134,11 @@ namespace FactionColonies
         void OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef);
         void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
         void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
+        [Obsolete("Implement ILifecycleParticipantWithOp.OnSquadDeployed(MilitaryOperation) for op context. Will be removed in a future version.")]
         void OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad);
+        [Obsolete("Implement ILifecycleParticipantWithOp.OnSquadRecalled(MilitaryOperation) for op context. Will be removed in a future version.")]
         void OnSquadRecalled(WorldSettlementFC settlement);
+        [Obsolete("Implement ILifecycleParticipantWithOp.OnBattleResolved(MilitaryOperation, bool, BattleResult) for op context. Will be removed in a future version.")]
         void OnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result);
         void OnResearchCompleted(ResearchProjectDef project);
         /// <summary>
@@ -152,7 +156,42 @@ namespace FactionColonies
         /// Called before the battle loop begins. Modify the force's militaryLevel, militaryEfficiency,
         /// or forceRemaining to affect the outcome.
         /// </summary>
+        [Obsolete("Implement IBattleModifierWithOp.ModifyForce(MilitaryOperation, MilitaryForce, bool) for op context. " +
+                  "The legacy overload still works as a fallback for now but will be removed in a future version.")]
         void ModifyForce(MilitaryForce force, bool isAttacker);
+    }
+
+    /// <summary>
+    /// Op-aware variant of <see cref="IBattleModifier"/>. Receives the active
+    /// <see cref="MilitaryOperation"/> alongside the force, so modifiers can read participants,
+    /// target, and phase rather than just the force snapshot. New implementations should prefer
+    /// this interface; the registry dispatches to whichever signature an impl provides.
+    /// </summary>
+    public interface IBattleModifierWithOp : IBattleModifier
+    {
+        /// <summary>
+        /// Called before the battle loop begins. Receives the operation context.
+        /// </summary>
+        void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker);
+    }
+
+    /// <summary>
+    /// Op-aware variant of <see cref="ILifecycleParticipant"/>. Adds overloads for the four
+    /// military hooks (squad deployed/recalled, battle resolved) that take a
+    /// <see cref="MilitaryOperation"/> instead of separate <c>(settlement, job, ...)</c> args.
+    /// All other hooks (settlement / building / research / mercenary) come from the parent
+    /// interface and are unchanged.
+    /// </summary>
+    public interface ILifecycleParticipantWithOp : ILifecycleParticipant
+    {
+        /// <summary>Called immediately after a <see cref="MilitaryOperation"/> is created and registered.</summary>
+        void OnSquadDeployed(MilitaryOperation op);
+
+        /// <summary>Called when an op resolves and its squad (if any) is freed.</summary>
+        void OnSquadRecalled(MilitaryOperation op);
+
+        /// <summary>Called after the battle simulation / manual battle has produced a result.</summary>
+        void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result);
     }
     /// <summary>
     /// Allows submods to veto or filter defense assignments. Called when a settlement

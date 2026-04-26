@@ -9,7 +9,7 @@ using Verse;
 
 namespace FactionColonies
 {
-    public class FactionFC : WorldComponent, ILifecycleParticipant
+    public class FactionFC : WorldComponent, ILifecycleParticipantWithOp
     {
         #region Fields & Properties
 
@@ -181,6 +181,16 @@ namespace FactionColonies
         public IReadOnlyList<FCEvent> Events => eventManager.Events;
         public int EventsVersion => eventManager.Version;
 
+        /// <summary>
+        /// Holds and indexes all active <see cref="MilitaryOperation"/>s. Single source of
+        /// truth for military operation state — the comp's old singleton fields and FCEvent's
+        /// per-event force snapshots are migrating into this.
+        /// <para>Phase 1: scaffolded but unused at runtime. Phase 2 wires <c>SendMilitary</c>
+        /// and <c>AttackPlayerSettlement</c> to call <c>CreateOffensiveOp</c> /
+        /// <c>CreateDefensiveOp</c> on this manager.</para>
+        /// </summary>
+        public MilitaryOperationManager militaryOperationManager = new MilitaryOperationManager();
+
         public float randomEventLastAdded = 0f;
         public List<BillFC> Bills = new List<BillFC>();
         public List<BillFC> OldBills = new List<BillFC>();
@@ -325,6 +335,9 @@ namespace FactionColonies
                 LogUtil.MessageForce("FactionFC: migrated legacy events list into FCEventManager.");
             }
 
+            Scribe_Deep.Look(ref militaryOperationManager, "militaryOperationManager");
+            if (militaryOperationManager is null) militaryOperationManager = new MilitaryOperationManager();
+
             Scribe_Collections.Look(ref settlementCaravansList, "settlementCaravansList", LookMode.Value);
             Scribe_Collections.Look(ref enabledCaravanTypes, "enabledCaravanTypes", LookMode.Value);
             Scribe_Collections.Look(ref militaryTargets, "militaryTargets", LookMode.Value);
@@ -406,6 +419,10 @@ namespace FactionColonies
             EnsureCaravanTypesPopulated();
             EnsureResourcePools();
             LifecycleRegistry.Register(this);
+
+            // Rebuild op indices from `active` whether we just migrated a save or not — cheap
+            // and always-correct even on a fresh-game start (no-op when active is empty).
+            militaryOperationManager?.RebuildIndices();
 
             if (fromLoad)
             {
@@ -1591,6 +1608,28 @@ namespace FactionColonies
         void ILifecycleParticipant.OnMercenaryDeath(MercenaryDeathEvent evt)
         {
             // No policy behavior hook for merc death currently — submods handle this via their own listener
+        }
+
+        /* -*-*-*-*- ILifecycleParticipantWithOp (Phase 1: empty stubs) -*-*-*-*-
+         * The op-aware overloads will be invoked by LifecycleRegistry's op-aware dispatch
+         * once Phase 2 wires SendMilitary / AttackPlayerSettlement to create ops. Until then,
+         * the registry's legacy dispatch path still fires the older ILifecycleParticipant
+         * methods above, and these empty bodies are not reached at runtime.
+         */
+
+        void ILifecycleParticipantWithOp.OnSquadDeployed(MilitaryOperation op)
+        {
+            // Phase 2 fills in: bridge to ForEachBehavior with op-derived settlement.
+        }
+
+        void ILifecycleParticipantWithOp.OnSquadRecalled(MilitaryOperation op)
+        {
+            // Phase 2 fills in.
+        }
+
+        void ILifecycleParticipantWithOp.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
+        {
+            // Phase 2 fills in.
         }
 
         #endregion

@@ -19,6 +19,7 @@ namespace FactionColonies
         private static Faction _cachedColonyFaction = null;
         private static Faction _cachedPlayerFaction = null;
         private static FactionFC _cachedFactionWorldComp = null;
+        private static MilitaryOperationManager _cachedMilitaryManager = null;
         private static FactionDef _cachedFactionDef = null;
         private static List<PawnKindDef> _cachedPawnKindDefs = null;
         private static Dictionary<(Type, string), FieldInfo> _cachedFields = new Dictionary<(Type, string), FieldInfo>();
@@ -46,6 +47,13 @@ namespace FactionColonies
         private static ResearchProjectDef _cachedTransportPods = null;
 
         public static FactionFC FactionComp => _cachedFactionWorldComp ?? (_cachedFactionWorldComp = Find.World?.GetComponent<FactionFC>());
+
+        /// <summary>
+        /// Shortcut to <see cref="FactionFC.militaryOperationManager"/>. Returns null if the
+        /// faction component itself is not yet loaded.
+        /// </summary>
+        public static MilitaryOperationManager MilitaryManager
+            => _cachedMilitaryManager ?? (_cachedMilitaryManager = FactionComp?.militaryOperationManager);
         /// <summary>
         /// The NPC Empire faction that the player created and controls.
         /// </summary>
@@ -513,6 +521,7 @@ namespace FactionColonies
             _cachedPlayerFaction = null;
             _cachedPawnKindDefs = null;
             _cachedFactionWorldComp = null;
+            _cachedMilitaryManager = null;
             _cachedFactionDef = null;
             _cachedFields.Clear();
             _cachedRaceList = null;

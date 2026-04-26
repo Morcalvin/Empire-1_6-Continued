@@ -45,6 +45,15 @@ namespace FactionColonies
 
         public WorldSettlementDef settlementToCreate = null;
 
+        /// <summary>
+        /// Back-reference to a <see cref="MilitaryOperation"/> in the
+        /// <see cref="FactionFC.militaryOperationManager"/> when this event is a wakeup primitive
+        /// for that op (arrival, cooldown, warning, etc.). -1 when unlinked. Phase 2 wires
+        /// <see cref="FCEventMaker"/> to dispatch through this id; until then, only set by op
+        /// scheduling code and otherwise inert.
+        /// </summary>
+        public int linkedOperationId = -1;
+
         /// <summary>Lifecycle phase.
         /// <para> - Queued: in queue, awaiting timer.</para>
         /// <para> - Fired: tentative, mid-processing only. Should never persist past a single ProcessEvents pass.</para>
@@ -136,6 +145,8 @@ namespace FactionColonies
             Scribe_References.Look(ref externalDefenderSource, "externalDefenderSource");
 
             Scribe_Defs.Look(ref settlementToCreate, "settlementToCreate");
+
+            Scribe_Values.Look(ref linkedOperationId, "linkedOperationId", -1);
         }
 
         public string GetUniqueLoadID()

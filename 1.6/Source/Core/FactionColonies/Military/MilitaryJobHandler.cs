@@ -1,3 +1,4 @@
+using System;
 using RimWorld;
 using RimWorld.Planet;
 
@@ -18,7 +19,8 @@ namespace FactionColonies
 
         /// <summary>
         /// If true, <see cref="WorldObjectComp_SettlementMilitary.ProcessMilitaryEvent"/> delegates
-        /// resolution to <see cref="OnManualResolve"/> instead of calling <see cref="OnResolved"/>.
+        /// resolution to <see cref="OnManualResolve(WorldObjectComp_SettlementMilitary)"/> instead
+        /// of calling <see cref="OnResolved"/>.
         /// The handler owns cooldown timing and lifecycle notification.
         /// </summary>
         public virtual bool ResolvesManually => false;
@@ -29,5 +31,47 @@ namespace FactionColonies
         /// Must call <c>milComp.CooldownMilitaryFinal()</c> when the battle ends.
         /// </summary>
         public virtual void OnManualResolve(WorldObjectComp_SettlementMilitary milComp) { }
+
+        /* -*-*-*-*- Op-aware methods (Phase 1: scaffolding) -*-*-*-*-
+         * The new model passes a MilitaryOperation through to the handler so it can read
+         * participants, target, and phase rather than reaching into the comp. Phase 2 splits
+         * the concrete handlers (Raid / Capture / Enslave) into OnAutoResolve + ApplyResult and
+         * wires SendMilitary to call them. Until then these defaults are unused at runtime.
+         */
+
+        /// <summary>
+        /// Called immediately after <see cref="MilitaryOperationManager"/> registers an op of
+        /// this handler's <see cref="def"/>. Use this for handler-specific op setup
+        /// (logging, modifying participant data, etc.). Default: no-op.
+        /// </summary>
+        public virtual void OnOpCreated(MilitaryOperation op) { }
+
+        /// <summary>
+        /// Op-aware auto-resolution. Returns the <see cref="BattleResult"/>; side effects
+        /// (loot, prisoners, settlement capture) live in <see cref="ApplyResult"/>.
+        /// Phase 2 makes this abstract once handlers are split.
+        /// </summary>
+        public virtual BattleResult OnAutoResolve(MilitaryOperation op)
+        {
+            throw new NotImplementedException(
+                $"OnAutoResolve(op) not implemented for handler {GetType().Name}. " +
+                "Phase 2 will split the legacy OnResolved(milComp) into OnAutoResolve + ApplyResult.");
+        }
+
+        /// <summary>
+        /// Op-aware manual resolution. Submods that opt in via <see cref="ResolvesManually"/>
+        /// override this to spawn pawns / lords on the op's <see cref="BattlefieldContext"/>.
+        /// Submods are responsible for calling <c>op.CompleteBattle(result)</c> when the
+        /// player-driven battle resolves. Default: no-op.
+        /// </summary>
+        public virtual void OnManualResolve(MilitaryOperation op) { }
+
+        /// <summary>
+        /// Side-effect application for an op's resolution: loot, prisoners, settlement capture,
+        /// XP, etc. Called by <c>op.CompleteBattle(result)</c> after a battle resolves (auto or
+        /// manual). Splitting this from <see cref="OnAutoResolve"/> lets manual handlers reuse
+        /// the same outcome handling. Default: no-op.
+        /// </summary>
+        public virtual void ApplyResult(MilitaryOperation op, BattleResult result) { }
     }
 }
