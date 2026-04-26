@@ -9,9 +9,11 @@ namespace FactionColonies
         public MilitaryJobDef def;
 
         /// <summary>Called from SendMilitary. Create the FCEvent, send letters, etc.</summary>
+        [Obsolete("Override OnOpCreated(MilitaryOperation) instead. Will be removed in a future version.")]
         public abstract void OnDeployed(WorldObjectComp_SettlementMilitary milComp, PlanetTile location, int timeToFinish, Faction enemy);
 
         /// <summary>Called from ProcessMilitaryEvent when the event timer fires. Returns the BattleResult.</summary>
+        [Obsolete("Override OnAutoResolve(MilitaryOperation) and ApplyResult(MilitaryOperation, BattleResult) instead. Will be removed in a future version.")]
         public abstract BattleResult OnResolved(WorldObjectComp_SettlementMilitary milComp);
 
         /// <summary>Returns whether this job can target the given faction. Used to filter hostile menu options.</summary>
@@ -23,6 +25,7 @@ namespace FactionColonies
         /// of calling <see cref="OnResolved"/>.
         /// The handler owns cooldown timing and lifecycle notification.
         /// </summary>
+        [Obsolete("Override ResolvesManually(MilitaryOperation) instead. Will be removed in a future version.")]
         public virtual bool ResolvesManually => false;
 
         /// <summary>
@@ -30,6 +33,7 @@ namespace FactionColonies
         /// The handler generates a battle map and manages the async lifecycle.
         /// Must call <c>milComp.CooldownMilitaryFinal()</c> when the battle ends.
         /// </summary>
+        [Obsolete("Override OnManualResolve(MilitaryOperation) instead. Will be removed in a future version.")]
         public virtual void OnManualResolve(WorldObjectComp_SettlementMilitary milComp) { }
 
         /* -*-*-*-*- Op-aware methods (Phase 1: scaffolding) -*-*-*-*-

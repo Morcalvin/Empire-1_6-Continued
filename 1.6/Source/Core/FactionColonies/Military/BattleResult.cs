@@ -18,7 +18,7 @@ namespace FactionColonies
         public double defenderInitialForce;
         public double attackerRemainingForce;
         public double defenderRemainingForce;
-        public List<bool> roundLog; // true = attacker won round, false = defender won
+        public List<bool> roundLog = new List<bool>(); // true = attacker won round, false = defender won
 
         public bool AttackerVictory => winner == BattleWinner.Attacker;
         public bool DefenderVictory => winner == BattleWinner.Defender;

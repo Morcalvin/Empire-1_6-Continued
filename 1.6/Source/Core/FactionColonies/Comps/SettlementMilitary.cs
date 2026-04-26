@@ -8,6 +8,14 @@ using Verse;
 using Verse.AI.Group;
 using Verse.Sound;
 
+// Comp is the legacy bridge: legacy comp fields were converted to computed properties backed
+// by MilitaryOperationManager / BattlefieldContext, but the file still references [Obsolete]
+// DefenseWave (in legacy load buffers and CooldownMilitary), the [Obsolete] LifecycleRegistry
+// overloads (in pre-refactor save fallback paths), and is the host class whose own legacy
+// fields were marked obsolete on the way to deletion. File-level pragma scopes the silence
+// to the entire bridge layer.
+#pragma warning disable 0618
+
 namespace FactionColonies
 {
     public class WorldObjectCompProperties_SettlementMilitary : WorldObjectCompProperties
@@ -636,9 +644,7 @@ namespace FactionColonies
             if (defenderForce?.homeSettlement is object
                 && defenderForce.homeSettlement != WorldSettlement)
             {
-#pragma warning disable 0618
                 defenderForce.homeSettlement.MilitaryComp?.ReturnMilitary(false);
-#pragma warning restore 0618
             }
 
             // isUnderAttack is computed from manager state. Battle pawn lists / wave state /
@@ -959,9 +965,9 @@ namespace FactionColonies
             // manager will get a no-op shadow update; the foreign defender is silently lost
             // from the manager view. New code should call ChangeDefendingMilitaryForce instead.
             if (job.occupiesTarget) FactionCache.FactionComp.AddMilitaryTarget(location);
-#pragma warning disable 0618 // legacy lifecycle hook fires for external callers that bypass the manager
+            // Legacy lifecycle hook: fires for external callers that bypass the manager
+            // (e.g. Empire-VOE OutpostDefenderGizmo). Op-aware path is dormant for these.
             LifecycleRegistry.InvokeOnSquadDeployed(WorldSettlement, job);
-#pragma warning restore 0618
         }
 
         /// <summary>
@@ -1015,24 +1021,27 @@ namespace FactionColonies
             }
 
             bool victory = result != null && result.AttackerVictory;
-#pragma warning disable 0618 // legacy ProcessMilitaryEvent path; only fires for pre-refactor save data without linkedOperationId
+            // Legacy ProcessMilitaryEvent path; only fires for pre-refactor save data without linkedOperationId.
             LifecycleRegistry.InvokeOnBattleResolved(WorldSettlement, resolvedJob, victory, result);
-#pragma warning restore 0618
             CooldownMilitaryFinal();
         }
 
+        /// <summary>
+        /// "Skip cooldown and recall the squad immediately." Used by the foreign-defender
+        /// overwhelming-victory shortcut in <see cref="CooldownMilitary"/> (line ~752), the
+        /// settlement-removal sweep in <see cref="ColonyUtil"/>, debug actions, and the
+        /// pre-refactor save fallback paths in <see cref="MilitaryUtilFC"/> /
+        /// <see cref="FCEventMaker"/>. Comp shadow fields are computed from manager state, so
+        /// nothing here clears them — we only fire the squad-recalled lifecycle hook (legacy
+        /// overload; the op-aware path runs through <see cref="MilitaryOperation.Resolve"/>
+        /// during the normal cooldown-event flow), register injuries, and optionally show the
+        /// player a letter.
+        /// </summary>
         public void ReturnMilitary(bool alert)
         {
-            // After Phase 6 the comp shadow surface is computed from manager state — there are
-            // no fields to clear here. ReturnMilitary now only fires the legacy lifecycle hook
-            // (for pre-refactor save data without linkedOperationId) and registers squad
-            // injuries. The squad's actual op resolution happens via op.Resolve through the
-            // manager's normal flow.
             if (!militaryBusy) return; // No active op — nothing to do
 
-#pragma warning disable 0618 // legacy ReturnMilitary path; only fires for pre-refactor save data
             LifecycleRegistry.InvokeOnSquadRecalled(WorldSettlement);
-#pragma warning restore 0618
 
             if (militarySquad != null)
                 FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(militarySquad);

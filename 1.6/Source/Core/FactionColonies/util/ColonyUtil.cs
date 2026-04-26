@@ -92,6 +92,10 @@ namespace FactionColonies.util
 
             HashSet<FCEvent> toRemove = new HashSet<FCEvent>();
 
+            // Settlement-removal sweep reads the warning event's [Obsolete] military force fields
+            // to decide which events belong to the doomed settlement. New ops mirror those fields
+            // so this back-compat path keeps working until the wave model reads from the op directly.
+#pragma warning disable 0618
             foreach (FCEvent evt in faction.Events)
             {
                 //military event removal
@@ -166,6 +170,7 @@ namespace FactionColonies.util
                     }
                 }
             }
+#pragma warning restore 0618
 
             bool anyRemoved = false;
             foreach (FCEvent evt in toRemove)

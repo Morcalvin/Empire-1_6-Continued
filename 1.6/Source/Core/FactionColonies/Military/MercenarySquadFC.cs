@@ -107,13 +107,26 @@ namespace FactionColonies
 
         /// <summary>True when the squad has an active <c>Deploy</c> op in <c>Engaged</c> phase
         /// (squad pawns are deployed on a player map). Replaces the legacy <c>isDeployed</c> field.</summary>
+        [Obsolete("Use squad.Operation / squad.IsBusy. Will be removed in a future version.")]
         public bool isDeployed => Operation is object
                                && Operation.kind == MilitaryJobDefOf.Deploy
                                && Operation.phase == MilitaryOperationPhase.Engaged;
 
         /// <summary>Tick at which the squad's current Deploy op started, or -1 if no deploy op active.
         /// Replaces the legacy <c>timeDeployed</c> field.</summary>
-        public int timeDeployed => isDeployed ? Operation.phaseStartedTick : -1;
+        [Obsolete("Use squad.Operation?.phaseStartedTick. Will be removed in a future version.")]
+        public int timeDeployed
+        {
+            get
+            {
+                MilitaryOperation op = Operation;
+                return op is object
+                    && op.kind == MilitaryJobDefOf.Deploy
+                    && op.phase == MilitaryOperationPhase.Engaged
+                        ? op.phaseStartedTick
+                        : -1;
+            }
+        }
 
         public WorldSettlementFC getSettlement
         {

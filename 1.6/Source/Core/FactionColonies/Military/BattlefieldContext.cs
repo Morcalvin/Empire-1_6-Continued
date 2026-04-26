@@ -9,6 +9,11 @@ using Verse.AI;
 using Verse.AI.Group;
 using Verse.Sound;
 
+// BattlefieldContext is a load-bearing consumer of [Obsolete] DefenseWave (per-wave attackers)
+// and [Obsolete] FCEvent.militaryForce* (legacy event-fed wave construction). Both are kept
+// for save round-trip safety until the per-wave MilitaryOperation model fully replaces them.
+#pragma warning disable 0618
+
 namespace FactionColonies
 {
     /// <summary>

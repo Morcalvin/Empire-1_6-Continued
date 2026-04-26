@@ -1,6 +1,7 @@
 using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Linq;
 using Verse;
 
@@ -8,6 +9,7 @@ namespace FactionColonies
 {
     public class MilitaryJobHandler_Capture : MilitaryJobHandler
     {
+        [Obsolete("Use OnOpCreated(MilitaryOperation) instead. Will be removed in a future version.")]
         public override void OnDeployed(WorldObjectComp_SettlementMilitary milComp, PlanetTile location, int timeToFinish, Faction enemy)
         {
             FactionFC factionfc = FactionCache.FactionComp;
@@ -18,6 +20,7 @@ namespace FactionColonies
             evt.DefineEvent(factionfc, milComp.WorldSettlement.Tile, timeToFinish);
         }
 
+        [Obsolete("Use OnAutoResolve(MilitaryOperation) and ApplyResult(MilitaryOperation, BattleResult) instead. Will be removed in a future version.")]
         public override BattleResult OnResolved(WorldObjectComp_SettlementMilitary milComp)
         {
             FactionFC faction = FactionCache.FactionComp;

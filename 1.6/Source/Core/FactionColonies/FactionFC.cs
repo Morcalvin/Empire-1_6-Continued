@@ -1595,6 +1595,10 @@ namespace FactionColonies
             ForEachBehavior(b => b.OnBuildingDeconstructed(this, settlement, building, slot));
         }
 
+        // Legacy ILifecycleParticipant explicit interface implementations. The new op-aware
+        // overrides below are the canonical path; these preserve the old call-shape so legacy
+        // registry dispatchers (LifecycleRegistry's [Obsolete] overloads) still hit a method.
+#pragma warning disable 0618
         void ILifecycleParticipant.OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad)
         {
             ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
@@ -1609,6 +1613,7 @@ namespace FactionColonies
         {
             ForEachBehavior(b => b.OnBattleResolved(this, settlement, job, victory, result));
         }
+#pragma warning restore 0618
 
         void ILifecycleParticipant.OnResearchCompleted(ResearchProjectDef project)
         {
@@ -1619,14 +1624,6 @@ namespace FactionColonies
         {
             // No policy behavior hook for merc death currently — submods handle this via their own listener
         }
-
-        /* -*-*-*-*- ILifecycleParticipantWithOp -*-*-*-*-
-         * Bridges the op-aware registry dispatch into the policy-behavior pipeline AND maintains
-         * the comp's legacy shadow fields (militaryBusy / militaryJob / militaryLocation /
-         * militaryEnemy) so existing readers (UI gizmos, compat patches, debug actions) keep
-         * working while only the offensive entry point has been migrated to the manager.
-         * Phase 2 final will gut the shadows once defensive flow is also migrated.
-         */
 
         /* -*-*-*-*- ILifecycleParticipantWithOp -*-*-*-*-
          * Phase 6: comp shadow fields (militaryBusy / militaryJob / militaryLocation / etc.)

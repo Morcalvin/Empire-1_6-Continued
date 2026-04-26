@@ -1,7 +1,13 @@
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+
+// DefenseWave is itself [Obsolete]; the class also reads [Obsolete] FCEvent.externalDefenderSource
+// from its sourceEvent argument. Both go away together when the per-wave MilitaryOperation
+// model fully replaces this type.
+#pragma warning disable 0618
 
 namespace FactionColonies
 {
@@ -10,6 +16,7 @@ namespace FactionColonies
     /// within a multi-wave manual defense battle. The settlement's MilitaryComp holds
     /// a <c>List&lt;DefenseWave&gt;</c> for all active waves.
     /// </summary>
+    [Obsolete("Replaced by BattlefieldContext + per-wave MilitaryOperation. Kept for one version for save round-trip safety.")]
     public class DefenseWave : IExposable
     {
         /// <summary>The triggering settlementBeingAttacked event (consumed from the queue).</summary>

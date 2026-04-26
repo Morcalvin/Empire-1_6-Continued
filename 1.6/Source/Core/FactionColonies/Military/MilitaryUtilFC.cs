@@ -5,6 +5,12 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
+// Defensive-battle event bridge. Mirrors op state onto [Obsolete] FCEvent.militaryForce*
+// fields so legacy comp.StartDefence and BattlefieldContext can consume them, and contains
+// the _Legacy fallback paths used when a save loads with no linkedOperationId. Both surfaces
+// disappear when the per-wave MilitaryOperation model fully replaces DefenseWave.
+#pragma warning disable 0618
+
 namespace FactionColonies
 {
     public static class MilitaryUtilFC
@@ -242,9 +248,7 @@ namespace FactionColonies
             if (evt.militaryForceDefending?.homeSettlement is object
                 && evt.militaryForceDefending.homeSettlement != homeSettlement)
             {
-#pragma warning disable 0618
                 evt.militaryForceDefending.homeSettlement.MilitaryComp?.ReturnMilitary(false);
-#pragma warning restore 0618
             }
             else if (evt.externalDefenderSource is object)
             {
@@ -291,9 +295,7 @@ namespace FactionColonies
             if (evt.militaryForceDefending?.homeSettlement is object
                 && evt.militaryForceDefending.homeSettlement != factionfc.ReturnSettlementByLocation(evt.location))
             {
-#pragma warning disable 0618
                 evt.militaryForceDefending.homeSettlement.MilitaryComp?.ReturnMilitary(false);
-#pragma warning restore 0618
             }
             else if (evt.externalDefenderSource is object)
             {

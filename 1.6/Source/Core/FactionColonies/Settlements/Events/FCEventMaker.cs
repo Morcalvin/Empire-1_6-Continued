@@ -613,6 +613,10 @@ namespace FactionColonies
                         }
                     }
 
+                    // Legacy fallback: pre-refactor saves with no linkedOperationId carry the
+                    // defender ref on FCEvent.settlementFCDefending ([Obsolete]). New events
+                    // route through op.OnEventFired above.
+#pragma warning disable 0618
                     if (evt.def.defName == "settlementBeingAttacked")
                     {
                         if (evt.settlementFCDefending == null)
@@ -636,6 +640,7 @@ namespace FactionColonies
                             ResolveExternalRaidTarget(evt);
                         }
                     }
+#pragma warning restore 0618
                     else //if undefined event
                     {
                         if (evt.def.randomThingValue > 0 && evt.def.randomThingRewardDef != null)
@@ -826,7 +831,10 @@ namespace FactionColonies
         /// <summary>
         /// Auto-resolves a raid on an external <see cref="IRaidTarget"/> (registered via <see cref="RaidTargetRegistry"/>).
         /// Called when the 24-hour warning timer expires for a non-<see cref="WorldSettlementFC"/> target.
+        /// Legacy: only invoked for pre-refactor save data (no linkedOperationId on the event);
+        /// new external raid ops route through op.OnEventFired and never reach this method.
         /// </summary>
+#pragma warning disable 0618
         private static void ResolveExternalRaidTarget(FCEvent evt)
         {
             IRaidTarget target = RaidTargetRegistry.FindByWorldObject(evt.settlementFCDefending);
@@ -891,6 +899,7 @@ namespace FactionColonies
                 target.IsUnderAttack = false;
             }
         }
+#pragma warning restore 0618
 
         public static void CreateTaxEvent(BillFC bill)
         {

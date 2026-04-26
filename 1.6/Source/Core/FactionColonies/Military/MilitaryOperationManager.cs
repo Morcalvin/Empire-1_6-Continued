@@ -207,12 +207,18 @@ namespace FactionColonies
                 FCEventDefOf.settlementBeingAttacked, target.Tile, GenDate.TicksPerDay);
             if (warningEvent is object)
             {
+                // Populate legacy event fields so BattlefieldContext.StartDefence (driven from
+                // op.OnEventFired's manual-battle branch) can construct its DefenseWave from the
+                // event. These FCEvent fields are [Obsolete] going forward — once the wave model
+                // reads from MilitaryOperation directly, this block goes away.
+#pragma warning disable 0618
                 warningEvent.militaryForceAttacking = op.aggressor.force;
                 warningEvent.militaryForceAttackingFaction = op.aggressor.faction;
                 warningEvent.militaryForceDefending = op.defender.force;
                 warningEvent.militaryForceDefendingFaction = op.defender.faction;
                 warningEvent.settlementFCDefending = target;
                 warningEvent.externalDefenderSource = op.externalDefenderSource;
+#pragma warning restore 0618
                 warningEvent.hasDestination = true;
 
                 // Description + win-chance forecast (mirrors old AttackPlayerSettlement letter).
@@ -293,17 +299,19 @@ namespace FactionColonies
                     ? MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement, isAttacking: true)
                     : null;
                 op.defender.homeSettlement = bestForeign;
-                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeign, homeDefendingForce: homeForce);
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeign, isAttacking: false, homeDefendingForce: homeForce);
                 op.externalDefenderSource = null;
                 return;
             }
 
             // External wins if it beats the target's level (and the foreign was not stronger).
+            // OnDefenseStarted fires from MilitaryOperation.BeginEngagement when the warning event
+            // resolves — not here at op creation. externalDefenderSource is the contract that
+            // makes BeginEngagement notify the defender.
             if (bestExternal is object && externalLevel > targetLevel)
             {
                 op.defender.force = bestExternal.CreateDefendingForce();
                 op.externalDefenderSource = bestExternal.WorldObject;
-                bestExternal.OnDefenseStarted(target);
                 return;
             }
 

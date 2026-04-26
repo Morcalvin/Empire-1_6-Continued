@@ -209,7 +209,15 @@ namespace FactionColonies
             {
                 triggers = new List<Trigger>(1)
                 {
-                    new Trigger_Custom((TriggerSignal _) => squad is object && squad.isDeployed && squad.orderLocation != currentOrderPosition)
+                    new Trigger_Custom((TriggerSignal _) =>
+                    {
+                        if (squad is null) return false;
+                        MilitaryOperation op = squad.Operation;
+                        return op is object
+                            && op.kind == MilitaryJobDefOf.Deploy
+                            && op.phase == MilitaryOperationPhase.Engaged
+                            && squad.orderLocation != currentOrderPosition;
+                    })
                 },
                 preActions = new List<TransitionAction>(1)
                 {

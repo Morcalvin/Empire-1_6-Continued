@@ -332,6 +332,9 @@ namespace FactionColonies
                             //when event is selected, select defending force to replace it with
 
                             List<DebugMenuOption> list2 = new List<DebugMenuOption>();
+                            // Reads [Obsolete] FCEvent.settlementFCDefending / militaryForceDefending for debug UI display.
+                            // ChangeDefendingMilitaryForce handles the op-aware update internally.
+#pragma warning disable 0618
                             foreach (WorldSettlementFC settlement in worldcomp.settlements)
                             {
                                 if (settlement.MilitaryComp != null && settlement.MilitaryComp.IsMilitaryValid() && settlement.Name != evt.settlementFCDefending?.Label)
@@ -349,6 +352,7 @@ namespace FactionColonies
                                     ));
                                 }
                             }
+#pragma warning restore 0618
 
                             Find.WindowStack.Add(new Dialog_DebugOptionListLister(list2));
                         }
@@ -942,9 +946,11 @@ namespace FactionColonies
                     LogUtil.MessageForce($"[{s.Name}] MilitaryComp: null");
                     continue;
                 }
+#pragma warning disable 0618 // legacy isDeployed property — debug status display
                 string squadInfo = comp.militarySquad != null
                     ? $"Deployed:{comp.militarySquad.isDeployed} Job:{comp.militaryJob}"
                     : "No squad";
+#pragma warning restore 0618
                 LogUtil.MessageForce($"[{s.Name}] MilLv:{s.settlementMilitaryLevel} Busy:{comp.IsMilitaryBusySilent()} | {squadInfo}");
             }
         }

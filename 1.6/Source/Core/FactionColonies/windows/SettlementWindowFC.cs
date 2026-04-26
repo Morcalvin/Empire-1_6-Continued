@@ -1135,7 +1135,9 @@ namespace FactionColonies
 
             // Reset Pawns option — only if squad is assigned and not deployed
             MercenarySquadFC mercSquad = settlement.MilitaryComp.militarySquad;
+#pragma warning disable 0618 // legacy isDeployed — gating reset gizmo by on-map presence
             if (mercSquad != null && !mercSquad.isDeployed)
+#pragma warning restore 0618
             {
                 list.Add(new FloatMenuOption("fcResetSquadPawns".Translate(), delegate
                 {
@@ -1153,6 +1155,11 @@ namespace FactionColonies
             {
                 FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
 
+                // Defender-change menu sources its win-chance forecast from the warning event's
+                // [Obsolete] military force fields. New ops mirror those fields onto the event
+                // for back-compat (see MilitaryOperationManager.CreateDefensiveOp); when the
+                // wave model fully reads from the op, this UI block migrates with it.
+#pragma warning disable 0618
                 double winChance = SimulateBattleFc.CalculateDefenderWinChance(evt.militaryForceAttacking, evt.militaryForceDefending);
                 // "Reset to Home Settlement" option with win chance
                 MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(settlement);
@@ -1162,6 +1169,7 @@ namespace FactionColonies
                         evt.militaryForceDefending.homeSettlement.Name,
                         evt.militaryForceDefending.DefensivePower,
                         (winChance * 100).ToString("F0")), null, MenuOptionPriority.High));
+#pragma warning restore 0618
                 list.Add(new FloatMenuOption("FCChangeDefendingForce".Translate(), delegate
                 {
                     List<FloatMenuOption> settlementList = new List<FloatMenuOption>();

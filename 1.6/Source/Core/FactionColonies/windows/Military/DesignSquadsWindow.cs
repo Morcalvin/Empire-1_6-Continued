@@ -576,7 +576,9 @@ namespace FactionColonies
 
             if (settlementsWithSquad == null || settlementsWithSquad.Count == 0) return false;
 
+#pragma warning disable 0618 // legacy isDeployed — gating squad-edit warnings by on-map presence
             if (settlementsWithSquad.Any(s => s.MilitaryComp.militarySquad.isDeployed))
+#pragma warning restore 0618
             {
                 reason = "FCReasonDeployedSquad".Translate();
                 return true;

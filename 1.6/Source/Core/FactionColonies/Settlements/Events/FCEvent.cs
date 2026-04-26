@@ -31,16 +31,24 @@ namespace FactionColonies
         public bool isDelayed = false;
         public TaxDeliveryMode deliveryMode;
 
-        //Military Force stuff
+        //Military Force stuff — drained into MilitaryOperation by MilitaryMigrationUtil on
+        // PostLoadInit. Kept declared (and scribed) so pre-refactor saves load cleanly; new
+        // code reads/writes the corresponding MilitaryOperationParticipant fields instead.
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public MilitaryForce militaryForceAttacking;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public Faction militaryForceAttackingFaction;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public MilitaryForce militaryForceDefending;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public Faction militaryForceDefendingFaction;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public WorldObject settlementFCDefending;
         /// <summary>
         /// If the defending force was provided by an external <see cref="IAutoDefender"/> (not an Empire settlement),
         /// this references the defender's world object so it can be notified on battle completion.
         /// </summary>
+        [Obsolete("Drained into MilitaryOperation.externalDefenderSource by MilitaryMigrationUtil. Will be removed in a future version.")]
         public WorldObject externalDefenderSource;
 
         public WorldSettlementDef settlementToCreate = null;
@@ -136,13 +144,15 @@ namespace FactionColonies
             Scribe_Values.Look(ref deliveryMode, "deliveryMode");
             Scribe_Values.Look(ref phase, "phase", FCEventPhase.Queued);
 
-            //Military stuff
+            //Military stuff — legacy save-format fields drained by MilitaryMigrationUtil.
+#pragma warning disable 0618
             Scribe_Deep.Look(ref militaryForceAttacking, "militaryForceAttacking");
             Scribe_References.Look(ref militaryForceAttackingFaction, "militaryForceAttackingFaction");
             Scribe_Deep.Look(ref militaryForceDefending, "militaryForceDefending");
             Scribe_References.Look(ref militaryForceDefendingFaction, "militaryForceDefendingFaction");
             Scribe_References.Look(ref settlementFCDefending, "SettlementFCDefending");
             Scribe_References.Look(ref externalDefenderSource, "externalDefenderSource");
+#pragma warning restore 0618
 
             Scribe_Defs.Look(ref settlementToCreate, "settlementToCreate");
 
