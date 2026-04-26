@@ -496,6 +496,33 @@ namespace FactionColonies
 
                 if (!handled)
                 {
+                    // Phase 2 op-aware dispatch: events scheduled by MilitaryOperationManager
+                    // carry a linkedOperationId. Route them straight to the op's phase machine
+                    // and skip the legacy military switch / settlementBeingAttacked branch /
+                    // "undefined event" reward block.
+                    bool dispatchedToOp = false;
+                    if (evt.linkedOperationId >= 0)
+                    {
+                        MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
+                        if (op is object)
+                        {
+                            try { op.OnEventFired(evt); }
+                            catch (Exception e)
+                            {
+                                LogUtil.Error($"FCEventMaker: op id={op.id} threw in OnEventFired for '{evt.def.defName}': {e}");
+                            }
+                            dispatchedToOp = true;
+                        }
+                        else
+                        {
+                            LogUtil.Warning(
+                                $"FCEventMaker: event '{evt.def.defName}' references missing op id={evt.linkedOperationId}. " +
+                                "Falling back to legacy dispatch.");
+                        }
+                    }
+
+                    if (!dispatchedToOp)
+                    {
                     switch (evt.def.defName)
                     {
                         case "settleNewColony":
@@ -639,6 +666,7 @@ namespace FactionColonies
                             }
                         }
                     }
+                    } // end if (!dispatchedToOp)
                 }
 
                 //If has loot to give

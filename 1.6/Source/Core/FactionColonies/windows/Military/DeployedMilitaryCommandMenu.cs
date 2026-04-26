@@ -19,8 +19,6 @@ namespace FactionColonies
         private List<MercenarySquadFC> squads = new List<MercenarySquadFC>();
         public string squadText;
 
-        public Dictionary<MercenarySquadFC, IntVec3> currentOrderPositionDic = new Dictionary<MercenarySquadFC, IntVec3>();
-        public Dictionary<MercenarySquadFC, MilitaryOrder> squadMilitaryOrderDic = new Dictionary<MercenarySquadFC, MilitaryOrder>();
         private Dictionary<string, string> truncateCache = new Dictionary<string, string>();
 
         public DeployedMilitaryCommandMenu()
@@ -79,7 +77,7 @@ namespace FactionColonies
         {
             if (selectedSquad != null)
             {
-                squadMilitaryOrderDic.SetOrAdd(selectedSquad, MilitaryOrder.Hunt);
+                selectedSquad.militaryOrder = MilitaryOrder.Hunt;
                 Messages.Message("FCAttackSuccess".Translate(selectedSquad.outfit.name), MessageTypeDefOf.NeutralEvent);
             }
         }
@@ -97,8 +95,8 @@ namespace FactionColonies
                 {
                     Position = UI.MouseCell();
 
-                    squadMilitaryOrderDic.SetOrAdd(selectedSquad, MilitaryOrder.DefendPoint);
-                    currentOrderPositionDic.SetOrAdd(selectedSquad, Position);
+                    selectedSquad.orderLocation = Position;
+                    selectedSquad.militaryOrder = MilitaryOrder.DefendPoint;
                     Messages.Message("FCMoveSuccess".Translate(selectedSquad.outfit.name), MessageTypeDefOf.NeutralEvent);
 
                     DebugTools.curTool = null;
@@ -114,7 +112,7 @@ namespace FactionColonies
         {
             if (selectedSquad != null)
             {
-                squadMilitaryOrderDic.SetOrAdd(selectedSquad, MilitaryOrder.RecoverWoundedAndLeave);
+                selectedSquad.militaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
                 Messages.Message("FCCommandLeave".Translate(selectedSquad.outfit.name, selectedSquad.dead), MessageTypeDefOf.NeutralEvent);
             }
         }

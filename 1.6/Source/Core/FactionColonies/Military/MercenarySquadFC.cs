@@ -20,7 +20,14 @@ namespace FactionColonies
         public bool isDeployed;
         public bool isExtraSquad;
         public int timeDeployed;
+        /// <summary>Current target tile for the squad's deployment lord. Initially set to the
+        /// drop position by <c>MilitaryUtil.SpawnSquad</c>; updated when the player issues a
+        /// "move here" command via <see cref="DeployedMilitaryCommandMenu"/>.</summary>
         public IntVec3 orderLocation;
+        /// <summary>Player-issued behavior order for the squad's deployment lord.
+        /// <see cref="MilitaryOrder.Undefined"/> until the player issues a command (Attack /
+        /// Move / Leave). Read by <c>LordJob_DeployMilitary</c>'s state-graph triggers.</summary>
+        public MilitaryOrder militaryOrder = MilitaryOrder.Undefined;
         public bool hitMap;
         public int dead;
         public MilSquadFC outfit;
@@ -50,6 +57,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref tickChanged, "tickChanged");
             Scribe_Values.Look(ref timeDeployed, "timeDeployed", -1);
             Scribe_Values.Look(ref orderLocation, "orderLocation");
+            Scribe_Values.Look(ref militaryOrder, "militaryOrder", MilitaryOrder.Undefined);
             Scribe_Values.Look(ref hasLord, "hasLord");
             Scribe_References.Look(ref map, "map");
             Scribe_References.Look(ref lord, "lord");
@@ -89,6 +97,16 @@ namespace FactionColonies
 
         /// <summary>True if any mercenary pawn is currently spawned on a map.</summary>
         public bool IsPhysicallyDeployed() => mercenaries.Any(m => m?.pawn?.Map != null);
+
+        /// <summary>The <see cref="MilitaryOperation"/> this squad is currently part of, if any.
+        /// Returned via the <see cref="MilitaryOperationManager"/>'s squad index, so this is O(1)
+        /// and reflects the canonical op state.</summary>
+        public MilitaryOperation Operation => FactionCache.MilitaryManager?.GetOpForSquad(this);
+
+        /// <summary>True when this squad is in any active op (offensive, defensive, or cooldown).
+        /// Falls back to the legacy <see cref="isDeployed"/> flag during the Phase 2 transition
+        /// window when not all entry points have been migrated yet.</summary>
+        public bool IsBusy => Operation is object || isDeployed;
 
         public WorldSettlementFC getSettlement
         {

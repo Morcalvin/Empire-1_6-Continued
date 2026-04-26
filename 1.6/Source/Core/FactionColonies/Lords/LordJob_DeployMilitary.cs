@@ -15,8 +15,6 @@ namespace FactionColonies
         private int whenToForceLeave;
         private int timeDeployed = 0;
         private bool readyForCommands = false;
-        private DeployedMilitaryCommandMenu deployedMilitaryCommandMenu;
-        private MilitaryOrder currentOrder = MilitaryOrder.DefendPoint;
 
         private LordToil_DefendPoint lordToil_DefendPoint;
         private LordToil_HuntEnemies lordToil_HuntEnemies;
@@ -52,21 +50,15 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Initializes some variables after loading is complete or when the deployment is first started
+        /// Initializes some variables after loading is complete or when the deployment is first started.
+        /// Ensures the deployment command menu window is open; the menu reads/writes
+        /// <see cref="MercenarySquadFC.militaryOrder"/> / <see cref="MercenarySquadFC.orderLocation"/>
+        /// directly, so this lord doesn't keep a reference to it.
         /// </summary>
         private void Init()
         {
-            deployedMilitaryCommandMenu = new DeployedMilitaryCommandMenu();
-            if (!Find.WindowStack.IsOpen(typeof(DeployedMilitaryCommandMenu))) Find.WindowStack.Add(deployedMilitaryCommandMenu);
-            else
-            {
-                var existing = Find.WindowStack.Windows.FirstOrDefault(w => w is DeployedMilitaryCommandMenu);
-                if (existing is DeployedMilitaryCommandMenu menu)
-                    deployedMilitaryCommandMenu = menu;
-            }
-
-            deployedMilitaryCommandMenu.squadMilitaryOrderDic.SetOrAdd(squad, currentOrder);
-            deployedMilitaryCommandMenu.currentOrderPositionDic[squad] = currentOrderPosition;
+            if (!Find.WindowStack.IsOpen(typeof(DeployedMilitaryCommandMenu)))
+                Find.WindowStack.Add(new DeployedMilitaryCommandMenu());
 
             lordToil_DefendPoint = new LordToil_DefendPoint(currentOrderPosition);
             lordToil_HuntEnemies = new LordToil_HuntEnemies(currentOrderPosition);
@@ -125,7 +117,8 @@ namespace FactionColonies
             Scribe_Values.Look(ref currentOrderPosition, "currentOrderPosition");
             Scribe_Values.Look(ref timeDeployed, "timeDeployed");
             Scribe_Values.Look(ref whenToForceLeave, "whenToForceLeave");
-            Scribe_Values.Look(ref currentOrder, "currentOrder");
+            // currentOrder used to be persisted here. It moved to MercenarySquadFC.militaryOrder
+            // (Phase 2). Old-save value is silently ignored on load.
             Scribe_References.Look(ref squad, "squad");
             Scribe_References.Look(ref currentMap, "currentMap");
             Scribe_Values.Look(ref finalized, "finalized");
@@ -135,11 +128,13 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Grabs a new currentOrderPosition and updates the toils with it
+        /// Grabs a new currentOrderPosition from <see cref="MercenarySquadFC.orderLocation"/>
+        /// and updates the toils with it.
         /// </summary>
         private void UpdateOrderPosition()
         {
-            if (!deployedMilitaryCommandMenu.currentOrderPositionDic.TryGetValue(squad, out IntVec3 newPos)) return;
+            if (squad is null) return;
+            IntVec3 newPos = squad.orderLocation;
             currentOrderPosition = newPos;
 
             lordToil_DefendPoint.SetDefendPoint(newPos);
@@ -164,7 +159,7 @@ namespace FactionColonies
                     {
                         new TransitionAction_Custom(delegate()
                         {
-                            deployedMilitaryCommandMenu.squadMilitaryOrderDic.SetOrAdd(squad, MilitaryOrder.RecoverWoundedAndLeave);
+                            if (squad is object) squad.militaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
                             Messages.Message("FCMilitaryPawnsLeavingTimeOut".Translate(), lord.ownedPawns, MessageTypeDefOf.NeutralEvent);
                         })
                     }
@@ -191,7 +186,7 @@ namespace FactionColonies
                     {
                         triggers = new List<Trigger>(1)
                         {
-                            new Trigger_Custom((TriggerSignal _) => deployedMilitaryCommandMenu.squadMilitaryOrderDic.TryGetValue(squad, out MilitaryOrder order) && order == (MilitaryOrder)k + 1 && ReadyForCommands)
+                            new Trigger_Custom((TriggerSignal _) => squad is object && squad.militaryOrder == (MilitaryOrder)k + 1 && ReadyForCommands)
                         },
                         preActions = new List<TransitionAction>(1)
                         {
@@ -214,7 +209,7 @@ namespace FactionColonies
             {
                 triggers = new List<Trigger>(1)
                 {
-                    new Trigger_Custom((TriggerSignal _) => deployedMilitaryCommandMenu.currentOrderPositionDic.TryGetValue(squad, out IntVec3 pos) && currentOrderPosition != pos && squad.isDeployed)
+                    new Trigger_Custom((TriggerSignal _) => squad is object && squad.isDeployed && squad.orderLocation != currentOrderPosition)
                 },
                 preActions = new List<TransitionAction>(1)
                 {
