@@ -125,30 +125,16 @@ namespace FactionColonies.WDExp
     //   InvokeModifyForce(MFB, isAttacker=false) <- defender second
     // We capture the attacker on the first call to find the target.
     // ================================================================
-    public class WDStrengthBattleModifier : IBattleModifier
+    public class WDStrengthBattleModifier : IBattleModifierWithOp
     {
         public const double SCALE_FACTOR = 100.0;
 
-        private MilitaryForce lastAttacker;
-
-        public void ModifyForce(MilitaryForce force, bool isAttacker)
+        public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
         {
-            if (isAttacker)
-            {
-                lastAttacker = force;
-                return;
-            }
+            if (isAttacker || op is null) return;
 
-            // Defender side — look up target settlement via the attacker's military comp
-            MilitaryForce attacker = lastAttacker;
-            lastAttacker = null;
-
-            if (attacker == null || attacker.homeSettlement == null) return;
-
-            WorldObjectComp_SettlementMilitary milComp = attacker.homeSettlement.MilitaryComp;
-            if (milComp == null || !milComp.militaryLocation.Valid) return;
-
-            Settlement target = Find.WorldObjects.SettlementAt(milComp.militaryLocation);
+            if (!op.targetTile.Valid) return;
+            Settlement target = Find.WorldObjects.SettlementAt(op.targetTile);
             if (target == null) return;
 
             CompViralSpread comp = target.GetComponent<CompViralSpread>();
@@ -162,6 +148,14 @@ namespace FactionColonies.WDExp
             force.forceRemaining = Math.Round(wdForce * force.militaryEfficiency);
 
             LogUtil.Message("WD defense power " + totalDefense.ToString("F0") + " (tier " + comp.tier + ") -> Empire defender force " + force.forceRemaining);
+        }
+
+        // Required by the [Obsolete] base interface. No-op fallback for legacy callers.
+        [Obsolete("Implement IBattleModifierWithOp.ModifyForce(MilitaryOperation, MilitaryForce, bool) for op context. " +
+                  "The legacy overload still works as a fallback for now but will be removed in a future version.")]
+        public void ModifyForce(MilitaryForce force, bool isAttacker)
+        {
+            // Legacy path lacks op context. Skip WD scaling.
         }
     }
 

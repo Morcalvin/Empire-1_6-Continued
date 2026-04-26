@@ -529,6 +529,16 @@ namespace FactionColonies
             }
             ScrubNullSettlements("FactionFC.PostLoadInit");
             RebuildPendingEdictActivations();
+
+            // Phase 3: drain pre-refactor military state into the new MilitaryOperationManager.
+            // Idempotent — only runs when the manager is empty AND legacy state is present in the
+            // loaded save (post-refactor saves write the manager directly and skip migration).
+            if (militaryOperationManager is object && militaryOperationManager.IsEmpty
+                && MilitaryMigrationUtil.AnyLegacyStatePresent(this))
+            {
+                MilitaryMigrationUtil.Migrate(this);
+            }
+            militaryOperationManager?.RebuildIndices();
         }
 
         private void RebuildPendingEdictActivations()

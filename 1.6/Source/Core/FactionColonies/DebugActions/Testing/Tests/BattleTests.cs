@@ -4,14 +4,16 @@ namespace FactionColonies
 {
     public static class BattleTests
     {
-        private class BoostAttackerModifier : IBattleModifier
+        private class BoostAttackerModifier : IBattleModifierWithOp
         {
             private readonly double _boost;
             public BoostAttackerModifier(double boost) => _boost = boost;
-            public void ModifyForce(MilitaryForce force, bool isAttacker)
+            public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
             {
                 if (isAttacker) force.forceRemaining += _boost;
             }
+            // Required by [Obsolete] base interface; new code uses the op-aware overload.
+            [System.Obsolete] public void ModifyForce(MilitaryForce force, bool isAttacker) => ModifyForce(null, force, isAttacker);
         }
         private class FixedRandProvider : IRandProvider
         {
@@ -153,7 +155,11 @@ namespace FactionColonies
             {
                 var mfa = CreateForce(1, 1.0, 1);
                 var mfb = CreateForce(5, 1.0, 5);
-                // Attacker starts weak but modifier adds +100 forceRemaining
+                // Attacker starts weak but modifier adds +100 forceRemaining.
+                // Phase 2: modifiers are applied by op.BeginEngagement, not inside FightBattle.
+                // Tests that bypass the op flow apply them manually to mirror runtime behavior.
+                BattleModifierRegistry.InvokeModifyForce(null, mfa, true);
+                BattleModifierRegistry.InvokeModifyForce(null, mfb, false);
                 var rand = new AlternatingRandProvider(15, 2);
                 BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
                 TestAssert.IsTrue(result.AttackerVictory,

@@ -1,25 +1,240 @@
+using System.Collections.Generic;
+using RimWorld.Planet;
+using Verse;
+
 namespace FactionColonies
 {
     /// <summary>
-    /// One-shot migration: drains pre-refactor military state (on the comp, on FCEvent military
-    /// fields, on squad's <c>isDeployed</c>/<c>timeDeployed</c>) into the new
+    /// One-shot migration: drains pre-refactor military state into the new
     /// <see cref="MilitaryOperationManager"/> model.
-    /// <para>Called from <c>FactionFC.PostLoadInit</c> when the manager is empty but legacy state
-    /// is present in the loaded save.</para>
-    /// <para>Phase 1: empty stub. Phase 3 fills the migration logic.</para>
+    /// <para>Pre-refactor saves carried military operation state on three locations:</para>
+    /// <list type="bullet">
+    ///  <item><description><see cref="WorldObjectComp_SettlementMilitary"/>: <c>militaryJob</c>,
+    ///   <c>militaryLocation</c>, <c>militaryEnemy</c>, <c>militaryBusy</c>,
+    ///   <c>isUnderAttack</c>, <c>activeWaves</c>.</description></item>
+    ///  <item><description><see cref="FCEvent"/>: <c>militaryForceAttacking</c>, <c>militaryForceDefending</c>,
+    ///   <c>settlementFCDefending</c>, <c>externalDefenderSource</c>.</description></item>
+    ///  <item><description><see cref="MercenarySquadFC"/>: <c>isDeployed</c>, <c>timeDeployed</c>.</description></item>
+    /// </list>
+    /// <para>After migration these fields remain populated as comp shadows (Phase 2 keeps them in
+    /// sync via <see cref="FactionFC"/>'s op-aware lifecycle hooks). The migration creates
+    /// <see cref="MilitaryOperation"/>s in the manager and links pending FCEvents to them via
+    /// <see cref="FCEvent.linkedOperationId"/> so the next time the events fire they dispatch
+    /// through the op flow.</para>
     /// </summary>
     public static class MilitaryMigrationUtil
     {
-        /// <summary>Returns true if any pre-refactor military state was loaded that has not yet
-        /// been drained into the manager. Phase 3 implements; Phase 1 returns false so the
-        /// migration path is dormant.</summary>
-        public static bool AnyLegacyStatePresent(FactionFC faction) => false;
+        /// <summary>
+        /// Returns true if any pre-refactor military state was loaded that has not yet been
+        /// drained into the manager. Cheap detection: checks for any settlement with active op
+        /// flags or pending military events.
+        /// </summary>
+        public static bool AnyLegacyStatePresent(FactionFC faction)
+        {
+            if (faction is null) return false;
+            if (faction.settlements is null) return false;
 
-        /// <summary>Walks loaded legacy state and reconstructs <see cref="MilitaryOperation"/>s
-        /// in the manager. Phase 3 implements.</summary>
+            foreach (WorldSettlementFC settlement in faction.settlements)
+            {
+                if (settlement is null) continue;
+                var comp = settlement.MilitaryComp;
+                if (comp is null) continue;
+                if (comp.militaryBusy) return true;
+                if (comp.isUnderAttack) return true;
+                if (comp.activeWaves is object && comp.activeWaves.Count > 0) return true;
+            }
+
+            // Also check for any pending military events. If a pre-refactor save has events but
+            // no comp flags (rare, but possible on a corrupted save), we still want to link them.
+            if (faction.eventManager is object)
+            {
+                foreach (FCEvent evt in faction.Events)
+                {
+                    if (evt is null) continue;
+                    if (evt.linkedOperationId >= 0) continue; // already linked
+                    if (evt.def == FCEventDefOf.raidEnemySettlement
+                        || evt.def == FCEventDefOf.captureEnemySettlement
+                        || evt.def == FCEventDefOf.enslaveEnemySettlement
+                        || evt.def == FCEventDefOf.cooldownMilitary
+                        || evt.def == FCEventDefOf.settlementBeingAttacked) return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Walks loaded legacy state and reconstructs <see cref="MilitaryOperation"/>s in the
+        /// manager. Idempotent: if the manager already has an op covering a piece of legacy
+        /// state, that state is skipped.
+        /// </summary>
         public static void Migrate(FactionFC faction)
         {
-            // Phase 3 fills in.
+            if (faction is null) return;
+            MilitaryOperationManager manager = faction.militaryOperationManager;
+            if (manager is null) return;
+
+            int migratedCount = 0;
+
+            foreach (WorldSettlementFC settlement in faction.settlements ?? new List<WorldSettlementFC>())
+            {
+                if (settlement is null) continue;
+                var comp = settlement.MilitaryComp;
+                if (comp is null) continue;
+
+                // Offensive op in flight (Traveling phase): comp has militaryJob set to a
+                // handler-driven job (Raid / Capture / Enslave) and a pending arrival event.
+                if (comp.militaryBusy && comp.militaryJob is object && comp.militaryJob.Handler is object)
+                {
+                    FCEvent arrival = FindPendingArrivalEvent(faction, settlement.Tile, comp.militaryJob);
+                    if (arrival is object)
+                    {
+                        MilitaryOperation op = ReconstructOffensiveOp(manager, settlement, comp, arrival);
+                        if (op is object)
+                        {
+                            arrival.linkedOperationId = op.id;
+                            op.sourceEvents.Add(arrival);
+                            migratedCount++;
+                        }
+                    }
+                }
+                // Offensive op in cooldown: comp.militaryJob = Cooldown + cooldownMilitary event.
+                else if (comp.militaryBusy && comp.militaryJob == MilitaryJobDefOf.Cooldown)
+                {
+                    FCEvent cooldown = faction.FindEventByDefAndLocation(FCEventDefOf.cooldownMilitary, settlement.Tile);
+                    if (cooldown is object)
+                    {
+                        MilitaryOperation op = ReconstructCooldownOp(manager, settlement, comp, cooldown);
+                        if (op is object)
+                        {
+                            cooldown.linkedOperationId = op.id;
+                            op.sourceEvents.Add(cooldown);
+                            migratedCount++;
+                        }
+                    }
+                }
+
+                // Defensive warning pending: comp.isUnderAttack + settlementBeingAttacked event.
+                if (comp.isUnderAttack)
+                {
+                    FCEvent warning = faction.FindEventByDefAndLocation(FCEventDefOf.settlementBeingAttacked, settlement.Tile);
+                    if (warning is object && warning.linkedOperationId < 0)
+                    {
+                        MilitaryOperation op = ReconstructDefensiveOp(manager, settlement, comp, warning);
+                        if (op is object)
+                        {
+                            warning.linkedOperationId = op.id;
+                            op.sourceEvents.Add(warning);
+                            migratedCount++;
+                        }
+                    }
+                    else if (comp.activeWaves is object && comp.activeWaves.Count > 0)
+                    {
+                        // Mid-battle save: warning event already consumed, battle in progress
+                        // on the comp. Reconstruct an op so EndBattle can fire CompleteBattle on it.
+                        MilitaryOperation op = ReconstructEngagedDefensiveOp(manager, settlement, comp);
+                        if (op is object) migratedCount++;
+                    }
+                }
+            }
+
+            manager.RebuildIndices();
+
+            if (migratedCount > 0)
+            {
+                LogUtil.MessageForce($"MilitaryMigrationUtil: drained {migratedCount} legacy military operation(s) into the manager.");
+            }
+        }
+
+        private static FCEvent FindPendingArrivalEvent(FactionFC faction, PlanetTile tile, MilitaryJobDef job)
+        {
+            if (faction is null || job is null) return null;
+            FCEventDef arrivalDef = ArrivalDefForJob(job);
+            if (arrivalDef is null) return null;
+            return faction.FindEventByDefAndLocation(arrivalDef, tile);
+        }
+
+        private static FCEventDef ArrivalDefForJob(MilitaryJobDef job)
+        {
+            if (job == MilitaryJobDefOf.RaidEnemySettlement) return FCEventDefOf.raidEnemySettlement;
+            if (job == MilitaryJobDefOf.CaptureEnemySettlement) return FCEventDefOf.captureEnemySettlement;
+            if (job == MilitaryJobDefOf.EnslaveEnemySettlement) return FCEventDefOf.enslaveEnemySettlement;
+            return null;
+        }
+
+        private static MilitaryOperation ReconstructOffensiveOp(MilitaryOperationManager manager,
+            WorldSettlementFC home, WorldObjectComp_SettlementMilitary comp, FCEvent arrival)
+        {
+            // Resolve target world object from the comp's recorded location.
+            WorldObject target = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(comp.militaryLocation);
+            if (target is null) target = Find.WorldObjects.SettlementAt(comp.militaryLocation);
+            if (target is null) return null;
+
+            int newId = manager.nextOperationId++;
+            var op = new MilitaryOperation(newId, comp.militaryJob, comp.militaryLocation, target);
+            op.phase = MilitaryOperationPhase.Traveling;
+            op.nextPhaseTick = arrival.timeTillTrigger;
+            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.homeSettlement = home;
+            op.aggressor.squad = comp.militarySquad;
+            op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSettlement(home, isAttacking: true);
+            op.defender.faction = comp.militaryEnemy;
+            manager.Register(op);
+            return op;
+        }
+
+        private static MilitaryOperation ReconstructCooldownOp(MilitaryOperationManager manager,
+            WorldSettlementFC home, WorldObjectComp_SettlementMilitary comp, FCEvent cooldown)
+        {
+            int newId = manager.nextOperationId++;
+            var op = new MilitaryOperation(newId, MilitaryJobDefOf.Cooldown, home.Tile, home);
+            op.phase = MilitaryOperationPhase.CooldownPending;
+            op.nextPhaseTick = cooldown.timeTillTrigger;
+            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.homeSettlement = home;
+            op.aggressor.squad = comp.militarySquad;
+            manager.Register(op);
+            return op;
+        }
+
+        private static MilitaryOperation ReconstructDefensiveOp(MilitaryOperationManager manager,
+            WorldSettlementFC settlement, WorldObjectComp_SettlementMilitary comp, FCEvent warning)
+        {
+            int newId = manager.nextOperationId++;
+            WorldObject target = warning.settlementFCDefending ?? settlement;
+            var op = new MilitaryOperation(newId, null, target.Tile, target);
+            op.phase = MilitaryOperationPhase.Scheduled;
+            op.nextPhaseTick = warning.timeTillTrigger;
+            op.aggressor.faction = warning.militaryForceAttackingFaction;
+            op.aggressor.force = warning.militaryForceAttacking;
+            op.defender.faction = warning.militaryForceDefendingFaction ?? FactionCache.PlayerColonyFaction;
+            op.defender.homeSettlement = warning.militaryForceDefending?.homeSettlement;
+            op.defender.force = warning.militaryForceDefending;
+            op.externalDefenderSource = warning.externalDefenderSource;
+            manager.Register(op);
+            return op;
+        }
+
+        private static MilitaryOperation ReconstructEngagedDefensiveOp(MilitaryOperationManager manager,
+            WorldSettlementFC settlement, WorldObjectComp_SettlementMilitary comp)
+        {
+            // Mid-battle: pull force info from the first active wave. EndBattle will fire
+            // CompleteBattle on this op when the battle resolves naturally.
+            DefenseWave wave = comp.activeWaves.Count > 0 ? comp.activeWaves[0] : null;
+            if (wave is null) return null;
+
+            int newId = manager.nextOperationId++;
+            var op = new MilitaryOperation(newId, null, settlement.Tile, settlement);
+            op.phase = MilitaryOperationPhase.Engaged;
+            op.nextPhaseTick = -1;
+            op.aggressor.faction = wave.attackerFaction;
+            op.aggressor.force = wave.attackerForce;
+            op.defender.faction = FactionCache.PlayerColonyFaction;
+            op.defender.homeSettlement = wave.defenderForce?.homeSettlement ?? settlement;
+            op.defender.force = wave.defenderForce;
+            op.externalDefenderSource = wave.externalDefenderSource;
+            manager.Register(op);
+            return op;
         }
     }
 }

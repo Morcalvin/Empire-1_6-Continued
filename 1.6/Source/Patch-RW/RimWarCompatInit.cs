@@ -39,28 +39,17 @@ namespace FactionColonies.RW
     /// Uses sqrt(points) / 20 scaling:
     ///   400 pts -> level 1, 3600 -> 3, 10000 -> 5, 19600 -> 7, 32400 -> 9
     /// </summary>
-    public class RWStrengthBattleModifier : IBattleModifier
+    public class RWStrengthBattleModifier : IBattleModifierWithOp
     {
-        private MilitaryForce lastAttacker;
-
-        public void ModifyForce(MilitaryForce force, bool isAttacker)
+        public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
         {
-            if (isAttacker)
-            {
-                lastAttacker = force;
-                return;
-            }
+            if (isAttacker || op is null) return;
 
-            // Defender side: look up target settlement via the attacker's military comp
-            MilitaryForce attacker = lastAttacker;
-            lastAttacker = null;
+            // The op gives us the target tile directly — no need for stateful tracking.
+            PlanetTile targetTile = op.targetTile;
+            if (!targetTile.Valid) return;
 
-            if (attacker?.homeSettlement is null) return;
-
-            WorldObjectComp_SettlementMilitary milComp = attacker.homeSettlement.MilitaryComp;
-            if (milComp is null || !milComp.militaryLocation.Valid) return;
-
-            Settlement target = Find.WorldObjects.SettlementAt(milComp.militaryLocation);
+            Settlement target = Find.WorldObjects.SettlementAt(targetTile);
             if (target is null) return;
 
             RimWarSettlementComp rwsc = target.GetComponent<RimWarSettlementComp>();
@@ -74,6 +63,16 @@ namespace FactionColonies.RW
             force.forceRemaining = Math.Round(rwLevel * force.militaryEfficiency);
 
             LogUtil.Message("RW strength " + rwsc.RimWarPoints + " -> Empire defender force " + force.forceRemaining);
+        }
+
+        // Required by the [Obsolete] base interface. Op-aware path is preferred; this is a
+        // best-effort fallback for legacy callers (no op context — can't look up the target).
+        [Obsolete("Implement IBattleModifierWithOp.ModifyForce(MilitaryOperation, MilitaryForce, bool) for op context. " +
+                  "The legacy overload still works as a fallback for now but will be removed in a future version.")]
+        public void ModifyForce(MilitaryForce force, bool isAttacker)
+        {
+            // Legacy path lacks the op context required to look up the target settlement.
+            // No-op: skip RimWar scaling. New code routes through op-aware ModifyForce.
         }
     }
 }

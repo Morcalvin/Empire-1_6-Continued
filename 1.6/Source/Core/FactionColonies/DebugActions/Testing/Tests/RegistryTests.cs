@@ -4,12 +4,6 @@ using System.Linq;
 using UnityEngine;
 using Verse;
 
-// Test fixtures intentionally implement the legacy [Obsolete] IBattleModifier /
-// ILifecycleParticipant interfaces and exercise the legacy registry overloads to verify
-// back-compat with pre-migration submods. The op-aware overloads have parallel coverage
-// elsewhere; suppressing the deprecation warnings is intentional for this file.
-#pragma warning disable 0618
-
 namespace FactionColonies
 {
     public static class RegistryTests
@@ -29,7 +23,7 @@ namespace FactionColonies
         // Test Doubles
         // ============================
 
-        private class TestLifecycleParticipant : LifecycleParticipantBase
+        private class TestLifecycleParticipant : LifecycleParticipantWithOpBase
         {
             public int SettlementCreatedCount;
             public int SettlementRemovedCount;
@@ -39,27 +33,30 @@ namespace FactionColonies
             public override void OnSettlementCreated(WorldSettlementFC s) => SettlementCreatedCount++;
             public override void OnSettlementRemoved(WorldSettlementFC s) => SettlementRemovedCount++;
             public override void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => BuildingConstructedCount++;
-            public override void OnBattleResolved(WorldSettlementFC s, MilitaryJobDef j, bool v, BattleResult r) => BattleResolvedCount++;
+            public override void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => BattleResolvedCount++;
             public override void OnResearchCompleted(ResearchProjectDef p) => ResearchCompletedCount++;
         }
 
-        private class ThrowingLifecycleParticipant : LifecycleParticipantBase
+        private class ThrowingLifecycleParticipant : LifecycleParticipantWithOpBase
         {
             public override void OnSettlementCreated(WorldSettlementFC s) => throw new InvalidOperationException("test");
             public override void OnSettlementRemoved(WorldSettlementFC s) => throw new InvalidOperationException("test");
             public override void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => throw new InvalidOperationException("test");
-            public override void OnBattleResolved(WorldSettlementFC s, MilitaryJobDef j, bool v, BattleResult r) => throw new InvalidOperationException("test");
+            public override void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => throw new InvalidOperationException("test");
         }
 
-        private class TestBattleModifier : IBattleModifier
+        private class TestBattleModifier : IBattleModifierWithOp
         {
             public double LevelBonus;
-            public void ModifyForce(MilitaryForce force, bool isAttacker) => force.militaryLevel += LevelBonus;
+            public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker) => force.militaryLevel += LevelBonus;
+            // Required by the [Obsolete] base interface; new code uses the op-aware overload.
+            [Obsolete] public void ModifyForce(MilitaryForce force, bool isAttacker) => ModifyForce(null, force, isAttacker);
         }
 
-        private class ThrowingBattleModifier : IBattleModifier
+        private class ThrowingBattleModifier : IBattleModifierWithOp
         {
-            public void ModifyForce(MilitaryForce force, bool isAttacker) => throw new InvalidOperationException("test");
+            public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker) => throw new InvalidOperationException("test");
+            [Obsolete] public void ModifyForce(MilitaryForce force, bool isAttacker) => ModifyForce(null, force, isAttacker);
         }
 
         private class TestPaymentModifier : ISilverPaymentModifier
@@ -203,10 +200,23 @@ namespace FactionColonies
             LifecycleRegistry.Register(p);
             try
             {
-                LifecycleRegistry.InvokeOnBattleResolved(settlement, null, true, null);
+                MilitaryOperation op = MakeSyntheticOp(settlement);
+                LifecycleRegistry.InvokeOnBattleResolved(op, true, null);
                 TestAssert.AreEqual(1, p.BattleResolvedCount);
             }
             finally { LifecycleRegistry.Unregister(p); }
+        }
+
+        /// <summary>
+        /// Builds a minimal <see cref="MilitaryOperation"/> for tests that exercise the op-aware
+        /// registry overloads. Not registered with the manager — purely a transient stand-in.
+        /// </summary>
+        private static MilitaryOperation MakeSyntheticOp(WorldSettlementFC home)
+        {
+            var op = new MilitaryOperation(-1, null, home?.Tile ?? RimWorld.Planet.PlanetTile.Invalid, home);
+            op.aggressor.homeSettlement = home;
+            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            return op;
         }
 
         [EmpireTest("Registry")]
@@ -312,7 +322,7 @@ namespace FactionColonies
             try
             {
                 var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-                BattleModifierRegistry.InvokeModifyForce(force, true);
+                BattleModifierRegistry.InvokeModifyForce(null, force, true);
                 TestAssert.AreEqual(7.0, force.militaryLevel, message: "Level should increase by 2");
             }
             finally { BattleModifierRegistry.Unregister(c); }
@@ -325,7 +335,7 @@ namespace FactionColonies
             BattleModifierRegistry.Register(c);
             BattleModifierRegistry.Unregister(c);
             var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-            BattleModifierRegistry.InvokeModifyForce(force, true);
+            BattleModifierRegistry.InvokeModifyForce(null, force, true);
             TestAssert.AreEqual(5.0, force.militaryLevel, message: "Level should be unchanged");
         }
 
@@ -338,7 +348,7 @@ namespace FactionColonies
             try
             {
                 var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-                BattleModifierRegistry.InvokeModifyForce(force, true);
+                BattleModifierRegistry.InvokeModifyForce(null, force, true);
                 TestAssert.AreEqual(7.0, force.militaryLevel, message: "Should only apply once");
             }
             finally { BattleModifierRegistry.Unregister(c); }
@@ -352,7 +362,7 @@ namespace FactionColonies
             try
             {
                 var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-                TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeModifyForce(force, true));
+                TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeModifyForce(null, force, true));
             }
             finally { BattleModifierRegistry.Unregister(bad); }
         }
