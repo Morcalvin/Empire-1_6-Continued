@@ -1611,9 +1611,11 @@ namespace FactionColonies
         }
 
         /* -*-*-*-*- ILifecycleParticipantWithOp -*-*-*-*-
-         * Bridges the op-aware registry dispatch into the policy-behavior pipeline. Settlement
-         * + extra-squad flag + job are derived from the op so the existing FCPolicyBehavior
-         * hooks see the same data as the legacy (settlement, job, ...) signature.
+         * Bridges the op-aware registry dispatch into the policy-behavior pipeline AND maintains
+         * the comp's legacy shadow fields (militaryBusy / militaryJob / militaryLocation /
+         * militaryEnemy) so existing readers (UI gizmos, compat patches, debug actions) keep
+         * working while only the offensive entry point has been migrated to the manager.
+         * Phase 2 final will gut the shadows once defensive flow is also migrated.
          */
 
         void ILifecycleParticipantWithOp.OnSquadDeployed(MilitaryOperation op)
@@ -1621,6 +1623,21 @@ namespace FactionColonies
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
+
+            // Comp shadow update for offensive ops with a handler — these were migrated in 2e.
+            if (op.IsOffensive && op.aggressor?.homeSettlement is object && op.kind?.Handler is object)
+            {
+                var comp = op.aggressor.homeSettlement.MilitaryComp;
+                if (comp is object)
+                {
+                    comp.militaryBusy = true;
+                    comp.militaryJob = op.kind;
+                    comp.militaryLocation = op.targetTile;
+                    if (op.defender?.faction is object) comp.militaryEnemy = op.defender.faction;
+                    if (op.kind.occupiesTarget) AddMilitaryTarget(op.targetTile);
+                }
+            }
+
             bool isExtraSquad = op.aggressor?.squad?.isExtraSquad ?? false;
             ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
         }
@@ -1630,6 +1647,23 @@ namespace FactionColonies
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
+
+            // Comp shadow clear for offensive handler-driven ops.
+            if (op.IsOffensive && op.aggressor?.homeSettlement is object && op.kind?.Handler is object)
+            {
+                var comp = op.aggressor.homeSettlement.MilitaryComp;
+                if (comp is object)
+                {
+                    comp.militaryBusy = false;
+                    comp.militaryJob = MilitaryJobDefOf.Undefined;
+                    comp.militaryLocation = PlanetTile.Invalid;
+                    comp.militaryEnemy = null;
+                    if (op.kind.occupiesTarget) RemoveMilitaryTarget(op.targetTile);
+                    if (comp.militarySquad is object)
+                        militaryCustomizationUtil?.RegisterSquadInjuries(comp.militarySquad);
+                }
+            }
+
             ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
         }
 
@@ -1638,6 +1672,21 @@ namespace FactionColonies
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
+
+            // After a battle resolves, the offensive op enters cooldown. Reflect that in the comp
+            // shadow so legacy readers see the cooldown state until the cooldown event fires
+            // (which triggers OnSquadRecalled and clears the shadow back to Undefined).
+            if (op.IsOffensive && op.aggressor?.homeSettlement is object && op.kind?.Handler is object)
+            {
+                var comp = op.aggressor.homeSettlement.MilitaryComp;
+                if (comp is object)
+                {
+                    comp.militaryJob = MilitaryJobDefOf.Cooldown;
+                    comp.militaryLocation = op.aggressor.homeSettlement.Tile;
+                    comp.militaryEnemy = null;
+                }
+            }
+
             ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
         }
 

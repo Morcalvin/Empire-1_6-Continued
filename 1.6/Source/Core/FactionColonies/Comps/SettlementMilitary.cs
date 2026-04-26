@@ -1822,16 +1822,60 @@ namespace FactionColonies
         {
             if (IsMilitaryBusy() || IsTargetOccupied(location)) return;
 
+            // Phase 2: jobs with a MilitaryJobHandler (Raid / Capture / Enslave + submod handlers)
+            // route through MilitaryOperationManager. The op fires arrival / cooldown FCEvents
+            // linked back to itself; FCEventMaker dispatches them to op.OnEventFired which drives
+            // the auto-resolve / manual battle / cooldown / resolve chain. FactionFC's
+            // ILifecycleParticipantWithOp hook keeps the comp's shadow fields (militaryBusy,
+            // militaryJob, militaryLocation, militaryEnemy) in sync for legacy readers (UI gizmos,
+            // compat patches, debug actions).
+            if (job?.Handler is object)
+            {
+                MilitaryOperationManager manager = FactionCache.MilitaryManager;
+                if (manager is null)
+                {
+                    LogUtil.Error("SendMilitary: MilitaryManager unavailable; aborting offensive op.");
+                    return;
+                }
+                WorldObject target = ResolveTargetWorldObject(location);
+                if (target is null)
+                {
+                    LogUtil.Warning($"SendMilitary: no world object found at tile {location}; aborting.");
+                    return;
+                }
+                manager.CreateOffensiveOp(WorldSettlement, target, job, enemy, timeToFinish);
+                return;
+            }
+
+            // Handler-less jobs (Deploy / DefendFriendlySettlement / state defs) keep the legacy
+            // comp-field path. They don't schedule arrival events of their own; they're used as
+            // markers that the squad is committed (e.g. squad reserved to defend another tile).
             militaryBusy = true;
             militaryJob = job;
             militaryLocation = location;
-
             if (enemy != null) militaryEnemy = enemy;
             if (job.occupiesTarget) FactionCache.FactionComp.AddMilitaryTarget(location);
-
-            job.Handler?.OnDeployed(this, location, timeToFinish, enemy);
-
+#pragma warning disable 0618 // legacy lifecycle hook for handler-less state jobs; op-aware path is dormant for these
             LifecycleRegistry.InvokeOnSquadDeployed(WorldSettlement, job);
+#pragma warning restore 0618
+        }
+
+        /// <summary>
+        /// Look up the WorldObject at <paramref name="tile"/> in priority order: Empire settlement,
+        /// any other Settlement (raid target), or any registered <see cref="IRaidTarget"/>'s
+        /// world object. Returns null if nothing matches.
+        /// </summary>
+        private static WorldObject ResolveTargetWorldObject(PlanetTile tile)
+        {
+            WorldObject target = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(tile);
+            if (target is object) return target;
+            target = Find.WorldObjects.SettlementAt(tile);
+            if (target is object) return target;
+            foreach (IRaidTarget rt in RaidTargetRegistry.Targets)
+            {
+                if (rt?.WorldObject is object && rt.Tile == tile.tileId) return rt.WorldObject;
+            }
+            return null;
         }
 
         public Settlement ReturnMilitaryTarget()
