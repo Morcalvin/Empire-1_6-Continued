@@ -1610,26 +1610,35 @@ namespace FactionColonies
             // No policy behavior hook for merc death currently — submods handle this via their own listener
         }
 
-        /* -*-*-*-*- ILifecycleParticipantWithOp (Phase 1: empty stubs) -*-*-*-*-
-         * The op-aware overloads will be invoked by LifecycleRegistry's op-aware dispatch
-         * once Phase 2 wires SendMilitary / AttackPlayerSettlement to create ops. Until then,
-         * the registry's legacy dispatch path still fires the older ILifecycleParticipant
-         * methods above, and these empty bodies are not reached at runtime.
+        /* -*-*-*-*- ILifecycleParticipantWithOp -*-*-*-*-
+         * Bridges the op-aware registry dispatch into the policy-behavior pipeline. Settlement
+         * + extra-squad flag + job are derived from the op so the existing FCPolicyBehavior
+         * hooks see the same data as the legacy (settlement, job, ...) signature.
          */
 
         void ILifecycleParticipantWithOp.OnSquadDeployed(MilitaryOperation op)
         {
-            // Phase 2 fills in: bridge to ForEachBehavior with op-derived settlement.
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
+            if (settlement is null) return;
+            bool isExtraSquad = op.aggressor?.squad?.isExtraSquad ?? false;
+            ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
         }
 
         void ILifecycleParticipantWithOp.OnSquadRecalled(MilitaryOperation op)
         {
-            // Phase 2 fills in.
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
+            if (settlement is null) return;
+            ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
         }
 
         void ILifecycleParticipantWithOp.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
         {
-            // Phase 2 fills in.
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
+            if (settlement is null) return;
+            ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
         }
 
         #endregion
