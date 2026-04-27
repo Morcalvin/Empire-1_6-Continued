@@ -87,11 +87,15 @@ namespace FactionColonies
             => currentUpkeep;
 
         /* Military Events */
-        /// <summary>Called after a squad is deployed from a settlement.</summary>
-        public virtual void OnSquadDeployed(FactionFC faction, WorldSettlementFC settlement, bool isExtraSquad) { }
+        /// <summary>Called after a squad is deployed from a settlement. Fires once per home settlement
+        /// involved in the op — for foreign-defender ops you'll see two calls with different
+        /// <paramref name="settlement"/> values. Compare <paramref name="settlement"/> to
+        /// <c>op.aggressor.homeSettlement</c> / <c>op.defender.homeSettlement</c> if the side matters.</summary>
+        public virtual void OnSquadDeployed(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement, bool isExtraSquad) { }
 
-        /// <summary>Called when a squad is recalled/returned to a settlement.</summary>
-        public virtual void OnSquadRecalled(FactionFC faction, WorldSettlementFC settlement) { }
+        /// <summary>Called when a squad is recalled/returned to a settlement. Symmetric with
+        /// <see cref="OnSquadDeployed"/> — fires once per home settlement involved in the op.</summary>
+        public virtual void OnSquadRecalled(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement) { }
 
         /// <summary>Called after a battle has been resolved, before the squad enters cooldown.</summary>
         public virtual void OnBattleResolved(FactionFC faction, WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result) { }

@@ -1340,7 +1340,8 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSquadDeployed(faction, settlement, false));
+                    // Debug trigger has no real op — behaviors that inspect op must null-check.
+                    faction.ForEachBehavior(b => b.OnSquadDeployed(faction, null, settlement, false));
                     LogUtil.MessageForce($"Debug - Triggered OnSquadDeployed on {settlement.Name}");
                 });
             }));
@@ -1349,7 +1350,7 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSquadRecalled(faction, settlement));
+                    faction.ForEachBehavior(b => b.OnSquadRecalled(faction, null, settlement));
                     LogUtil.MessageForce($"Debug - Triggered OnSquadRecalled on {settlement.Name}");
                 });
             }));

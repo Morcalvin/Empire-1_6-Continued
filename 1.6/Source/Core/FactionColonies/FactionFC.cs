@@ -1597,35 +1597,47 @@ namespace FactionColonies
         }
 
         /* -*-*-*-*- Military hooks -*-*-*-*-
-         * Comp shadow fields (militaryBusy / militaryJob / militaryLocation / etc.) are computed
-         * properties that derive their values from the manager's op indices. No shadow writes
-         * needed here — readers see consistent state through the computed properties. The hooks
-         * just dispatch to policy behaviors and update the occupies-target faction-wide list.
+         * The comp's military-related properties (militaryBusy / militaryJob / militaryLocation /
+         * militaryEnemy / isUnderAttack) are read-only and derived from MilitaryOperationManager's
+         * op indices, so these hooks have no comp-side state to update. They just dispatch to
+         * policy behaviors and run squad injury bookkeeping.
          */
 
         void ILifecycleParticipant.OnOperationCreated(MilitaryOperation op)
         {
             if (op is null) return;
-            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
-            if (settlement is null) return;
 
-            bool isExtraSquad = op.aggressor?.squad?.isExtraSquad ?? false;
-            ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
+            // Fire on both sides when distinct: a foreign-defender op commits two settlements
+            // (aggressor's home and defender's home), and listeners that track per-settlement
+            // commitment need both notifications.
+            WorldSettlementFC aggressorHome = op.aggressor?.homeSettlement;
+            WorldSettlementFC defenderHome = op.defender?.homeSettlement;
+            if (aggressorHome is object)
+            {
+                bool isExtra = op.aggressor?.squad?.isExtraSquad ?? false;
+                ForEachBehavior(b => b.OnSquadDeployed(this, op, aggressorHome, isExtra));
+            }
+            if (defenderHome is object && defenderHome != aggressorHome)
+            {
+                bool isExtra = op.defender?.squad?.isExtraSquad ?? false;
+                ForEachBehavior(b => b.OnSquadDeployed(this, op, defenderHome, isExtra));
+            }
         }
 
         void ILifecycleParticipant.OnOperationResolved(MilitaryOperation op)
         {
             if (op is null) return;
-            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
-            if (settlement is null) return;
 
-            // Squad injury registration on cleanup (offensive aggressor / foreign defender).
-            if (op.aggressor?.squad is object)
-                militaryCustomizationUtil?.RegisterSquadInjuries(op.aggressor.squad);
-            if (op.defender?.squad is object && op.defender.squad != op.aggressor?.squad)
-                militaryCustomizationUtil?.RegisterSquadInjuries(op.defender.squad);
+            // Squad injuries are registered earlier, in op.CompleteBattle, so OnBattleResolved
+            // listeners observe the post-battle injury counts.
 
-            ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
+            // Symmetric with OnOperationCreated: recall both sides when they're distinct settlements.
+            WorldSettlementFC aggressorHome = op.aggressor?.homeSettlement;
+            WorldSettlementFC defenderHome = op.defender?.homeSettlement;
+            if (aggressorHome is object)
+                ForEachBehavior(b => b.OnSquadRecalled(this, op, aggressorHome));
+            if (defenderHome is object && defenderHome != aggressorHome)
+                ForEachBehavior(b => b.OnSquadRecalled(this, op, defenderHome));
         }
 
         void ILifecycleParticipant.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)

@@ -22,9 +22,11 @@ namespace FactionColonies
         public Dictionary<PlanetTile, BattlefieldContext> battlefields = new Dictionary<PlanetTile, BattlefieldContext>();
         public int nextOperationId = 1;
 
-        /* Indices — rebuilt on load, not scribed */
+        /* Indices — rebuilt on load, not scribed. _bySquad is list-valued because a squad can
+         * legitimately appear on more than one op (e.g. defending while a separate cooldown op
+         * for the same squad is still draining; or a defender squad shared across waves). */
         [Unsaved] private Dictionary<PlanetTile, List<MilitaryOperation>> _byTile;
-        [Unsaved] private Dictionary<MercenarySquadFC, MilitaryOperation> _bySquad;
+        [Unsaved] private Dictionary<MercenarySquadFC, List<MilitaryOperation>> _bySquad;
         [Unsaved] private Dictionary<WorldSettlementFC, List<MilitaryOperation>> _bySettlement;
 
         /* Scribe scratch buffers for the battlefields dict. RimWorld's
@@ -35,7 +37,7 @@ namespace FactionColonies
         public MilitaryOperationManager()
         {
             _byTile = new Dictionary<PlanetTile, List<MilitaryOperation>>();
-            _bySquad = new Dictionary<MercenarySquadFC, MilitaryOperation>();
+            _bySquad = new Dictionary<MercenarySquadFC, List<MilitaryOperation>>();
             _bySettlement = new Dictionary<WorldSettlementFC, List<MilitaryOperation>>();
         }
 
@@ -64,7 +66,7 @@ namespace FactionColonies
         private void EnsureIndicesAllocated()
         {
             if (_byTile is null) _byTile = new Dictionary<PlanetTile, List<MilitaryOperation>>();
-            if (_bySquad is null) _bySquad = new Dictionary<MercenarySquadFC, MilitaryOperation>();
+            if (_bySquad is null) _bySquad = new Dictionary<MercenarySquadFC, List<MilitaryOperation>>();
             if (_bySettlement is null) _bySettlement = new Dictionary<WorldSettlementFC, List<MilitaryOperation>>();
         }
 
@@ -181,6 +183,7 @@ namespace FactionColonies
             if (targetSettlement is object)
             {
                 op.defender.homeSettlement = targetSettlement;
+                op.defender.squad = targetSettlement.MilitaryComp?.militarySquad;
                 op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement);
             }
             // For external raid targets, defender.force is set below by the auto-defender path.
@@ -303,6 +306,10 @@ namespace FactionColonies
             // makes BeginEngagement notify the defender.
             if (bestExternal is object && externalLevel > targetLevel)
             {
+                // Clear the target-settlement defender markers: the external defender is fully
+                // taking over, so the target's own squad must not be flagged as committed.
+                op.defender.homeSettlement = null;
+                op.defender.squad = null;
                 op.defender.force = bestExternal.CreateDefendingForce();
                 op.externalDefenderSource = bestExternal.WorldObject;
                 return;
@@ -366,12 +373,24 @@ namespace FactionColonies
             return Array.Empty<MilitaryOperation>();
         }
 
+        /// <summary>Returns the first registered op the squad is participating in, or <c>null</c>.
+        /// Convenience wrapper over <see cref="GetOpsForSquad"/> for callers that just want
+        /// "the active op" (most do — squads usually appear on at most one op at a time).</summary>
         public MilitaryOperation GetOpForSquad(MercenarySquadFC squad)
         {
-            if (squad is null) return null;
+            IReadOnlyList<MilitaryOperation> ops = GetOpsForSquad(squad);
+            return ops.Count > 0 ? ops[0] : null;
+        }
+
+        /// <summary>Returns every registered op the squad is participating in. A squad can legitimately
+        /// appear on more than one op (e.g. a foreign-defender squad still in cooldown when a fresh
+        /// defensive op references it as an inactive home-settlement-squad).</summary>
+        public IReadOnlyList<MilitaryOperation> GetOpsForSquad(MercenarySquadFC squad)
+        {
+            if (squad is null) return Array.Empty<MilitaryOperation>();
             EnsureIndicesAllocated();
-            _bySquad.TryGetValue(squad, out MilitaryOperation op);
-            return op;
+            if (_bySquad.TryGetValue(squad, out List<MilitaryOperation> list)) return list;
+            return Array.Empty<MilitaryOperation>();
         }
 
         public IReadOnlyList<MilitaryOperation> GetOpsForSettlement(WorldSettlementFC settlement)
@@ -406,7 +425,7 @@ namespace FactionColonies
             return false;
         }
 
-        public bool IsSquadBusy(MercenarySquadFC squad) => GetOpForSquad(squad) is object;
+        public bool IsSquadBusy(MercenarySquadFC squad) => GetOpsForSquad(squad).Count > 0;
 
         public bool IsTileOccupiedBy(PlanetTile tile, MilitaryJobDef kind)
         {
@@ -464,8 +483,8 @@ namespace FactionColonies
                 }
                 if (!tileList.Contains(op)) tileList.Add(op);
             }
-            if (op.aggressor?.squad is object) _bySquad[op.aggressor.squad] = op;
-            if (op.defender?.squad is object) _bySquad[op.defender.squad] = op;
+            IndexSquad(op, op.aggressor?.squad);
+            IndexSquad(op, op.defender?.squad);
             IndexSettlement(op, op.aggressor?.homeSettlement);
             IndexSettlement(op, op.defender?.homeSettlement);
         }
@@ -478,10 +497,31 @@ namespace FactionColonies
                 tileList.Remove(op);
                 if (tileList.Count == 0) _byTile.Remove(op.targetTile);
             }
-            if (op.aggressor?.squad is object) _bySquad.Remove(op.aggressor.squad);
-            if (op.defender?.squad is object) _bySquad.Remove(op.defender.squad);
+            UnindexSquad(op, op.aggressor?.squad);
+            UnindexSquad(op, op.defender?.squad);
             UnindexSettlement(op, op.aggressor?.homeSettlement);
             UnindexSettlement(op, op.defender?.homeSettlement);
+        }
+
+        private void IndexSquad(MilitaryOperation op, MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            if (!_bySquad.TryGetValue(squad, out List<MilitaryOperation> list))
+            {
+                list = new List<MilitaryOperation>();
+                _bySquad[squad] = list;
+            }
+            if (!list.Contains(op)) list.Add(op);
+        }
+
+        private void UnindexSquad(MilitaryOperation op, MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            if (_bySquad.TryGetValue(squad, out List<MilitaryOperation> list))
+            {
+                list.Remove(op);
+                if (list.Count == 0) _bySquad.Remove(squad);
+            }
         }
 
         private void IndexSettlement(MilitaryOperation op, WorldSettlementFC settlement)

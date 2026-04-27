@@ -66,13 +66,13 @@ namespace FactionColonies
         public int settlementMilitaryLevel;
 
         /* -*-*-*-*- Legacy load buffers -*-*-*-*-
-         * Old saves carried operation state on the comp directly. The canonical state lives on
-         * MilitaryOperation in the manager; the readable comp surface (militaryBusy / militaryJob
-         * / militaryLocation / militaryEnemy / isUnderAttack) is computed from manager queries
-         * below. Battle infrastructure (attackers / defenders / draftedNPCs) lives on
-         * BattlefieldContext. These _legacy* fields are loaded from old save XML during
-         * LoadingVars and consumed by <see cref="MilitaryMigrationUtil"/> in PostLoadInit.
-         * They are NOT written on save.
+         * Old saves carried operation state on the comp directly. The canonical state now lives
+         * on MilitaryOperation in the manager; the comp's militaryBusy / militaryJob /
+         * militaryLocation / militaryEnemy / isUnderAttack are computed properties that read
+         * from the manager (defined below). Battle infrastructure (attackers / defenders /
+         * draftedNPCs) lives on BattlefieldContext. These _legacy* fields are loaded from old
+         * save XML during LoadingVars and consumed once by <see cref="MilitaryMigrationUtil"/>
+         * in PostLoadInit. They are NOT written on save.
          */
         public bool _legacyMilitaryBusy;
         public MilitaryJobDef _legacyMilitaryJob;
@@ -101,7 +101,7 @@ namespace FactionColonies
         public IEnumerable<Pawn> defenders => Battlefield?.defenderPawns ?? Enumerable.Empty<Pawn>();
         public List<Pawn> draftedNPCs => Battlefield?.draftedNPCs ?? _emptyPawnList;
 
-        /* -*-*-*-*- Computed comp surface (derived from manager) -*-*-*-*- */
+        /* -*-*-*-*- Computed properties (derived from manager state) -*-*-*-*- */
 
         /// <summary>True when this settlement has any active op in which it's the squad-bearer
         /// (offensive aggressor, deploy aggressor, or foreign defender of another settlement's
@@ -174,8 +174,8 @@ namespace FactionColonies
         public MilitaryForce defenderForce => FindIncomingDefensiveOp()?.defender?.force;
 
         /// <summary>Returns the first op where this settlement is "the actor" — aggressor of any
-        /// op, or foreign defender of someone else's defensive op. Used by computed shadow
-        /// surface to derive job / location / enemy.</summary>
+        /// op, or foreign defender of someone else's defensive op. Used by the computed
+        /// militaryJob / militaryLocation / militaryEnemy properties.</summary>
         private MilitaryOperation FindOwnOp()
         {
             MilitaryOperationManager manager = FactionCache.MilitaryManager;
@@ -680,7 +680,8 @@ namespace FactionColonies
 
         private void LoseBattle(FactionFC faction)
         {
-            faction.threatAdaptation.Notify_BattleLost();
+            // Threat adaptation now updates in op.CompleteBattle for every Empire battle
+            // (offensive and defensive). Comp-side notification was removed to avoid double-counting.
 
             var happinessLostMultiplier = WorldSettlement.GetStatValue(FCStatDefOf.happinessLostMultiplier);
             var loyaltyLostMultiplier = WorldSettlement.GetStatValue(FCStatDefOf.loyaltyLostMultiplier);
@@ -793,7 +794,8 @@ namespace FactionColonies
         private void WinBattle(FactionFC faction)
         {
             faction.AddExperienceToFactionLevel(5f);
-            faction.threatAdaptation.Notify_BattleWon();
+            // Threat adaptation moved to op.CompleteBattle (fires for offensive and defensive
+            // ops alike, so the empire's threat curve responds to every battle).
             string text = "FCDefenseSuccessfulFull".Translate(WorldSettlement.Name);
             string deliveryMsg = Battlefield?.pendingDeliveryMessage;
             if (!string.IsNullOrEmpty(deliveryMsg))

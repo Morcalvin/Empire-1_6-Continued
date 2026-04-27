@@ -193,12 +193,37 @@ namespace FactionColonies
                 LogUtil.Error($"MilitaryOperation.CompleteBattle: handler {kind?.Handler?.GetType().Name} threw in ApplyResult: {e}");
             }
 
+            // Roll up squad injuries onto the loadout BEFORE listeners run, so OnBattleResolved
+            // observers see post-battle injury counts. Pawn deaths are already reflected in
+            // squad.dead via the Pawn.Kill harmony patch — this call records the wound list.
+            MilitaryCustomizationUtil mcu = FactionCache.FactionComp?.militaryCustomizationUtil;
+            if (mcu is object)
+            {
+                if (aggressor?.squad is object) mcu.RegisterSquadInjuries(aggressor.squad);
+                if (defender?.squad is object && defender.squad != aggressor?.squad)
+                    mcu.RegisterSquadInjuries(defender.squad);
+            }
+
             LifecycleRegistry.InvokeOnBattleResolved(this, victory, battleResult);
 
             if (externalDefenderSource is object)
             {
                 IAutoDefender def = AutoDefenderRegistry.FindByWorldObject(externalDefenderSource);
                 def?.OnDefenseComplete(victory, battleResult);
+            }
+
+            // Drive EmpireThreatAdaptation from every battle the empire participates in (offensive
+            // and defensive). Previously only the defensive comp path notified, so offensive
+            // raid wins/losses never tuned the threat curve. Skip on Error results — the battle
+            // didn't really happen.
+            if (battleResult is object && battleResult.winner != BattleWinner.Error)
+            {
+                EmpireThreatAdaptation adapt = FactionCache.FactionComp?.threatAdaptation;
+                if (adapt is object)
+                {
+                    if (victory) adapt.Notify_BattleWon();
+                    else adapt.Notify_BattleLost();
+                }
             }
 
             // Overwhelming-victory shortcut: foreign defender that won without losing any defenders

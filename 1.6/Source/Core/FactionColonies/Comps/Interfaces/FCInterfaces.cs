@@ -134,9 +134,11 @@ namespace FactionColonies
         void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
         void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
         /// <summary>Called immediately after a <see cref="MilitaryOperation"/> is created and registered.
-        /// Note: fires for every op, including defensive ops where no squad has been deployed.</summary>
+        /// Fires for every op (offensive, defensive, deploy). For defensive ops the defending squad
+        /// is reachable via <c>op.defender.squad</c> when an Empire settlement is the defender.</summary>
         void OnOperationCreated(MilitaryOperation op);
-        /// <summary>Called when an op resolves and its squad (if any) is freed.</summary>
+        /// <summary>Called when an op resolves. Any squads referenced by <c>op.aggressor.squad</c>
+        /// or <c>op.defender.squad</c> are freed at this point.</summary>
         void OnOperationResolved(MilitaryOperation op);
         /// <summary>Called after the battle simulation / manual battle has produced a result.</summary>
         void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result);

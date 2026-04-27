@@ -78,8 +78,8 @@ Override `PostInitialize()` to wire up `[Unsaved]` fields from extension paramet
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `OnSquadDeployed` | `void OnSquadDeployed(FactionFC faction, WorldSettlementFC settlement, bool isExtraSquad)` | A squad was deployed from a settlement. |
-| `OnSquadRecalled` | `void OnSquadRecalled(FactionFC faction, WorldSettlementFC settlement)` | A squad was recalled. |
+| `OnSquadDeployed` | `void OnSquadDeployed(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement, bool isExtraSquad)` | A squad was deployed from a settlement. Fires once per home settlement involved in the op (foreign-defender ops fire twice). Compare `settlement` to `op.aggressor.homeSettlement` / `op.defender.homeSettlement` if side matters. |
+| `OnSquadRecalled` | `void OnSquadRecalled(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement)` | A squad was recalled. Symmetric with `OnSquadDeployed`. |
 | `OnBattleResolved` | `void OnBattleResolved(FactionFC faction, WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result)` | A battle was resolved. |
 
 #### Other Events

@@ -4,8 +4,8 @@ namespace FactionColonies
     /// Lifecycle phase of a <see cref="MilitaryOperation"/>.
     /// <para>Scheduled — created but not yet acting (e.g. defensive 24h warning window).</para>
     /// <para>Traveling — squad in transit toward target.</para>
-    /// <para>Engaged — battle in progress (auto-resolving or manual map).</para>
-    /// <para>Resolving — handler-driven persistence after engagement (loot, capture, etc.).</para>
+    /// <para>Engaged — battle in progress (auto-resolving or manual map). Mid-battle / post-battle
+    /// "player still on map" state lives on <see cref="BattlefieldContext"/>, not on the op.</para>
     /// <para>CooldownPending — awaiting cooldown event to fire.</para>
     /// <para>Resolved — terminal; manager has unregistered the op.</para>
     /// </summary>
@@ -14,9 +14,8 @@ namespace FactionColonies
         Scheduled = 0,
         Traveling = 1,
         Engaged = 2,
-        Resolving = 3,
-        CooldownPending = 4,
-        Resolved = 5
+        CooldownPending = 3,
+        Resolved = 4
     }
 
     /// <summary>

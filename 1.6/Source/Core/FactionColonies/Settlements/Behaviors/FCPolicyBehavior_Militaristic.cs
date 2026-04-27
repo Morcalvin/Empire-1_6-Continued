@@ -58,7 +58,7 @@ namespace FactionColonies
             return currentUpkeep;
         }
 
-        public override void OnSquadDeployed(FactionFC faction, WorldSettlementFC settlement, bool isExtraSquad)
+        public override void OnSquadDeployed(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement, bool isExtraSquad)
         {
             if (isExtraSquad)
                 extraSquadCooldown.Use();

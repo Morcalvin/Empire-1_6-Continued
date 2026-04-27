@@ -264,10 +264,10 @@ namespace FactionColonies
                     && op.phase == MilitaryOperationPhase.Engaged)
                 {
                     // Deploy isn't a battle — synthesize a result so CompleteBattle's
-                    // victory-flag computation has something to read.
+                    // victory-flag computation has something to read. CompleteBattle now also
+                    // registers squad injuries internally, so the explicit call below is gone.
                     op.CompleteBattle(new BattleResult { winner = BattleWinner.Defender });
                 }
-                FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(squad);
 
                 // Despawn orphaned downed/stuck mercs still on the map
                 if (currentMap is object)

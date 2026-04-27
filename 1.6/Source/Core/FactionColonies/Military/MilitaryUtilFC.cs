@@ -173,7 +173,9 @@ namespace FactionColonies
 
             manager.Register(op);
 
-            defender.OnDefenseStarted(op.targetObject);
+            // OnDefenseStarted fires from MilitaryOperation.BeginEngagement when the warning event
+            // resolves — not here. Firing it now would cause a double-fire: once at swap time and
+            // again at engagement, with only a single matching OnDefenseComplete.
 
             Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),
                 MessageTypeDefOf.NeutralEvent);

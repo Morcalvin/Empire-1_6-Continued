@@ -70,8 +70,13 @@ namespace FactionColonies
 
         /// <summary>
         /// Walks loaded legacy state and reconstructs <see cref="MilitaryOperation"/>s in the
-        /// manager. Idempotent: if the manager already has an op covering a piece of legacy
-        /// state, that state is skipped.
+        /// manager. Safe across save/reload because the legacy fields on the comp are loaded
+        /// only in <see cref="LoadSaveMode.LoadingVars"/> and never re-serialized — once
+        /// drained they don't survive the next save, so <see cref="AnyLegacyStatePresent"/>
+        /// returns false on subsequent loads. Not idempotent within a single load cycle: the
+        /// reconstruct functions don't check the manager for existing ops covering the same
+        /// legacy event, so calling this twice in one cycle would create duplicates. The sole
+        /// call site (<c>FactionFC.PostLoadInit</c>) only invokes once per load.
         /// </summary>
         public static void Migrate(FactionFC faction)
         {
