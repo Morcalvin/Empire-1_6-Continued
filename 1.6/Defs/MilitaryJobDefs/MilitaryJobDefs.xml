@@ -61,4 +61,13 @@
         <isState>true</isState>
     </FactionColonies.MilitaryJobDef>
 
+    <FactionColonies.MilitaryJobDef>
+        <defName>DefendOwnSettlement</defName>
+        <label>defend settlement</label>
+        <handlerClass>FactionColonies.MilitaryJobHandler_Defend</handlerClass>
+        <statusLabelKey>FCMilStatusDefending</statusLabelKey>
+        <occupiesTarget>false</occupiesTarget>
+        <defaultEnabled>false</defaultEnabled>
+    </FactionColonies.MilitaryJobDef>
+
 </Defs>

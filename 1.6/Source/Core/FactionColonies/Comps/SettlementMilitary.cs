@@ -597,20 +597,15 @@ namespace FactionColonies
                 }
             }
 
-            // Settlement-side effects (letters, building destruction, stat changes). Wrapped so
-            // a throw here cannot prevent the op-completion above from having taken effect.
-            try
-            {
-                if (won) WinBattle(faction);
-                else LoseBattle(faction);
-            }
-            catch (Exception e)
-            {
-                LogUtil.Error($"Encountered an error while trying to resolve combat in Empire{Environment.NewLine}{e}");
-            }
+            // Settlement-side effects (letters, building destruction, stat changes) now run inside
+            // op.CompleteBattle via MilitaryJobHandler_Defend.ApplyResult — once per op. Multi-op
+            // battles apply one full penalty set per concurrent attacker, treating each op as a
+            // logically distinct attack on the settlement.
             // isUnderAttack is computed from manager state; the op completing already drove it.
             // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
+            _ = won;       // outcome consumed inside op.CompleteBattle's handler dispatch.
             _ = remaining; // legacy parameter retained for source compat with callers.
+            _ = faction;
         }
 
         public void ClearAttackState()
@@ -678,138 +673,10 @@ namespace FactionColonies
             return !targetComp.isUnderAttack;
         }
 
-        private void LoseBattle(FactionFC faction)
-        {
-            // Threat adaptation now updates in op.CompleteBattle for every Empire battle
-            // (offensive and defensive). Comp-side notification was removed to avoid double-counting.
-
-            var happinessLostMultiplier = WorldSettlement.GetStatValue(FCStatDefOf.happinessLostMultiplier);
-            var loyaltyLostMultiplier = WorldSettlement.GetStatValue(FCStatDefOf.loyaltyLostMultiplier);
-
-            var (prosperityLoss, happinessLoss, loyaltyLoss) = SettlementFormulas.CalculateBattleLossPenalties(happinessLostMultiplier, loyaltyLostMultiplier);
-            prosperityLoss *= faction.GetStatValue(FCStatDefOf.battleProsperityLossMultiplier);
-            happinessLoss *= faction.GetStatValue(FCStatDefOf.battleHappinessLossMultiplier);
-            loyaltyLoss *= faction.GetStatValue(FCStatDefOf.battleLoyaltyLossMultiplier);
-            var canDestroyBuildings = !faction.AnyPolicyPreventsBuildingDestruction();
-
-            // buildingDestructionChance stat scales the survival threshold:
-            // stat=1.0 -> threshold 7 (36% destruction, default)
-            // stat<1.0 -> higher threshold (less destruction)
-            // stat>1.0 -> lower threshold (more destruction)
-            double destructionStat = faction.GetStatValue(FCStatDefOf.buildingDestructionChance);
-            int deconstructChance = Math.Max(0, Math.Min(11, (int)Math.Round(11 - 4 * destructionStat)));
-
-            WorldSettlement.prosperity -= prosperityLoss;
-            WorldSettlement.happiness -= happinessLoss;
-            WorldSettlement.loyalty -= loyaltyLoss;
-
-            string str = "FCDefenseFailureFull".Translate(WorldSettlement.Name);
-
-            // Penalty summary
-            str += "\n\n" + "FCDefenseFailurePenaltiesHeader".Translate();
-
-            int displayProsperity = (int)Math.Round(prosperityLoss);
-            int displayHappiness = (int)Math.Round(happinessLoss);
-            int displayLoyalty = (int)Math.Round(loyaltyLoss);
-
-            if (displayProsperity > 0)
-            {
-                str += "\n  - " + "FCDefenseFailureProsperityLoss".Translate(displayProsperity);
-            }
-            if (displayHappiness > 0)
-            {
-                str += "\n  - " + "FCDefenseFailureHappinessLoss".Translate(displayHappiness);
-            }
-            if (displayLoyalty > 0)
-            {
-                str += "\n  - " + "FCDefenseFailureLoyaltyLoss".Translate(displayLoyalty);
-            }
-
-            if (canDestroyBuildings && WorldSettlement?.BuildingsComp != null)
-            {
-                // Collect candidate slots for demolition
-                List<int> candidates = new List<int>();
-                for (var k = 0; k < 4; k++)
-                {
-                    var deconstructRoll = new IntRange(0, 10).RandomInRange;
-                    if (deconstructRoll < deconstructChance ||
-                        !WorldSettlement.BuildingsComp.BuildingSlotIsBuilding(k))
-                    {
-                        continue;
-                    }
-                    candidates.Add(k);
-                }
-
-                // Sort so buildings that depend on other buildings are demolished first
-                candidates.Sort((a, b) =>
-                {
-                    BuildingFCDef defA = WorldSettlement.BuildingsComp.GetBuildingInSlot(a);
-                    BuildingFCDef defB = WorldSettlement.BuildingsComp.GetBuildingInSlot(b);
-                    bool aRequiresB = FactionCache.SatisfiesAnyRequirement(defB, defA.requiredBuildings);
-                    bool bRequiresA = FactionCache.SatisfiesAnyRequirement(defA, defB.requiredBuildings);
-                    if (aRequiresB) return -1; // a depends on b, demolish a first
-                    if (bRequiresA) return 1;  // b depends on a, demolish b first
-                    // Buildings with any requirements go before those without
-                    int aReqCount = defA.requiredBuildings?.Count ?? 0;
-                    int bReqCount = defB.requiredBuildings?.Count ?? 0;
-                    return bReqCount.CompareTo(aReqCount);
-                });
-
-                foreach (int k in candidates)
-                {
-                    str += "\n  - " + "FCBuildingDestroyedInRaid".Translate(WorldSettlement.BuildingsComp.BuildingLabel(k));
-                    WorldSettlement.DeconstructBuilding(k);
-                }
-            }
-
-            if (!canDestroyBuildings)
-            {
-                str += "\n  - " + "FCDefenseFailureBuildingsProtected".Translate();
-            }
-
-            // level remover checker — uses same destruction stat scaling
-            if (WorldSettlement?.settlementLevel > 1 && canDestroyBuildings)
-            {
-                var num = new IntRange(0, 10).RandomInRange;
-                if (num >= deconstructChance)
-                {
-                    str += "\n  - " + "FCSettlementDeleveledRaid".Translate();
-                    WorldSettlement.DelevelSettlement();
-                }
-            }
-
-            string deliveryMsg = Battlefield?.pendingDeliveryMessage;
-            if (!string.IsNullOrEmpty(deliveryMsg))
-            {
-                str += "\n\n" + deliveryMsg;
-            }
-            if (Map != null)
-            {
-                str += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
-            }
-            Find.LetterStack.ReceiveLetter("FCDefenseFailure".Translate(), str, LetterDefOf.Death,
-                new LookTargets(WorldSettlement));
-        }
-
-        private void WinBattle(FactionFC faction)
-        {
-            faction.AddExperienceToFactionLevel(5f);
-            // Threat adaptation moved to op.CompleteBattle (fires for offensive and defensive
-            // ops alike, so the empire's threat curve responds to every battle).
-            string text = "FCDefenseSuccessfulFull".Translate(WorldSettlement.Name);
-            string deliveryMsg = Battlefield?.pendingDeliveryMessage;
-            if (!string.IsNullOrEmpty(deliveryMsg))
-            {
-                text += "\n\n" + deliveryMsg;
-            }
-            if (Map != null)
-            {
-                text += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
-            }
-            Find.LetterStack.ReceiveLetter("FCDefenseSuccessful".Translate(),
-                text,
-                LetterDefOf.PositiveEvent, new LookTargets(WorldSettlement));
-        }
+        // WinBattle / LoseBattle moved to MilitaryJobHandler_Defend.ApplyResult →
+        // DefensiveBattleEffects.ApplyWin / ApplyLoss. Settlement-side outcome handling now runs
+        // inside op.CompleteBattle (per-op) so listeners observe post-effect state and the comp
+        // doesn't own this anymore.
 
         // EndAttack / RemoveAttacker / RemoveDefender live on BattlefieldContext. External lord
         // callers (LordJob_HuntColonists / LordJob_DefendColony / LordJob_ColonistsIdle) and a few

@@ -182,8 +182,8 @@ namespace FactionColonies
                 ? battleResult is object && battleResult.DefenderVictory
                 : battleResult is object && battleResult.AttackerVictory;
 
-            // Outcome side effects via handler (offensive ops; defensive ops generally have null kind
-            // or DefendFriendlySettlement and the handler.ApplyResult is a no-op default).
+            // Outcome side effects via handler. Offensive handlers apply loot/prisoners/capture;
+            // MilitaryJobHandler_Defend applies settlement-side effects (loyalty/happiness/buildings).
             try
             {
                 kind?.Handler?.ApplyResult(this, battleResult);
@@ -283,8 +283,11 @@ namespace FactionColonies
                                    ?? targetTile;
             if (!cooldownTile.Valid) cooldownTile = targetTile;
 
-            string desc = aggressor?.homeSettlement is object
-                ? "FCMilitaryForcesReorganizing".Translate(aggressor.homeSettlement.Name).ToString()
+            // Defensive ops have null aggressor.homeSettlement (the aggressor is the enemy faction);
+            // use the defender's home so the cooldown letter still names a settlement.
+            WorldSettlementFC cooldownHome = aggressor?.homeSettlement ?? defender?.homeSettlement;
+            string desc = cooldownHome is object
+                ? "FCMilitaryForcesReorganizing".Translate(cooldownHome.Name).ToString()
                 : null;
             ScheduleEvent(FCEventDefOf.cooldownMilitary, cooldownTile, cooldownTicks, desc);
         }
@@ -378,7 +381,8 @@ namespace FactionColonies
                 MilitaryJobHandler handler = kind?.Handler;
                 if (handler is object)
                 {
-                    // Offensive op (handler-driven). Manual handlers own when CompleteBattle fires.
+                    // Handler-driven op (offensive raid/capture/enslave OR defensive defend-own-
+                    // settlement). Manual handlers own when CompleteBattle fires.
                     if (handler.ResolvesManually(this))
                     {
                         try { handler.OnManualResolve(this); }
@@ -393,31 +397,9 @@ namespace FactionColonies
                     return;
                 }
 
-                // Defensive op (no handler). Route through BattlefieldContext.StartDefense which
-                // owns map generation / pawn spawning / auto-resolve. EndBattle later walks ops at
-                // the tile and fires CompleteBattle on each, scheduling the linked cooldown event.
-                if (IsDefensive)
-                {
-                    if (targetObject is WorldSettlementFC defendedSettlement && defendedSettlement.MilitaryComp is object)
-                    {
-                        try
-                        {
-                            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(targetTile);
-                            bf?.StartDefense(this);
-                        }
-                        catch (Exception e)
-                        {
-                            LogUtil.Error($"MilitaryOperation.OnEventFired: StartDefense threw for op id={id}: {e}");
-                            AutoResolveAndComplete();
-                        }
-                        return;
-                    }
-                    // Target has no comp (external IRaidTarget) — auto-resolve via simulator.
-                    AutoResolveAndComplete();
-                    return;
-                }
-
-                // Fallback: shouldn't happen normally.
+                // Handler-less op (only Deploy / Cooldown state defs reach here, and neither
+                // schedules wakeup events that hit this branch). Auto-resolve as a safety net.
+                LogUtil.Warning($"MilitaryOperation.OnEventFired: handler-less op id={id} kind={kind?.defName} reached engagement path; auto-resolving.");
                 AutoResolveAndComplete();
                 return;
             }

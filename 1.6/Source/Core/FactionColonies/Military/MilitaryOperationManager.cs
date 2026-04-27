@@ -169,10 +169,13 @@ namespace FactionColonies
             WorldSettlementFC targetSettlement = target as WorldSettlementFC;
 
             int newId = nextOperationId++;
-            // Defensive ops have no MilitaryJobDef — kind is null. CompleteBattle skips the
-            // handler.ApplyResult dispatch when no handler is set; settlement-side effects come
-            // from comp.EndBattle / op.CompleteBattle's defensive path.
-            var op = new MilitaryOperation(newId, null, target.Tile, target);
+            // Defensive ops use MilitaryJobHandler_Defend. The handler routes through
+            // BattlefieldContext.StartDefense for settlement targets (which decides auto vs manual
+            // internally) and through SimulateBattleFc.FightBattle for external IRaidTarget.
+            // ApplyResult applies settlement-side effects (loyalty / happiness / building destruction)
+            // per-op — multiple concurrent defensive ops on the same tile each apply their own
+            // penalty set, treating each attacker as a logically distinct battle.
+            var op = new MilitaryOperation(newId, MilitaryJobDefOf.DefendOwnSettlement, target.Tile, target);
             op.phase = MilitaryOperationPhase.Scheduled;
             op.nextPhaseTick = Find.TickManager.TicksGame + GenDate.TicksPerDay;
 

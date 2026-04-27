@@ -285,7 +285,7 @@ namespace FactionColonies
         {
             int newId = manager.nextOperationId++;
             WorldObject target = warning.settlementFCDefending ?? settlement;
-            var op = new MilitaryOperation(newId, null, target.Tile, target);
+            var op = new MilitaryOperation(newId, MilitaryJobDefOf.DefendOwnSettlement, target.Tile, target);
             op.phase = MilitaryOperationPhase.Scheduled;
             op.nextPhaseTick = warning.timeTillTrigger;
             op.aggressor.faction = warning.militaryForceAttackingFaction
@@ -320,7 +320,7 @@ namespace FactionColonies
             if (wave is null) return null;
 
             int newId = manager.nextOperationId++;
-            var op = new MilitaryOperation(newId, null, settlement.Tile, settlement);
+            var op = new MilitaryOperation(newId, MilitaryJobDefOf.DefendOwnSettlement, settlement.Tile, settlement);
             op.phase = MilitaryOperationPhase.Engaged;
             op.nextPhaseTick = -1;
             op.aggressor.faction = wave.attackerFaction ?? wave.attackerForce?.homeFaction;
