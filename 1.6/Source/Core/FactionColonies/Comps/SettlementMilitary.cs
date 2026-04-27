@@ -97,8 +97,8 @@ namespace FactionColonies
         private BattlefieldContext Battlefield
             => FactionCache.MilitaryManager?.GetBattlefield(WorldSettlement?.Tile ?? PlanetTile.Invalid);
 
-        public List<Pawn> attackers => Battlefield?.attackerPawns ?? _emptyPawnList;
-        public List<Pawn> defenders => Battlefield?.defenderPawns ?? _emptyPawnList;
+        public IEnumerable<Pawn> attackers => Battlefield?.attackerPawns ?? Enumerable.Empty<Pawn>();
+        public IEnumerable<Pawn> defenders => Battlefield?.defenderPawns ?? Enumerable.Empty<Pawn>();
         public List<Pawn> draftedNPCs => Battlefield?.draftedNPCs ?? _emptyPawnList;
 
         /* -*-*-*-*- Computed comp surface (derived from manager) -*-*-*-*- */
@@ -205,10 +205,6 @@ namespace FactionColonies
             return null;
         }
 
-        // Phase 7: endingBattle / battleMapInitialized / shuttleLandingPending /
-        // initialDefenderCount / pendingDeliveryMessage moved to BattlefieldContext.
-        // IsPawnTrulyGone / HasPendingPodAttackers are static helpers on BattlefieldContext.
-
         public override void PostExposeData()
         {
             base.PostExposeData();
@@ -219,7 +215,7 @@ namespace FactionColonies
 
             /* Backward compat: load pre-refactor save state into legacy buffers consumed by
              * MilitaryMigrationUtil during PostLoadInit. The canonical state lives on
-             * MilitaryOperationManager (ops) and BattlefieldContext (battle pawns/waves).
+             * MilitaryOperationManager (ops) and BattlefieldContext (battle pawns).
              * These are NOT written on save — post-refactor saves use the new layout. */
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
@@ -484,11 +480,11 @@ namespace FactionColonies
             return AcceptanceReport.WasAccepted;
         }
 
-        // Phase 7: IsPlayerCaravanOnTile / CountOtherSettlementBattleMaps / ShuttleCaravanDefend /
-        // SpawnPawnsAtEdge / RegisterPawnsAsDefenders migrated to BattlefieldContext.
-        // CaravanDefend / AddToDefenceFromList are kept as thin wrappers because external
-        // callers (VEF Harmony patch, WorldSettlementDefendAction, TransportPodArrivalActionPatch)
-        // target them by name on the comp.
+        // Battle infrastructure (IsPlayerCaravanOnTile / CountOtherSettlementBattleMaps /
+        // ShuttleCaravanDefend / SpawnPawnsAtEdge / RegisterPawnsAsDefenders) lives on
+        // BattlefieldContext. CaravanDefend / AddToDefenceFromList are kept as thin wrappers
+        // because external callers (VEF Harmony patch, WorldSettlementDefendAction,
+        // TransportPodArrivalActionPatch) target them by name on the comp.
 
         private bool PlayerCaravanOnSettlementTile()
         {
@@ -529,8 +525,6 @@ namespace FactionColonies
                 foreach (var option in WorldSettlementDefendAction.GetFloatMenuOptions(caravan, WorldSettlement))
                     yield return option;
         }
-
-        // Phase 7: DeleteMap migrated to BattlefieldContext.
 
         /// <summary>Thin delegation to <see cref="BattlefieldContext.StartDefense"/>. Looks up the op
         /// linked to <paramref name="evt"/> and routes the start-defense flow through it.
@@ -573,9 +567,17 @@ namespace FactionColonies
                 MilitaryOperationManager manager = FactionCache.MilitaryManager;
                 if (manager is object)
                 {
+                    // Manual-battle path constructs the BattleResult here from on-map pawn counts;
+                    // the auto-resolve path arrives with battleResult already populated by
+                    // SimulateBattleFc.FightBattle. Either way, op.CompleteBattle uses
+                    // result.defenderRemainingForce vs defenderInitialForce to detect overwhelming
+                    // victory (≥ all defenders survived) for the FCOverwhelmingVictory letter +
+                    // foreign-defender cooldown skip.
                     BattleResult resultForOps = battleResult ?? new BattleResult
                     {
-                        winner = won ? BattleWinner.Defender : BattleWinner.Attacker
+                        winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
+                        defenderInitialForce = Battlefield?.initialDefenderCount ?? remaining,
+                        defenderRemainingForce = remaining
                     };
                     var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
                     if (opsAtTile.Count == 0)
@@ -621,17 +623,16 @@ namespace FactionColonies
                 defenderForce.homeSettlement.MilitaryComp?.ReturnMilitary(false);
             }
 
-            // isUnderAttack is computed from manager state. Battle pawn lists / wave state /
-            // flags live on BattlefieldContext now — clear them through it.
+            // isUnderAttack is computed from manager state. Battle pawn lists and flags live on
+            // BattlefieldContext now — clear them through it.
             BattlefieldContext bf = Battlefield;
             if (bf is object)
             {
                 bf.endingBattle = false;
                 bf.battleMapInitialized = false;
                 bf.shuttleLandingPending = false;
-                bf.attackerPawns?.Clear();
-                bf.defenderPawns?.Clear();
                 bf.draftedNPCs?.Clear();
+                bf.ClearAllOpPawns();
             }
         }
 
@@ -808,10 +809,9 @@ namespace FactionColonies
                 LetterDefOf.PositiveEvent, new LookTargets(WorldSettlement));
         }
 
-        // Phase 7: EndAttack / RemoveAttacker / RemoveDefender migrated to BattlefieldContext.
-        // External lord callers (LordJob_HuntColonists / LordJob_DefendColony / LordJob_ColonistsIdle)
-        // and a few internal helpers still reference the comp methods by name; these stay as
-        // thin delegations.
+        // EndAttack / RemoveAttacker / RemoveDefender live on BattlefieldContext. External lord
+        // callers (LordJob_HuntColonists / LordJob_DefendColony / LordJob_ColonistsIdle) and a few
+        // internal helpers still reference the comp methods by name; these stay as thin delegations.
 
         public void EndAttack() => Battlefield?.EndAttack();
 
@@ -827,7 +827,8 @@ namespace FactionColonies
                 var lord = pawn.GetLord();
                 if (lord != null)
                     lord.Notify_PawnLost(pawn, PawnLostCondition.LeftVoluntarily);
-                bf?.defenderPawns?.Remove(pawn);
+                // Routes through bf.RemoveDefender so per-op pawn lists stay in sync.
+                bf?.RemoveDefender(pawn);
             }
 
             if (Map is object)

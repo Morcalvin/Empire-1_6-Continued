@@ -153,9 +153,9 @@ namespace FactionColonies
             {
                 var mfa = CreateForce(1, 1.0, 1);
                 var mfb = CreateForce(5, 1.0, 5);
-                // Attacker starts weak but modifier adds +100 forceRemaining.
-                // Phase 2: modifiers are applied by op.BeginEngagement, not inside FightBattle.
-                // Tests that bypass the op flow apply them manually to mirror runtime behavior.
+                // Attacker starts weak but modifier adds +100 forceRemaining. Modifiers are
+                // applied by op.BeginEngagement at runtime, not inside FightBattle. Tests that
+                // bypass the op flow apply them manually to mirror runtime behavior.
                 BattleModifierRegistry.InvokeModifyForce(null, mfa, true);
                 BattleModifierRegistry.InvokeModifyForce(null, mfb, false);
                 var rand = new AlternatingRandProvider(15, 2);

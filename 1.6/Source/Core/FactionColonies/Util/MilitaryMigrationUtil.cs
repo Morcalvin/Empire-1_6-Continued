@@ -20,11 +20,10 @@ namespace FactionColonies
     ///   <c>settlementFCDefending</c>, <c>externalDefenderSource</c>.</description></item>
     ///  <item><description><see cref="MercenarySquadFC"/>: <c>isDeployed</c>, <c>timeDeployed</c>.</description></item>
     /// </list>
-    /// <para>After migration these fields remain populated as comp shadows (Phase 2 keeps them in
-    /// sync via <see cref="FactionFC"/>'s op-aware lifecycle hooks). The migration creates
-    /// <see cref="MilitaryOperation"/>s in the manager and links pending FCEvents to them via
-    /// <see cref="FCEvent.linkedOperationId"/> so the next time the events fire they dispatch
-    /// through the op flow.</para>
+    /// <para>The migration creates <see cref="MilitaryOperation"/>s in the manager and links
+    /// pending FCEvents to them via <see cref="FCEvent.linkedOperationId"/> so the next time
+    /// those events fire they dispatch through the op flow. Legacy fields stay populated for
+    /// the round-trip but are never read by runtime code.</para>
     /// </summary>
     public static class MilitaryMigrationUtil
     {
@@ -151,39 +150,50 @@ namespace FactionColonies
                     }
                 }
 
-                // Drain the comp's legacy battle pawn / counter buffers into the BattlefieldContext
-                // for this settlement's tile. Runs whenever any of the legacy collections are
-                // populated, regardless of whether an op was reconstructed above — covers the
-                // mid-battle save case where pawns still exist even if the op state is otherwise
-                // clean. Per-wave attacker / defender lists from legacy DefenseWaves are folded
-                // into the first defensive op's participant pawn lists (multi-wave saves lose the
-                // per-wave grouping; only the aggregated flat lists survive).
+                // Drain the comp's legacy battle pawn buffers into the BattlefieldContext for this
+                // settlement's tile. The flat attacker/defender pawn lists are now aggregations
+                // across the per-op pawn lists, so legacy pawns route onto the primary defensive
+                // op's aggressor/defender lists (multi-wave saves lose per-wave grouping; only the
+                // aggregated total survives).
                 if (HasLegacyBattleState(comp))
                 {
                     BattlefieldContext bf = manager.GetOrCreateBattlefield(settlement.Tile);
                     if (bf is object)
                     {
-                        if (comp._legacyAttackers is object) bf.attackerPawns.AddRange(comp._legacyAttackers);
-                        if (comp._legacyDefenders is object) bf.defenderPawns.AddRange(comp._legacyDefenders);
                         if (comp._legacyDraftedNPCs is object) bf.draftedNPCs.AddRange(comp._legacyDraftedNPCs);
                         bf.battleMapInitialized = comp._legacyBattleMapInitialized;
-                        bf.initialDefenderCount = comp._legacyInitialDefenderCount;
 
-                        // Distribute per-wave pawn lists onto the first defensive op at this tile.
-                        // EndAttack walks ops to return external defender pawns; without this, an
-                        // outpost-defended migrated battle would fail to return its survivors.
-                        MilitaryOperation defensiveOp = null;
-                        foreach (MilitaryOperation candidate in bf.activeOps)
+                        MilitaryOperation defensiveOp = bf.PrimaryDefensiveOp();
+                        if (defensiveOp is object)
                         {
-                            if (candidate is object && candidate.IsDefensive) { defensiveOp = candidate; break; }
-                        }
-                        if (defensiveOp is object && comp._legacyActiveWaves is object)
-                        {
-                            foreach (DefenseWave wave in comp._legacyActiveWaves)
+                            // Legacy flat lists fold into the primary op's per-side pawn lists.
+                            if (comp._legacyAttackers is object)
                             {
-                                if (wave is null) continue;
-                                if (wave.waveAttackers is object) defensiveOp.aggressor.pawns.AddRange(wave.waveAttackers);
-                                if (wave.waveDefenders is object) defensiveOp.defender.pawns.AddRange(wave.waveDefenders);
+                                defensiveOp.aggressor.pawns.AddRange(comp._legacyAttackers);
+                                defensiveOp.aggressor.initialPawnCount += comp._legacyAttackers.Count;
+                            }
+                            if (comp._legacyDefenders is object)
+                            {
+                                defensiveOp.defender.pawns.AddRange(comp._legacyDefenders);
+                            }
+                            // initialDefenderCount goes onto the primary op's defender side
+                            // (matches the comp.EndBattle path that used the flat field for
+                            // overwhelming-victory detection).
+                            if (comp._legacyInitialDefenderCount > 0)
+                            {
+                                defensiveOp.defender.initialPawnCount += comp._legacyInitialDefenderCount;
+                            }
+
+                            // EndAttack walks ops to return external defender pawns; without this,
+                            // an outpost-defended migrated battle would fail to return its survivors.
+                            if (comp._legacyActiveWaves is object)
+                            {
+                                foreach (DefenseWave wave in comp._legacyActiveWaves)
+                                {
+                                    if (wave is null) continue;
+                                    if (wave.waveAttackers is object) defensiveOp.aggressor.pawns.AddRange(wave.waveAttackers);
+                                    if (wave.waveDefenders is object) defensiveOp.defender.pawns.AddRange(wave.waveDefenders);
+                                }
                             }
                         }
                     }

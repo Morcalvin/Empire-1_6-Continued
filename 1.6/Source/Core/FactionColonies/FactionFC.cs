@@ -182,12 +182,9 @@ namespace FactionColonies
         public int EventsVersion => eventManager.Version;
 
         /// <summary>
-        /// Holds and indexes all active <see cref="MilitaryOperation"/>s. Single source of
-        /// truth for military operation state — the comp's old singleton fields and FCEvent's
-        /// per-event force snapshots are migrating into this.
-        /// <para>Phase 1: scaffolded but unused at runtime. Phase 2 wires <c>SendMilitary</c>
-        /// and <c>AttackPlayerSettlement</c> to call <c>CreateOffensiveOp</c> /
-        /// <c>CreateDefensiveOp</c> on this manager.</para>
+        /// Holds and indexes all active <see cref="MilitaryOperation"/>s. Single source of truth
+        /// for military operation state. <c>SendMilitary</c> / <c>AttackPlayerSettlement</c>
+        /// route through <c>CreateOffensiveOp</c> / <c>CreateDefensiveOp</c> on this manager.
         /// </summary>
         public MilitaryOperationManager militaryOperationManager = new MilitaryOperationManager();
 
@@ -530,9 +527,9 @@ namespace FactionColonies
             ScrubNullSettlements("FactionFC.PostLoadInit");
             RebuildPendingEdictActivations();
 
-            // Phase 3: drain pre-refactor military state into the new MilitaryOperationManager.
-            // Idempotent — only runs when the manager is empty AND legacy state is present in the
-            // loaded save (post-refactor saves write the manager directly and skip migration).
+            // Drain pre-refactor military state into the new MilitaryOperationManager. Idempotent:
+            // only runs when the manager is empty AND legacy state is present in the loaded save
+            // (post-refactor saves write the manager directly and skip migration).
             if (militaryOperationManager is object && militaryOperationManager.IsEmpty
                 && MilitaryMigrationUtil.AnyLegacyStatePresent(this))
             {

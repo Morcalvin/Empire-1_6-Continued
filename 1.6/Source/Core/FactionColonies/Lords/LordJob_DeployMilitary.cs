@@ -117,8 +117,8 @@ namespace FactionColonies
             Scribe_Values.Look(ref currentOrderPosition, "currentOrderPosition");
             Scribe_Values.Look(ref timeDeployed, "timeDeployed");
             Scribe_Values.Look(ref whenToForceLeave, "whenToForceLeave");
-            // currentOrder used to be persisted here. It moved to MercenarySquadFC.militaryOrder
-            // (Phase 2). Old-save value is silently ignored on load.
+            // currentOrder used to be persisted here. It moved to MercenarySquadFC.militaryOrder.
+            // Old-save value is silently ignored on load.
             Scribe_References.Look(ref squad, "squad");
             Scribe_References.Look(ref currentMap, "currentMap");
             Scribe_Values.Look(ref finalized, "finalized");

@@ -66,8 +66,8 @@ namespace FactionColonies
             squad.orderLocation = dropPosition;
             Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), "FCDeploymentSuccessDesc".Translate(settlement.Name, currentMap.Parent.LabelCap), LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
 
-            // Phase 6: Deploy is a manager op now. CreateDeployOp registers the squad, sets
-            // phase=Engaged, and fires LifecycleRegistry.InvokeOnSquadDeployed for us.
+            // Deploy is a manager op: CreateDeployOp registers the squad, sets phase=Engaged,
+            // and fires LifecycleRegistry.InvokeOnSquadDeployed.
             FactionCache.MilitaryManager?.CreateDeployOp(settlement, currentMap.Tile);
 
             LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);

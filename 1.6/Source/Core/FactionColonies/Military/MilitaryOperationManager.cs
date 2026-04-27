@@ -14,7 +14,6 @@ namespace FactionColonies
     /// <para>Owns the canonical <c>active</c> list, indexed lookups (by tile, by squad, by
     /// settlement), and the per-tile <see cref="BattlefieldContext"/> dictionary. Indices are
     /// <c>[Unsaved]</c> and rebuilt from <c>active</c> at load (in <see cref="RebuildIndices"/>).</para>
-    /// <para>Phase 1: skeleton + serialization. Phase 2 fills query and mutation method bodies.</para>
     /// </summary>
     public class MilitaryOperationManager : IExposable
     {
@@ -350,10 +349,7 @@ namespace FactionColonies
             if (battlefields is object) battlefields.Remove(tile);
         }
 
-        /* -*-*-*-*- Queries -*-*-*-*-
-         * Phase 1 implements safe stubs returning empty/false so call sites added in Phase 2
-         * have a working surface area while op transitions are still stubbed.
-         */
+        /* -*-*-*-*- Queries -*-*-*-*- */
 
         public IReadOnlyList<MilitaryOperation> GetOpsAt(PlanetTile tile)
         {

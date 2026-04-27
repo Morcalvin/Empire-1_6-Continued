@@ -56,9 +56,8 @@ namespace FactionColonies
         /// <summary>
         /// Back-reference to a <see cref="MilitaryOperation"/> in the
         /// <see cref="FactionFC.militaryOperationManager"/> when this event is a wakeup primitive
-        /// for that op (arrival, cooldown, warning, etc.). -1 when unlinked. Phase 2 wires
-        /// <see cref="FCEventMaker"/> to dispatch through this id; until then, only set by op
-        /// scheduling code and otherwise inert.
+        /// for that op (arrival, cooldown, warning, etc.). -1 when unlinked. <see cref="FCEventMaker"/>
+        /// dispatches op-linked events through <see cref="MilitaryOperation.OnEventFired"/>.
         /// </summary>
         public int linkedOperationId = -1;
 

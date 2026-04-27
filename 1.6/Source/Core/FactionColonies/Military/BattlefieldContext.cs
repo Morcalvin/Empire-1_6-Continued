@@ -31,12 +31,6 @@ namespace FactionColonies
         /// <summary>The battle map. Lazy: created when the first op transitions to Engaged on this tile.</summary>
         public Map map;
 
-        /// <summary>Lord for the attacking side. May be null between waves; re-created when needed.</summary>
-        public Lord attackerLord;
-
-        /// <summary>Lord for the defending side. May be null between waves; re-created when needed.</summary>
-        public Lord defenderLord;
-
         /// <summary>Ops currently using this battlefield. The context cannot be destroyed while non-empty.</summary>
         public List<MilitaryOperation> activeOps = new List<MilitaryOperation>();
 
@@ -45,23 +39,40 @@ namespace FactionColonies
         public bool awaitingPlayerExit;
 
         /* -*-*-*-*- Battle state -*-*-*-*-
-         * Flat aggregations of all on-map pawns at this tile, summed across every active op.
-         * Per-op pawn ownership lives on op.aggressor.pawns / op.defender.pawns; these flat lists
-         * are kept for cheap iteration in Tick / RemoveAttacker / RemoveDefender / DeleteMap.
+         * Per-side pawn ownership lives on op.aggressor.pawns / op.defender.pawns. The flat
+         * <see cref="attackerPawns"/> / <see cref="defenderPawns"/> properties below are derived
+         * aggregations across all active ops at this tile, used by Tick / RemoveAttacker /
+         * RemoveDefender / DeleteMap and any external readers (UI, debug).
+         *
+         * <see cref="draftedNPCs"/> stays as a flat list — it tracks NPCs the player drafted
+         * during this tile's battles (faction-restored on map cleanup), with no natural per-op
+         * owner. Only <c>DeleteMap</c> consumes it.
          */
 
-        public List<Pawn> attackerPawns = new List<Pawn>();
-        public List<Pawn> defenderPawns = new List<Pawn>();
         public List<Pawn> draftedNPCs = new List<Pawn>();
 
         public bool battleMapInitialized;
         public bool endingBattle;
         public bool shuttleLandingPending;
-        public int initialDefenderCount;
         public string pendingDeliveryMessage;
 
-        /* Scribe scratch buffers for Lord cross-refs (RimWorld's Scribe_Collections needs
-         * working lists during load). Pawn lists use LookMode.Reference. */
+        /// <summary>All attacker pawns across every active op at this tile (derived).</summary>
+        public IEnumerable<Pawn> attackerPawns =>
+            activeOps == null
+                ? Enumerable.Empty<Pawn>()
+                : activeOps.SelectMany(o => o?.aggressor?.pawns ?? Enumerable.Empty<Pawn>());
+
+        /// <summary>All defender pawns across every active op at this tile (derived).</summary>
+        public IEnumerable<Pawn> defenderPawns =>
+            activeOps == null
+                ? Enumerable.Empty<Pawn>()
+                : activeOps.SelectMany(o => o?.defender?.pawns ?? Enumerable.Empty<Pawn>());
+
+        /// <summary>Sum of every active op's defender <c>initialPawnCount</c>. Used by manual
+        /// battle resolution to build the <see cref="BattleResult"/> (defender initial vs
+        /// remaining drives overwhelming-victory detection in <c>op.CompleteBattle</c>).</summary>
+        public int initialDefenderCount =>
+            activeOps == null ? 0 : activeOps.Sum(o => o?.defender?.initialPawnCount ?? 0);
 
         public BattlefieldContext() { }
 
@@ -74,25 +85,66 @@ namespace FactionColonies
         {
             Scribe_Values.Look(ref tile, "tile", PlanetTile.Invalid);
             Scribe_References.Look(ref map, "map");
-            Scribe_References.Look(ref attackerLord, "attackerLord");
-            Scribe_References.Look(ref defenderLord, "defenderLord");
             Scribe_Collections.Look(ref activeOps, "activeOps", LookMode.Reference);
             Scribe_Values.Look(ref awaitingPlayerExit, "awaitingPlayerExit", false);
 
-            Scribe_Collections.Look(ref attackerPawns, "attackerPawns", LookMode.Reference);
-            Scribe_Collections.Look(ref defenderPawns, "defenderPawns", LookMode.Reference);
             Scribe_Collections.Look(ref draftedNPCs, "draftedNPCs", LookMode.Reference);
             Scribe_Values.Look(ref battleMapInitialized, "battleMapInitialized", false);
             Scribe_Values.Look(ref endingBattle, "endingBattle", false);
             Scribe_Values.Look(ref shuttleLandingPending, "shuttleLandingPending", false);
-            Scribe_Values.Look(ref initialDefenderCount, "initialDefenderCount", 0);
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (activeOps is null) activeOps = new List<MilitaryOperation>();
-                if (attackerPawns is null) attackerPawns = new List<Pawn>();
-                if (defenderPawns is null) defenderPawns = new List<Pawn>();
                 if (draftedNPCs is null) draftedNPCs = new List<Pawn>();
+            }
+        }
+
+        /* -*-*-*-*- Per-op pawn helpers -*-*-*-*- */
+
+        /// <summary>Removes <paramref name="pawn"/> from whichever op's defender pawn list owns it,
+        /// if any. Use after the pawn becomes unavailable (downed, dead, drafted into caravan, ...).</summary>
+        public void RemoveDefenderPawn(Pawn pawn)
+        {
+            if (activeOps is null) return;
+            foreach (MilitaryOperation op in activeOps)
+            {
+                if (op?.defender?.pawns is null) continue;
+                if (op.defender.pawns.Remove(pawn)) return;
+            }
+        }
+
+        /// <summary>Removes <paramref name="pawn"/> from whichever op's aggressor pawn list owns it.</summary>
+        public void RemoveAttackerPawn(Pawn pawn)
+        {
+            if (activeOps is null) return;
+            foreach (MilitaryOperation op in activeOps)
+            {
+                if (op?.aggressor?.pawns is null) continue;
+                if (op.aggressor.pawns.Remove(pawn)) return;
+            }
+        }
+
+        /// <summary>Drops null / destroyed / orphan-despawned pawns from every op's pawn lists.</summary>
+        public void PruneStalePawns()
+        {
+            if (activeOps is null) return;
+            foreach (MilitaryOperation op in activeOps)
+            {
+                op?.aggressor?.pawns?.RemoveAll(IsPawnTrulyGone);
+                op?.defender?.pawns?.RemoveAll(IsPawnTrulyGone);
+            }
+        }
+
+        /// <summary>Clears every op's pawn lists. Called after battle resolution to release
+        /// pawn references before the ops detach.</summary>
+        public void ClearAllOpPawns()
+        {
+            if (activeOps is null) return;
+            foreach (MilitaryOperation op in activeOps)
+            {
+                op?.aggressor?.pawns?.Clear();
+                op?.defender?.pawns?.Clear();
             }
         }
 
@@ -122,7 +174,7 @@ namespace FactionColonies
 
             // Periodic orphan flag clearing: isUnderAttack is true but no map / no combatants
             // and no warning event in queue.
-            if (ticks % 2500 == 0 && map is null && attackerPawns.Count == 0 && defenderPawns.Count == 0)
+            if (ticks % 2500 == 0 && map is null && !attackerPawns.Any() && !defenderPawns.Any())
             {
                 FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
                 if (evt is null)
@@ -140,20 +192,26 @@ namespace FactionColonies
             // Clean stale references: null (save/load), destroyed, or despawned-without-holder.
             // Pod-bound pawns in a descending Skyfaller are !Spawned but ParentHolder != null;
             // they stay tracked until the pod opens.
-            attackerPawns.RemoveAll(IsPawnTrulyGone);
-            defenderPawns.RemoveAll(IsPawnTrulyGone);
+            PruneStalePawns();
 
             // Detect untracked player pawns on the battle map (e.g. shuttle-delivered pawns
-            // that spawned via the Unload job after the ArrivePatch fired).
+            // that spawned via the Unload job after the ArrivePatch fired). Attribute them to
+            // the primary defensive op (no natural per-op owner; the first defensive op is the
+            // canonical bench).
+            MilitaryOperation primaryDef = PrimaryDefensiveOp();
+            var defenderSet = new HashSet<Pawn>(defenderPawns);
             Lord battleLord = null;
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
-                if (!defenderPawns.Contains(pawn))
+                if (!defenderSet.Contains(pawn))
                 {
                     LogUtil.Warning($"Registering untracked player pawn {pawn.LabelShort} with defense at {settlement.Name}");
-                    defenderPawns.Add(pawn);
-                    initialDefenderCount++;
+                    if (primaryDef?.defender?.pawns is object)
+                    {
+                        primaryDef.defender.pawns.Add(pawn);
+                        primaryDef.defender.initialPawnCount++;
+                    }
                 }
                 if (pawn.GetLord() is null)
                 {
@@ -165,8 +223,8 @@ namespace FactionColonies
             }
 
             // Don't declare stuck if attackers are still inbound in drop pods.
-            bool attackersGone = attackerPawns.Count == 0 && !HasPendingPodAttackers();
-            if (attackersGone || defenderPawns.Count == 0)
+            bool attackersGone = !attackerPawns.Any() && !HasPendingPodAttackers();
+            if (attackersGone || !defenderPawns.Any())
             {
                 LogUtil.Warning($"Stuck battle detected at {settlement.Name}, forcing resolution.");
                 endingBattle = true;
@@ -316,7 +374,7 @@ namespace FactionColonies
             endingBattle = false;
 
             // Re-recruit any surviving Empire defenders from idle lords back into a defense lord
-            RecruitIdleDefenders();
+            RecruitIdleDefenders(op);
 
             // Spawn fresh attackers for the new op
             SpawnAttackersForOp(op);
@@ -416,7 +474,10 @@ namespace FactionColonies
                     EndBattle(false, 0, null);
                     return;
                 }
-                initialDefenderCount = (int)defForce.forceRemaining;
+                // Auto-resolve: SimulateBattleFc populates BattleResult.defenderInitialForce /
+                // defenderRemainingForce, which is what op.CompleteBattle reads for overwhelming-
+                // victory detection. No need to seed initialPawnCount here (the auto-resolve path
+                // never spawns map pawns).
                 BattleResult battleResult = SimulateBattleFc.FightBattle(atkForce, defForce);
                 EndBattle(battleResult.DefenderVictory, (int)defForce.forceRemaining, battleResult);
                 return;
@@ -429,7 +490,7 @@ namespace FactionColonies
 
                 LongEventHandler.QueueLongEvent(() =>
                 {
-                    RecruitIdleDefenders();
+                    RecruitIdleDefenders(op);
                     SpawnAttackersForOp(op);
                     SpawnReinforcementsForOp(op);
                     Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
@@ -491,9 +552,9 @@ namespace FactionColonies
         /* -*-*-*-*- Spawning -*-*-*-*- */
 
         /// <summary>Spawns attackers for a single op onto the current map. Adds them to the op's
-        /// <c>aggressor.pawns</c> list and to the context's flat <see cref="attackerPawns"/>
-        /// aggregation. Updates <see cref="attackerLord"/> to a new <see cref="LordJob_HuntColonists"/>
-        /// for the spawned group.</summary>
+        /// <c>aggressor.pawns</c> list (the flat <see cref="attackerPawns"/> accessor aggregates
+        /// across ops). Creates a fresh <see cref="LordJob_HuntColonists"/> for the spawned group;
+        /// the LordManager owns it from there (read it back via <c>pawn.GetLord()</c>).</summary>
         private void SpawnAttackersForOp(MilitaryOperation op)
         {
             if (map is null || op?.aggressor?.force is null) return;
@@ -536,20 +597,20 @@ namespace FactionColonies
             parms.raidArrivalMode.Worker.Arrive(newAttackers, parms);
 
             op.aggressor.pawns.AddRange(newAttackers);
-            attackerPawns.AddRange(newAttackers);
+            op.aggressor.initialPawnCount += newAttackers.Count;
 
             WorldSettlementFC settlement = ParentSettlement;
-            attackerLord = LordMaker.MakeNewLord(
+            LordMaker.MakeNewLord(
                 parms.faction,
                 new LordJob_HuntColonists(settlement, parms.raidArrivalMode != PawnsArrivalModeDefOf.CenterDrop),
                 map, newAttackers);
-            op.aggressor.lord = attackerLord;
         }
 
         /// <summary>Spawns reinforcement defenders for an op if a foreign defending settlement's
         /// squad is available. Does NOT generate random pawns if the squad is deployed. Adds the
-        /// spawned pawns to the op's <c>defender.pawns</c> and to the flat <see cref="defenderPawns"/>
-        /// aggregation; rolls them into the existing defender lord if present, otherwise creates one.</summary>
+        /// spawned pawns to the op's <c>defender.pawns</c> (the flat <see cref="defenderPawns"/>
+        /// accessor aggregates across ops); rolls them into the existing defender lord if present,
+        /// otherwise creates one.</summary>
         private void SpawnReinforcementsForOp(MilitaryOperation op)
         {
             if (map is null || op?.defender?.force is null) return;
@@ -581,7 +642,7 @@ namespace FactionColonies
             }
 
             List<Pawn> reinforcements = squad.AllEquippedMercenaryPawns.ToList();
-            Lord defenseLord = defenderPawns.Count > 0 ? defenderPawns[0].GetLord() : null;
+            Lord defenseLord = defenderPawns.FirstOrDefault()?.GetLord();
             var spawnedReinforcements = new List<Pawn>();
 
             foreach (Pawn friendly in reinforcements)
@@ -615,21 +676,20 @@ namespace FactionColonies
                 }
                 else
                 {
-                    defenderLord = LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction,
+                    LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction,
                         new LordJob_DefendColony(ourSettlement, new Dictionary<Pawn, Pawn>()),
                         map, spawnedReinforcements);
                 }
 
                 op.defender.pawns.AddRange(spawnedReinforcements);
-                defenderPawns.AddRange(spawnedReinforcements);
-                op.defender.lord = defenderPawns.Count > 0 ? defenderPawns[0].GetLord() : op.defender.lord;
-                initialDefenderCount += spawnedReinforcements.Count;
+                op.defender.initialPawnCount += spawnedReinforcements.Count;
             }
         }
 
         /// <summary>Re-recruits surviving Empire NPC defenders from their idle lord into a new
-        /// defense lord. Used when reusing a post-battle map for a new attack (Path 2 + reengage).</summary>
-        private void RecruitIdleDefenders()
+        /// defense lord. Used when reusing a post-battle map for a new attack (Path 2 + reengage).
+        /// Recruited pawns are attributed to the joining op's defender participant.</summary>
+        private void RecruitIdleDefenders(MilitaryOperation op)
         {
             if (map is null) return;
             WorldSettlementFC settlement = ParentSettlement;
@@ -654,11 +714,14 @@ namespace FactionColonies
 
             if (idleDefenders.Any())
             {
-                defenderLord = LordMaker.MakeNewLord(empireFaction,
+                LordMaker.MakeNewLord(empireFaction,
                     new LordJob_DefendColony(settlement, new Dictionary<Pawn, Pawn>()),
                     map, idleDefenders);
-                defenderPawns.AddRange(idleDefenders);
-                initialDefenderCount = defenderPawns.Count;
+                if (op?.defender?.pawns is object)
+                {
+                    op.defender.pawns.AddRange(idleDefenders);
+                    op.defender.initialPawnCount += idleDefenders.Count;
+                }
             }
         }
 
@@ -696,12 +759,13 @@ namespace FactionColonies
                 LogUtil.Message($"Cleaned up {toRemove.Count} unrelated pawns from {settlement.Name}");
 
             GenerateFriendlies(op);
-            RecruitMapInhabitants();
+            RecruitMapInhabitants(op);
             Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
 
             string enemyName = op.aggressor?.force?.homeFaction?.Name ?? op.aggressor?.faction?.Name ?? "Unknown";
-            GlobalTargetInfo jumpTarget = defenderPawns.Any()
-                ? new GlobalTargetInfo(defenderPawns[0])
+            Pawn firstDefender = defenderPawns.FirstOrDefault();
+            GlobalTargetInfo jumpTarget = firstDefender is object
+                ? new GlobalTargetInfo(firstDefender)
                 : new GlobalTargetInfo(new IntVec3(map.Size.x / 2, 0, map.Size.z / 2), map);
             Find.LetterStack.ReceiveLetter(
                 "FCManualBattleStarted".Translate(settlement.Name),
@@ -855,35 +919,32 @@ namespace FactionColonies
                 }
             }
 
-            defenderLord = LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DefendColony(settlement, riders), map, spawnedFriendlies);
+            LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DefendColony(settlement, riders), map, spawnedFriendlies);
 
-            defenderPawns = spawnedFriendlies;
-            initialDefenderCount = defenderPawns.Count;
-            op.defender.lord = defenderLord;
-
-            // Track external defender pawns on the op's defender participant so EndAttack can
-            // return them to the auto-defender on battle resolution.
-            if (force.homeSettlement == null && op.externalDefenderSource != null)
-            {
-                op.defender.pawns.AddRange(spawnedFriendlies);
-            }
+            // Per-op pawn tracking: every defender belongs to the op that summoned it. EndAttack
+            // uses op.defender.pawns to return external auto-defender pawns; the BattlefieldContext
+            // flat accessors aggregate across ops; overwhelming-victory detection compares
+            // op.defender.initialPawnCount vs op.defender.pawns.Count at battle end.
+            op.defender.pawns.AddRange(spawnedFriendlies);
+            op.defender.initialPawnCount += spawnedFriendlies.Count;
         }
 
-        private void RecruitMapInhabitants()
+        private void RecruitMapInhabitants(MilitaryOperation op)
         {
             if (map == null || !defenderPawns.Any()) return;
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null) return;
 
-            Lord defenseLord = defenderPawns[0].GetLord();
+            Lord defenseLord = defenderPawns.FirstOrDefault()?.GetLord();
             if (defenseLord == null) return;
 
             Faction empireFaction = FactionCache.PlayerColonyFaction;
+            var defenderSet = new HashSet<Pawn>(defenderPawns);
             var inhabitants = new List<Pawn>();
 
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
-                if (defenderPawns.Contains(pawn)) continue;
+                if (defenderSet.Contains(pawn)) continue;
                 if (!pawn.RaceProps.Humanlike) continue;
                 if (pawn.Downed || pawn.Dead) continue;
                 if (pawn.Faction != empireFaction) continue;
@@ -932,12 +993,15 @@ namespace FactionColonies
                     existingLord.Notify_PawnLost(inhabitant, PawnLostCondition.LeftVoluntarily);
 
                 defenseLord.AddPawn(inhabitant);
-                defenderPawns.Add(inhabitant);
+                if (op?.defender?.pawns is object)
+                {
+                    op.defender.pawns.Add(inhabitant);
+                    op.defender.initialPawnCount++;
+                }
             }
 
             if (inhabitants.Count > 0)
             {
-                initialDefenderCount = defenderPawns.Count;
                 LogUtil.Message($"Added {inhabitants.Count} settlement inhabitants to defenders at {settlement.Name}");
             }
         }
@@ -959,8 +1023,10 @@ namespace FactionColonies
 
         public void EndAttack()
         {
-            bool won = defenderPawns.Any();
-            int remaining = defenderPawns.Count;
+            // Snapshot defenderPawns before we start mutating per-op lists.
+            List<Pawn> defendersSnapshot = defenderPawns.ToList();
+            bool won = defendersSnapshot.Count > 0;
+            int remaining = defendersSnapshot.Count;
 
             // Return external defender pawns per op before map cleanup destroys them.
             if (activeOps is object)
@@ -978,7 +1044,6 @@ namespace FactionColonies
                         {
                             if (pawn.Spawned) pawn.DeSpawn();
                             survivingPawns.Add(pawn);
-                            defenderPawns.Remove(pawn);
                         }
                     }
                     extDefender.ReturnDefendingPawns(survivingPawns);
@@ -986,7 +1051,7 @@ namespace FactionColonies
             }
 
             // Strip combat efficiency hediffs from surviving defenders
-            foreach (Pawn defender in defenderPawns)
+            foreach (Pawn defender in defendersSnapshot)
             {
                 if (defender != null && !defender.Dead && !defender.Destroyed)
                     MilitaryEfficiencyUtil.RemoveCombatEfficiencyHediff(defender);
@@ -995,29 +1060,16 @@ namespace FactionColonies
             DeleteMap(won);
             EndBattle(won, remaining);
 
-            defenderPawns.Clear();
-            attackerPawns.Clear();
+            ClearAllOpPawns();
             endingBattle = false;
             pendingDeliveryMessage = null;
         }
 
         public void RemoveAttacker(Pawn downed)
         {
-            attackerPawns.Remove(downed);
-            attackerPawns.RemoveAll(IsPawnTrulyGone);
+            RemoveAttackerPawn(downed);
+            PruneStalePawns();
 
-            // Drop the pawn from whichever op it belonged to. Pawns are uniquely owned by one op's
-            // aggressor list, so a single Remove is sufficient.
-            if (activeOps is object)
-            {
-                foreach (MilitaryOperation op in activeOps)
-                {
-                    if (op?.aggressor?.pawns is null) continue;
-                    if (op.aggressor.pawns.Remove(downed)) break;
-                }
-            }
-
-            attackerPawns.RemoveAll(IsPawnTrulyGone);
             bool anyUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
             if (attackerPawns.Any() || HasPendingPodAttackers() || endingBattle || !anyUnderAttack) return;
 
@@ -1032,8 +1084,9 @@ namespace FactionColonies
 
         public void RemoveDefender(Pawn defender)
         {
-            defenderPawns.Remove(defender);
-            defenderPawns.RemoveAll(IsPawnTrulyGone);
+            RemoveDefenderPawn(defender);
+            PruneStalePawns();
+
             bool anyUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
             if (defenderPawns.Any() || endingBattle || !anyUnderAttack) return;
 
@@ -1191,14 +1244,16 @@ namespace FactionColonies
         public void RegisterPawnsAsDefenders(List<Pawn> pawns, bool assignToLord)
         {
             WorldSettlementFC settlement = ParentSettlement;
+            HashSet<Pawn> defenderSet = new HashSet<Pawn>(defenderPawns);
+
             if (assignToLord)
             {
-                Lord existingLord = defenderPawns.Any() ? defenderPawns[0].GetLord() : null;
+                Lord existingLord = defenderPawns.FirstOrDefault()?.GetLord();
                 if (existingLord != null)
                 {
                     foreach (var pawn in pawns)
                     {
-                        if (!defenderPawns.Contains(pawn) && !existingLord.ownedPawns.Contains(pawn))
+                        if (!defenderSet.Contains(pawn) && !existingLord.ownedPawns.Contains(pawn))
                             existingLord.AddPawn(pawn);
                     }
                 }
@@ -1207,7 +1262,7 @@ namespace FactionColonies
                     var lordless = new List<Pawn>();
                     foreach (var pawn in pawns)
                     {
-                        if (!defenderPawns.Contains(pawn) && pawn.GetLord() is null)
+                        if (!defenderSet.Contains(pawn) && pawn.GetLord() is null)
                             lordless.Add(pawn);
                     }
                     if (lordless.Any())
@@ -1216,14 +1271,34 @@ namespace FactionColonies
                 }
             }
 
+            // Attribute new defender pawns to the primary defensive op at this tile (the one that
+            // started the battle). Caravan defends and other "loose" defender additions don't have
+            // a natural per-op owner; the first defensive op is the canonical bench.
+            MilitaryOperation primaryDef = PrimaryDefensiveOp();
+            if (primaryDef?.defender?.pawns is null) return;
+
             foreach (var pawn in pawns)
             {
-                if (!defenderPawns.Contains(pawn))
+                if (!defenderSet.Contains(pawn))
                 {
-                    defenderPawns.Add(pawn);
-                    initialDefenderCount++;
+                    primaryDef.defender.pawns.Add(pawn);
+                    primaryDef.defender.initialPawnCount++;
                 }
             }
+        }
+
+        /// <summary>The first defensive op attached to this battlefield, or null if none. Used to
+        /// attribute "loose" defender pawns (caravan defends, untracked map pawns) to a canonical
+        /// op so per-op pawn lists stay aligned with the flat <see cref="defenderPawns"/>.</summary>
+        public MilitaryOperation PrimaryDefensiveOp()
+        {
+            if (activeOps is null) return null;
+            for (int i = 0; i < activeOps.Count; i++)
+            {
+                MilitaryOperation op = activeOps[i];
+                if (op is object && op.IsDefensive) return op;
+            }
+            return null;
         }
 
         public void CaravanDefend(Caravan caravan)

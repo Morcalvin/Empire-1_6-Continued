@@ -195,14 +195,41 @@ namespace FactionColonies
                 def?.OnDefenseComplete(victory, battleResult);
             }
 
+            // Overwhelming-victory shortcut: foreign defender that won without losing any defenders
+            // is freed immediately (no cooldown). The home settlement defending itself never gets
+            // the shortcut — it's only for foreign settlements lending their squad.
+            if (IsDefensive && victory && IsOverwhelmingVictory(battleResult))
+            {
+                bool foreignDefender = defender?.homeSettlement is object
+                                    && defender.homeSettlement != (targetObject as WorldSettlementFC);
+                if (foreignDefender)
+                {
+                    Find.LetterStack.ReceiveLetter(
+                        "FCOverwhelmingVictory".Translate(),
+                        "FCOverwhelmingVictoryDesc".Translate(),
+                        LetterDefOf.PositiveEvent);
+                    Resolve();
+                    return;
+                }
+            }
+
             EnterCooldown();
+        }
+
+        private static bool IsOverwhelmingVictory(BattleResult result)
+        {
+            if (result is null) return false;
+            // defenderInitialForce / defenderRemainingForce are populated by SimulateBattleFc for
+            // auto-resolve and by comp.EndBattle for manual battles (pawn counts in that case).
+            // Treat zero-zero as not-overwhelming to avoid false positives on legacy/error paths.
+            if (result.defenderInitialForce <= 0) return false;
+            return result.defenderRemainingForce >= result.defenderInitialForce;
         }
 
         /// <summary>
         /// Move the op into <see cref="MilitaryOperationPhase.CooldownPending"/> and schedule a
-        /// <c>cooldownMilitary</c> FCEvent linked back to this op. The duration is computed using
-        /// the same formula the legacy <c>CooldownMilitaryFinal</c> used (3-day base + per-job
-        /// stat offset + dead-pawn penalty).
+        /// <c>cooldownMilitary</c> FCEvent linked back to this op. Duration: 3-day base + per-job
+        /// stat offset + dead-pawn penalty (see <see cref="ComputeCooldownTicks"/>).
         /// </summary>
         public void EnterCooldown()
         {

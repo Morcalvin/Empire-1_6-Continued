@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using Verse.AI.Group;
 
 namespace FactionColonies
 {
@@ -30,8 +29,12 @@ namespace FactionColonies
         /// <summary>Pawns spawned on the battlefield map for manual battles. Empty for auto-resolved ops.</summary>
         public List<Pawn> pawns = new List<Pawn>();
 
-        /// <summary>This side's lord on the shared <see cref="BattlefieldContext"/>, if any. Re-created when destroyed.</summary>
-        public Lord lord;
+        /// <summary>Initial spawn-time count of pawns on this side. Set as pawns are added to
+        /// <see cref="pawns"/>; never decremented. Reading <c>initialPawnCount</c> minus the
+        /// current <c>pawns.Count</c> gives the cumulative casualty count for this op's side.
+        /// Used by <c>MilitaryOperation.CompleteBattle</c> for overwhelming-victory detection
+        /// in manual battles.</summary>
+        public int initialPawnCount;
 
         public MilitaryOperationParticipant() { }
 
@@ -51,7 +54,7 @@ namespace FactionColonies
             Scribe_Deep.Look(ref force, "force");
             Scribe_References.Look(ref faction, "faction");
             Scribe_Collections.Look(ref pawns, "pawns", LookMode.Reference);
-            Scribe_References.Look(ref lord, "lord");
+            Scribe_Values.Look(ref initialPawnCount, "initialPawnCount", 0);
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit && pawns is null)
                 pawns = new List<Pawn>();

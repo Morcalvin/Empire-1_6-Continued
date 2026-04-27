@@ -522,7 +522,7 @@ namespace FactionColonies
                             var debugEquippedPawns = settlement.MilitaryComp.militarySquad.AllEquippedMercenaryPawns.ToList();
                             PawnsArrivalModeWorkerUtility.DropInDropPodsNearSpawnCenter(parms, debugEquippedPawns);
                             debugEquippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
-                            // Phase 6: register the deploy op so squad.IsDeployed reflects the state.
+                            // Register the deploy op so squad.IsPhysicallyDeployed reflects the state.
                             FactionCache.MilitaryManager?.CreateDeployOp(settlement, Find.CurrentMap.Tile);
                             DebugTools.curTool = null;
                         });
