@@ -4,7 +4,7 @@ namespace FactionColonies
 {
     public static class BattleTests
     {
-        private class BoostAttackerModifier : IBattleModifierWithOp
+        private class BoostAttackerModifier : IBattleModifier
         {
             private readonly double _boost;
             public BoostAttackerModifier(double boost) => _boost = boost;
@@ -12,8 +12,6 @@ namespace FactionColonies
             {
                 if (isAttacker) force.forceRemaining += _boost;
             }
-            // Required by [Obsolete] base interface; new code uses the op-aware overload.
-            [System.Obsolete] public void ModifyForce(MilitaryForce force, bool isAttacker) => ModifyForce(null, force, isAttacker);
         }
         private class FixedRandProvider : IRandProvider
         {

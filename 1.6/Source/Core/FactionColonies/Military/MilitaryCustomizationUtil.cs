@@ -256,13 +256,11 @@ namespace FactionColonies
         private void RebuildInjuredMercs()
         {
             injuredMercs = new HashSet<Mercenary>();
-#pragma warning disable 0618 // legacy isDeployed property — equivalent to "squad pawns currently on a player map"
             foreach (MercenarySquadFC squad in mercenarySquads)
             {
-                if (squad.isDeployed) continue;
+                if (squad.IsPhysicallyDeployed()) continue;
                 RegisterSquadInjuries(squad);
             }
-#pragma warning restore 0618
         }
 
         /// <summary>
@@ -340,10 +338,8 @@ namespace FactionColonies
                     ? squad.mercenaries.Concat(squad.animals)
                     : squad.mercenaries);
 
-#pragma warning disable 0618 // legacy isDeployed property — preserves original "Deploy op + Engaged" filter semantics
         public IEnumerable<MercenarySquadFC> DeployedSquads =>
-            mercenarySquads.Where(squad => squad.isDeployed);
-#pragma warning restore 0618
+            mercenarySquads.Where(squad => squad.IsPhysicallyDeployed());
 
         public IEnumerable<Pawn> AllMercenaryPawns =>
             AllMercenaries.Select(merc => merc.pawn);

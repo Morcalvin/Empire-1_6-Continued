@@ -195,12 +195,10 @@ namespace FactionColonies
                 return;
             }
 
-#pragma warning disable 0618 // legacy isDeployed — re-pick selection if current squad has been recalled off-map
-            if (selectedSquad is null || !selectedSquad.isDeployed)
+            if (selectedSquad is null || !selectedSquad.IsPhysicallyDeployed())
             {
                 selectedSquad = faction.militaryCustomizationUtil.DeployedSquads.FirstOrDefault();
             }
-#pragma warning restore 0618
 
             GameFont prevFont = Text.Font;
             TextAnchor prevAnchor = Text.Anchor;

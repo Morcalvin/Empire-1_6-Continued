@@ -9,7 +9,7 @@ using Verse;
 
 namespace FactionColonies
 {
-    public class FactionFC : WorldComponent, ILifecycleParticipantWithOp
+    public class FactionFC : WorldComponent, ILifecycleParticipant
     {
         #region Fields & Properties
 
@@ -1595,26 +1595,6 @@ namespace FactionColonies
             ForEachBehavior(b => b.OnBuildingDeconstructed(this, settlement, building, slot));
         }
 
-        // Legacy ILifecycleParticipant explicit interface implementations. The new op-aware
-        // overrides below are the canonical path; these preserve the old call-shape so legacy
-        // registry dispatchers (LifecycleRegistry's [Obsolete] overloads) still hit a method.
-#pragma warning disable 0618
-        void ILifecycleParticipant.OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad)
-        {
-            ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
-        }
-
-        void ILifecycleParticipant.OnSquadRecalled(WorldSettlementFC settlement)
-        {
-            ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
-        }
-
-        void ILifecycleParticipant.OnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result)
-        {
-            ForEachBehavior(b => b.OnBattleResolved(this, settlement, job, victory, result));
-        }
-#pragma warning restore 0618
-
         void ILifecycleParticipant.OnResearchCompleted(ResearchProjectDef project)
         {
             ForEachBehavior(b => b.OnResearchCompleted(this, project));
@@ -1625,15 +1605,14 @@ namespace FactionColonies
             // No policy behavior hook for merc death currently — submods handle this via their own listener
         }
 
-        /* -*-*-*-*- ILifecycleParticipantWithOp -*-*-*-*-
-         * Phase 6: comp shadow fields (militaryBusy / militaryJob / militaryLocation / etc.)
-         * are now computed properties that derive their values from the manager's op indices.
-         * No shadow writes needed here — readers see consistent state through the computed
-         * properties. The hooks just dispatch to policy behaviors and update the
-         * occupies-target faction-wide list.
+        /* -*-*-*-*- Military hooks -*-*-*-*-
+         * Comp shadow fields (militaryBusy / militaryJob / militaryLocation / etc.) are computed
+         * properties that derive their values from the manager's op indices. No shadow writes
+         * needed here — readers see consistent state through the computed properties. The hooks
+         * just dispatch to policy behaviors and update the occupies-target faction-wide list.
          */
 
-        void ILifecycleParticipantWithOp.OnSquadDeployed(MilitaryOperation op)
+        void ILifecycleParticipant.OnSquadDeployed(MilitaryOperation op)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
@@ -1649,7 +1628,7 @@ namespace FactionColonies
             ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
         }
 
-        void ILifecycleParticipantWithOp.OnSquadRecalled(MilitaryOperation op)
+        void ILifecycleParticipant.OnSquadRecalled(MilitaryOperation op)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
@@ -1669,7 +1648,7 @@ namespace FactionColonies
             ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
         }
 
-        void ILifecycleParticipantWithOp.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
+        void ILifecycleParticipant.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;

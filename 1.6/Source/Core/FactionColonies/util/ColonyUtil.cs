@@ -87,65 +87,70 @@ namespace FactionColonies.util
 
             Find.WorldObjects.Remove(Find.World.worldObjects.WorldObjectOfDefAt(DefDatabase<WorldObjectDef>.GetNamed(settlement.def.defName), settlement.Tile));
 
-            //clear military events
-            settlement.MilitaryComp?.ReturnMilitary(false);
+            // Cancel any military operation involving this settlement. Walk the manager's ops
+            // by participant rather than scanning FCEvents, since the op is the canonical owner
+            // of the aggressor / defender / target relationships.
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager?.active is object)
+            {
+                // Snapshot to avoid mutation during iteration: Resolve / ChangeDefendingMilitaryForce
+                // unregister or replace ops in-place.
+                var opSnapshot = new List<MilitaryOperation>(manager.active);
+                foreach (MilitaryOperation op in opSnapshot)
+                {
+                    if (op is null) continue;
 
+                    bool aggressorIsRemovedSettlement = op.aggressor?.homeSettlement == settlement;
+                    bool defenderIsRemovedSettlement = op.defender?.homeSettlement == settlement;
+                    bool targetIsRemovedSettlement = op.targetObject == settlement;
+
+                    if (!aggressorIsRemovedSettlement && !defenderIsRemovedSettlement && !targetIsRemovedSettlement)
+                        continue;
+
+                    // Defender role and the target is a different (still-existing) settlement:
+                    // reassign defense back to the target's own forces instead of cancelling.
+                    if (defenderIsRemovedSettlement && !targetIsRemovedSettlement
+                        && op.targetObject is WorldSettlementFC targetSettlement)
+                    {
+                        FCEvent warning = op.sourceEvents?.Find(e => e?.def == FCEventDefOf.settlementBeingAttacked);
+                        if (warning is object)
+                        {
+                            MilitaryUtilFC.ChangeDefendingMilitaryForce(warning, targetSettlement);
+                            continue;
+                        }
+                    }
+
+                    // External raid target with the removed settlement as foreign defender: just
+                    // cancel — the raid target stays alive.
+                    if (defenderIsRemovedSettlement && !targetIsRemovedSettlement && op.targetObject is object)
+                    {
+                        IRaidTarget raidTarget = RaidTargetRegistry.FindByWorldObject(op.targetObject);
+                        if (raidTarget != null) raidTarget.IsUnderAttack = false;
+                    }
+
+                    // Aggressor / target / external-defender cases: cancel the op entirely. Resolve
+                    // also fires LifecycleRegistry hooks and removes the op from the manager's
+                    // indices; sourceEvents will be GC'd when their handlers no-op against a
+                    // missing op id.
+                    foreach (FCEvent srcEvt in new List<FCEvent>(op.sourceEvents ?? new List<FCEvent>()))
+                    {
+                        if (srcEvt is object) faction.RemoveEvent(srcEvt);
+                    }
+                    op.Resolve();
+                }
+            }
+
+            // Non-op event sweep: settlement-build / upgrade / cooldown / random-trait events.
             HashSet<FCEvent> toRemove = new HashSet<FCEvent>();
-
-            // Settlement-removal sweep reads the warning event's [Obsolete] military force fields
-            // to decide which events belong to the doomed settlement. New ops mirror those fields
-            // so this back-compat path keeps working until the wave model reads from the op directly.
-#pragma warning disable 0618
             foreach (FCEvent evt in faction.Events)
             {
-                //military event removal
-                if (evt.def == FCEventDefOf.captureEnemySettlement || evt.def == FCEventDefOf.raidEnemySettlement)
+                if (evt is null) continue;
+                if (evt.linkedOperationId >= 0) continue; // op-linked events already handled above
+
+                if (evt.def == FCEventDefOf.constructBuilding || evt.def == FCEventDefOf.enactSettlementPolicy
+                    || evt.def == FCEventDefOf.upgradeSettlement || evt.def == FCEventDefOf.cooldownMilitary)
                 {
-                    if (evt.militaryForceAttacking?.homeSettlement == settlement)
-                    {
-                        toRemove.Add(evt);
-                    }
-                }
-
-                if (evt.def == FCEventDefOf.settlementBeingAttacked)
-                {
-                    if (evt.militaryForceDefending?.homeSettlement == settlement)
-                    {
-                        if (evt.settlementFCDefending == settlement)
-                        {
-                            toRemove.Add(evt);
-                        }
-                        else if (evt.settlementFCDefending is WorldSettlementFC targetSettlement)
-                        {
-                            //if not defending settlement, reset to target's own defense
-                            MilitaryUtilFC.ChangeDefendingMilitaryForce(evt, targetSettlement);
-                        }
-                        else
-                        {
-                            // External raid target (outpost etc.) — defender removed, remove event
-                            toRemove.Add(evt);
-                            IRaidTarget raidTarget = RaidTargetRegistry.FindByWorldObject(evt.settlementFCDefending);
-                            if (raidTarget != null) raidTarget.IsUnderAttack = false;
-                        }
-                    }
-                    else
-                    {
-                        //if force belongs to other settlement
-                        evt.militaryForceDefending?.homeSettlement?.MilitaryComp?.CooldownMilitaryFinal();
-
-                        toRemove.Add(evt);
-                    }
-                }
-
-
-                //settlement event removal
-                if (evt.def == FCEventDefOf.constructBuilding || evt.def == FCEventDefOf.enactSettlementPolicy ||
-                    evt.def == FCEventDefOf.upgradeSettlement || evt.def == FCEventDefOf.cooldownMilitary)
-                {
-                    if (evt.source == settlement.Tile)
-                    {
-                        toRemove.Add(evt);
-                    }
+                    if (evt.source == settlement.Tile) toRemove.Add(evt);
                 }
 
                 if (evt.def.isRandomEvent && evt.settlementTraitLocations.Count > 0)
@@ -153,10 +158,7 @@ namespace FactionColonies.util
                     if (evt.settlementTraitLocations.Contains(settlement))
                     {
                         evt.settlementTraitLocations.Remove(settlement);
-                        if (evt.settlementTraitLocations.Count == 0)
-                        {
-                            toRemove.Add(evt);
-                        }
+                        if (evt.settlementTraitLocations.Count == 0) toRemove.Add(evt);
                     }
                 }
 
@@ -170,7 +172,6 @@ namespace FactionColonies.util
                     }
                 }
             }
-#pragma warning restore 0618
 
             bool anyRemoved = false;
             foreach (FCEvent evt in toRemove)

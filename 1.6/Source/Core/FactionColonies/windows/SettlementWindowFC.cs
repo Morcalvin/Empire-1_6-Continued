@@ -1133,11 +1133,9 @@ namespace FactionColonies
                     })
             };
 
-            // Reset Pawns option — only if squad is assigned and not deployed
+            // Reset Pawns option — only if squad is assigned and pawns aren't currently on a map
             MercenarySquadFC mercSquad = settlement.MilitaryComp.militarySquad;
-#pragma warning disable 0618 // legacy isDeployed — gating reset gizmo by on-map presence
-            if (mercSquad != null && !mercSquad.isDeployed)
-#pragma warning restore 0618
+            if (mercSquad != null && !mercSquad.IsPhysicallyDeployed())
             {
                 list.Add(new FloatMenuOption("fcResetSquadPawns".Translate(), delegate
                 {
@@ -1154,22 +1152,20 @@ namespace FactionColonies
             if (settlement.MilitaryComp.isUnderAttack)
             {
                 FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
+                MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt?.linkedOperationId ?? -1);
+                MilitaryForce attackerForce = op?.aggressor?.force;
+                MilitaryForce defenderForce = op?.defender?.force;
+                if (attackerForce is null || defenderForce is null) return;
 
-                // Defender-change menu sources its win-chance forecast from the warning event's
-                // [Obsolete] military force fields. New ops mirror those fields onto the event
-                // for back-compat (see MilitaryOperationManager.CreateDefensiveOp); when the
-                // wave model fully reads from the op, this UI block migrates with it.
-#pragma warning disable 0618
-                double winChance = SimulateBattleFc.CalculateDefenderWinChance(evt.militaryForceAttacking, evt.militaryForceDefending);
+                double winChance = SimulateBattleFc.CalculateDefenderWinChance(attackerForce, defenderForce);
                 // "Reset to Home Settlement" option with win chance
                 MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(settlement);
-                double homeWinChance = SimulateBattleFc.CalculateDefenderWinChance(evt.militaryForceAttacking, homeForce);
+                double homeWinChance = SimulateBattleFc.CalculateDefenderWinChance(attackerForce, homeForce);
                 list.Add(new FloatMenuOption(
                     "FCSettlementDefendingInformation".Translate(
-                        evt.militaryForceDefending.homeSettlement.Name,
-                        evt.militaryForceDefending.DefensivePower,
+                        defenderForce.homeSettlement?.Name ?? "",
+                        defenderForce.DefensivePower,
                         (winChance * 100).ToString("F0")), null, MenuOptionPriority.High));
-#pragma warning restore 0618
                 list.Add(new FloatMenuOption("FCChangeDefendingForce".Translate(), delegate
                 {
                     List<FloatMenuOption> settlementList = new List<FloatMenuOption>();

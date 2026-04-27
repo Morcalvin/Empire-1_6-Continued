@@ -23,7 +23,7 @@ namespace FactionColonies
         // Test Doubles
         // ============================
 
-        private class TestLifecycleParticipant : LifecycleParticipantWithOpBase
+        private class TestLifecycleParticipant : LifecycleParticipantBase
         {
             public int SettlementCreatedCount;
             public int SettlementRemovedCount;
@@ -37,7 +37,7 @@ namespace FactionColonies
             public override void OnResearchCompleted(ResearchProjectDef p) => ResearchCompletedCount++;
         }
 
-        private class ThrowingLifecycleParticipant : LifecycleParticipantWithOpBase
+        private class ThrowingLifecycleParticipant : LifecycleParticipantBase
         {
             public override void OnSettlementCreated(WorldSettlementFC s) => throw new InvalidOperationException("test");
             public override void OnSettlementRemoved(WorldSettlementFC s) => throw new InvalidOperationException("test");
@@ -45,18 +45,15 @@ namespace FactionColonies
             public override void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => throw new InvalidOperationException("test");
         }
 
-        private class TestBattleModifier : IBattleModifierWithOp
+        private class TestBattleModifier : IBattleModifier
         {
             public double LevelBonus;
             public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker) => force.militaryLevel += LevelBonus;
-            // Required by the [Obsolete] base interface; new code uses the op-aware overload.
-            [Obsolete] public void ModifyForce(MilitaryForce force, bool isAttacker) => ModifyForce(null, force, isAttacker);
         }
 
-        private class ThrowingBattleModifier : IBattleModifierWithOp
+        private class ThrowingBattleModifier : IBattleModifier
         {
             public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker) => throw new InvalidOperationException("test");
-            [Obsolete] public void ModifyForce(MilitaryForce force, bool isAttacker) => ModifyForce(null, force, isAttacker);
         }
 
         private class TestPaymentModifier : ISilverPaymentModifier

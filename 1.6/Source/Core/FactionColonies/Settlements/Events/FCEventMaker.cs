@@ -496,11 +496,8 @@ namespace FactionColonies
 
                 if (!handled)
                 {
-                    // Phase 2 op-aware dispatch: events scheduled by MilitaryOperationManager
-                    // carry a linkedOperationId. Route them straight to the op's phase machine
-                    // and skip the legacy military switch / settlementBeingAttacked branch /
-                    // "undefined event" reward block.
-                    bool dispatchedToOp = false;
+                    // Op-aware dispatch: military events scheduled by MilitaryOperationManager
+                    // carry a linkedOperationId. Route them through the op's phase machine.
                     if (evt.linkedOperationId >= 0)
                     {
                         MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
@@ -511,17 +508,14 @@ namespace FactionColonies
                             {
                                 LogUtil.Error($"FCEventMaker: op id={op.id} threw in OnEventFired for '{evt.def.defName}': {e}");
                             }
-                            dispatchedToOp = true;
                         }
                         else
                         {
                             LogUtil.Warning(
-                                $"FCEventMaker: event '{evt.def.defName}' references missing op id={evt.linkedOperationId}. " +
-                                "Falling back to legacy dispatch.");
+                                $"FCEventMaker: event '{evt.def.defName}' references missing op id={evt.linkedOperationId}; dropping.");
                         }
                     }
-
-                    if (!dispatchedToOp)
+                    else
                     {
                     switch (evt.def.defName)
                     {
@@ -591,87 +585,40 @@ namespace FactionColonies
 
                             break;
                         }
-                        case "captureEnemySettlement":
-                        case "raidEnemySettlement":
-                        case "enslaveEnemySettlement":
+                        default:
                         {
-                            WorldSettlementFC militarySettlement = faction.ReturnSettlementByLocation(evt.location);
-                            if (militarySettlement != null)
-                                militarySettlement.MilitaryComp?.ProcessMilitaryEvent();
-                            else
-                                LogUtil.Warning($"Military event '{evt.def.defName}' references missing settlement at tile {evt.location}. Skipping.");
-                            break;
-                        }
-                        case "cooldownMilitary":
-                        {
-                            WorldSettlementFC cooldownSettlement = faction.ReturnSettlementByLocation(evt.location);
-                            if (cooldownSettlement != null)
-                                cooldownSettlement.MilitaryComp?.ReturnMilitary(true);
-                            else
-                                LogUtil.Warning($"cooldownMilitary event references missing settlement at tile {evt.location}. Skipping.");
-                            break;
-                        }
-                    }
-
-                    // Legacy fallback: pre-refactor saves with no linkedOperationId carry the
-                    // defender ref on FCEvent.settlementFCDefending ([Obsolete]). New events
-                    // route through op.OnEventFired above.
-#pragma warning disable 0618
-                    if (evt.def.defName == "settlementBeingAttacked")
-                    {
-                        if (evt.settlementFCDefending == null)
-                        {
-                            LogUtil.Warning($"settlementBeingAttacked event has null settlementFCDefending (loadID={evt.loadID}). Skipping defense.");
-                        }
-                        else if (evt.settlementFCDefending is WorldSettlementFC worldSettlement)
-                        {
-                            if (worldSettlement.MilitaryComp == null)
+                            // Undefined event: optionally awards a random thing reward.
+                            if (evt.def.randomThingValue > 0 && evt.def.randomThingRewardDef != null)
                             {
-                                LogUtil.Warning($"settlementBeingAttacked: {worldSettlement.Name} has no MilitaryComp. Skipping defense.");
-                            }
-                            else
-                            {
-                                worldSettlement.MilitaryComp.StartDefence(evt, () => { });
-                            }
-                        }
-                        else
-                        {
-                            // External raid target (registered via RaidTargetRegistry) — auto-resolve only
-                            ResolveExternalRaidTarget(evt);
-                        }
-                    }
-#pragma warning restore 0618
-                    else //if undefined event
-                    {
-                        if (evt.def.randomThingValue > 0 && evt.def.randomThingRewardDef != null)
-                        {
-                            List<Thing> list = PaymentUtil.GenerateRewardThings(evt.def.randomThingValue, evt.def.randomThingRewardDef);
+                                List<Thing> list = PaymentUtil.GenerateRewardThings(evt.def.randomThingValue, evt.def.randomThingRewardDef);
 
-                            string str = "FCGoodsReceivedFollowing".Translate(evt.def.label);
+                                string str = "FCGoodsReceivedFollowing".Translate(evt.def.label);
 
-                            str = list.Aggregate(str, (before, after) => before + "\n" + after.LabelCap);
+                                str = list.Aggregate(str, (before, after) => before + "\n" + after.LabelCap);
 
-                            evt.goods.AddRange(list);
+                                evt.goods.AddRange(list);
 
-                            evt.let = LetterMaker.MakeLetter("FCGoodsReceived".Translate(), str, LetterDefOf.PositiveEvent);
-                            if (list.Count > 0)
-                            {
-                                if (!evt.source.IsValidTile())
+                                evt.let = LetterMaker.MakeLetter("FCGoodsReceived".Translate(), str, LetterDefOf.PositiveEvent);
+                                if (list.Count > 0)
                                 {
-                                    if (evt.settlementTraitLocations.Any())
+                                    if (!evt.source.IsValidTile())
                                     {
-                                        evt.source = evt.settlementTraitLocations.First().Tile;
+                                        if (evt.settlementTraitLocations.Any())
+                                        {
+                                            evt.source = evt.settlementTraitLocations.First().Tile;
+                                        }
+                                        else
+                                        {
+                                            evt.source = FactionCache.FactionComp.capitalLocation;
+                                        }
                                     }
-                                    else
-                                    {
-                                        evt.source = FactionCache.FactionComp.capitalLocation;
-                                    }
+                                    DeliveryEvent.CreateDeliveryEvent(evt);
                                 }
-                                DeliveryEvent.CreateDeliveryEvent(evt);
                             }
+                            break;
                         }
                     }
-                    } // end if (!dispatchedToOp)
+                    } // end of unlinked-event else
                 }
 
                 //If has loot to give
@@ -827,79 +774,6 @@ namespace FactionColonies
                 LogUtil.Error($"ProcessEvents: recovery also failed for '{evt.def.defName}': {recoveryEx}");
             }
         }
-
-        /// <summary>
-        /// Auto-resolves a raid on an external <see cref="IRaidTarget"/> (registered via <see cref="RaidTargetRegistry"/>).
-        /// Called when the 24-hour warning timer expires for a non-<see cref="WorldSettlementFC"/> target.
-        /// Legacy: only invoked for pre-refactor save data (no linkedOperationId on the event);
-        /// new external raid ops route through op.OnEventFired and never reach this method.
-        /// </summary>
-#pragma warning disable 0618
-        private static void ResolveExternalRaidTarget(FCEvent evt)
-        {
-            IRaidTarget target = RaidTargetRegistry.FindByWorldObject(evt.settlementFCDefending);
-            if (target == null)
-            {
-                LogUtil.Warning($"settlementBeingAttacked: target at tile {evt.location} not found in RaidTargetRegistry. Skipping.");
-                return;
-            }
-
-            try
-            {
-                BattleResult result = SimulateBattleFc.FightBattle(evt.militaryForceAttacking, evt.militaryForceDefending);
-
-                if (result.DefenderVictory)
-                {
-                    target.OnRaidWon(result);
-                    FactionCache.FactionComp.AddExperienceToFactionLevel(5f);
-                    FactionCache.FactionComp.threatAdaptation.Notify_BattleWon();
-                }
-                else
-                {
-                    target.OnRaidLost(result);
-                    FactionCache.FactionComp.threatAdaptation.Notify_BattleLost();
-                }
-
-                // Handle defending settlement cooldown (if an Empire settlement was assigned as defender)
-                if (evt.militaryForceDefending?.homeSettlement != null)
-                {
-                    var defenderComp = evt.militaryForceDefending.homeSettlement.MilitaryComp;
-                    if (defenderComp != null)
-                    {
-                        int remaining = (int)Math.Max(0, evt.militaryForceDefending.forceRemaining);
-                        int initial = (int)Math.Max(0, evt.militaryForceDefending.militaryLevel * evt.militaryForceDefending.militaryEfficiency);
-                        int deaths = Math.Max(0, initial - remaining);
-                        if (result.DefenderVictory && remaining >= initial)
-                        {
-                            defenderComp.ReturnMilitary(true);
-                        }
-                        else
-                        {
-                            defenderComp.CooldownMilitaryFinal(deaths);
-                        }
-                    }
-                }
-
-                // Notify external auto-defender if one was assigned
-                if (evt.externalDefenderSource != null)
-                {
-                    IAutoDefender autoDefender = AutoDefenderRegistry.FindByWorldObject(evt.externalDefenderSource);
-                    if (autoDefender != null)
-                    {
-                        autoDefender.OnDefenseComplete(result.DefenderVictory, result);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                LogUtil.Error($"Error resolving external raid target at tile {evt.location}: {e}");
-            }
-            finally
-            {
-                target.IsUnderAttack = false;
-            }
-        }
-#pragma warning restore 0618
 
         public static void CreateTaxEvent(BillFC bill)
         {

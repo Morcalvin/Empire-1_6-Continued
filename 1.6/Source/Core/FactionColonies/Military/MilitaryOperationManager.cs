@@ -154,13 +154,11 @@ namespace FactionColonies
         /// rejected — already-active defense, missing target comp, etc).
         /// <para>Runs auto-defender selection: scans Empire settlements with <c>autoDefend</c>
         /// for the strongest non-busy non-attacked one that beats the target's level, plus the
-        /// best <see cref="IAutoDefender"/> registry entry in range. Whichever is stronger wins;
-        /// if a foreign defender wins, its comp gets a legacy <c>DefendFriendlySettlement</c>
-        /// marker for back-compat with code that still checks <c>militaryBusy</c>/<c>militaryJob</c>.</para>
+        /// best <see cref="IAutoDefender"/> registry entry in range. Whichever is stronger wins.</para>
         /// <para>Schedules the 24-hour <c>settlementBeingAttacked</c> warning event linked back
-        /// to the op via <see cref="FCEvent.linkedOperationId"/>. The event also carries the
-        /// force fields so legacy <c>comp.StartDefence</c> can consume it unchanged when the
-        /// op fires the manual-battle path.</para>
+        /// to the op via <see cref="FCEvent.linkedOperationId"/>. The op carries the
+        /// force / faction / target data <see cref="BattlefieldContext.StartDefense"/> needs
+        /// when the warning fires.</para>
         /// </summary>
         public MilitaryOperation CreateDefensiveOp(WorldObject target, MilitaryForce attackerForce,
             Faction attackerFaction)
@@ -201,24 +199,12 @@ namespace FactionColonies
             // settlement or external IAutoDefender) if it beats whatever the op currently uses.
             ApplyAutoDefenderSelection(op, target, targetSettlement, factionFC);
 
-            // Schedule the warning event. Force fields are populated so legacy comp.StartDefence
-            // (driven from op.OnEventFired's manual-battle branch) can consume the event.
+            // Schedule the warning event. The op carries all the force / faction / target data
+            // BattlefieldContext.StartDefense needs — no need to mirror anything onto the event.
             FCEvent warningEvent = op.ScheduleEvent(
                 FCEventDefOf.settlementBeingAttacked, target.Tile, GenDate.TicksPerDay);
             if (warningEvent is object)
             {
-                // Populate legacy event fields so BattlefieldContext.StartDefence (driven from
-                // op.OnEventFired's manual-battle branch) can construct its DefenseWave from the
-                // event. These FCEvent fields are [Obsolete] going forward — once the wave model
-                // reads from MilitaryOperation directly, this block goes away.
-#pragma warning disable 0618
-                warningEvent.militaryForceAttacking = op.aggressor.force;
-                warningEvent.militaryForceAttackingFaction = op.aggressor.faction;
-                warningEvent.militaryForceDefending = op.defender.force;
-                warningEvent.militaryForceDefendingFaction = op.defender.faction;
-                warningEvent.settlementFCDefending = target;
-                warningEvent.externalDefenderSource = op.externalDefenderSource;
-#pragma warning restore 0618
                 warningEvent.hasDestination = true;
 
                 // Description + win-chance forecast (mirrors old AttackPlayerSettlement letter).

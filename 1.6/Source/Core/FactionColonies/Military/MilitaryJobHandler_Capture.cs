@@ -1,7 +1,6 @@
 using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
-using System;
 using System.Linq;
 using Verse;
 
@@ -9,49 +8,6 @@ namespace FactionColonies
 {
     public class MilitaryJobHandler_Capture : MilitaryJobHandler
     {
-        [Obsolete("Use OnOpCreated(MilitaryOperation) instead. Will be removed in a future version.")]
-        public override void OnDeployed(WorldObjectComp_SettlementMilitary milComp, PlanetTile location, int timeToFinish, Faction enemy)
-        {
-            FactionFC factionfc = FactionCache.FactionComp;
-            FCEvent evt = FCEventMaker.MakeEvent(FCEventDefOf.captureEnemySettlement);
-            evt.customDescription = "FCSettlementMilitaryForcesCapturing".Translate(milComp.WorldSettlement.Name, milComp.ReturnMilitaryTarget().Label);
-            Settlement target = Find.WorldObjects.SettlementAt(location);
-            Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCMilitarySentCapture".Translate(milComp.WorldSettlement.Name, target?.LabelCap ?? (TaggedString)""), LetterDefOf.NeutralEvent);
-            evt.DefineEvent(factionfc, milComp.WorldSettlement.Tile, timeToFinish);
-        }
-
-        [Obsolete("Use OnAutoResolve(MilitaryOperation) and ApplyResult(MilitaryOperation, BattleResult) instead. Will be removed in a future version.")]
-        public override BattleResult OnResolved(WorldObjectComp_SettlementMilitary milComp)
-        {
-            FactionFC faction = FactionCache.FactionComp;
-
-            Settlement target = Find.WorldObjects.SettlementAt(milComp.militaryLocation);
-            if (target == null)
-            {
-                LogUtil.Warning("Military capture target at tile " + milComp.militaryLocation + " no longer exists");
-                return new BattleResult();
-            }
-
-            BattleResult result = SimulateBattleFc.FightBattle(
-                MilitaryForce.CreateMilitaryForceFromSettlement(milComp.WorldSettlement, true),
-                MilitaryForce.CreateMilitaryForceFromFaction(milComp.militaryEnemy, false));
-
-            if (result.AttackerVictory)
-            {
-                ApplyCaptureSuccess(faction, milComp.WorldSettlement, milComp.militaryLocation, target);
-            }
-            else if (result.DefenderVictory)
-            {
-                Find.LetterStack.ReceiveLetter("FCCaptureSettlement".Translate(),
-                    "FCCaptureEnemySettlementFailure".Translate(milComp.WorldSettlement.Name, target.Name),
-                    LetterDefOf.NegativeEvent, new LookTargets(target));
-            }
-
-            return result;
-        }
-
-        /* -*-*-*-*- Op-aware path -*-*-*-*- */
-
         public override void OnOpCreated(MilitaryOperation op)
         {
             WorldSettlementFC home = op.aggressor?.homeSettlement;

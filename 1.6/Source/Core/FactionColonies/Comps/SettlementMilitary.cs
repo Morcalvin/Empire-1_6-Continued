@@ -8,12 +8,10 @@ using Verse;
 using Verse.AI.Group;
 using Verse.Sound;
 
-// Comp is the legacy bridge: legacy comp fields were converted to computed properties backed
-// by MilitaryOperationManager / BattlefieldContext, but the file still references [Obsolete]
-// DefenseWave (in legacy load buffers and CooldownMilitary), the [Obsolete] LifecycleRegistry
-// overloads (in pre-refactor save fallback paths), and is the host class whose own legacy
-// fields were marked obsolete on the way to deletion. File-level pragma scopes the silence
-// to the entire bridge layer.
+// Comp legacy load buffers reference [Obsolete] DefenseWave (drained on PostLoadInit by
+// MilitaryMigrationUtil). The runtime surface is computed properties backed by the manager;
+// no other obsolete consumption lives here. File-level pragma scopes the silence to the
+// load-buffer block.
 #pragma warning disable 0618
 
 namespace FactionColonies
@@ -67,15 +65,14 @@ namespace FactionColonies
         public bool autoDefend = false;
         public int settlementMilitaryLevel;
 
-        /* -*-*-*-*- Legacy load buffers (Phase 6+7) -*-*-*-*-
-         * Old saves (pre-Phase-2) carried operation state on the comp directly. After the
-         * gut, the canonical state lives on MilitaryOperation in the manager; the readable
-         * comp surface (militaryBusy / militaryJob / militaryLocation / militaryEnemy /
-         * isUnderAttack) is computed from manager queries below. Battle infrastructure
-         * (attackers / defenders / draftedNPCs / activeWaves) lives on BattlefieldContext;
-         * the comp's read-only computed properties below proxy through to it. These _legacy*
-         * fields are loaded from old save XML during LoadingVars and consumed by
-         * <see cref="MilitaryMigrationUtil"/> in PostLoadInit. They are NOT written on save.
+        /* -*-*-*-*- Legacy load buffers -*-*-*-*-
+         * Old saves carried operation state on the comp directly. The canonical state lives on
+         * MilitaryOperation in the manager; the readable comp surface (militaryBusy / militaryJob
+         * / militaryLocation / militaryEnemy / isUnderAttack) is computed from manager queries
+         * below. Battle infrastructure (attackers / defenders / draftedNPCs) lives on
+         * BattlefieldContext. These _legacy* fields are loaded from old save XML during
+         * LoadingVars and consumed by <see cref="MilitaryMigrationUtil"/> in PostLoadInit.
+         * They are NOT written on save.
          */
         public bool _legacyMilitaryBusy;
         public MilitaryJobDef _legacyMilitaryJob;
@@ -89,15 +86,13 @@ namespace FactionColonies
         public bool _legacyBattleMapInitialized;
         public int _legacyInitialDefenderCount;
 
-        /* -*-*-*-*- Computed battle state (Phase 7: derived from BattlefieldContext) -*-*-*-*-
+        /* -*-*-*-*- Computed battle state (derived from BattlefieldContext) -*-*-*-*-
          * Read-only proxies onto the per-tile BattlefieldContext owned by the manager.
          * External code that read these fields (UI / VEF compat / WorldSettlementFC / debug)
-         * continues to compile and read correctly. Internal mutations migrated to
-         * BattlefieldContext.
+         * continues to compile and read correctly. Internal mutations live on BattlefieldContext.
          */
 
         private static readonly List<Pawn> _emptyPawnList = new List<Pawn>();
-        private static readonly List<DefenseWave> _emptyWaveList = new List<DefenseWave>();
 
         private BattlefieldContext Battlefield
             => FactionCache.MilitaryManager?.GetBattlefield(WorldSettlement?.Tile ?? PlanetTile.Invalid);
@@ -105,7 +100,6 @@ namespace FactionColonies
         public List<Pawn> attackers => Battlefield?.attackerPawns ?? _emptyPawnList;
         public List<Pawn> defenders => Battlefield?.defenderPawns ?? _emptyPawnList;
         public List<Pawn> draftedNPCs => Battlefield?.draftedNPCs ?? _emptyPawnList;
-        public List<DefenseWave> activeWaves => Battlefield?.activeWaves ?? _emptyWaveList;
 
         /* -*-*-*-*- Computed comp surface (derived from manager) -*-*-*-*- */
 
@@ -173,29 +167,11 @@ namespace FactionColonies
         /// <summary>True when this settlement is the target of any active defensive op.</summary>
         public bool isUnderAttack => FactionCache.MilitaryManager?.HasDefenseAt(WorldSettlement) ?? false;
 
-        /// <summary>Aggressor's force in the active defensive battle on this tile, or null.
-        /// Reads from <see cref="activeWaves"/> first (legacy mid-battle), then from the
-        /// defensive op the manager tracks for this settlement.</summary>
-        public MilitaryForce attackerForce
-        {
-            get
-            {
-                if (activeWaves != null && activeWaves.Count > 0) return activeWaves[0].attackerForce;
-                MilitaryOperation op = FindIncomingDefensiveOp();
-                return op?.aggressor?.force;
-            }
-        }
+        /// <summary>Aggressor's force in the active defensive battle on this tile, or null.</summary>
+        public MilitaryForce attackerForce => FindIncomingDefensiveOp()?.aggressor?.force;
 
         /// <summary>Defender's force in the active defensive battle on this tile, or null.</summary>
-        public MilitaryForce defenderForce
-        {
-            get
-            {
-                if (activeWaves != null && activeWaves.Count > 0) return activeWaves[0].defenderForce;
-                MilitaryOperation op = FindIncomingDefensiveOp();
-                return op?.defender?.force;
-            }
-        }
+        public MilitaryForce defenderForce => FindIncomingDefensiveOp()?.defender?.force;
 
         /// <summary>Returns the first op where this settlement is "the actor" — aggressor of any
         /// op, or foreign defender of someone else's defensive op. Used by computed shadow
@@ -354,18 +330,19 @@ namespace FactionColonies
                 icon = TexLoad.iconCustomize,
                 action = delegate
                 {
-                    if (evt.militaryForceDefending == null || evt.militaryForceDefending.homeSettlement == null)
+                    MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
+                    if (op?.defender?.force == null || op.defender.force.homeSettlement == null)
                     {
-                        LogUtil.Warning($"ChangeDefenderAction: militaryForceDefending or its homeSettlement is null for event at {evt.location}");
+                        LogUtil.Warning($"ChangeDefenderAction: op or defender force missing for event at {evt.location}");
                         ChangeDefendingForceAction(evt);
                         return;
                     }
 
-                    double winChance = SimulateBattleFc.CalculateDefenderWinChance(evt.militaryForceAttacking, evt.militaryForceDefending);
+                    double winChance = SimulateBattleFc.CalculateDefenderWinChance(op.aggressor.force, op.defender.force);
                     var list = new List<FloatMenuOption>()
                     {
-                        new FloatMenuOption("FCSettlementDefendingInformation".Translate(evt.militaryForceDefending.homeSettlement.Name,
-                                                                                       evt.militaryForceDefending.DefensivePower,
+                        new FloatMenuOption("FCSettlementDefendingInformation".Translate(op.defender.force.homeSettlement.Name,
+                                                                                       op.defender.force.DefensivePower,
                                                                                        (winChance * 100).ToString("F0")),
                                             null, MenuOptionPriority.High),
                         new FloatMenuOption("FCChangeDefendingForce".Translate(), () => ChangeDefendingForceAction(evt))
@@ -385,8 +362,10 @@ namespace FactionColonies
         private void ChangeDefendingForceAction(FCEvent evt)
         {
             var faction = FactionCache.FactionComp;
-            MilitaryForce attackForce = evt.militaryForceAttacking;
-            WorldSettlementFC currentDefender = evt.militaryForceDefending?.homeSettlement;
+            MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
+            MilitaryForce attackForce = op?.aggressor?.force;
+            WorldSettlementFC currentDefender = op?.defender?.homeSettlement;
+            if (attackForce is null) return;
 
             // "Reset to Home Settlement" option with win chance
             MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(WorldSettlement);
@@ -425,10 +404,11 @@ namespace FactionColonies
             }
 
             // Add external auto-defenders (VOE outposts, etc.)
+            WorldObject currentExternalSource = op?.externalDefenderSource;
             foreach (IAutoDefender defender in AutoDefenderRegistry.Defenders)
             {
                 if (!defender.CanAutoDefend) continue;
-                if (evt.externalDefenderSource != null && evt.externalDefenderSource == defender.WorldObject) continue;
+                if (currentExternalSource != null && currentExternalSource == defender.WorldObject) continue;
                 int distance = Find.WorldGrid.TraversalDistanceBetween(defender.WorldObject.Tile, WorldSettlement.Tile);
                 if (distance > defender.Range) continue;
 
@@ -552,20 +532,28 @@ namespace FactionColonies
 
         // Phase 7: DeleteMap migrated to BattlefieldContext.
 
-        /// <summary>Phase 7: thin delegation to <see cref="BattlefieldContext.StartDefenseFromEvent"/>.
-        /// All map generation / wave spawning / auto-resolve branches live on the battlefield now.
-        /// External callers (manual Defend gizmo, CaravanDefend, debug actions) keep using this entry
-        /// point for source compatibility.</summary>
+        /// <summary>Thin delegation to <see cref="BattlefieldContext.StartDefense"/>. Looks up the op
+        /// linked to <paramref name="evt"/> and routes the start-defense flow through it.
+        /// External callers (manual Defend gizmo, CaravanDefend, debug actions) keep using this
+        /// entry point for source compatibility.</summary>
         public void StartDefence(FCEvent evt, Action after)
         {
-            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(WorldSettlement.Tile);
-            if (bf is null)
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is null)
             {
-                LogUtil.Error($"StartDefence: no battlefield available for {WorldSettlement?.Name}.");
+                LogUtil.Error($"StartDefence: no MilitaryManager available for {WorldSettlement?.Name}.");
                 FactionCache.FactionComp?.RemoveEvent(evt);
                 return;
             }
-            bf.StartDefenseFromEvent(evt, after);
+            MilitaryOperation op = manager.GetOp(evt.linkedOperationId);
+            if (op is null)
+            {
+                LogUtil.Error($"StartDefence: warning event for {WorldSettlement?.Name} has no linked op (id={evt.linkedOperationId}).");
+                FactionCache.FactionComp?.RemoveEvent(evt);
+                return;
+            }
+            BattlefieldContext bf = manager.GetOrCreateBattlefield(WorldSettlement.Tile);
+            bf.StartDefense(op, after);
         }
 
 
@@ -576,20 +564,12 @@ namespace FactionColonies
             LogUtil.Message("WorldSettlementFC.EndBattle: Handling combat resolution...");
             try
             {
-                if (won)
-                {
-                    WinBattle(faction);
-                }
-                else
-                {
-                    LoseBattle(faction);
-                }
+                if (won) WinBattle(faction);
+                else LoseBattle(faction);
 
-                // Phase 2: walk defensive ops at this tile, fire CompleteBattle on each.
-                // Each op fires its own LifecycleRegistry.OnBattleResolved, schedules its own
-                // cooldown event linked to itself, and (via FactionFC's hook) updates the
-                // foreign defender's comp shadow to Cooldown. This replaces the legacy per-wave
-                // CooldownMilitary loop.
+                // Walk defensive ops at this tile, fire CompleteBattle on each. Each op fires its
+                // own LifecycleRegistry.OnBattleResolved and schedules its own cooldown event
+                // linked back to itself.
                 MilitaryOperationManager manager = FactionCache.MilitaryManager;
                 if (manager is object)
                 {
@@ -598,7 +578,11 @@ namespace FactionColonies
                         winner = won ? BattleWinner.Defender : BattleWinner.Attacker
                     };
                     var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
-                    if (opsAtTile.Count > 0)
+                    if (opsAtTile.Count == 0)
+                    {
+                        LogUtil.Warning($"WorldSettlementFC.EndBattle: no manager ops at tile {WorldSettlement.Tile}; battle resolution dropped.");
+                    }
+                    else
                     {
                         // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
                         var snapshot = new List<MilitaryOperation>(opsAtTile);
@@ -615,17 +599,6 @@ namespace FactionColonies
                             }
                         }
                     }
-                    else
-                    {
-                        // Legacy fallback: no ops registered (loaded mid-battle from pre-refactor
-                        // save). Run the old per-wave settlement cooldown so existing flow works.
-                        LogUtil.Message("WorldSettlementFC.EndBattle: No manager ops at tile; falling back to legacy CooldownMilitary.");
-                        CooldownMilitary(remaining, won);
-                    }
-                }
-                else
-                {
-                    CooldownMilitary(remaining, won);
                 }
             }
             catch (Exception e)
@@ -634,6 +607,7 @@ namespace FactionColonies
             }
             // isUnderAttack is computed from manager state; the op completing already drove it.
             // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
+            _ = remaining; // Phase E: legacy parameter retained for source compat with callers.
         }
 
         public void ClearAttackState()
@@ -658,7 +632,6 @@ namespace FactionColonies
                 bf.attackerPawns?.Clear();
                 bf.defenderPawns?.Clear();
                 bf.draftedNPCs?.Clear();
-                bf.activeWaves?.Clear();
             }
         }
 
@@ -702,65 +675,6 @@ namespace FactionColonies
             
             // Target exists, no event, not under attack: stale.
             return !targetComp.isUnderAttack;
-        }
-
-        private void CooldownMilitary(int remaining, bool won)
-        {
-            // Track which settlements we've already processed (a settlement may defend multiple waves)
-            var processedSettlements = new HashSet<WorldSettlementFC>();
-            int initialCount = Battlefield?.initialDefenderCount ?? 0;
-            int battleDeaths = Math.Max(0, initialCount - remaining);
-            bool overwhelming = won && remaining >= initialCount;
-
-            foreach (DefenseWave wave in activeWaves)
-            {
-                MilitaryForce waveDefForce = wave.defenderForce;
-
-                // External auto-defender (no homeSettlement)
-                if (waveDefForce is null || waveDefForce.homeSettlement is null)
-                {
-                    if (wave.externalDefenderSource is object)
-                    {
-                        IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(wave.externalDefenderSource);
-                        extDefender?.OnDefenseComplete(won, null);
-                    }
-                    continue;
-                }
-
-                WorldSettlementFC defHome = waveDefForce.homeSettlement;
-                if (processedSettlements.Contains(defHome)) continue;
-                processedSettlements.Add(defHome);
-
-                var homeComp = defHome.MilitaryComp;
-                if (homeComp is null) continue;
-
-                // If defending settlement is itself under attack, defer cooldown — its own battle will handle it
-                if (defHome != WorldSettlement && homeComp.isUnderAttack) continue;
-                // If squad is still physically deployed on another map, defer
-                if (defHome != WorldSettlement && homeComp.militarySquad?.IsPhysicallyDeployed() == true) continue;
-
-                // If squad was busy with a non-defense job (raid, capture, etc.), generated pawns were used — skip
-                if (homeComp.militaryJob != null
-                    && homeComp.militaryJob != MilitaryJobDefOf.Undefined
-                    && homeComp.militaryJob != MilitaryJobDefOf.DefendFriendlySettlement)
-                {
-                    continue;
-                }
-
-                if (overwhelming)
-                {
-                    homeComp.ReturnMilitary(true);
-                }
-                else
-                {
-                    homeComp.CooldownMilitaryFinal(battleDeaths);
-                }
-            }
-
-            if (overwhelming && processedSettlements.Count > 0)
-            {
-                Find.LetterStack.ReceiveLetter("FCOverwhelmingVictory".Translate(), "FCOverwhelmingVictoryDesc".Translate(), LetterDefOf.PositiveEvent);
-            }
         }
 
         private void LoseBattle(FactionFC faction)
@@ -927,13 +841,11 @@ namespace FactionColonies
         {
             if (IsMilitaryBusy() || IsTargetOccupied(location)) return;
 
-            // Phase 2: jobs with a MilitaryJobHandler (Raid / Capture / Enslave + submod handlers)
-            // route through MilitaryOperationManager. The op fires arrival / cooldown FCEvents
-            // linked back to itself; FCEventMaker dispatches them to op.OnEventFired which drives
-            // the auto-resolve / manual battle / cooldown / resolve chain. FactionFC's
-            // ILifecycleParticipantWithOp hook keeps the comp's shadow fields (militaryBusy,
-            // militaryJob, militaryLocation, militaryEnemy) in sync for legacy readers (UI gizmos,
-            // compat patches, debug actions).
+            // Jobs with a MilitaryJobHandler (Raid / Capture / Enslave + submod handlers) route
+            // through MilitaryOperationManager. The op fires arrival / cooldown FCEvents linked
+            // back to itself; FCEventMaker dispatches them to op.OnEventFired which drives the
+            // auto-resolve / manual battle / cooldown / resolve chain. The comp's surface fields
+            // (militaryBusy / militaryJob / etc.) are computed properties reading from the manager.
             if (job?.Handler is object)
             {
                 MilitaryOperationManager manager = FactionCache.MilitaryManager;
@@ -952,22 +864,12 @@ namespace FactionColonies
                 return;
             }
 
-            // Handler-less state jobs (Deploy / DefendFriendlySettlement) used to mark the comp
-            // here as "squad committed". After Phase 6 the comp shadow surface is computed from
-            // manager state, so these writes are not possible — and not necessary because the
-            // canonical squad commitments live on MilitaryOperation:
-            //   - Deploy: MilitaryUtil.SpawnSquad creates a Deploy op via Manager.CreateDeployOp.
-            //   - DefendFriendlySettlement: the foreign defender's commitment lives on the
-            //     defensive op's defender.homeSettlement (set inside Manager.CreateDefensiveOp's
-            //     auto-defender selection or via MilitaryUtilFC.ChangeDefendingMilitaryForce).
-            // External callers (e.g. Empire-VOE OutpostDefenderGizmo) that still call
-            // SendMilitary(DefendFriendlySettlement, ...) directly without going through the
-            // manager will get a no-op shadow update; the foreign defender is silently lost
-            // from the manager view. New code should call ChangeDefendingMilitaryForce instead.
+            // Handler-less state jobs (Deploy / DefendFriendlySettlement) — the canonical squad
+            // commitment lives on MilitaryOperation. Deploy ops are created by MilitaryUtil.SpawnSquad
+            // via Manager.CreateDeployOp; foreign defender ops via Manager.CreateDefensiveOp
+            // auto-defender selection or MilitaryUtilFC.ChangeDefendingMilitaryForce. External
+            // callers reaching this branch only get the militaryTargets faction-wide list update.
             if (job.occupiesTarget) FactionCache.FactionComp.AddMilitaryTarget(location);
-            // Legacy lifecycle hook: fires for external callers that bypass the manager
-            // (e.g. Empire-VOE OutpostDefenderGizmo). Op-aware path is dormant for these.
-            LifecycleRegistry.InvokeOnSquadDeployed(WorldSettlement, job);
         }
 
         /// <summary>
@@ -993,55 +895,16 @@ namespace FactionColonies
             return !militaryLocation.Valid ? null : Find.WorldObjects.SettlementAt(militaryLocation);
         }
 
-        public void ProcessMilitaryEvent()
-        {
-            if (militaryJob is null || militaryJob == MilitaryJobDefOf.Undefined || militaryJob == MilitaryJobDefOf.Cooldown)
-            {
-                LogUtil.Warning($"ProcessMilitaryEvent: {WorldSettlement.Name} has no active operation (job={militaryJob?.defName ?? "null"}). Skipping.");
-                return;
-            }
-
-            FactionFC faction = FactionCache.FactionComp;
-            if (faction.HasMilitaryTarget(militaryLocation))
-            {
-                faction.RemoveMilitaryTarget(militaryLocation);
-            }
-
-            BattleResult result = null;
-            MilitaryJobDef resolvedJob = militaryJob;
-
-            if (militaryJob.Handler != null)
-            {
-                if (militaryJob.Handler.ResolvesManually)
-                {
-                    militaryJob.Handler.OnManualResolve(this);
-                    return; // Handler owns cooldown timing and lifecycle notification
-                }
-                result = militaryJob.Handler.OnResolved(this);
-            }
-
-            bool victory = result != null && result.AttackerVictory;
-            // Legacy ProcessMilitaryEvent path; only fires for pre-refactor save data without linkedOperationId.
-            LifecycleRegistry.InvokeOnBattleResolved(WorldSettlement, resolvedJob, victory, result);
-            CooldownMilitaryFinal();
-        }
-
         /// <summary>
-        /// "Skip cooldown and recall the squad immediately." Used by the foreign-defender
-        /// overwhelming-victory shortcut in <see cref="CooldownMilitary"/> (line ~752), the
-        /// settlement-removal sweep in <see cref="ColonyUtil"/>, debug actions, and the
-        /// pre-refactor save fallback paths in <see cref="MilitaryUtilFC"/> /
-        /// <see cref="FCEventMaker"/>. Comp shadow fields are computed from manager state, so
-        /// nothing here clears them — we only fire the squad-recalled lifecycle hook (legacy
-        /// overload; the op-aware path runs through <see cref="MilitaryOperation.Resolve"/>
-        /// during the normal cooldown-event flow), register injuries, and optionally show the
-        /// player a letter.
+        /// Registers squad injuries and optionally shows the player a "military cooldown" letter.
+        /// Called by debug actions, settlement-removal sweep, and load-time stale-deploy repair.
+        /// Most release / cooldown work now lives on <see cref="MilitaryOperation"/> (Resolve
+        /// fires lifecycle hooks and unregisters); this method only handles the residual squad-
+        /// injury bookkeeping.
         /// </summary>
         public void ReturnMilitary(bool alert)
         {
             if (!militaryBusy) return; // No active op — nothing to do
-
-            LifecycleRegistry.InvokeOnSquadRecalled(WorldSettlement);
 
             if (militarySquad != null)
                 FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(militarySquad);

@@ -313,7 +313,7 @@ namespace FactionColonies
                 if (handler is object)
                 {
                     // Offensive op (handler-driven). Manual handlers own when CompleteBattle fires.
-                    if (handler.ResolvesManually)
+                    if (handler.ResolvesManually(this))
                     {
                         try { handler.OnManualResolve(this); }
                         catch (Exception e)
@@ -327,19 +327,21 @@ namespace FactionColonies
                     return;
                 }
 
-                // Defensive op (no handler). Delegate to comp.StartDefence so the existing
-                // map-generation / pawn-spawning / auto-resolve logic runs unchanged. EndBattle
-                // walks ops at the tile and fires CompleteBattle on each, which fires lifecycle
-                // hooks and schedules the cooldown event linked back to this op.
+                // Defensive op (no handler). Route through BattlefieldContext.StartDefense which
+                // owns map generation / pawn spawning / auto-resolve. EndBattle later walks ops at
+                // the tile and fires CompleteBattle on each, scheduling the linked cooldown event.
                 if (IsDefensive)
                 {
-                    WorldObjectComp_SettlementMilitary defComp = (targetObject as WorldSettlementFC)?.MilitaryComp;
-                    if (defComp is object)
+                    if (targetObject is WorldSettlementFC defendedSettlement && defendedSettlement.MilitaryComp is object)
                     {
-                        try { defComp.StartDefence(evt, () => { }); }
+                        try
+                        {
+                            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(targetTile);
+                            bf?.StartDefense(this);
+                        }
                         catch (Exception e)
                         {
-                            LogUtil.Error($"MilitaryOperation.OnEventFired: comp.StartDefence threw for op id={id}: {e}");
+                            LogUtil.Error($"MilitaryOperation.OnEventFired: StartDefense threw for op id={id}: {e}");
                             AutoResolveAndComplete();
                         }
                         return;

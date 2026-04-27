@@ -151,11 +151,13 @@ namespace FactionColonies
                     }
                 }
 
-                // Drain the comp's legacy battle pawn / wave / counter buffers into the
-                // BattlefieldContext for this settlement's tile (Phase 7 storage). Runs whenever
-                // any of the legacy collections are populated, regardless of whether an op was
-                // reconstructed above — covers the mid-battle save case where waves still hold
-                // pawns even if the op state is otherwise clean.
+                // Drain the comp's legacy battle pawn / counter buffers into the BattlefieldContext
+                // for this settlement's tile. Runs whenever any of the legacy collections are
+                // populated, regardless of whether an op was reconstructed above — covers the
+                // mid-battle save case where pawns still exist even if the op state is otherwise
+                // clean. Per-wave attacker / defender lists from legacy DefenseWaves are folded
+                // into the first defensive op's participant pawn lists (multi-wave saves lose the
+                // per-wave grouping; only the aggregated flat lists survive).
                 if (HasLegacyBattleState(comp))
                 {
                     BattlefieldContext bf = manager.GetOrCreateBattlefield(settlement.Tile);
@@ -164,9 +166,26 @@ namespace FactionColonies
                         if (comp._legacyAttackers is object) bf.attackerPawns.AddRange(comp._legacyAttackers);
                         if (comp._legacyDefenders is object) bf.defenderPawns.AddRange(comp._legacyDefenders);
                         if (comp._legacyDraftedNPCs is object) bf.draftedNPCs.AddRange(comp._legacyDraftedNPCs);
-                        if (comp._legacyActiveWaves is object) bf.activeWaves.AddRange(comp._legacyActiveWaves);
                         bf.battleMapInitialized = comp._legacyBattleMapInitialized;
                         bf.initialDefenderCount = comp._legacyInitialDefenderCount;
+
+                        // Distribute per-wave pawn lists onto the first defensive op at this tile.
+                        // EndAttack walks ops to return external defender pawns; without this, an
+                        // outpost-defended migrated battle would fail to return its survivors.
+                        MilitaryOperation defensiveOp = null;
+                        foreach (MilitaryOperation candidate in bf.activeOps)
+                        {
+                            if (candidate is object && candidate.IsDefensive) { defensiveOp = candidate; break; }
+                        }
+                        if (defensiveOp is object && comp._legacyActiveWaves is object)
+                        {
+                            foreach (DefenseWave wave in comp._legacyActiveWaves)
+                            {
+                                if (wave is null) continue;
+                                if (wave.waveAttackers is object) defensiveOp.aggressor.pawns.AddRange(wave.waveAttackers);
+                                if (wave.waveDefenders is object) defensiveOp.defender.pawns.AddRange(wave.waveDefenders);
+                            }
+                        }
                     }
                 }
             }

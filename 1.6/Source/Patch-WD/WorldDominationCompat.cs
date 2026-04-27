@@ -79,7 +79,7 @@ namespace FactionColonies.WD
     //   InvokeModifyForce(MFB, isAttacker=false) <- defender second
     // We capture the attacker on the first call to find the target.
     // ================================================================
-    public class WDStrengthBattleModifier : IBattleModifierWithOp
+    public class WDStrengthBattleModifier : IBattleModifier
     {
         public const double SCALE_FACTOR = 100.0;
 
@@ -100,14 +100,6 @@ namespace FactionColonies.WD
             force.forceRemaining = Math.Round(wdForce * force.militaryEfficiency);
 
             LogUtil.Message("WD strength " + comp.strength.ToString("F0") + " (tier " + comp.tier + ") -> Empire defender force " + force.forceRemaining);
-        }
-
-        // Required by the [Obsolete] base interface. No-op fallback for legacy callers.
-        [Obsolete("Implement IBattleModifierWithOp.ModifyForce(MilitaryOperation, MilitaryForce, bool) for op context. " +
-                  "The legacy overload still works as a fallback for now but will be removed in a future version.")]
-        public void ModifyForce(MilitaryForce force, bool isAttacker)
-        {
-            // Legacy path lacks op context. Skip WD scaling.
         }
     }
 

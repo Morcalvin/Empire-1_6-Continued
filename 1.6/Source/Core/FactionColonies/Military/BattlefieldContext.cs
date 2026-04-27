@@ -9,11 +9,6 @@ using Verse.AI;
 using Verse.AI.Group;
 using Verse.Sound;
 
-// BattlefieldContext is a load-bearing consumer of [Obsolete] DefenseWave (per-wave attackers)
-// and [Obsolete] FCEvent.militaryForce* (legacy event-fed wave construction). Both are kept
-// for save round-trip safety until the per-wave MilitaryOperation model fully replaces them.
-#pragma warning disable 0618
-
 namespace FactionColonies
 {
     /// <summary>
@@ -49,15 +44,15 @@ namespace FactionColonies
         /// A new op arriving in this state triggers <see cref="TryReengage"/>.</summary>
         public bool awaitingPlayerExit;
 
-        /* -*-*-*-*- Battle state (migrated from comp Phase 7) -*-*-*-*- */
+        /* -*-*-*-*- Battle state -*-*-*-*-
+         * Flat aggregations of all on-map pawns at this tile, summed across every active op.
+         * Per-op pawn ownership lives on op.aggressor.pawns / op.defender.pawns; these flat lists
+         * are kept for cheap iteration in Tick / RemoveAttacker / RemoveDefender / DeleteMap.
+         */
 
         public List<Pawn> attackerPawns = new List<Pawn>();
         public List<Pawn> defenderPawns = new List<Pawn>();
         public List<Pawn> draftedNPCs = new List<Pawn>();
-
-        /// <summary>Per-wave tracking for multi-wave defense battles. Each wave corresponds to
-        /// one defensive op's contribution to the shared battle.</summary>
-        public List<DefenseWave> activeWaves = new List<DefenseWave>();
 
         public bool battleMapInitialized;
         public bool endingBattle;
@@ -87,7 +82,6 @@ namespace FactionColonies
             Scribe_Collections.Look(ref attackerPawns, "attackerPawns", LookMode.Reference);
             Scribe_Collections.Look(ref defenderPawns, "defenderPawns", LookMode.Reference);
             Scribe_Collections.Look(ref draftedNPCs, "draftedNPCs", LookMode.Reference);
-            Scribe_Collections.Look(ref activeWaves, "activeWaves", LookMode.Deep);
             Scribe_Values.Look(ref battleMapInitialized, "battleMapInitialized", false);
             Scribe_Values.Look(ref endingBattle, "endingBattle", false);
             Scribe_Values.Look(ref shuttleLandingPending, "shuttleLandingPending", false);
@@ -99,7 +93,6 @@ namespace FactionColonies
                 if (attackerPawns is null) attackerPawns = new List<Pawn>();
                 if (defenderPawns is null) defenderPawns = new List<Pawn>();
                 if (draftedNPCs is null) draftedNPCs = new List<Pawn>();
-                if (activeWaves is null) activeWaves = new List<DefenseWave>();
             }
         }
 
@@ -235,10 +228,10 @@ namespace FactionColonies
 
         public bool HasPendingPodAttackers()
         {
-            foreach (DefenseWave wave in activeWaves)
+            if (activeOps is null) return false;
+            foreach (MilitaryOperation op in activeOps)
             {
-                if (wave is null || wave.resolved) continue;
-                List<Pawn> list = wave.waveAttackers;
+                List<Pawn> list = op?.aggressor?.pawns;
                 if (list is null) continue;
                 foreach (Pawn p in list)
                 {
@@ -253,7 +246,7 @@ namespace FactionColonies
 
         /// <summary>Register <paramref name="op"/> on this battlefield. Idempotent. Clears
         /// <see cref="awaitingPlayerExit"/>. Pawn / lord spawning is the caller's responsibility
-        /// (typically via <see cref="StartDefenseFromEvent"/> or the explicit Spawn methods).</summary>
+        /// (typically via <see cref="StartDefense"/> or <see cref="SpawnParticipantOnMap"/>).</summary>
         public void Join(MilitaryOperation op)
         {
             if (op is null) return;
@@ -285,34 +278,30 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Spawns the participant's pawns onto this battlefield and attaches to the
-        /// appropriate lord. Public op-aware entry point for handlers / submods that want to
-        /// inject reinforcements mid-battle.</summary>
-        public void SpawnParticipantOnMap(MilitaryOperationParticipant participant)
+        /// <summary>Spawns an op's aggressor or defender pawns onto this battlefield and attaches
+        /// them to the appropriate lord. Public op-aware entry point for handlers / submods that
+        /// want to inject reinforcements mid-battle.</summary>
+        public void SpawnParticipantOnMap(MilitaryOperation op, ParticipantSide side)
         {
-            if (participant is null || map is null) return;
+            if (op is null || map is null) return;
 
-            // Determine side: if the participant's faction matches the player colony, treat as
-            // defender; otherwise attacker. Edge case: defender could be a foreign Empire squad
-            // (still defender side).
-            bool isDefender = participant.faction is object
-                && participant.faction == FactionCache.PlayerColonyFaction;
-
-            if (isDefender)
+            if (side == ParticipantSide.Defender)
             {
                 // Squad-based defender (foreign settlement reinforcement).
-                if (participant.squad is object)
+                if (op.defender?.squad is object)
                 {
-                    SpawnDefenderSquad(participant.squad, participant.force);
+                    SpawnReinforcementsForOp(op);
                     return;
                 }
-                // No squad — generate fallback pawns from force points.
-                SpawnDefenderFallback(participant.force);
+                // No squad — generate fallback pawns from force points using the same path used
+                // for the initial defending settlement's spawn.
+                if (op.defender?.force is null) return;
+                GenerateFriendlies(op);
                 return;
             }
 
             // Aggressor side: hostile faction raid spawn.
-            SpawnAttackersFromForce(participant.force, participant.faction);
+            SpawnAttackersForOp(op);
         }
 
         /// <summary>Called when a new op joins while <see cref="awaitingPlayerExit"/> is true.
@@ -330,9 +319,7 @@ namespace FactionColonies
             RecruitIdleDefenders();
 
             // Spawn fresh attackers for the new op
-            var wave = new DefenseWave(null, op.aggressor?.force, op.defender?.force, op.aggressor?.faction);
-            activeWaves.Add(wave);
-            SpawnWaveAttackers(wave);
+            SpawnAttackersForOp(op);
         }
 
         /* -*-*-*-*- Map generation -*-*-*-*- */
@@ -354,36 +341,47 @@ namespace FactionColonies
             return map;
         }
 
-        /* -*-*-*-*- Battle entry: StartDefenseFromEvent -*-*-*-*-
-         * Called from op.OnEventFired's defensive branch with the warning event. Drives the
-         * three paths: add wave to existing battle, auto-resolve, or fresh battle.
+        /* -*-*-*-*- Battle entry: StartDefense -*-*-*-*-
+         * Called from op.OnEventFired's defensive branch (or via comp.StartDefence's facade) once
+         * the warning event fires. Drives the three paths: add to existing battle, auto-resolve,
+         * or fresh battle. Reads forces/factions from the op rather than the FCEvent.
          */
 
-        public void StartDefenseFromEvent(FCEvent evt, Action after)
+        public void StartDefense(MilitaryOperation op, Action after = null)
         {
-            FactionCache.FactionComp?.RemoveEvent(evt);
+            if (op is null) return;
+
+            // Drop the op's warning event from the queue if it's still there. Op.OnEventFired
+            // already strips it from sourceEvents; this removes it from the FactionFC event list.
+            FactionFC factionFC = FactionCache.FactionComp;
+            if (factionFC is object)
+            {
+                foreach (FCEvent srcEvt in op.sourceEvents)
+                {
+                    if (srcEvt is null) continue;
+                    if (srcEvt.def == FCEventDefOf.settlementBeingAttacked)
+                        factionFC.RemoveEvent(srcEvt);
+                }
+            }
 
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null)
             {
-                LogUtil.Error($"StartDefenseFromEvent: no Empire settlement at tile {tile}.");
+                LogUtil.Error($"StartDefense: no Empire settlement at tile {tile}.");
                 return;
             }
 
             bool isUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(settlement) ?? false;
 
-            // Path 1: existing battle map active — add a new wave.
+            // Path 1: existing battle map active — add a new attacker group.
             if (battleMapInitialized && map is object && isUnderAttack)
             {
-                var wave = new DefenseWave(evt, evt.militaryForceAttacking, evt.militaryForceDefending, evt.militaryForceAttackingFaction);
-                activeWaves.Add(wave);
-
                 LongEventHandler.QueueLongEvent(() =>
                 {
-                    SpawnWaveAttackers(wave);
-                    GenerateWaveReinforcements(wave);
+                    SpawnAttackersForOp(op);
+                    SpawnReinforcementsForOp(op);
 
-                    string enemyName = wave.attackerFaction?.Name ?? "Unknown";
+                    string enemyName = op.aggressor?.faction?.Name ?? "Unknown";
                     Find.LetterStack.ReceiveLetter(
                         "FCNewWaveArrived".Translate(settlement.Name),
                         "FCNewWaveArrivedDesc".Translate(settlement.Name, enemyName),
@@ -410,9 +408,17 @@ namespace FactionColonies
 
             if (shouldAutoResolve)
             {
-                initialDefenderCount = (int)evt.militaryForceDefending.forceRemaining;
-                BattleResult battleResult = SimulateBattleFc.FightBattle(evt.militaryForceAttacking, evt.militaryForceDefending);
-                EndBattle(battleResult.DefenderVictory, (int)evt.militaryForceDefending.forceRemaining, battleResult);
+                MilitaryForce defForce = op.defender?.force;
+                MilitaryForce atkForce = op.aggressor?.force;
+                if (defForce is null || atkForce is null)
+                {
+                    LogUtil.Warning($"StartDefense: missing force(s) for {settlement.Name} on auto-resolve path.");
+                    EndBattle(false, 0, null);
+                    return;
+                }
+                initialDefenderCount = (int)defForce.forceRemaining;
+                BattleResult battleResult = SimulateBattleFc.FightBattle(atkForce, defForce);
+                EndBattle(battleResult.DefenderVictory, (int)defForce.forceRemaining, battleResult);
                 return;
             }
 
@@ -421,17 +427,14 @@ namespace FactionColonies
             {
                 battleMapInitialized = true;
 
-                var wave = new DefenseWave(evt, evt.militaryForceAttacking, evt.militaryForceDefending, evt.militaryForceAttackingFaction);
-                activeWaves.Add(wave);
-
                 LongEventHandler.QueueLongEvent(() =>
                 {
                     RecruitIdleDefenders();
-                    SpawnWaveAttackers(wave);
-                    GenerateWaveReinforcements(wave);
+                    SpawnAttackersForOp(op);
+                    SpawnReinforcementsForOp(op);
                     Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
 
-                    string enemyName = wave.attackerFaction?.Name ?? "Unknown";
+                    string enemyName = op.aggressor?.faction?.Name ?? "Unknown";
                     Find.LetterStack.ReceiveLetter(
                         "FCManualBattleStarted".Translate(settlement.Name),
                         "FCManualBattleStartedDesc".Translate(settlement.Name, enemyName),
@@ -443,29 +446,26 @@ namespace FactionColonies
             }
 
             // Path 3: fresh battle — generate map.
-            if (evt.militaryForceDefending is null)
+            if (op.defender?.force is null)
             {
-                LogUtil.Warning($"StartDefenseFromEvent: defenderForce is null for {settlement.Name}, settlement loses by default.");
+                LogUtil.Warning($"StartDefense: defender force is null for {settlement.Name}, settlement loses by default.");
                 EndBattle(false, 0, null);
                 return;
             }
 
-            var initialWave = new DefenseWave(evt, evt.militaryForceAttacking, evt.militaryForceDefending, evt.militaryForceAttackingFaction);
-            activeWaves.Add(initialWave);
-
             LongEventHandler.QueueLongEvent(() =>
             {
                 if (map == null) GenerateMap();
-                ZoomIntoTile(evt);
-                SetupAttack(evt);
+                ZoomIntoTile(op);
+                SetupAttack(op);
                 after?.Invoke();
             }, "GeneratingMap", false, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
         }
 
-        private void SetupAttack(FCEvent temp)
+        private void SetupAttack(MilitaryOperation op)
         {
-            // ZoomIntoTile may have aborted via EndBattle (null event / null force); don't
-            // spawn attackers into a cleaned-up state.
+            // ZoomIntoTile may have aborted via EndBattle (null force); don't spawn attackers
+            // into a cleaned-up state.
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null) return;
             bool isUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(settlement) ?? false;
@@ -478,42 +478,37 @@ namespace FactionColonies
                 return;
             }
 
-            if (temp.militaryForceAttacking is null || temp.militaryForceAttackingFaction is null)
+            if (op?.aggressor?.force is null || op.aggressor.faction is null)
             {
                 LogUtil.Error($"SetupAttack: Missing attacking force or faction for {settlement.Name}. Resetting battle state.");
                 EndBattle(false, 0, null);
                 return;
             }
 
-            DefenseWave wave = activeWaves.Count > 0 ? activeWaves[activeWaves.Count - 1] : null;
-            if (wave is null)
-            {
-                wave = new DefenseWave(temp, temp.militaryForceAttacking, temp.militaryForceDefending, temp.militaryForceAttackingFaction);
-                activeWaves.Add(wave);
-            }
-
-            SpawnWaveAttackers(wave);
+            SpawnAttackersForOp(op);
         }
 
         /* -*-*-*-*- Spawning -*-*-*-*- */
 
-        /// <summary>Spawns attackers for a single wave onto the current map. Adds them to both
-        /// the wave's <c>waveAttackers</c> and the context's <see cref="attackerPawns"/> list.</summary>
-        private void SpawnWaveAttackers(DefenseWave wave)
+        /// <summary>Spawns attackers for a single op onto the current map. Adds them to the op's
+        /// <c>aggressor.pawns</c> list and to the context's flat <see cref="attackerPawns"/>
+        /// aggregation. Updates <see cref="attackerLord"/> to a new <see cref="LordJob_HuntColonists"/>
+        /// for the spawned group.</summary>
+        private void SpawnAttackersForOp(MilitaryOperation op)
         {
-            if (map is null || wave?.attackerForce is null) return;
+            if (map is null || op?.aggressor?.force is null) return;
 
             IncidentParms parms = new IncidentParms
             {
                 target = map,
-                faction = wave.attackerFaction,
+                faction = op.aggressor.faction,
                 generateFightersOnly = true,
                 raidStrategy = RaidStrategyDefOf.ImmediateAttack,
                 raidNeverFleeIndividual = true
             };
             parms.points = Math.Max(
                 IncidentWorker_Raid.AdjustedRaidPoints(
-                    (float)wave.attackerForce.forceRemaining * 175,
+                    (float)op.aggressor.force.forceRemaining * 175,
                     PawnsArrivalModeDefOf.EdgeWalkIn, parms.raidStrategy,
                     parms.faction, PawnGroupKindDefOf.Combat,
                     parms.target),
@@ -526,13 +521,13 @@ namespace FactionColonies
                     PawnGroupKindDefOf.Combat, parms, true)).ToList();
             if (!newAttackers.Any())
             {
-                LogUtil.Error("Got no pawns spawning wave attackers from parms " + parms);
+                LogUtil.Error("Got no pawns spawning attackers for op id=" + op.id + " from parms " + parms);
                 if (!attackerPawns.Any())
                     LongEventHandler.QueueLongEvent(EndAttack, "EndingAttack", false, null);
                 return;
             }
 
-            double attackerEfficiency = wave.attackerForce.militaryEfficiency;
+            double attackerEfficiency = op.aggressor.force.militaryEfficiency;
             foreach (Pawn attacker in newAttackers)
             {
                 MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(attacker, attackerEfficiency);
@@ -540,7 +535,7 @@ namespace FactionColonies
 
             parms.raidArrivalMode.Worker.Arrive(newAttackers, parms);
 
-            wave.waveAttackers.AddRange(newAttackers);
+            op.aggressor.pawns.AddRange(newAttackers);
             attackerPawns.AddRange(newAttackers);
 
             WorldSettlementFC settlement = ParentSettlement;
@@ -548,30 +543,23 @@ namespace FactionColonies
                 parms.faction,
                 new LordJob_HuntColonists(settlement, parms.raidArrivalMode != PawnsArrivalModeDefOf.CenterDrop),
                 map, newAttackers);
+            op.aggressor.lord = attackerLord;
         }
 
-        /// <summary>Op-aware aggressor spawn (used by SpawnParticipantOnMap when the aggressor
-        /// participant has only a force / faction — no DefenseWave context).</summary>
-        private void SpawnAttackersFromForce(MilitaryForce force, Faction faction)
+        /// <summary>Spawns reinforcement defenders for an op if a foreign defending settlement's
+        /// squad is available. Does NOT generate random pawns if the squad is deployed. Adds the
+        /// spawned pawns to the op's <c>defender.pawns</c> and to the flat <see cref="defenderPawns"/>
+        /// aggregation; rolls them into the existing defender lord if present, otherwise creates one.</summary>
+        private void SpawnReinforcementsForOp(MilitaryOperation op)
         {
-            if (map is null || force is null || faction is null) return;
-            var pseudoWave = new DefenseWave(null, force, null, faction);
-            activeWaves.Add(pseudoWave);
-            SpawnWaveAttackers(pseudoWave);
-        }
-
-        /// <summary>Spawns reinforcement defenders for a wave if a foreign defending settlement's
-        /// squad is available. Does NOT generate random pawns if the squad is deployed.</summary>
-        private void GenerateWaveReinforcements(DefenseWave wave)
-        {
-            if (map is null || wave?.defenderForce is null) return;
+            if (map is null || op?.defender?.force is null) return;
 
             WorldSettlementFC ourSettlement = ParentSettlement;
 
-            var homeComp = wave.defenderForce.homeSettlement?.MilitaryComp;
+            var homeComp = op.defender.force.homeSettlement?.MilitaryComp;
             if (homeComp is null) return;
             // Don't spawn reinforcements from the home settlement defending itself — already handled
-            if (wave.defenderForce.homeSettlement == ourSettlement) return;
+            if (op.defender.force.homeSettlement == ourSettlement) return;
 
             bool hasSquad = homeComp.militarySquad != null
                 && homeComp.militarySquad.outfit != null
@@ -582,10 +570,10 @@ namespace FactionColonies
             var squad = homeComp.militarySquad;
             squad.CheckInitialization();
             squad.OutfitSquad(squad.outfit);
-            squad.UpdateSquadStats(wave.defenderForce.homeSettlement.settlementMilitaryLevel);
+            squad.UpdateSquadStats(op.defender.force.homeSettlement.settlementMilitaryLevel);
             squad.ResetNeeds();
 
-            double efficiency = wave.defenderForce.militaryEfficiency;
+            double efficiency = op.defender.force.militaryEfficiency;
             foreach (Pawn merc in squad.AllEquippedMercenaryPawns)
             {
                 MilitaryEfficiencyUtil.ShiftPawnGearQuality(merc, efficiency);
@@ -632,25 +620,11 @@ namespace FactionColonies
                         map, spawnedReinforcements);
                 }
 
-                wave.waveDefenders.AddRange(spawnedReinforcements);
+                op.defender.pawns.AddRange(spawnedReinforcements);
                 defenderPawns.AddRange(spawnedReinforcements);
+                op.defender.lord = defenderPawns.Count > 0 ? defenderPawns[0].GetLord() : op.defender.lord;
                 initialDefenderCount += spawnedReinforcements.Count;
             }
-        }
-
-        private void SpawnDefenderSquad(MercenarySquadFC squad, MilitaryForce force)
-        {
-            // Reuses GenerateWaveReinforcements via a synthetic wave.
-            var wave = new DefenseWave(null, null, force, null);
-            activeWaves.Add(wave);
-            GenerateWaveReinforcements(wave);
-        }
-
-        private void SpawnDefenderFallback(MilitaryForce force)
-        {
-            if (force is null) return;
-            // Reuses GenerateFriendlies via a synthetic context.
-            GenerateFriendlies(force, null);
         }
 
         /// <summary>Re-recruits surviving Empire NPC defenders from their idle lord into a new
@@ -688,7 +662,7 @@ namespace FactionColonies
             }
         }
 
-        private void ZoomIntoTile(FCEvent evt)
+        private void ZoomIntoTile(MilitaryOperation op)
         {
             SoundDefOf.Tick_High.PlayOneShotOnCamera();
             if (battleMapInitialized) return;
@@ -696,15 +670,7 @@ namespace FactionColonies
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null || map is null) return;
 
-            if (evt is null)
-            {
-                LogUtil.Warning("Aborting defense, null FCEvent! Resetting battle state.");
-                EndBattle(false, 0, null);
-                return;
-            }
-
-            var force = evt.militaryForceDefending;
-            if (force is null)
+            if (op?.defender?.force is null)
             {
                 LogUtil.Warning($"Aborting defense for {settlement.Name}, null defending force. Resetting battle state.");
                 EndBattle(false, 0, null);
@@ -729,11 +695,11 @@ namespace FactionColonies
             if (toRemove.Count > 0)
                 LogUtil.Message($"Cleaned up {toRemove.Count} unrelated pawns from {settlement.Name}");
 
-            GenerateFriendlies(force, evt);
+            GenerateFriendlies(op);
             RecruitMapInhabitants();
             Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
 
-            string enemyName = evt.militaryForceAttacking?.homeFaction?.Name ?? evt.militaryForceAttackingFaction?.Name ?? "Unknown";
+            string enemyName = op.aggressor?.force?.homeFaction?.Name ?? op.aggressor?.faction?.Name ?? "Unknown";
             GlobalTargetInfo jumpTarget = defenderPawns.Any()
                 ? new GlobalTargetInfo(defenderPawns[0])
                 : new GlobalTargetInfo(new IntVec3(map.Size.x / 2, 0, map.Size.z / 2), map);
@@ -744,20 +710,21 @@ namespace FactionColonies
                 new LookTargets(jumpTarget));
         }
 
-        private void GenerateFriendlies(MilitaryForce force, FCEvent battleEvent = null)
+        private void GenerateFriendlies(MilitaryOperation op)
         {
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null || map is null) return;
+            MilitaryForce force = op?.defender?.force;
+            if (force is null) return;
 
             var points = Math.Max((float)(force.forceRemaining * 100), 50f);
             List<Pawn> friendlies = null;
             var riders = new Dictionary<Pawn, Pawn>();
 
             // Try external defender pawns (VOE outposts, etc.)
-            if (force.homeSettlement == null && battleEvent?.externalDefenderSource != null)
+            if (force.homeSettlement == null && op.externalDefenderSource != null)
             {
-                IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(
-                    battleEvent.externalDefenderSource);
+                IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(op.externalDefenderSource);
                 friendlies = extDefender?.GetDefendingPawns();
             }
 
@@ -892,20 +859,13 @@ namespace FactionColonies
 
             defenderPawns = spawnedFriendlies;
             initialDefenderCount = defenderPawns.Count;
+            op.defender.lord = defenderLord;
 
-            // Track external defender pawns on the arriving wave so EndAttack can return them
-            if (force.homeSettlement == null && battleEvent?.externalDefenderSource != null)
+            // Track external defender pawns on the op's defender participant so EndAttack can
+            // return them to the auto-defender on battle resolution.
+            if (force.homeSettlement == null && op.externalDefenderSource != null)
             {
-                DefenseWave wave = activeWaves.FirstOrDefault(w => w.sourceEvent == battleEvent);
-                if (wave is null)
-                {
-                    wave = activeWaves.FirstOrDefault();
-                    if (wave is object)
-                        LogUtil.Warning($"GenerateFriendlies: no wave matched battleEvent for external defender at {settlement.Name}; falling back to first active wave.");
-                    else
-                        LogUtil.Error($"GenerateFriendlies: no active waves to track external defender pawns at {settlement.Name}; outpost will lose its pawns at battle end.");
-                }
-                wave?.waveDefenders.AddRange(spawnedFriendlies);
+                op.defender.pawns.AddRange(spawnedFriendlies);
             }
         }
 
@@ -1002,24 +962,27 @@ namespace FactionColonies
             bool won = defenderPawns.Any();
             int remaining = defenderPawns.Count;
 
-            // Return external defender pawns per wave before map cleanup destroys them
-            foreach (DefenseWave wave in activeWaves)
+            // Return external defender pawns per op before map cleanup destroys them.
+            if (activeOps is object)
             {
-                if (wave.externalDefenderSource is null) continue;
-                IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(wave.externalDefenderSource);
-                if (extDefender is null) continue;
-
-                List<Pawn> survivingPawns = new List<Pawn>();
-                foreach (Pawn pawn in wave.waveDefenders)
+                foreach (MilitaryOperation op in activeOps)
                 {
-                    if (pawn != null && !pawn.Dead && !pawn.Destroyed)
+                    if (op?.externalDefenderSource is null) continue;
+                    IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(op.externalDefenderSource);
+                    if (extDefender is null) continue;
+
+                    List<Pawn> survivingPawns = new List<Pawn>();
+                    foreach (Pawn pawn in op.defender.pawns)
                     {
-                        if (pawn.Spawned) pawn.DeSpawn();
-                        survivingPawns.Add(pawn);
-                        defenderPawns.Remove(pawn);
+                        if (pawn != null && !pawn.Dead && !pawn.Destroyed)
+                        {
+                            if (pawn.Spawned) pawn.DeSpawn();
+                            survivingPawns.Add(pawn);
+                            defenderPawns.Remove(pawn);
+                        }
                     }
+                    extDefender.ReturnDefendingPawns(survivingPawns);
                 }
-                extDefender.ReturnDefendingPawns(survivingPawns);
             }
 
             // Strip combat efficiency hediffs from surviving defenders
@@ -1034,7 +997,6 @@ namespace FactionColonies
 
             defenderPawns.Clear();
             attackerPawns.Clear();
-            activeWaves.Clear();
             endingBattle = false;
             pendingDeliveryMessage = null;
         }
@@ -1044,11 +1006,15 @@ namespace FactionColonies
             attackerPawns.Remove(downed);
             attackerPawns.RemoveAll(IsPawnTrulyGone);
 
-            foreach (DefenseWave wave in activeWaves)
+            // Drop the pawn from whichever op it belonged to. Pawns are uniquely owned by one op's
+            // aggressor list, so a single Remove is sufficient.
+            if (activeOps is object)
             {
-                if (wave.resolved) continue;
-                if (wave.waveAttackers.Remove(downed) && !wave.waveAttackers.Any())
-                    wave.resolved = true;
+                foreach (MilitaryOperation op in activeOps)
+                {
+                    if (op?.aggressor?.pawns is null) continue;
+                    if (op.aggressor.pawns.Remove(downed)) break;
+                }
             }
 
             attackerPawns.RemoveAll(IsPawnTrulyGone);
@@ -1204,7 +1170,7 @@ namespace FactionColonies
                 return;
             }
 
-            // Battle hasn't started yet — start it via the warning event at this tile.
+            // Battle hasn't started yet — start it via the op linked to the warning event.
             FCEvent warning = MilitaryUtilFC.ReturnMilitaryEventByLocation(new PlanetTile(destinationTile));
             if (warning is null)
             {
@@ -1212,7 +1178,14 @@ namespace FactionColonies
                 return;
             }
 
-            StartDefenseFromEvent(warning, () => RegisterPawnsAsDefenders(pawns, assignToLord));
+            MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(warning.linkedOperationId);
+            if (op is null)
+            {
+                LogUtil.Warning($"AddToDefenceFromList: warning event at tile {destinationTile} has no linked op.");
+                return;
+            }
+
+            StartDefense(op, () => RegisterPawnsAsDefenders(pawns, assignToLord));
         }
 
         public void RegisterPawnsAsDefenders(List<Pawn> pawns, bool assignToLord)

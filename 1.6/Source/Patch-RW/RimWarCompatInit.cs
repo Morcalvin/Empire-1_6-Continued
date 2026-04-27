@@ -39,7 +39,7 @@ namespace FactionColonies.RW
     /// Uses sqrt(points) / 20 scaling:
     ///   400 pts -> level 1, 3600 -> 3, 10000 -> 5, 19600 -> 7, 32400 -> 9
     /// </summary>
-    public class RWStrengthBattleModifier : IBattleModifierWithOp
+    public class RWStrengthBattleModifier : IBattleModifier
     {
         public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
         {
@@ -63,16 +63,6 @@ namespace FactionColonies.RW
             force.forceRemaining = Math.Round(rwLevel * force.militaryEfficiency);
 
             LogUtil.Message("RW strength " + rwsc.RimWarPoints + " -> Empire defender force " + force.forceRemaining);
-        }
-
-        // Required by the [Obsolete] base interface. Op-aware path is preferred; this is a
-        // best-effort fallback for legacy callers (no op context — can't look up the target).
-        [Obsolete("Implement IBattleModifierWithOp.ModifyForce(MilitaryOperation, MilitaryForce, bool) for op context. " +
-                  "The legacy overload still works as a fallback for now but will be removed in a future version.")]
-        public void ModifyForce(MilitaryForce force, bool isAttacker)
-        {
-            // Legacy path lacks the op context required to look up the target settlement.
-            // No-op: skip RimWar scaling. New code routes through op-aware ModifyForce.
         }
     }
 }
