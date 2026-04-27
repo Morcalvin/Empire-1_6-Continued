@@ -341,7 +341,7 @@ namespace FactionColonies
                                 if (currentDefenderTarget is object && settlement.Name == currentDefenderTarget.Label) continue;
                                 list2.Add(new DebugMenuOption(
                                     settlement.Name + " - " + settlement.settlementMilitaryLevel + " - Busy: " +
-                                    settlement.MilitaryComp.IsMilitaryBusySilent(), DebugMenuOptionMode.Action, delegate
+                                    settlement.MilitaryComp.militaryBusy, DebugMenuOptionMode.Action, delegate
                                     {
                                         if (settlement.MilitaryComp.IsMilitaryBusy() == false)
                                         {
@@ -947,7 +947,7 @@ namespace FactionColonies
                 string squadInfo = comp.militarySquad != null
                     ? $"Deployed:{comp.militarySquad.IsPhysicallyDeployed()} Job:{comp.militaryJob}"
                     : "No squad";
-                LogUtil.MessageForce($"[{s.Name}] MilLv:{s.settlementMilitaryLevel} Busy:{comp.IsMilitaryBusySilent()} | {squadInfo}");
+                LogUtil.MessageForce($"[{s.Name}] MilLv:{s.settlementMilitaryLevel} Busy:{comp.militaryBusy} | {squadInfo}");
             }
         }
 

@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Verse;
 using Verse.AI.Group;
-using Verse.Sound;
 
 // Comp legacy load buffers reference [Obsolete] DefenseWave (drained on PostLoadInit by
 // MilitaryMigrationUtil). The runtime surface is computed properties backed by the manager;
@@ -269,7 +268,7 @@ namespace FactionColonies
             if (isCurrentDefender)
                 s += " - [" + "FCCurrentDefender".Translate() + "]";
             else
-                s += " - " + "FCAvailable".Translate() + ": " + (settlement.MilitaryComp?.IsMilitaryBusySilent() != true).ToString();
+                s += " - " + "FCAvailable".Translate() + ": " + (settlement.MilitaryComp?.militaryBusy != true).ToString();
             return s;
         }
 
@@ -610,16 +609,10 @@ namespace FactionColonies
 
         public void ClearAttackState()
         {
-            // Foreign defender that supplied the defending force still has residual squad-injury
-            // bookkeeping on its home comp; let it run that on the foreign side.
-            if (defenderForce?.homeSettlement is object
-                && defenderForce.homeSettlement != WorldSettlement)
-            {
-                defenderForce.homeSettlement.MilitaryComp?.ReturnMilitary(false);
-            }
-
-            // isUnderAttack is computed from manager state. Battle pawn lists and flags live on
-            // BattlefieldContext now — clear them through it.
+            // Foreign-defender squad-injury bookkeeping already ran inside op.CompleteBattle
+            // (which registers both aggressor and defender squads). No need to re-fire it here.
+            // isUnderAttack is computed from manager state — battle pawn lists and flags live on
+            // BattlefieldContext, so clear them through it.
             BattlefieldContext bf = Battlefield;
             if (bf is object)
             {
@@ -673,19 +666,11 @@ namespace FactionColonies
             return !targetComp.isUnderAttack;
         }
 
-        // WinBattle / LoseBattle moved to MilitaryJobHandler_Defend.ApplyResult →
-        // DefensiveBattleEffects.ApplyWin / ApplyLoss. Settlement-side outcome handling now runs
-        // inside op.CompleteBattle (per-op) so listeners observe post-effect state and the comp
-        // doesn't own this anymore.
-
-        // EndAttack / RemoveAttacker / RemoveDefender live on BattlefieldContext. External lord
-        // callers (LordJob_HuntColonists / LordJob_DefendColony / LordJob_ColonistsIdle) and a few
-        // internal helpers still reference the comp methods by name; these stay as thin delegations.
-
+        // Battle pawn-list mutations live on BattlefieldContext. These shims exist because lord
+        // jobs (LordJob_HuntColonists / LordJob_DefendColony / LordJob_ColonistsIdle) call them
+        // by name on the settlement comp; treat them as load-bearing public API.
         public void EndAttack() => Battlefield?.EndAttack();
-
         public void RemoveAttacker(Pawn downed) => Battlefield?.RemoveAttacker(downed);
-
         public void RemoveDefender(Pawn defender) => Battlefield?.RemoveDefender(defender);
 
         public override void PostCaravanFormed(Caravan caravan)
@@ -819,16 +804,6 @@ namespace FactionColonies
 
             Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
             return false;
-        }
-
-        public bool IsMilitarySquadValidSilent()
-        {
-            return !(militarySquad is null);
-        }
-
-        public bool IsMilitaryBusySilent()
-        {
-            return militaryBusy;
         }
 
         public bool IsMilitaryValid()

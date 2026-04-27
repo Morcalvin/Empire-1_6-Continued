@@ -1189,7 +1189,7 @@ namespace FactionColonies
                             settlementList.Add(new FloatMenuOption(
                                 s.Name + " " + "FCPower".Translate() + " " +
                                 power + " - " + "FCAvailable".Translate() +
-                                ": " + (!s.MilitaryComp.IsMilitaryBusySilent()).ToString(), delegate
+                                ": " + (!s.MilitaryComp.militaryBusy).ToString(), delegate
                                 {
                                     if (s.MilitaryComp.IsMilitaryBusy())
                                     {

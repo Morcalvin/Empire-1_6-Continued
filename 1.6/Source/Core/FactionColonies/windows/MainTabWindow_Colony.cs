@@ -1772,7 +1772,7 @@ namespace FactionColonies
                     + "FCSettlementTableMilLevel".Translate() + ": " + settlement.settlementMilitaryLevel + "\n"
                     + "FCMilitaryTableMilitaryBudget".Translate() + ": $" + budget + "\n"
                     + "FCMilitaryTableSquad".Translate() + ": " + squadName + "\n"
-                    + "FCMilitaryTableAvailable".Translate() + ": " + (milComp.IsMilitaryBusySilent() ? "FCNo".Translate() : "FCYes".Translate()) + "\n"
+                    + "FCMilitaryTableAvailable".Translate() + ": " + (milComp.militaryBusy ? "FCNo".Translate() : "FCYes".Translate()) + "\n"
                     + "FCMilitaryTableUnderAttack".Translate() + ": " + (milComp.isUnderAttack ? "FCYes".Translate() : "FCNo".Translate());
                 float btnStartX = contentX + contentW - totalBtnW;
                 TooltipHandler.TipRegion(new Rect(0f, ry, btnStartX, rowH), tooltip);
