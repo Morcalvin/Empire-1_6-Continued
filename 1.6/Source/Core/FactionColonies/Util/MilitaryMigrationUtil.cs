@@ -119,8 +119,8 @@ namespace FactionColonies
                     }
                 }
                 // Deploy op: handler-less, no FCEvent. Squad is physically on a player map.
-                // Pre-Phase-6 the squad's isDeployed flag tracked this; with the legacy field
-                // gone we rely on comp._legacyMilitaryJob = Deploy to reconstruct the op.
+                // Older saves used the squad's now-removed isDeployed flag for this; we now
+                // infer the deploy state from comp._legacyMilitaryJob == Deploy.
                 else if (comp._legacyMilitaryBusy && comp._legacyMilitaryJob == MilitaryJobDefOf.Deploy)
                 {
                     MilitaryOperation op = ReconstructDeployOp(manager, settlement, comp);
@@ -163,7 +163,7 @@ namespace FactionColonies
                         if (comp._legacyDraftedNPCs is object) bf.draftedNPCs.AddRange(comp._legacyDraftedNPCs);
                         bf.battleMapInitialized = comp._legacyBattleMapInitialized;
 
-                        MilitaryOperation defensiveOp = bf.PrimaryDefensiveOp();
+                        MilitaryOperation defensiveOp = bf.FirstDefensiveOp();
                         if (defensiveOp is object)
                         {
                             // Legacy flat lists fold into the primary op's per-side pawn lists.
@@ -283,7 +283,8 @@ namespace FactionColonies
             var op = new MilitaryOperation(newId, null, target.Tile, target);
             op.phase = MilitaryOperationPhase.Scheduled;
             op.nextPhaseTick = warning.timeTillTrigger;
-            op.aggressor.faction = warning.militaryForceAttackingFaction;
+            op.aggressor.faction = warning.militaryForceAttackingFaction
+                                ?? warning.militaryForceAttacking?.homeFaction;
             op.aggressor.force = warning.militaryForceAttacking;
             op.defender.faction = warning.militaryForceDefendingFaction ?? FactionCache.PlayerColonyFaction;
             op.defender.homeSettlement = warning.militaryForceDefending?.homeSettlement;
@@ -317,7 +318,7 @@ namespace FactionColonies
             var op = new MilitaryOperation(newId, null, settlement.Tile, settlement);
             op.phase = MilitaryOperationPhase.Engaged;
             op.nextPhaseTick = -1;
-            op.aggressor.faction = wave.attackerFaction;
+            op.aggressor.faction = wave.attackerFaction ?? wave.attackerForce?.homeFaction;
             op.aggressor.force = wave.attackerForce;
             op.defender.faction = FactionCache.PlayerColonyFaction;
             op.defender.homeSettlement = wave.defenderForce?.homeSettlement ?? settlement;

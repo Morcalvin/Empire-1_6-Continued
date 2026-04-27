@@ -203,11 +203,6 @@ namespace FactionColonies
         public MilitaryCustomizationUtil militaryCustomizationUtil = new MilitaryCustomizationUtil();
         public EmpireThreatAdaptation threatAdaptation = new EmpireThreatAdaptation();
         public FCRoadBuilder roadBuilder = new FCRoadBuilder();
-        private List<PlanetTile> militaryTargets = new List<PlanetTile>();
-        public IReadOnlyList<PlanetTile> MilitaryTargets => militaryTargets;
-        public void AddMilitaryTarget(PlanetTile tile) { militaryTargets.Add(tile); }
-        public void RemoveMilitaryTarget(PlanetTile tile) { militaryTargets.Remove(tile); }
-        public bool HasMilitaryTarget(PlanetTile tile) => militaryTargets.Contains(tile);
 
         /* Caravans */
         public List<PlanetTile> settlementCaravansList = new List<PlanetTile>(); //list of locations caravans already sent to
@@ -337,7 +332,6 @@ namespace FactionColonies
 
             Scribe_Collections.Look(ref settlementCaravansList, "settlementCaravansList", LookMode.Value);
             Scribe_Collections.Look(ref enabledCaravanTypes, "enabledCaravanTypes", LookMode.Value);
-            Scribe_Collections.Look(ref militaryTargets, "militaryTargets", LookMode.Value);
 
             //New Production types
             Scribe_Collections.Look(ref resourcePools, "resourcePools", LookMode.Deep);
@@ -1609,32 +1603,21 @@ namespace FactionColonies
          * just dispatch to policy behaviors and update the occupies-target faction-wide list.
          */
 
-        void ILifecycleParticipant.OnSquadDeployed(MilitaryOperation op)
+        void ILifecycleParticipant.OnOperationCreated(MilitaryOperation op)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
-
-            // The militaryTargets list is faction-wide state, not a comp shadow — keep updating it.
-            if (op.IsOffensive && op.kind is object && op.kind.occupiesTarget)
-            {
-                AddMilitaryTarget(op.targetTile);
-            }
 
             bool isExtraSquad = op.aggressor?.squad?.isExtraSquad ?? false;
             ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
         }
 
-        void ILifecycleParticipant.OnSquadRecalled(MilitaryOperation op)
+        void ILifecycleParticipant.OnOperationResolved(MilitaryOperation op)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
-
-            if (op.IsOffensive && op.kind is object && op.kind.occupiesTarget)
-            {
-                RemoveMilitaryTarget(op.targetTile);
-            }
 
             // Squad injury registration on cleanup (offensive aggressor / foreign defender).
             if (op.aggressor?.squad is object)

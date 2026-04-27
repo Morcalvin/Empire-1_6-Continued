@@ -133,10 +133,11 @@ namespace FactionColonies
         void OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef);
         void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
         void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
-        /// <summary>Called immediately after a <see cref="MilitaryOperation"/> is created and registered.</summary>
-        void OnSquadDeployed(MilitaryOperation op);
+        /// <summary>Called immediately after a <see cref="MilitaryOperation"/> is created and registered.
+        /// Note: fires for every op, including defensive ops where no squad has been deployed.</summary>
+        void OnOperationCreated(MilitaryOperation op);
         /// <summary>Called when an op resolves and its squad (if any) is freed.</summary>
-        void OnSquadRecalled(MilitaryOperation op);
+        void OnOperationResolved(MilitaryOperation op);
         /// <summary>Called after the battle simulation / manual battle has produced a result.</summary>
         void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result);
         void OnResearchCompleted(ResearchProjectDef project);

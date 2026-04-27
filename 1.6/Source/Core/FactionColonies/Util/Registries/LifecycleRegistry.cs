@@ -92,27 +92,27 @@ namespace FactionColonies
 
         /* Military */
 
-        public static void InvokeOnSquadDeployed(MilitaryOperation op)
+        public static void InvokeOnOperationCreated(MilitaryOperation op)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             foreach (ILifecycleParticipant p in _participants)
             {
-                try { p.OnSquadDeployed(op); }
-                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadDeployed: {e}"); }
+                try { p.OnOperationCreated(op); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnOperationCreated: {e}"); }
                 if (settlement is object) settlement.InvalidateStatCache();
             }
             if (settlement is object) settlement.InvalidateStatCache();
         }
 
-        public static void InvokeOnSquadRecalled(MilitaryOperation op)
+        public static void InvokeOnOperationResolved(MilitaryOperation op)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             foreach (ILifecycleParticipant p in _participants)
             {
-                try { p.OnSquadRecalled(op); }
-                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadRecalled: {e}"); }
+                try { p.OnOperationResolved(op); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnOperationResolved: {e}"); }
                 if (settlement is object) settlement.InvalidateStatCache();
             }
             if (settlement is object) settlement.InvalidateStatCache();

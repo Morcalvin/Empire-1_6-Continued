@@ -26,6 +26,9 @@ namespace FactionColonies
     /// </summary>
     public class BattlefieldContext : IExposable
     {
+        /// <summary>Tick interval for the orphan-flag clearing sweep in <see cref="Tick"/>.</summary>
+        private const int OrphanCheckTickInterval = 2500;
+
         public PlanetTile tile = PlanetTile.Invalid;
 
         /// <summary>The battle map. Lazy: created when the first op transitions to Engaged on this tile.</summary>
@@ -174,7 +177,7 @@ namespace FactionColonies
 
             // Periodic orphan flag clearing: isUnderAttack is true but no map / no combatants
             // and no warning event in queue.
-            if (ticks % 2500 == 0 && map is null && !attackerPawns.Any() && !defenderPawns.Any())
+            if (ticks % OrphanCheckTickInterval == 0 && map is null && !attackerPawns.Any() && !defenderPawns.Any())
             {
                 FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
                 if (evt is null)
@@ -198,7 +201,7 @@ namespace FactionColonies
             // that spawned via the Unload job after the ArrivePatch fired). Attribute them to
             // the primary defensive op (no natural per-op owner; the first defensive op is the
             // canonical bench).
-            MilitaryOperation primaryDef = PrimaryDefensiveOp();
+            MilitaryOperation primaryDef = FirstDefensiveOp();
             var defenderSet = new HashSet<Pawn>(defenderPawns);
             Lord battleLord = null;
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
@@ -1274,7 +1277,7 @@ namespace FactionColonies
             // Attribute new defender pawns to the primary defensive op at this tile (the one that
             // started the battle). Caravan defends and other "loose" defender additions don't have
             // a natural per-op owner; the first defensive op is the canonical bench.
-            MilitaryOperation primaryDef = PrimaryDefensiveOp();
+            MilitaryOperation primaryDef = FirstDefensiveOp();
             if (primaryDef?.defender?.pawns is null) return;
 
             foreach (var pawn in pawns)
@@ -1290,7 +1293,7 @@ namespace FactionColonies
         /// <summary>The first defensive op attached to this battlefield, or null if none. Used to
         /// attribute "loose" defender pawns (caravan defends, untracked map pawns) to a canonical
         /// op so per-op pawn lists stay aligned with the flat <see cref="defenderPawns"/>.</summary>
-        public MilitaryOperation PrimaryDefensiveOp()
+        public MilitaryOperation FirstDefensiveOp()
         {
             if (activeOps is null) return null;
             for (int i = 0; i < activeOps.Count; i++)

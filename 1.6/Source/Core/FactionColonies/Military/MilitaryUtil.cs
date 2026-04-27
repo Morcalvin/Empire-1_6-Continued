@@ -67,7 +67,7 @@ namespace FactionColonies
             Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), "FCDeploymentSuccessDesc".Translate(settlement.Name, currentMap.Parent.LabelCap), LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
 
             // Deploy is a manager op: CreateDeployOp registers the squad, sets phase=Engaged,
-            // and fires LifecycleRegistry.InvokeOnSquadDeployed.
+            // and fires LifecycleRegistry.InvokeOnOperationCreated.
             FactionCache.MilitaryManager?.CreateDeployOp(settlement, currentMap.Tile);
 
             LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);

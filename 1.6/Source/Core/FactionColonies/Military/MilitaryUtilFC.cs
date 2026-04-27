@@ -105,11 +105,17 @@ namespace FactionColonies
             // Release the previous defender's commitment (foreign settlement marker or external).
             ReleaseCurrentDefender(op);
 
+            // Reindex by detaching the op from manager indices, mutating the defender, then
+            // re-registering. _bySquad / _bySettlement are keyed off op.defender.* and would
+            // otherwise lag the swap.
+            manager.Unregister(op);
+
             MilitaryForce newForce;
             if (settlementOfMilitaryForce == homeSettlement)
             {
                 newForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement);
                 op.defender.homeSettlement = homeSettlement;
+                op.defender.squad = homeSettlement?.MilitaryComp?.militarySquad;
                 op.defender.force = newForce;
                 op.externalDefenderSource = null;
                 Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
@@ -119,6 +125,7 @@ namespace FactionColonies
                 MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
                 newForce = MilitaryForce.CreateMilitaryForceFromSettlement(settlementOfMilitaryForce, homeDefendingForce: homeForce);
                 op.defender.homeSettlement = settlementOfMilitaryForce;
+                op.defender.squad = settlementOfMilitaryForce.MilitaryComp?.militarySquad;
                 op.defender.force = newForce;
                 op.externalDefenderSource = null;
 
@@ -126,6 +133,8 @@ namespace FactionColonies
                     settlementOfMilitaryForce.Name, homeSettlement?.Name ?? "", newForce.militaryLevel),
                     LetterDefOf.NeutralEvent);
             }
+
+            manager.Register(op);
         }
 
         /// <summary>
@@ -153,9 +162,17 @@ namespace FactionColonies
 
             ReleaseCurrentDefender(op);
 
+            // Reindex via Unregister + Register so the manager indices reflect the new
+            // defender.homeSettlement / defender.squad (both go null for an external defender).
+            manager.Unregister(op);
+
             op.defender.homeSettlement = null;
+            op.defender.squad = null;
             op.defender.force = defender.CreateDefendingForce();
             op.externalDefenderSource = defender.WorldObject;
+
+            manager.Register(op);
+
             defender.OnDefenseStarted(op.targetObject);
 
             Messages.Message("FCExternalDefenderAssigned".Translate(defender.WorldObject.LabelCap),

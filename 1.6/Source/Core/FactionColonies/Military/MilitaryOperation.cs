@@ -171,6 +171,12 @@ namespace FactionColonies
         /// </summary>
         public void CompleteBattle(BattleResult battleResult)
         {
+            if (phase != MilitaryOperationPhase.Engaged)
+            {
+                LogUtil.Warning($"MilitaryOperation.CompleteBattle: ignoring re-entry on op id={id} in phase {phase}.");
+                return;
+            }
+
             this.result = battleResult;
             bool victory = IsDefensive
                 ? battleResult is object && battleResult.DefenderVictory
@@ -233,6 +239,12 @@ namespace FactionColonies
         /// </summary>
         public void EnterCooldown()
         {
+            if (phase == MilitaryOperationPhase.CooldownPending || phase == MilitaryOperationPhase.Resolved)
+            {
+                LogUtil.Warning($"MilitaryOperation.EnterCooldown: ignoring re-entry on op id={id} in phase {phase}.");
+                return;
+            }
+
             phase = MilitaryOperationPhase.CooldownPending;
             phaseStartedTick = Find.TickManager.TicksGame;
 
@@ -280,15 +292,17 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Final terminal transition. Fires <see cref="LifecycleRegistry.InvokeOnSquadRecalled"/>
+        /// Final terminal transition. Fires <see cref="LifecycleRegistry.InvokeOnOperationResolved"/>
         /// and unregisters from the manager (which also detaches from any battlefield context).
         /// </summary>
         public void Resolve()
         {
+            if (phase == MilitaryOperationPhase.Resolved) return;
+
             phase = MilitaryOperationPhase.Resolved;
             phaseStartedTick = Find.TickManager.TicksGame;
 
-            LifecycleRegistry.InvokeOnSquadRecalled(this);
+            LifecycleRegistry.InvokeOnOperationResolved(this);
 
             FactionCache.MilitaryManager?.Unregister(this);
         }
@@ -401,6 +415,12 @@ namespace FactionColonies
                 if (kind?.Handler is object)
                 {
                     r = kind.Handler.OnAutoResolve(this);
+                }
+                else if (aggressor?.force is null || defender?.force is null)
+                {
+                    LogUtil.Error($"MilitaryOperation.AutoResolveAndComplete: missing force on op id={id} " +
+                                  $"(aggressor={(aggressor?.force is object)}, defender={(defender?.force is object)}).");
+                    r = new BattleResult { winner = BattleWinner.Error };
                 }
                 else
                 {

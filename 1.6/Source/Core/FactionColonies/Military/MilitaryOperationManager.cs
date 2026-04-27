@@ -97,13 +97,6 @@ namespace FactionColonies
             if (active is object) active.Remove(op);
         }
 
-        /// <summary>Tick driver. Replaces FCEventMaker's military switch — military events
-        /// dispatch via op.OnEventFired in the new model. Currently a no-op (event-driven).</summary>
-        public void Tick()
-        {
-            // Reserved for future op-driven timer work (e.g. checking for stalled manual battles).
-        }
-
         /// <summary>
         /// Creates an offensive operation: empire <paramref name="homeSettlement"/> sends its
         /// squad on a job (raid / capture / enslave / defend-friendly) against
@@ -142,7 +135,7 @@ namespace FactionColonies
                 LogUtil.Error($"MilitaryOperationManager.CreateOffensiveOp: handler {jobDef.Handler?.GetType().Name} threw in OnOpCreated: {e}");
             }
 
-            LifecycleRegistry.InvokeOnSquadDeployed(op);
+            LifecycleRegistry.InvokeOnOperationCreated(op);
             return op;
         }
 
@@ -192,11 +185,25 @@ namespace FactionColonies
             }
             // For external raid targets, defender.force is set below by the auto-defender path.
 
-            Register(op);
-
             // Auto-defender selection. Picks the strongest replacement defender (Empire foreign
             // settlement or external IAutoDefender) if it beats whatever the op currently uses.
+            // Runs before Register so the index reflects the final defender.homeSettlement /
+            // defender.squad assignment without needing a re-index pass.
             ApplyAutoDefenderSelection(op, target, targetSettlement, factionFC);
+
+            // External IRaidTarget with no eligible auto-defender: synthesize a force from the
+            // target's virtual military level so engagement isn't fed a null defender.force.
+            if (op.defender.force is null && targetSettlement is null)
+            {
+                int targetMilLevel = 1;
+                foreach (IRaidTarget rt in RaidTargetRegistry.Targets)
+                {
+                    if (rt?.WorldObject == target) { targetMilLevel = Math.Max(1, rt.MilitaryLevel); break; }
+                }
+                op.defender.force = new MilitaryForce(targetMilLevel, 1.0, null, op.defender.faction);
+            }
+
+            Register(op);
 
             // Schedule the warning event. The op carries all the force / faction / target data
             // BattlefieldContext.StartDefense needs — no need to mirror anything onto the event.
@@ -228,7 +235,7 @@ namespace FactionColonies
                 warningEvent.customDescription = desc;
             }
 
-            LifecycleRegistry.InvokeOnSquadDeployed(op);
+            LifecycleRegistry.InvokeOnOperationCreated(op);
 
             // "Settlement in danger" letter, mirrors old AttackPlayerSettlement.
             try
@@ -284,6 +291,7 @@ namespace FactionColonies
                     ? MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement, isAttacking: true)
                     : null;
                 op.defender.homeSettlement = bestForeign;
+                op.defender.squad = bestForeign.MilitaryComp?.militarySquad;
                 op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeign, isAttacking: false, homeDefendingForce: homeForce);
                 op.externalDefenderSource = null;
                 return;
@@ -326,7 +334,7 @@ namespace FactionColonies
             // No defender — Deploy isn't an attack operation, just squad presence.
 
             Register(op);
-            LifecycleRegistry.InvokeOnSquadDeployed(op);
+            LifecycleRegistry.InvokeOnOperationCreated(op);
             return op;
         }
 

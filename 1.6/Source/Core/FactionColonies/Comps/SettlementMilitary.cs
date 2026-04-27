@@ -480,10 +480,8 @@ namespace FactionColonies
             return AcceptanceReport.WasAccepted;
         }
 
-        // Battle infrastructure (IsPlayerCaravanOnTile / CountOtherSettlementBattleMaps /
-        // ShuttleCaravanDefend / SpawnPawnsAtEdge / RegisterPawnsAsDefenders) lives on
-        // BattlefieldContext. CaravanDefend / AddToDefenceFromList are kept as thin wrappers
-        // because external callers (VEF Harmony patch, WorldSettlementDefendAction,
+        // CaravanDefend / AddToDefenceFromList are thin wrappers around BattlefieldContext;
+        // external callers (VEF Harmony patch, WorldSettlementDefendAction,
         // TransportPodArrivalActionPatch) target them by name on the comp.
 
         private bool PlayerCaravanOnSettlementTile()
@@ -556,52 +554,55 @@ namespace FactionColonies
             var faction = FactionCache.FactionComp;
 
             LogUtil.Message("WorldSettlementFC.EndBattle: Handling combat resolution...");
+
+            // Op completion runs first so manager state catches up before any side effect
+            // queries it. Each op fires its own LifecycleRegistry.OnBattleResolved and schedules
+            // its own cooldown event linked back to itself.
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is object)
+            {
+                // Manual-battle path constructs the BattleResult here from on-map pawn counts;
+                // the auto-resolve path arrives with battleResult already populated by
+                // SimulateBattleFc.FightBattle. Either way, op.CompleteBattle uses
+                // result.defenderRemainingForce vs defenderInitialForce to detect overwhelming
+                // victory (>= all defenders survived) for the FCOverwhelmingVictory letter +
+                // foreign-defender cooldown skip.
+                BattleResult resultForOps = battleResult ?? new BattleResult
+                {
+                    winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
+                    defenderInitialForce = Battlefield?.initialDefenderCount ?? remaining,
+                    defenderRemainingForce = remaining
+                };
+                var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
+                if (opsAtTile.Count == 0)
+                {
+                    LogUtil.Warning($"WorldSettlementFC.EndBattle: no manager ops at tile {WorldSettlement.Tile}; battle resolution dropped.");
+                }
+                else
+                {
+                    // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
+                    var snapshot = new List<MilitaryOperation>(opsAtTile);
+                    foreach (MilitaryOperation op in snapshot)
+                    {
+                        if (op is null) continue;
+                        if (!op.IsDefensive) continue;
+                        if (op.phase == MilitaryOperationPhase.CooldownPending
+                            || op.phase == MilitaryOperationPhase.Resolved) continue;
+                        try { op.CompleteBattle(resultForOps); }
+                        catch (Exception innerEx)
+                        {
+                            LogUtil.Error($"EndBattle: op id={op.id} threw in CompleteBattle: {innerEx}");
+                        }
+                    }
+                }
+            }
+
+            // Settlement-side effects (letters, building destruction, stat changes). Wrapped so
+            // a throw here cannot prevent the op-completion above from having taken effect.
             try
             {
                 if (won) WinBattle(faction);
                 else LoseBattle(faction);
-
-                // Walk defensive ops at this tile, fire CompleteBattle on each. Each op fires its
-                // own LifecycleRegistry.OnBattleResolved and schedules its own cooldown event
-                // linked back to itself.
-                MilitaryOperationManager manager = FactionCache.MilitaryManager;
-                if (manager is object)
-                {
-                    // Manual-battle path constructs the BattleResult here from on-map pawn counts;
-                    // the auto-resolve path arrives with battleResult already populated by
-                    // SimulateBattleFc.FightBattle. Either way, op.CompleteBattle uses
-                    // result.defenderRemainingForce vs defenderInitialForce to detect overwhelming
-                    // victory (≥ all defenders survived) for the FCOverwhelmingVictory letter +
-                    // foreign-defender cooldown skip.
-                    BattleResult resultForOps = battleResult ?? new BattleResult
-                    {
-                        winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
-                        defenderInitialForce = Battlefield?.initialDefenderCount ?? remaining,
-                        defenderRemainingForce = remaining
-                    };
-                    var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
-                    if (opsAtTile.Count == 0)
-                    {
-                        LogUtil.Warning($"WorldSettlementFC.EndBattle: no manager ops at tile {WorldSettlement.Tile}; battle resolution dropped.");
-                    }
-                    else
-                    {
-                        // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
-                        var snapshot = new List<MilitaryOperation>(opsAtTile);
-                        foreach (MilitaryOperation op in snapshot)
-                        {
-                            if (op is null) continue;
-                            if (!op.IsDefensive) continue;
-                            if (op.phase == MilitaryOperationPhase.CooldownPending
-                                || op.phase == MilitaryOperationPhase.Resolved) continue;
-                            try { op.CompleteBattle(resultForOps); }
-                            catch (Exception innerEx)
-                            {
-                                LogUtil.Error($"EndBattle: op id={op.id} threw in CompleteBattle: {innerEx}");
-                            }
-                        }
-                    }
-                }
             }
             catch (Exception e)
             {
@@ -609,14 +610,13 @@ namespace FactionColonies
             }
             // isUnderAttack is computed from manager state; the op completing already drove it.
             // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
-            _ = remaining; // Phase E: legacy parameter retained for source compat with callers.
+            _ = remaining; // legacy parameter retained for source compat with callers.
         }
 
         public void ClearAttackState()
         {
-            // Foreign defender's commitment is owned by the manager op now; ReturnMilitary on
-            // the comp is a no-op for op-driven flow. The legacy ReturnMilitary call is kept
-            // for back-compat with pre-refactor save data without linkedOperationId.
+            // Foreign defender that supplied the defending force still has residual squad-injury
+            // bookkeeping on its home comp; let it run that on the foreign side.
             if (defenderForce?.homeSettlement is object
                 && defenderForce.homeSettlement != WorldSettlement)
             {
@@ -869,8 +869,7 @@ namespace FactionColonies
             // commitment lives on MilitaryOperation. Deploy ops are created by MilitaryUtil.SpawnSquad
             // via Manager.CreateDeployOp; foreign defender ops via Manager.CreateDefensiveOp
             // auto-defender selection or MilitaryUtilFC.ChangeDefendingMilitaryForce. External
-            // callers reaching this branch only get the militaryTargets faction-wide list update.
-            if (job.occupiesTarget) FactionCache.FactionComp.AddMilitaryTarget(location);
+            // callers reaching this branch are no-ops — manager state covers occupancy.
         }
 
         /// <summary>
@@ -915,50 +914,6 @@ namespace FactionColonies
                 Find.LetterStack.ReceiveLetter("Military Cooldown", "FCMilitaryCooldown".Translate(WorldSettlement.Name),
                     LetterDefOf.PositiveEvent);
             }
-        }
-
-        public void CooldownMilitaryFinal(int battleDeaths = 0)
-        {
-            FactionFC faction = FactionCache.FactionComp;
-
-            // Prevent duplicate cooldown events for the same settlement
-            if (faction.HasEventWithDefAndLocation(FCEventDefOf.cooldownMilitary, WorldSettlement.Tile))
-            {
-                LogUtil.Warning($"CooldownMilitaryFinal: cooldownMilitary event already exists for {WorldSettlement.Name}. Skipping duplicate.");
-                return;
-            }
-
-            int cooldown = GenDate.TicksPerDay * 3;
-            cooldown += (int)faction.GetStatValue(FCStatDefOf.militaryCooldownOffset);
-            if (militaryJob != null && militaryJob.cooldownStatDef != null)
-                cooldown += (int)faction.GetStatValue(militaryJob.cooldownStatDef);
-
-            // Dead pawn cooldown: use battleDeaths for defense, squad.dead for deployment
-            int deaths = battleDeaths;
-            if (deaths == 0 && militaryJob != null && militaryJob.deadPawnCooldown
-                && FCSettings.deadPawnsIncreaseMilitaryCooldown)
-            {
-                deaths = militarySquad != null ? militarySquad.dead : 0;
-            }
-            if (deaths > 0 && FCSettings.deadPawnsIncreaseMilitaryCooldown)
-            {
-                int deadMultiplier = 10000 + (int)faction.GetStatValue(FCStatDefOf.deadPawnCooldownOffset);
-                cooldown += deaths * deadMultiplier;
-            }
-            cooldown = Math.Max(cooldown, 0);
-            if (DebugSettings.godMode) cooldown = 1;
-
-            // Comp shadow surface is computed from manager state. The cooldown event being
-            // scheduled below is the canonical record of the cooldown phase; computed
-            // properties (militaryJob / militaryLocation / militaryBusy / militaryEnemy)
-            // reflect it indirectly via the op's CooldownPending phase.
-
-            FCEvent tmp = FCEventMaker.MakeEvent(FCEventDefOf.cooldownMilitary);
-            tmp.hasCustomDescription = true;
-            tmp.timeTillTrigger = Find.TickManager.TicksGame + cooldown;
-            tmp.location = WorldSettlement.Tile;
-            tmp.customDescription = "FCMilitaryForcesReorganizing".Translate(WorldSettlement.Name); // + 
-            FactionCache.FactionComp.AddEvent(tmp);
         }
 
         public bool IsMilitaryBusy(bool silent = false)
@@ -1014,7 +969,9 @@ namespace FactionColonies
 
         public bool IsTargetOccupied(PlanetTile location)
         {
-            if (FactionCache.FactionComp.HasMilitaryTarget(location))
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            IReadOnlyList<MilitaryOperation> opsAtTile = manager?.GetOpsAt(location);
+            if (opsAtTile is object && opsAtTile.Count > 0)
             {
                 Messages.Message("FCTargetAlreadyBeingAttacked".Translate(), MessageTypeDefOf.RejectInput);
                 return true;

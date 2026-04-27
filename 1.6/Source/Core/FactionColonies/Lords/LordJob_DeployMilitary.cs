@@ -258,7 +258,7 @@ namespace FactionColonies
             {
                 // Find the deploy op and complete it. This schedules the cooldown event linked
                 // to the op (which on fire transitions the op to Resolved and unregisters it),
-                // and fires LifecycleRegistry.OnBattleResolved → OnSquadRecalled.
+                // and fires LifecycleRegistry.OnBattleResolved -> OnOperationResolved.
                 MilitaryOperation op = squad.Operation;
                 if (op is object && op.kind == MilitaryJobDefOf.Deploy
                     && op.phase == MilitaryOperationPhase.Engaged)
