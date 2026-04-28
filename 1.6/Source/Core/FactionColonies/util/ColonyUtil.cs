@@ -145,7 +145,7 @@ namespace FactionColonies.util
             foreach (FCEvent evt in faction.Events)
             {
                 if (evt is null) continue;
-                if (evt.linkedOperationId >= 0) continue; // op-linked events already handled above
+                if (evt.HasLinkedOperation) continue; // op-linked events already handled above
 
                 if (evt.def == FCEventDefOf.constructBuilding || evt.def == FCEventDefOf.enactSettlementPolicy
                     || evt.def == FCEventDefOf.upgradeSettlement || evt.def == FCEventDefOf.cooldownMilitary)

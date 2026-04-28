@@ -62,12 +62,29 @@ namespace FactionColonies
         private static void ApplyCaptureSuccess(FactionFC faction, WorldSettlementFC home,
             PlanetTile capturedTile, Settlement target)
         {
-            faction.AddExperienceToFactionLevel(5f);
-
             string tmpName = target.LabelCap;
             TechLevel tech = target.Faction.def.techLevel;
             Faction tempFactionLink = target.Faction;
             target.Destroy();
+
+            // Mod-protected settlements (Empire's own WorldSettlementFC, or third-party
+            // protected settlements) might Harmony-patch Destroy to no-op. Detect both common shapes:
+            // a prefix-return-false leaves Destroyed=false; a postfix that re-adds the object
+            // leaves Destroyed=true but the same instance still resolves at the tile.
+            bool destructionSucceeded = target.Destroyed
+                && Find.WorldObjects.SettlementAt(capturedTile) != target;
+            if (!destructionSucceeded)
+            {
+                LogUtil.Warning($"Capture: target settlement at {capturedTile} survived Destroy(); " +
+                                "likely destruction-protected. Falling back to raid rewards.");
+                ApplyCaptureFallbackToRaid(faction, home, tempFactionLink, target);
+                return;
+            }
+
+            // XP grant moved past the destruction check so the fallback path doesn't double up
+            // (ApplyVictoryToTarget grants its own +5f).
+            faction.AddExperienceToFactionLevel(5f);
+
             WorldSettlementFC worldsettlement = ColonyUtil.CreatePlayerColonySettlement(
                 capturedTile,
                 ColonyUtil.DefaultSettlementDefForTile(capturedTile));
@@ -108,6 +125,19 @@ namespace FactionColonies
             Find.LetterStack.ReceiveLetter("FCCaptureSettlement".Translate(),
                 "FCCaptureEnemySettlementSuccess".Translate(home.Name, worldsettlement.Name, worldsettlement.settlementLevel),
                 LetterDefOf.PositiveEvent, new LookTargets(worldsettlement));
+        }
+
+        /* Failed-capture fallback: target's Destroy() was blocked by another mod, but the squad
+         * won the battle. Send a "couldn't permanently neutralize, raided supplies instead" letter
+         * and route through Raid's victory side effects (loot + optional prisoner + delivery). */
+        private static void ApplyCaptureFallbackToRaid(FactionFC faction, WorldSettlementFC home,
+            Faction enemyFaction, Settlement target)
+        {
+            Find.LetterStack.ReceiveLetter(
+                "FCCaptureSettlement".Translate(),
+                "FCCaptureBlockedFallbackToRaid".Translate(home.Name, target.LabelCap),
+                LetterDefOf.NeutralEvent, new LookTargets(target));
+            MilitaryJobHandler_Raid.ApplyVictoryToTarget(faction, home, enemyFaction, target);
         }
     }
 }

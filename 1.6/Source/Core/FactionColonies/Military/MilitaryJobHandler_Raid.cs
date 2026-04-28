@@ -62,8 +62,9 @@ namespace FactionColonies
             }
         }
 
-        /* Shared victory side effects: loot, prisoners, XP, delivery event. Called from ApplyResult. */
-        private static void ApplyVictoryToTarget(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target)
+        /* Shared victory side effects: loot, prisoners, XP, delivery event. Called from ApplyResult,
+         * and from MilitaryJobHandler_Capture's failed-destruction fallback. */
+        internal static void ApplyVictoryToTarget(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target)
         {
             faction.AddExperienceToFactionLevel(5f);
 

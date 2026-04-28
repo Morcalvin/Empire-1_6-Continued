@@ -9,7 +9,7 @@ namespace FactionColonies
     /// <summary>
     /// Single source of truth for one ongoing military operation. Holds participants, phase,
     /// timer, and a back-reference to its <see cref="BattlefieldContext"/> (if any). Scheduled
-    /// FCEvents reference the op via <see cref="FCEvent.linkedOperationId"/>; on fire they call
+    /// FCEvents reference the op via <see cref="FCEvent.linkedOperation"/>; on fire they call
     /// back into <see cref="OnEventFired"/>.
     /// <para>Created and owned by <see cref="MilitaryOperationManager"/>; do not instantiate directly.</para>
     /// </summary>
@@ -22,8 +22,10 @@ namespace FactionColonies
         /* Phase / timing */
         public MilitaryOperationPhase phase = MilitaryOperationPhase.Scheduled;
         public int phaseStartedTick = -1;
-        /// <summary>Tick at which the op's timer is expected to next advance the phase.
-        /// Mirrors / replaces FCEvent.timeTillTrigger semantics for op-driven timers.</summary>
+        /// <summary>
+        /// Tick at which the op's timer is expected to next advance the phase.
+        /// Mirrors / replaces FCEvent.timeTillTrigger semantics for op-driven timers
+        /// </summary>
         public int nextPhaseTick = -1;
 
         /* Target */
@@ -100,7 +102,7 @@ namespace FactionColonies
         /* -*-*-*-*- Event scheduling helper -*-*-*-*- */
 
         /// <summary>
-        /// Creates an FCEvent linked back to this op (via <see cref="FCEvent.linkedOperationId"/>),
+        /// Creates an FCEvent linked back to this op (via <see cref="FCEvent.linkedOperation"/>),
         /// calls <c>DefineEvent</c> on it (which queues it on FactionFC), and tracks it in
         /// <see cref="sourceEvents"/>. Used by the manager / handlers to schedule arrival / warning /
         /// cooldown wakeups.
@@ -115,8 +117,8 @@ namespace FactionColonies
                 return null;
             }
             FCEvent evt = FCEventMaker.MakeEvent(eventDef);
-            evt.linkedOperationId = id;
-            if (!string.IsNullOrEmpty(customDescription))
+            evt.linkedOperation = this;
+            if (!customDescription.NullOrEmpty())
             {
                 evt.hasCustomDescription = true;
                 evt.customDescription = customDescription;
@@ -226,35 +228,43 @@ namespace FactionColonies
                 }
             }
 
-            // Overwhelming-victory shortcut: foreign defender that won without losing any defenders
-            // is freed immediately (no cooldown). The home settlement defending itself never gets
-            // the shortcut — it's only for foreign settlements lending their squad.
-            if (IsDefensive && victory && IsOverwhelmingVictory(battleResult))
+            // Overwhelming-victory shortcut: any battle the empire wins without taking a single
+            // casualty on the winning side resolves immediately (no cooldown). Applies uniformly
+            // to offensive raid/capture/enslave wins, self-defense, foreign-defender assists, and
+            // external IAutoDefender contributions. Deploy ops are excluded — squad presence on
+            // the player map isn't a discrete battle, so the shortcut isn't meaningful there.
+            if (victory && kind != MilitaryJobDefOf.Deploy && IsOverwhelmingVictory(battleResult))
             {
-                bool foreignDefender = defender?.homeSettlement is object
-                                    && defender.homeSettlement != (targetObject as WorldSettlementFC);
-                if (foreignDefender)
-                {
-                    Find.LetterStack.ReceiveLetter(
-                        "FCOverwhelmingVictory".Translate(),
-                        "FCOverwhelmingVictoryDesc".Translate(),
-                        LetterDefOf.PositiveEvent);
-                    Resolve();
-                    return;
-                }
+                Find.LetterStack.ReceiveLetter(
+                    "FCOverwhelmingVictory".Translate(),
+                    "FCOverwhelmingVictoryDesc".Translate(),
+                    LetterDefOf.PositiveEvent);
+                Resolve();
+                return;
             }
 
             EnterCooldown();
         }
 
+        /* True when the winning side took zero casualties. Inspects the winner so the shortcut
+         * applies to both offensive (attacker won, lost no force) and defensive (defender won,
+         * lost no force) battles. Force counts are populated by SimulateBattleFc for auto-
+         * resolve, and by comp.EndBattle (defender side only) for manual battles — the unset
+         * side defaults to 0, which the early returns reject as "no battle on this side". */
         private static bool IsOverwhelmingVictory(BattleResult result)
         {
             if (result is null) return false;
-            // defenderInitialForce / defenderRemainingForce are populated by SimulateBattleFc for
-            // auto-resolve and by comp.EndBattle for manual battles (pawn counts in that case).
-            // Treat zero-zero as not-overwhelming to avoid false positives on legacy/error paths.
-            if (result.defenderInitialForce <= 0) return false;
-            return result.defenderRemainingForce >= result.defenderInitialForce;
+            if (result.winner == BattleWinner.Defender)
+            {
+                if (result.defenderInitialForce <= 0) return false;
+                return result.defenderRemainingForce >= result.defenderInitialForce;
+            }
+            if (result.winner == BattleWinner.Attacker)
+            {
+                if (result.attackerInitialForce <= 0) return false;
+                return result.attackerRemainingForce >= result.attackerInitialForce;
+            }
+            return false;
         }
 
         /// <summary>

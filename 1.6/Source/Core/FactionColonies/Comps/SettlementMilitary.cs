@@ -325,7 +325,7 @@ namespace FactionColonies
                 icon = TexLoad.iconCustomize,
                 action = delegate
                 {
-                    MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
+                    MilitaryOperation op = evt.linkedOperation;
                     if (op?.defender?.force == null || op.defender.force.homeSettlement == null)
                     {
                         LogUtil.Warning($"ChangeDefenderAction: op or defender force missing for event at {evt.location}");
@@ -357,7 +357,7 @@ namespace FactionColonies
         private void ChangeDefendingForceAction(FCEvent evt)
         {
             var faction = FactionCache.FactionComp;
-            MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
+            MilitaryOperation op = evt.linkedOperation;
             MilitaryForce attackForce = op?.aggressor?.force;
             WorldSettlementFC currentDefender = op?.defender?.homeSettlement;
             if (attackForce is null) return;
@@ -536,10 +536,10 @@ namespace FactionColonies
                 FactionCache.FactionComp?.RemoveEvent(evt);
                 return;
             }
-            MilitaryOperation op = manager.GetOp(evt.linkedOperationId);
+            MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
-                LogUtil.Error($"StartDefence: warning event for {WorldSettlement?.Name} has no linked op (id={evt.linkedOperationId}).");
+                LogUtil.Error($"StartDefence: warning event for {WorldSettlement?.Name} has no linked op.");
                 FactionCache.FactionComp?.RemoveEvent(evt);
                 return;
             }

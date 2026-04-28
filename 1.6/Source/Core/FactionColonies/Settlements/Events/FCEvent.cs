@@ -56,10 +56,12 @@ namespace FactionColonies
         /// <summary>
         /// Back-reference to a <see cref="MilitaryOperation"/> in the
         /// <see cref="FactionFC.militaryOperationManager"/> when this event is a wakeup primitive
-        /// for that op (arrival, cooldown, warning, etc.). -1 when unlinked. <see cref="FCEventMaker"/>
+        /// for that op (arrival, cooldown, warning, etc.). Null when unlinked. <see cref="FCEventMaker"/>
         /// dispatches op-linked events through <see cref="MilitaryOperation.OnEventFired"/>.
         /// </summary>
-        public int linkedOperationId = -1;
+        public MilitaryOperation linkedOperation;
+
+        public bool HasLinkedOperation => linkedOperation is object;
 
         /// <summary>Lifecycle phase.
         /// <para> - Queued: in queue, awaiting timer.</para>
@@ -155,7 +157,7 @@ namespace FactionColonies
 
             Scribe_Defs.Look(ref settlementToCreate, "settlementToCreate");
 
-            Scribe_Values.Look(ref linkedOperationId, "linkedOperationId", -1);
+            Scribe_References.Look(ref linkedOperation, "linkedOperation");
         }
 
         public string GetUniqueLoadID()

@@ -41,6 +41,7 @@
 	<FCRaidEnemySettlementFailure>The raid on {0} has resulted in failure</FCRaidEnemySettlementFailure>
 	<FCCaptureEnemySettlementSuccess>{0}'s military forces have successfully captured {1}. Due to the previous faction's tech level, the starting settlement level of the new settlement is {2}.</FCCaptureEnemySettlementSuccess>
 	<FCCaptureEnemySettlementFailure>{0}'s military forces has failed to capture {1}</FCCaptureEnemySettlementFailure>
+	<FCCaptureBlockedFallbackToRaid>{0}'s military forces overwhelmed {1}'s defenders, but were unable to permanently neutralize the settlement. The squad raided what supplies they could and is returning home.</FCCaptureBlockedFallbackToRaid>
 	<FCOverwhelmingVictory>Overwhelming Victory</FCOverwhelmingVictory>
 	<FCOverwhelmingVictoryDesc>Due to your military force's overwhelming victory, the military force is still available for deployment.</FCOverwhelmingVictoryDesc>
 

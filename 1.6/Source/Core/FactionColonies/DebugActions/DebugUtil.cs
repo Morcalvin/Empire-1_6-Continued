@@ -332,7 +332,7 @@ namespace FactionColonies
                             //when event is selected, select defending force to replace it with
 
                             List<DebugMenuOption> list2 = new List<DebugMenuOption>();
-                            MilitaryOperation defOp = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
+                            MilitaryOperation defOp = evt.linkedOperation;
                             WorldObject currentDefenderTarget = defOp?.targetObject;
                             WorldSettlementFC currentDefenderHome = defOp?.defender?.homeSettlement;
                             foreach (WorldSettlementFC settlement in worldcomp.settlements)

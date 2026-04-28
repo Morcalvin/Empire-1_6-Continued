@@ -48,7 +48,7 @@ namespace FactionColonies
             }
 
             // Manager handles op creation, auto-defender selection, warning event scheduling
-            // (with linkedOperationId), and the "settlement in danger" letter.
+            // (with linkedOperation back-reference), and the "settlement in danger" letter.
             MilitaryOperation op = manager.CreateDefensiveOp(settlement, attackingForce, enemyFaction);
             return op is object;
         }
@@ -89,10 +89,10 @@ namespace FactionColonies
             WorldSettlementFC homeSettlement = factionfc.ReturnSettlementByLocation(evt.location);
 
             MilitaryOperationManager manager = FactionCache.MilitaryManager;
-            MilitaryOperation op = manager?.GetOp(evt.linkedOperationId);
+            MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
-                LogUtil.Warning($"ChangeDefendingMilitaryForce: warning event at tile {evt.location} has no linked op (id={evt.linkedOperationId}).");
+                LogUtil.Warning($"ChangeDefendingMilitaryForce: warning event at tile {evt.location} has no linked op.");
                 return;
             }
 
@@ -147,10 +147,10 @@ namespace FactionColonies
             if (factionfc is null) return;
 
             MilitaryOperationManager manager = FactionCache.MilitaryManager;
-            MilitaryOperation op = manager?.GetOp(evt.linkedOperationId);
+            MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
-                LogUtil.Warning($"ChangeDefendingToExternalForce: warning event at tile {evt.location} has no linked op (id={evt.linkedOperationId}).");
+                LogUtil.Warning($"ChangeDefendingToExternalForce: warning event at tile {evt.location} has no linked op.");
                 return;
             }
 

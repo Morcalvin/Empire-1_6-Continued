@@ -150,7 +150,7 @@ namespace FactionColonies
         /// for the strongest non-busy non-attacked one that beats the target's level, plus the
         /// best <see cref="IAutoDefender"/> registry entry in range. Whichever is stronger wins.</para>
         /// <para>Schedules the 24-hour <c>settlementBeingAttacked</c> warning event linked back
-        /// to the op via <see cref="FCEvent.linkedOperationId"/>. The op carries the
+        /// to the op via <see cref="FCEvent.linkedOperation"/>. The op carries the
         /// force / faction / target data <see cref="BattlefieldContext.StartDefense"/> needs
         /// when the warning fires.</para>
         /// </summary>
@@ -445,15 +445,6 @@ namespace FactionColonies
             if (battlefields is null) return null;
             battlefields.TryGetValue(tile, out BattlefieldContext ctx);
             return ctx;
-        }
-
-        public MilitaryOperation GetOp(int id)
-        {
-            for (int i = 0; i < active.Count; i++)
-            {
-                if (active[i].id == id) return active[i];
-            }
-            return null;
         }
 
         /// <summary>Rebuilds the per-tile / per-squad / per-settlement indices from <see cref="active"/>.

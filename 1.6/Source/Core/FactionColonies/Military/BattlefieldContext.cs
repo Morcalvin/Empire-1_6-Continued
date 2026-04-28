@@ -1234,7 +1234,7 @@ namespace FactionColonies
                 return;
             }
 
-            MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(warning.linkedOperationId);
+            MilitaryOperation op = warning.linkedOperation;
             if (op is null)
             {
                 LogUtil.Warning($"AddToDefenceFromList: warning event at tile {destinationTile} has no linked op.");

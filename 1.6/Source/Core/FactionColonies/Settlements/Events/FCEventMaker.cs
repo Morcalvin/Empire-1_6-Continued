@@ -497,22 +497,16 @@ namespace FactionColonies
                 if (!handled)
                 {
                     // Op-aware dispatch: military events scheduled by MilitaryOperationManager
-                    // carry a linkedOperationId. Route them through the op's phase machine.
-                    if (evt.linkedOperationId >= 0)
+                    // carry a linkedOperation back-reference. Route them through the op's phase
+                    // machine. An orphan op-linked event (linkedOperation null because the op was
+                    // unregistered while events still pointed at it) is a silent no-op — the
+                    // correct behavior on the dispatch side.
+                    if (evt.HasLinkedOperation)
                     {
-                        MilitaryOperation op = FactionCache.MilitaryManager?.GetOp(evt.linkedOperationId);
-                        if (op is object)
+                        try { evt.linkedOperation.OnEventFired(evt); }
+                        catch (Exception e)
                         {
-                            try { op.OnEventFired(evt); }
-                            catch (Exception e)
-                            {
-                                LogUtil.Error($"FCEventMaker: op id={op.id} threw in OnEventFired for '{evt.def.defName}': {e}");
-                            }
-                        }
-                        else
-                        {
-                            LogUtil.Warning(
-                                $"FCEventMaker: event '{evt.def.defName}' references missing op id={evt.linkedOperationId}; dropping.");
+                            LogUtil.Error($"FCEventMaker: op id={evt.linkedOperation.id} threw in OnEventFired for '{evt.def.defName}': {e}");
                         }
                     }
                     else

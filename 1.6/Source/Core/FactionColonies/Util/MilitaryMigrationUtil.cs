@@ -21,7 +21,7 @@ namespace FactionColonies
     ///  <item><description><see cref="MercenarySquadFC"/>: <c>isDeployed</c>, <c>timeDeployed</c>.</description></item>
     /// </list>
     /// <para>The migration creates <see cref="MilitaryOperation"/>s in the manager and links
-    /// pending FCEvents to them via <see cref="FCEvent.linkedOperationId"/> so the next time
+    /// pending FCEvents to them via <see cref="FCEvent.linkedOperation"/> so the next time
     /// those events fire they dispatch through the op flow. Legacy fields stay populated for
     /// the round-trip but are never read by runtime code.</para>
     /// </summary>
@@ -56,7 +56,7 @@ namespace FactionColonies
                 foreach (FCEvent evt in faction.Events)
                 {
                     if (evt is null) continue;
-                    if (evt.linkedOperationId >= 0) continue; // already linked
+                    if (evt.HasLinkedOperation) continue; // already linked
                     if (evt.def == FCEventDefOf.raidEnemySettlement
                         || evt.def == FCEventDefOf.captureEnemySettlement
                         || evt.def == FCEventDefOf.enslaveEnemySettlement
@@ -102,7 +102,7 @@ namespace FactionColonies
                         MilitaryOperation op = ReconstructOffensiveOp(manager, settlement, comp, arrival);
                         if (op is object)
                         {
-                            arrival.linkedOperationId = op.id;
+                            arrival.linkedOperation = op;
                             op.sourceEvents.Add(arrival);
                             migratedCount++;
                         }
@@ -117,7 +117,7 @@ namespace FactionColonies
                         MilitaryOperation op = ReconstructCooldownOp(manager, settlement, comp, cooldown);
                         if (op is object)
                         {
-                            cooldown.linkedOperationId = op.id;
+                            cooldown.linkedOperation = op;
                             op.sourceEvents.Add(cooldown);
                             migratedCount++;
                         }
@@ -136,12 +136,12 @@ namespace FactionColonies
                 if (comp._legacyIsUnderAttack)
                 {
                     FCEvent warning = faction.FindEventByDefAndLocation(FCEventDefOf.settlementBeingAttacked, settlement.Tile);
-                    if (warning is object && warning.linkedOperationId < 0)
+                    if (warning is object && warning.linkedOperation is null)
                     {
                         MilitaryOperation op = ReconstructDefensiveOp(manager, settlement, comp, warning);
                         if (op is object)
                         {
-                            warning.linkedOperationId = op.id;
+                            warning.linkedOperation = op;
                             op.sourceEvents.Add(warning);
                             migratedCount++;
                         }
