@@ -523,7 +523,8 @@ namespace FactionColonies
                             PawnsArrivalModeWorkerUtility.DropInDropPodsNearSpawnCenter(parms, debugEquippedPawns);
                             debugEquippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
                             // Register the deploy op so squad.IsPhysicallyDeployed reflects the state.
-                            FactionCache.MilitaryManager?.CreateDeployOp(settlement, Find.CurrentMap.Tile);
+                            // Squad-first: pass the squad, not the settlement.
+                            FactionCache.MilitaryManager?.CreateDeployOp(settlement.MilitaryComp.militarySquad, Find.CurrentMap.Tile);
                             DebugTools.curTool = null;
                         });
                     }));

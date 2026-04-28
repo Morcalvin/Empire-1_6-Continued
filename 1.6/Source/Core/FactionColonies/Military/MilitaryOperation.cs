@@ -285,6 +285,16 @@ namespace FactionColonies
 
             int cooldownTicks = ComputeCooldownTicks();
 
+            // Squad-first cooldown: each participating squad gets its own cooldown gate via
+            // squad.nextAvailableTick. The FCEvent below still drives the op's Resolve() but
+            // squad availability ("can launch a new op?") reads from the squad directly, so
+            // multiple squads at one settlement no longer share a single per-settlement
+            // cooldown.
+            int wakeTick = Find.TickManager.TicksGame + cooldownTicks;
+            if (aggressor?.squad is object) aggressor.squad.nextAvailableTick = wakeTick;
+            if (defender?.squad is object && defender.squad != aggressor?.squad)
+                defender.squad.nextAvailableTick = wakeTick;
+
             // Cooldown event fires on the home settlement's tile (or target tile if there's no home
             // — e.g. external defender ops). Aggressor home preferred since that's where the squad
             // returns; falls back to defender home for purely-defensive ops.

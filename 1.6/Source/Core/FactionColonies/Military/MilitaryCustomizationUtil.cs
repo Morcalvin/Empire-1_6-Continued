@@ -124,35 +124,19 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Strips deployed squads whose outfit template was deleted or exceeds the settlement budget.
+        /// Strips deployed squads whose outfit template was deleted. Unlike pre-refactor, squads
+        /// no longer get unassigned when their cost exceeds a per-settlement budget — squad-first
+        /// economy uses the up-front hire cost instead, and players are free to keep an
+        /// expensive squad attached to a low-level settlement if they paid for it.
         /// </summary>
         public void ValidateDeployedSquadOutfits()
         {
             foreach (MercenarySquadFC squad in mercenarySquads)
             {
-                if (squad.outfit is null || !squads.Contains(squad.outfit))
+                if (squad?.outfit is null || !squads.Contains(squad.outfit))
                 {
-                    squad.StripSquad();
-                    squad.outfit = null;
-                }
-                else
-                {
-                    int settlementMilLevel = 0;
-                    if (squad.settlement != null)
-                        settlementMilLevel = squad.settlement.settlementMilitaryLevel;
-                    if (squad.outfit is null || !(squad.outfit.GetEquipmentTotalCost() >
-                                                  CalculateSquadBudget(settlementMilLevel)))
-                        continue;
-                    if (squad.settlement != null)
-                    {
-                        Messages.Message(
-                            "The max allowed equipment cost for the squad assigned to " + squad.settlement.Name +
-                            " has been exceeded. Thus, the settlement's squad has been unassigned.",
-                            MessageTypeDefOf.RejectInput);
-                    }
-
-                    squad.outfit = null;
-                    squad.StripSquad();
+                    squad?.StripSquad();
+                    if (squad is object) squad.outfit = null;
                 }
             }
         }
@@ -357,17 +341,24 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>Builds float-menu options for hiring a squad from each available template.
+        /// Click handler routes through <see cref="HireSquad"/> + <see cref="AttemptToAssign"/> so
+        /// the player ends up with a hired squad attached to <paramref name="settlement"/>.</summary>
         public List<FloatMenuOption> BuildSquadAssignmentOptions(WorldSettlementFC settlement)
         {
             if (squads is null) ResetSquads();
 
             List<FloatMenuOption> options = new List<FloatMenuOption>();
-            foreach (MilSquadFC squad in squads)
+            foreach (MilSquadFC template in squads)
             {
-                MilSquadFC captured = squad;
-                options.Add(new FloatMenuOption(
-                    squad.name + " - " + "FCCost".Translate() + ": " + squad.GetEquipmentTotalCost(),
-                    delegate { AttemptToAssignSquad(settlement, captured); }));
+                MilSquadFC captured = template;
+                int hireCost = (int)Math.Round(captured.GetEquipmentTotalCost() * FCSettings.squadHireCostMultiplier);
+                string label = captured.name + " - " + "FCCost".Translate() + ": " + hireCost;
+                options.Add(new FloatMenuOption(label, delegate
+                {
+                    MercenarySquadFC hired = HireSquad(captured);
+                    if (hired is object) AttemptToAssign(hired, settlement);
+                }));
             }
 
             if (options.Count == 0)
@@ -376,60 +367,131 @@ namespace FactionColonies
             return options;
         }
 
-        public void AttemptToAssignSquad(WorldSettlementFC settlement, MilSquadFC squad)
+        /// <summary>Pre-refactor entry point. Creates a fresh hired squad from the template and
+        /// attempts to assign it to <paramref name="settlement"/>. Internally identical to
+        /// <see cref="HireSquad"/> + <see cref="AttemptToAssign"/>.</summary>
+        [System.Obsolete("Use HireSquad(template) + AttemptToAssign(squad, settlement). Will be removed in a follow-up.")]
+        public void AttemptToAssignSquad(WorldSettlementFC settlement, MilSquadFC template)
         {
-            if (settlement.MilitaryComp == null)
+            if (settlement?.MilitaryComp is null)
             {
-                LogUtil.Message($"Attempted to assign a squad to settlement {settlement.Name} with NULL MilitaryComp");
+                LogUtil.Message($"Attempted to assign a squad to settlement {settlement?.Name ?? "null"} with NULL MilitaryComp");
                 return;
             }
-            if (!SquadAssignmentRegistry.CanAssign(settlement, squad, out string rejectReason))
-            {
-                Messages.Message(rejectReason, MessageTypeDefOf.RejectInput);
-                return;
-            }
-            if (CalculateSquadBudget(settlement.settlementMilitaryLevel) >=
-                squad.GetEquipmentTotalCost())
-            {
-                if (SquadExists(settlement))
-                {
-                    settlement.MilitaryComp.militarySquad.OutfitSquad(squad);
-                }
-                else
-                {
-                    //create new squad
-                    CreateMercenarySquad(settlement);
-                    settlement.MilitaryComp.militarySquad.OutfitSquad(squad);
-                }
-
-                Messages.Message(squad.name + "'s loadout has been assigned to " + settlement.Name,
-                    MessageTypeDefOf.TaskCompletion);
-            }
-            else
-            {
-                Messages.Message("FCSquadExceedsMaxCost".Translate(), MessageTypeDefOf.RejectInput);
-            }
+            MercenarySquadFC hired = HireSquad(template);
+            if (hired is object) AttemptToAssign(hired, settlement);
         }
 
-        public MercenarySquadFC CreateMercenarySquad(WorldSettlementFC settlement, bool isExtra = false)
+        /// <summary>Hires a fresh squad from <paramref name="template"/>: pays the hire cost,
+        /// creates a <see cref="MercenarySquadFC"/> in the unassigned pool (settlement = null),
+        /// and outfits it from the template. Returns null if the player can't afford the cost.
+        /// </summary>
+        public MercenarySquadFC HireSquad(MilSquadFC template)
         {
-            if (settlement.MilitaryComp == null)
+            if (template is null) return null;
+            int cost = (int)Math.Round(template.GetEquipmentTotalCost() * FCSettings.squadHireCostMultiplier);
+            if (cost > 0 && PaymentUtil.GetSilver() < cost)
             {
-                LogUtil.Warning($"Attempted to create a mercenary squad for settlement {settlement.Name} with NULL MilitaryComp. Skipping");
+                Messages.Message("FCSquadHireInsufficientSilver".Translate(cost), MessageTypeDefOf.RejectInput, false);
                 return null;
             }
+            if (cost > 0) PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadHire, null);
+
+            MercenarySquadFC squad = MilTemplateFactory.CreateMercSquad();
+            squad.outfit = template;
+            squad.hireCostPaid = cost;
+            squad.hiredAtTick = Find.TickManager.TicksGame;
+            squad.name = template.name + " #" + (mercenarySquads.Count(s => s != null && s.outfit == template) + 1);
+            squad.InitiateSquad();
+            mercenarySquads.Add(squad);
+            squad.OutfitSquad(template);
+
+            RebuildMercenaryPawnSet();
+            LifecycleRegistry.InvokeOnSquadHired(squad);
+            Messages.Message("FCSquadHired".Translate(squad.name, cost), MessageTypeDefOf.PositiveEvent);
+            return squad;
+        }
+
+        /// <summary>Dismisses <paramref name="squad"/>: refunds <see cref="FCSettings.squadDismissalRefundFraction"/>
+        /// of <see cref="MercenarySquadFC.hireCostPaid"/>, removes it from <see cref="mercenarySquads"/>,
+        /// and fires <see cref="LifecycleRegistry.InvokeOnSquadDismissed"/>. No-op when busy.</summary>
+        public bool DismissSquad(MercenarySquadFC squad)
+        {
+            if (squad is null) return false;
+            if (squad.IsBusy)
+            {
+                Messages.Message("FCCannotDismissBusySquad".Translate(squad.name), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
+            if (refund > 0)
+            {
+                // Spawn refund silver via DeliverThings to the active tax map.
+                Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
+                silver.stackCount = refund;
+                PaymentUtil.PlaceThing(silver);
+            }
+            // Detach from billet so StationedSquads queries see it gone immediately.
+            squad.settlement = null;
+            squad.autoDefend = false;
+            mercenarySquads.Remove(squad);
+            RebuildMercenaryPawnSet();
+            LifecycleRegistry.InvokeOnSquadDismissed(squad);
+            Messages.Message("FCSquadDismissed".Translate(squad.name, refund), MessageTypeDefOf.NeutralEvent);
+            return true;
+        }
+
+        /// <summary>Assigns <paramref name="squad"/> to <paramref name="settlement"/>'s billet
+        /// (target settlement). Runs <see cref="SquadAssignmentRegistry"/> validators (cap, size,
+        /// submods) before mutating. No-op when the squad is busy.</summary>
+        public bool AttemptToAssign(MercenarySquadFC squad, WorldSettlementFC settlement)
+        {
+            if (squad is null || settlement is null) return false;
+            if (settlement.MilitaryComp is null)
+            {
+                LogUtil.Warning($"AttemptToAssign: settlement {settlement.Name} has no MilitaryComp.");
+                return false;
+            }
+            if (squad.IsBusy)
+            {
+                Messages.Message("FCCannotReassignBusySquad".Translate(squad.name), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            if (!SquadAssignmentRegistry.CanAssign(settlement, squad, out string reason))
+            {
+                Messages.Message(reason, MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+
+            squad.settlement = settlement;
+            Messages.Message("FCSquadAssigned".Translate(squad.name, settlement.Name), MessageTypeDefOf.PositiveEvent);
+            return true;
+        }
+
+        /// <summary>Removes <paramref name="squad"/>'s billet (returns it to the unassigned pool).
+        /// No-op when busy.</summary>
+        public bool Unassign(MercenarySquadFC squad)
+        {
+            if (squad is null) return false;
+            if (squad.IsBusy)
+            {
+                Messages.Message("FCCannotUnassignBusySquad".Translate(squad.name), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            squad.settlement = null;
+            return true;
+        }
+
+        /// <summary>Internal squad creation factory. Used by HireSquad (settlement: null) and by
+        /// CallinExtraForces (settlement: caller, isExtra: true). Does NOT pay any silver — paying
+        /// is the caller's responsibility.</summary>
+        public MercenarySquadFC CreateMercenarySquad(WorldSettlementFC settlement, bool isExtra = false)
+        {
             MercenarySquadFC squad = MilTemplateFactory.CreateMercSquad();
             squad.InitiateSquad();
             mercenarySquads.Add(squad);
-            if (!isExtra)
-                settlement.MilitaryComp.militarySquad = FindSquad(squad);
             squad.settlement = settlement;
             squad.isExtraSquad = isExtra;
-
-            if (settlement.MilitaryComp.militarySquad == null)
-            {
-                LogUtil.Warning("CreateMercenarySquad fail. Found squad is Null");
-            }
 
             RebuildMercenaryPawnSet();
             return FindSquad(squad);

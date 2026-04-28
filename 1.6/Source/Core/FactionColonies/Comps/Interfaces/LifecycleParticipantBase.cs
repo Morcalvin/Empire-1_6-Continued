@@ -19,5 +19,8 @@ namespace FactionColonies
         public virtual void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) { }
         public virtual void OnResearchCompleted(ResearchProjectDef project) { }
         public virtual void OnMercenaryDeath(MercenaryDeathEvent evt) { }
+        public virtual void OnSquadHired(MercenarySquadFC squad) { }
+        public virtual void OnSquadDismissed(MercenarySquadFC squad) { }
+        public virtual void OnSquadUpgraded(MercenarySquadFC squad) { }
     }
 }

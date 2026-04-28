@@ -521,9 +521,15 @@ namespace FactionColonies
             ScrubNullSettlements("FactionFC.PostLoadInit");
             RebuildPendingEdictActivations();
 
-            // Drain pre-refactor military state into the new MilitaryOperationManager. Idempotent:
-            // only runs when the manager is empty AND legacy state is present in the loaded save
-            // (post-refactor saves write the manager directly and skip migration).
+            // Squad-first refactor migration: bind any legacy comp.militarySquad onto the squad
+            // itself (sets squad.settlement) and propagate comp.autoDefend to squad.autoDefend.
+            // Runs unconditionally because the legacy buffers are [Unsaved] — once drained, they
+            // stay null on subsequent loads.
+            MilitaryMigrationUtil.MigrateLegacyComp_MilitarySquad(this);
+
+            // Drain pre-refactor military operation state into the new MilitaryOperationManager.
+            // Idempotent: only runs when the manager is empty AND legacy state is present in the
+            // loaded save (post-refactor saves write the manager directly and skip migration).
             if (militaryOperationManager is object && militaryOperationManager.IsEmpty
                 && MilitaryMigrationUtil.AnyLegacyStatePresent(this))
             {
@@ -565,6 +571,10 @@ namespace FactionColonies
              * (happens during Game.InitNewGame; ClearCaches postfix clears the registry
              * after World.FinalizeInit already registered us during world generation). */
             LifecycleRegistry.Register(this);
+
+            /* Built-in stateless squad-assignment validators. */
+            SquadAssignmentRegistry.Register(new SquadCapValidator());
+            SquadAssignmentRegistry.Register(new SquadSizeValidator());
 
             roadBuilder.FirstTick();
 
@@ -1647,6 +1657,24 @@ namespace FactionColonies
             if (settlement is null) return;
 
             ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
+        }
+
+        void ILifecycleParticipant.OnSquadHired(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            ForEachBehavior(b => b.OnSquadHired(this, squad));
+        }
+
+        void ILifecycleParticipant.OnSquadDismissed(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            ForEachBehavior(b => b.OnSquadDismissed(this, squad));
+        }
+
+        void ILifecycleParticipant.OnSquadUpgraded(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            ForEachBehavior(b => b.OnSquadUpgraded(this, squad));
         }
 
         #endregion

@@ -67,8 +67,9 @@ namespace FactionColonies
             Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), "FCDeploymentSuccessDesc".Translate(settlement.Name, currentMap.Parent.LabelCap), LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
 
             // Deploy is a manager op: CreateDeployOp registers the squad, sets phase=Engaged,
-            // and fires LifecycleRegistry.InvokeOnOperationCreated.
-            FactionCache.MilitaryManager?.CreateDeployOp(settlement, currentMap.Tile);
+            // and fires LifecycleRegistry.InvokeOnOperationCreated. Squad-first: pass the squad,
+            // not the settlement; the op's home settlement is read from squad.settlement.
+            FactionCache.MilitaryManager?.CreateDeployOp(squad, currentMap.Tile);
 
             LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);
         }
@@ -116,7 +117,7 @@ namespace FactionColonies
                     return;
                 }
 
-                if (overrideSquad != null) PaymentUtil.PaySilver((int)Math.Round((settlement.MilitaryComp?.militarySquad?.outfit?.UpdateEquipmentTotalCost() ?? 0) * .2), PaymentUtil.Reason_SquadDeployment, settlement);
+                if (overrideSquad != null) PaymentUtil.PaySilver((int)Math.Round((squad?.outfit?.UpdateEquipmentTotalCost() ?? 0) * .2), PaymentUtil.Reason_SquadDeployment, settlement);
                 SpawnSquad(settlement, squad, dropPosition, DropPod);
                 DebugTools.curTool = null;
             });

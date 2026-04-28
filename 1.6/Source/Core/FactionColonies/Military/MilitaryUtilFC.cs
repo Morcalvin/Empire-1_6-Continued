@@ -115,7 +115,7 @@ namespace FactionColonies
             {
                 newForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement);
                 op.defender.homeSettlement = homeSettlement;
-                op.defender.squad = homeSettlement?.MilitaryComp?.militarySquad;
+                op.defender.squad = PickFirstAvailableStationedSquad(homeSettlement);
                 op.defender.force = newForce;
                 op.externalDefenderSource = null;
                 Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
@@ -125,7 +125,7 @@ namespace FactionColonies
                 MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
                 newForce = MilitaryForce.CreateMilitaryForceFromSettlement(settlementOfMilitaryForce, homeDefendingForce: homeForce);
                 op.defender.homeSettlement = settlementOfMilitaryForce;
-                op.defender.squad = settlementOfMilitaryForce.MilitaryComp?.militarySquad;
+                op.defender.squad = PickFirstAvailableStationedSquad(settlementOfMilitaryForce);
                 op.defender.force = newForce;
                 op.externalDefenderSource = null;
 
@@ -204,6 +204,22 @@ namespace FactionColonies
         public static IReadOnlyList<FCEvent> ReturnMilitaryEventsByLocation(PlanetTile location)
         {
             return FactionCache.FactionComp.FindAllEventsByDefAndLocation(FCEventDefOf.settlementBeingAttacked, location);
+        }
+
+        /// <summary>Returns the first available squad stationed at <paramref name="settlement"/>,
+        /// or <c>null</c> if none qualify. Used when wiring an op's defender squad after a
+        /// manual defender swap.</summary>
+        private static MercenarySquadFC PickFirstAvailableStationedSquad(WorldSettlementFC settlement)
+        {
+            if (settlement is null) return null;
+            foreach (MercenarySquadFC squad in settlement.StationedSquads)
+            {
+                if (squad is null) continue;
+                if (!squad.IsBusy) return squad;
+            }
+            // Fall back to the first stationed squad even if busy (rare: caller manually swapped).
+            List<MercenarySquadFC> stationed = settlement.StationedSquads;
+            return stationed.Count > 0 ? stationed[0] : null;
         }
     }
 }

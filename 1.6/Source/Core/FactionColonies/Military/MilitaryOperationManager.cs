@@ -100,16 +100,19 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Creates an offensive operation: empire <paramref name="homeSettlement"/> sends its
-        /// squad on a job (raid / capture / enslave / defend-friendly) against
-        /// <paramref name="target"/> belonging to <paramref name="enemy"/>. Returns the
-        /// registered op. The handler's <see cref="MilitaryJobHandler.OnOpCreated"/> is called
-        /// after registration so it can schedule the arrival event and send any letters.
+        /// Creates an offensive operation: <paramref name="source"/> squad sets out on a job
+        /// (raid / capture / enslave / defend-friendly) against <paramref name="target"/>
+        /// belonging to <paramref name="enemy"/>. Returns the registered op. The handler's
+        /// <see cref="MilitaryJobHandler.OnOpCreated"/> is called after registration so it can
+        /// schedule the arrival event and send any letters.
+        /// <para><paramref name="source"/> must be assigned to a settlement. The op's home
+        /// settlement is the squad's billet.</para>
         /// </summary>
-        public MilitaryOperation CreateOffensiveOp(WorldSettlementFC homeSettlement, WorldObject target,
+        public MilitaryOperation CreateOffensiveOp(MercenarySquadFC source, WorldObject target,
             MilitaryJobDef jobDef, Faction enemy, int timeToFinish)
         {
-            if (homeSettlement is null) throw new ArgumentNullException(nameof(homeSettlement));
+            if (source is null) throw new ArgumentNullException(nameof(source));
+            if (source.settlement is null) throw new ArgumentException("Source squad must be assigned to a settlement to launch an offensive op.", nameof(source));
             if (target is null) throw new ArgumentNullException(nameof(target));
             if (jobDef is null) throw new ArgumentNullException(nameof(jobDef));
 
@@ -119,9 +122,10 @@ namespace FactionColonies
             op.nextPhaseTick = Find.TickManager.TicksGame + Math.Max(0, timeToFinish);
 
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
-            op.aggressor.homeSettlement = homeSettlement;
-            op.aggressor.squad = homeSettlement.MilitaryComp?.militarySquad;
-            op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
+            op.aggressor.homeSettlement = source.settlement;
+            op.aggressor.squad = source;
+            op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSquad(source, isAttacking: true)
+                              ?? MilitaryForce.CreateMilitaryForceFromSettlement(source.settlement, isAttacking: true);
 
             op.defender.faction = enemy;
             // op.defender.force is computed lazily in BeginEngagement via CreateMilitaryForceFromFaction.
@@ -186,7 +190,10 @@ namespace FactionColonies
             if (targetSettlement is object)
             {
                 op.defender.homeSettlement = targetSettlement;
-                op.defender.squad = targetSettlement.MilitaryComp?.militarySquad;
+                // Squad-first defense: pick the strongest available squad billeted at the target.
+                // If none qualify (all busy, none stationed), op.defender.squad stays null and the
+                // settlement still defends with its raw militaryLevel-derived force.
+                op.defender.squad = PickPrimaryDefendingSquad(targetSettlement);
                 op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement);
             }
             // For external raid targets, defender.force is set below by the auto-defender path.
@@ -268,18 +275,26 @@ namespace FactionColonies
         private static void ApplyAutoDefenderSelection(MilitaryOperation op, WorldObject target,
             WorldSettlementFC targetSettlement, FactionFC factionFC)
         {
-            // Find strongest eligible Empire foreign defender.
-            WorldSettlementFC bestForeign = null;
+            // Find strongest eligible Empire foreign-defender squad. With squad-first auto-defend,
+            // candidates come from any settlement's stationed-squad list (not the settlement
+            // itself); a settlement with two squads can have one auto-defend on, one off.
+            MercenarySquadFC bestForeignSquad = null;
+            WorldSettlementFC bestForeignBillet = null;
             foreach (WorldSettlementFC candidate in factionFC.settlements)
             {
                 if (candidate == targetSettlement) continue;
-                var mc = candidate.MilitaryComp;
-                if (mc is null) continue;
-                if (!mc.autoDefend || mc.militaryBusy || mc.isUnderAttack) continue;
+                if (candidate.MilitaryComp is null) continue;
+                if (candidate.MilitaryComp.isUnderAttack) continue;
                 if (targetSettlement is object && !DefenseValidatorRegistry.CanDefend(candidate, targetSettlement)) continue;
-                if (bestForeign is null || candidate.settlementMilitaryLevel > bestForeign.settlementMilitaryLevel)
+                foreach (MercenarySquadFC squad in candidate.StationedSquads)
                 {
-                    bestForeign = candidate;
+                    if (squad is null || !squad.autoDefend) continue;
+                    if (!squad.IsAvailable) continue;
+                    if (bestForeignSquad is null || candidate.settlementMilitaryLevel > (bestForeignBillet?.settlementMilitaryLevel ?? -1))
+                    {
+                        bestForeignSquad = squad;
+                        bestForeignBillet = candidate;
+                    }
                 }
             }
 
@@ -287,30 +302,25 @@ namespace FactionColonies
             IAutoDefender bestExternal = AutoDefenderRegistry.FindBestDefender(target.Tile, 0);
 
             int targetLevel = targetSettlement?.settlementMilitaryLevel ?? 0;
-            int foreignLevel = bestForeign?.settlementMilitaryLevel ?? 0;
+            int foreignLevel = bestForeignBillet?.settlementMilitaryLevel ?? 0;
             int externalLevel = bestExternal?.MilitaryLevel ?? 0;
 
             // Foreign settlement wins if it beats both the target's level and any external option.
-            if (bestForeign is object && foreignLevel > targetLevel && foreignLevel >= externalLevel)
+            if (bestForeignSquad is object && foreignLevel > targetLevel && foreignLevel >= externalLevel)
             {
                 MilitaryForce homeForce = targetSettlement is object
                     ? MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement, isAttacking: true)
                     : null;
-                op.defender.homeSettlement = bestForeign;
-                op.defender.squad = bestForeign.MilitaryComp?.militarySquad;
-                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeign, isAttacking: false, homeDefendingForce: homeForce);
+                op.defender.homeSettlement = bestForeignBillet;
+                op.defender.squad = bestForeignSquad;
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeignBillet, isAttacking: false, homeDefendingForce: homeForce);
                 op.externalDefenderSource = null;
                 return;
             }
 
             // External wins if it beats the target's level (and the foreign was not stronger).
-            // OnDefenseStarted fires from MilitaryOperation.BeginEngagement when the warning event
-            // resolves — not here at op creation. externalDefenderSource is the contract that
-            // makes BeginEngagement notify the defender.
             if (bestExternal is object && externalLevel > targetLevel)
             {
-                // Clear the target-settlement defender markers: the external defender is fully
-                // taking over, so the target's own squad must not be flagged as committed.
                 op.defender.homeSettlement = null;
                 op.defender.squad = null;
                 op.defender.force = bestExternal.CreateDefendingForce();
@@ -321,6 +331,28 @@ namespace FactionColonies
             // No replacement defender — op.defender keeps its target-settlement default.
         }
 
+        /// <summary>Picks the strongest <see cref="MercenarySquadFC.IsAvailable"/> squad stationed
+        /// at <paramref name="settlement"/> as the primary defender. Returns null if no squad
+        /// qualifies (all busy / cooldown / no squads stationed).</summary>
+        private static MercenarySquadFC PickPrimaryDefendingSquad(WorldSettlementFC settlement)
+        {
+            if (settlement is null) return null;
+            MercenarySquadFC best = null;
+            int bestPower = -1;
+            foreach (MercenarySquadFC squad in settlement.StationedSquads)
+            {
+                if (squad is null) continue;
+                if (!squad.IsAvailable) continue;
+                int power = squad.outfit?.UpdateEquipmentTotalCost() ?? 0;
+                if (power > bestPower)
+                {
+                    best = squad;
+                    bestPower = power;
+                }
+            }
+            return best;
+        }
+
         /// <summary>
         /// Creates a "deploy" operation: the empire's squad is spawned on a player map (typically
         /// the home colony) for direct combat support. Unlike offensive ops, there's no arrival
@@ -328,9 +360,9 @@ namespace FactionColonies
         /// until the squad's lord finalizes (via <see cref="MilitaryOperation.CompleteBattle"/>),
         /// then transitions through cooldown like any other op.
         /// </summary>
-        public MilitaryOperation CreateDeployOp(WorldSettlementFC homeSettlement, PlanetTile deployTile)
+        public MilitaryOperation CreateDeployOp(MercenarySquadFC source, PlanetTile deployTile)
         {
-            if (homeSettlement is null) throw new ArgumentNullException(nameof(homeSettlement));
+            if (source is null) throw new ArgumentNullException(nameof(source));
 
             int newId = nextOperationId++;
             // Use the current map's WorldObject as the targetObject if present, otherwise null.
@@ -339,8 +371,8 @@ namespace FactionColonies
             op.phase = MilitaryOperationPhase.Engaged;
             op.phaseStartedTick = Find.TickManager.TicksGame;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
-            op.aggressor.homeSettlement = homeSettlement;
-            op.aggressor.squad = homeSettlement.MilitaryComp?.militarySquad;
+            op.aggressor.homeSettlement = source.settlement;
+            op.aggressor.squad = source;
             // No defender — Deploy isn't an attack operation, just squad presence.
 
             Register(op);

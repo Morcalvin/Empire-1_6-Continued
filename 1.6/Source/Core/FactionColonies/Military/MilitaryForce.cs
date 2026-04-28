@@ -40,6 +40,16 @@ namespace FactionColonies
             forceRemaining = Math.Max(1, Math.Round(militaryLevel * militaryEfficiency));
         }
 
+        /// <summary>Creates the force a specific squad would project. Currently a thin wrapper
+        /// over <see cref="CreateMilitaryForceFromSettlement"/> using <paramref name="squad"/>'s
+        /// billet — squads inherit their settlement's military level and combat efficiency.
+        /// Submods can replace this with a per-squad implementation later.</summary>
+        public static MilitaryForce CreateMilitaryForceFromSquad(MercenarySquadFC squad, bool isAttacking = false, MilitaryForce homeDefendingForce = null)
+        {
+            if (squad?.settlement is null) return null;
+            return CreateMilitaryForceFromSettlement(squad.settlement, isAttacking, homeDefendingForce);
+        }
+
         public static MilitaryForce CreateMilitaryForceFromSettlement(WorldSettlementFC settlement, bool isAttacking = false, MilitaryForce homeDefendingForce = null)
         {
             FactionFC faction = FactionCache.FactionComp;

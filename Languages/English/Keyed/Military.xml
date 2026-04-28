@@ -174,4 +174,77 @@
 	<FCMilAutoDefendDisabled>This settlement's military level is too low to auto-defend. Upgrade the settlement to increase its military level.</FCMilAutoDefendDisabled>
 	<FCMilBadge>Atk {0} / Def {1}  &#x2022;  ${2}</FCMilBadge>
 
+	<!-- Squad-first refactor (hire / assign / cap / dialogs) -->
+	<FCMilitaryTabBySettlement>By Settlement</FCMilitaryTabBySettlement>
+	<FCMilitaryTabBySquad>By Squad</FCMilitaryTabBySquad>
+	<FCSquadsHeaderCount>Squads: {0} / {1}</FCSquadsHeaderCount>
+
+	<FCSquadHired>Squad "{0}" has been hired for ${1} silver.</FCSquadHired>
+	<FCSquadHireInsufficientSilver>You do not have enough silver ({0} required) to hire that squad.</FCSquadHireInsufficientSilver>
+	<FCSquadDismissed>Squad "{0}" has been dismissed. Refunded ${1} silver.</FCSquadDismissed>
+	<FCSquadAssigned>Squad "{0}" assigned to {1}.</FCSquadAssigned>
+	<FCCannotReassignBusySquad>"{0}" is busy and cannot be reassigned right now.</FCCannotReassignBusySquad>
+	<FCCannotUnassignBusySquad>"{0}" is busy and cannot be unassigned right now.</FCCannotUnassignBusySquad>
+	<FCCannotDismissBusySquad>"{0}" is busy and cannot be dismissed right now.</FCCannotDismissBusySquad>
+	<FCSquadCannotUpgradeBusy>The squad is busy and cannot be upgraded right now.</FCSquadCannotUpgradeBusy>
+	<FCSquadUpgradeInsufficientSilver>You do not have enough silver ({0} required) to upgrade that squad.</FCSquadUpgradeInsufficientSilver>
+	<FCSquadCapReached>{0} is already at squad capacity ({1}/{2}).</FCSquadCapReached>
+	<FCSquadSizeExceeded>This squad has more mercenaries ({1}) than {0}'s allowed maximum squad size ({2}).</FCSquadSizeExceeded>
+
+	<FCRenameSquad>Rename squad</FCRenameSquad>
+	<FCHireSquadButton>Hire (${0})</FCHireSquadButton>
+	<FCHireSquadButtonTip>Hire this squad as a fresh mercenary unit. Cost: {0} silver.</FCHireSquadButtonTip>
+
+	<FCDialogHireSquadHeader>Hire and assign squad to {0}</FCDialogHireSquadHeader>
+	<FCDialogHireSquadAffordableOnly>Affordable only</FCDialogHireSquadAffordableOnly>
+	<FCDialogHireSquadSilver>Silver: ${0}</FCDialogHireSquadSilver>
+	<FCDialogHireSquadConfirm>Hire</FCDialogHireSquadConfirm>
+	<FCDialogHireSquadConfirmCost>Hire (${0})</FCDialogHireSquadConfirmCost>
+
+	<FCDialogSquadAssignmentHeader>Reassign "{0}"</FCDialogSquadAssignmentHeader>
+	<FCDialogSquadAssignmentUnassign>Unassign (return to pool)</FCDialogSquadAssignmentUnassign>
+
+	<FCSquadPickerHeader>Choose a squad for: {0} (target: {1}, {2})</FCSquadPickerHeader>
+	<FCSquadPickerEstimatedDefender>Estimated defender power: {0} (Efficiency x{1})</FCSquadPickerEstimatedDefender>
+	<FCSquadPickerAvailableOnly>Available only</FCSquadPickerAvailableOnly>
+	<FCSquadPickerSort>Sort</FCSquadPickerSort>
+
+	<FCSquadColName>Squad</FCSquadColName>
+	<FCSquadColTemplate>Template</FCSquadColTemplate>
+	<FCSquadColBillet>Settlement</FCSquadColBillet>
+	<FCSquadColTravel>Travel</FCSquadColTravel>
+	<FCSquadColWinChance>Win chance</FCSquadColWinChance>
+	<FCSquadColPower>Power</FCSquadColPower>
+	<FCSquadColStatus>Status</FCSquadColStatus>
+	<FCSquadColCost>Cost</FCSquadColCost>
+	<FCSquadColUpgrade>Upgrade</FCSquadColUpgrade>
+	<FCSquadColActions>Actions</FCSquadColActions>
+
+	<FCSquadStatusReady>Ready</FCSquadStatusReady>
+	<FCSquadStatusUnassigned>Unassigned</FCSquadStatusUnassigned>
+	<FCSquadStatusCooldown>Cooldown {0} d</FCSquadStatusCooldown>
+	<FCSquadStatusBusyOp>Busy: {0} ({1} d)</FCSquadStatusBusyOp>
+
+	<FCSquadActReassign>Reassign</FCSquadActReassign>
+	<FCSquadActUpgrade>Upgrade</FCSquadActUpgrade>
+	<FCSquadActDismiss>Dismiss</FCSquadActDismiss>
+	<FCSquadActDismissConfirm>Dismiss "{0}"? You will be refunded ${1} silver.</FCSquadActDismissConfirm>
+
+	<FCHireSquadsHeader>Squad pool</FCHireSquadsHeader>
+
+	<FCSettlementMilHeader>Squads: {0} / {1}  &#x2022;  Max squad size: {2}</FCSettlementMilHeader>
+	<FCSettlementMilSquadEntry>{0} (auto-defend: {1})</FCSettlementMilSquadEntry>
+	<FCSettlementMilHireAndAssign>Hire &amp; assign here (${0} silver)</FCSettlementMilHireAndAssign>
+
+	<FCSquadMenuToggleAutoDefend>Auto-defend: {0}</FCSquadMenuToggleAutoDefend>
+	<FCSquadMenuReassign>Reassign...</FCSquadMenuReassign>
+	<FCSquadMenuUpgrade>Upgrade (${0} silver)</FCSquadMenuUpgrade>
+	<FCSquadMenuDismiss>Dismiss (${0} refund)</FCSquadMenuDismiss>
+
+	<FCOn>On</FCOn>
+	<FCOff>Off</FCOff>
+
+	<FCTraitDesc_squadCapPerSettlement>Increases the number of squads each settlement can host. Base cap is 1.</FCTraitDesc_squadCapPerSettlement>
+	<FCTraitDesc_maxSquadSize>Modifies the maximum number of mercenaries a squad assigned here may have. Base size is 30.</FCTraitDesc_maxSquadSize>
+
 </LanguageData>

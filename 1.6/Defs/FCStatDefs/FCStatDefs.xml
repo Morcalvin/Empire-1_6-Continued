@@ -87,6 +87,22 @@
         <descriptionKey>FCTraitDesc_mercHealRateMultiplier</descriptionKey>
     </FactionColonies.FCStatDef>
 
+    <FactionColonies.FCStatDef>
+        <defName>squadCapPerSettlement</defName>
+        <label>squad capacity bonus</label>
+        <aggregation>Additive</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_squadCapPerSettlement</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
+        <defName>maxSquadSize</defName>
+        <label>max squad size bonus</label>
+        <aggregation>Additive</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_maxSquadSize</descriptionKey>
+    </FactionColonies.FCStatDef>
+
     <!-- ── Battle Penalties ────────────────────────────────────── -->
 
     <FactionColonies.FCStatDef>

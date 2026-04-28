@@ -97,6 +97,19 @@ namespace FactionColonies
         /// <see cref="OnSquadDeployed"/> — fires once per home settlement involved in the op.</summary>
         public virtual void OnSquadRecalled(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement) { }
 
+        /// <summary>Called after a fresh squad is hired from a template. Silver has been paid;
+        /// <c>squad.settlement</c> is null (squad sits in the unassigned pool until the player
+        /// assigns it).</summary>
+        public virtual void OnSquadHired(FactionFC faction, MercenarySquadFC squad) { }
+
+        /// <summary>Called after a squad is dismissed by the player. The squad has been removed
+        /// from the faction-wide pool and any partial refund has already been applied.</summary>
+        public virtual void OnSquadDismissed(FactionFC faction, MercenarySquadFC squad) { }
+
+        /// <summary>Called after a hired squad's loadout has been brought up to its source
+        /// template via <see cref="MercenarySquadFC.UpgradeToTemplate"/>. Silver has been paid.</summary>
+        public virtual void OnSquadUpgraded(FactionFC faction, MercenarySquadFC squad) { }
+
         /// <summary>Called after a battle has been resolved, before the squad enters cooldown.</summary>
         public virtual void OnBattleResolved(FactionFC faction, WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result) { }
 

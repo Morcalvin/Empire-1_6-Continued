@@ -52,6 +52,15 @@ At 1, military efficiency fully affects each round of auto combat. Military forc
 Values in between dampen the effect of military efficiency on the auto combat.</FCSettingEfficiencyDampingTooltip>
 	<FCSettingMercHealRate>Mercenary Heal Rate</FCSettingMercHealRate>
 	<FCSettingMercHealRateTip>How fast undeployed mercenary pawns heal their injuries, in hit points per in-game hour. Only one injury heals at a time.</FCSettingMercHealRateTip>
+
+	<!-- Squad-first economy sliders -->
+	<FCSettingSquadsHeader>Squads</FCSettingSquadsHeader>
+	<FCSettingSquadHireCostMultiplier>Squad Hire Cost Multiplier</FCSettingSquadHireCostMultiplier>
+	<FCSettingSquadHireCostMultiplierTip>Multiplier applied to a template's full equipment cost when the player hires a fresh squad. 1.0 = sticker price; 0.0 = free; higher values make hiring more expensive.</FCSettingSquadHireCostMultiplierTip>
+	<FCSettingSquadDismissalRefundFraction>Squad Dismissal Refund Fraction</FCSettingSquadDismissalRefundFraction>
+	<FCSettingSquadDismissalRefundFractionTip>Fraction of the recorded hire cost returned when a squad is dismissed. 0.5 = 50% refund; 1.0 = full refund; 0.0 = no refund.</FCSettingSquadDismissalRefundFractionTip>
+	<FCSettingSquadUpgradeCostMultiplier>Squad Upgrade Cost Multiplier</FCSettingSquadUpgradeCostMultiplier>
+	<FCSettingSquadUpgradeCostMultiplierTip>Multiplier applied to the diff between a hired squad's current loadout and its source template when the player upgrades the squad to match.</FCSettingSquadUpgradeCostMultiplierTip>
 	<FCSettingMinMaxRandomEvent>Min/Max Days Until Random Event</FCSettingMinMaxRandomEvent>
 	<FCSettingShowSettleConfirm>Show confirmation when founding settlements</FCSettingShowSettleConfirm>
 	<FCSettingUseThreadedRoadComputation>Use threaded road computation</FCSettingUseThreadedRoadComputation>

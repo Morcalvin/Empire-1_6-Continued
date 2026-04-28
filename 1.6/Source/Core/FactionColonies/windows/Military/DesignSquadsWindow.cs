@@ -440,7 +440,7 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleCenter;
             bool canEdit = !isSelectedSquadDeployed;
 
-            float btnW = (rect.width - margin * 3) / 4f;
+            float btnW = (rect.width - margin * 4) / 5f;
 
             // Add Unit button
             Rect addUnitBtn = new Rect(rect.x, rect.y, btnW, ButtonHeight);
@@ -487,10 +487,26 @@ namespace FactionColonies
             }
             GUI.color = colorBefore;
 
+            // Hire button — pays the squad's hire cost and adds an unassigned hired squad
+            // to the faction pool. Squad assignment to a settlement happens elsewhere
+            // (HireSquadsWindow / settlement window).
+            int hireCost = (int)Math.Round((selectedSquad?.GetEquipmentTotalCost() ?? 0) * FCSettings.squadHireCostMultiplier);
+            float silver = PaymentUtil.GetSilver();
+            bool canAffordHire = silver >= hireCost;
+            Rect hireBtn = new Rect(resetBtn.xMax + margin, rect.y, btnW, ButtonHeight);
+            colorBefore = GUI.color;
+            if (!canAffordHire) GUI.color = Color.gray;
+            if (Widgets.ButtonText(hireBtn, "FCHireSquadButton".Translate(hireCost), true, true, canAffordHire))
+            {
+                util.HireSquad(selectedSquad);
+            }
+            TooltipHandler.TipRegion(hireBtn, "FCHireSquadButtonTip".Translate(hireCost));
+            GUI.color = colorBefore;
+
             // Unit count label
             int totalUnits = selectedSquad.Units.Count(u => !u.isBlank);
             Text.Anchor = TextAnchor.MiddleRight;
-            Rect countLabel = new Rect(resetBtn.xMax + margin, rect.y, btnW, ButtonHeight);
+            Rect countLabel = new Rect(hireBtn.xMax + margin, rect.y, btnW, ButtonHeight);
             Widgets.Label(countLabel, "FCSquadUnitCount".Translate(totalUnits));
 
             Text.Font = fontBefore;

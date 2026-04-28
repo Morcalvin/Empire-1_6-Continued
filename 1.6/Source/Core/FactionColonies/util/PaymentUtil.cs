@@ -19,6 +19,9 @@ namespace FactionColonies
         public const string Reason_TaxPayment = "tax_payment";
         public const string Reason_SilverPayment = "silver_payment";
         public const string Reason_PolicyRepick = "policy_repick";
+        public const string Reason_SquadHire = "squad_hire";
+        public const string Reason_SquadUpgrade = "squad_upgrade";
+        public const string Reason_SquadDismissalRefund = "squad_dismissal_refund";
 
         public static (List<BillFC>, List<BillFC>) returnBillTypes(List<BillFC> bills)
         {

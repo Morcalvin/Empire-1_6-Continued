@@ -1123,31 +1123,37 @@ namespace FactionColonies
         {
             if (settlement.MilitaryComp is null) return;
 
-            List<FloatMenuOption> list = new List<FloatMenuOption>
+            List<MercenarySquadFC> stationed = settlement.StationedSquads;
+            int cap = settlement.SquadCap;
+
+            List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+            // Header: Squads N / M  •  Max squad size K (informational, no action)
+            list.Add(new FloatMenuOption(
+                "FCSettlementMilHeader".Translate(stationed.Count, cap, settlement.MaxSquadSize),
+                null, MenuOptionPriority.High));
+
+            // Per-stationed-squad submenu — Auto-defend toggle, recall (unassign), reassign, reset pawns.
+            foreach (MercenarySquadFC mercSquad in stationed)
             {
-                new FloatMenuOption(
-                    "FCToggleAutoDefend".Translate(settlement.MilitaryComp.autoDefend.ToString()),
+                MercenarySquadFC capturedSquad = mercSquad;
+                list.Add(new FloatMenuOption(
+                    "FCSettlementMilSquadEntry".Translate(capturedSquad.name ?? "(?)",
+                        capturedSquad.autoDefend ? (string)"FCYes".Translate() : (string)"FCNo".Translate()),
                     delegate
                     {
-                        settlement.MilitaryComp.autoDefend = !settlement.MilitaryComp.autoDefend;
-                    })
-            };
-
-            // Reset Pawns option — only if squad is assigned and pawns aren't currently on a map
-            MercenarySquadFC mercSquad = settlement.MilitaryComp.militarySquad;
-            if (mercSquad != null && !mercSquad.IsPhysicallyDeployed())
-            {
-                list.Add(new FloatMenuOption("fcResetSquadPawns".Translate(), delegate
-                {
-                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "fcResetSquadPawnsConfirm".Translate((NamedArgument)(mercSquad.outfit?.name ?? settlement.Name)),
-                        delegate
-                        {
-                            mercSquad.InitiateSquad();
-                            Messages.Message("FCResetSquadPawns".Translate(), MessageTypeDefOf.NeutralEvent);
-                        }));
-                }));
+                        BuildPerSquadMenu(capturedSquad);
+                    }));
             }
+
+            // Hire & assign here.
+            int silver = (int)PaymentUtil.GetSilver();
+            bool roomForHire = stationed.Count < cap;
+            list.Add(new FloatMenuOption("FCSettlementMilHireAndAssign".Translate(silver),
+                roomForHire ? (Action)delegate
+                {
+                    Find.WindowStack.Add(new Dialog_HireSquad(settlement));
+                } : (Action)null));
 
             if (settlement.MilitaryComp.isUnderAttack)
             {
@@ -1216,10 +1222,62 @@ namespace FactionColonies
             }
             else
             {
-                list.Add(new FloatMenuOption("FCSettlementNotBeingAttacked".Translate(), null));
                 Find.WindowStack.Add(new FloatMenu(list));
             }
         }
+
+        /// <summary>Per-squad submenu opened from the settlement's Military button. Toggles
+        /// per-squad auto-defend, opens reassignment, dismisses, or resets pawns. Operates on
+        /// the squad regardless of which settlement opened the menu — squad-first refactor.</summary>
+        private void BuildPerSquadMenu(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+            list.Add(new FloatMenuOption(
+                "FCSquadMenuToggleAutoDefend".Translate(squad.autoDefend ? (string)"FCOn".Translate() : (string)"FCOff".Translate()),
+                delegate { squad.autoDefend = !squad.autoDefend; }));
+
+            list.Add(new FloatMenuOption("FCSquadMenuReassign".Translate(),
+                squad.IsBusy ? (Action)null : (Action)delegate
+                {
+                    Find.WindowStack.Add(new Dialog_SquadAssignment(squad));
+                }));
+
+            int upgrade = squad.UpgradeCost;
+            if (upgrade > 0)
+            {
+                list.Add(new FloatMenuOption("FCSquadMenuUpgrade".Translate(upgrade),
+                    squad.IsBusy ? (Action)null : (Action)delegate { squad.UpgradeToTemplate(); }));
+            }
+
+            int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
+            list.Add(new FloatMenuOption("FCSquadMenuDismiss".Translate(refund),
+                squad.IsBusy ? (Action)null : (Action)delegate
+                {
+                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                        "FCSquadActDismissConfirm".Translate(squad.name, refund),
+                        delegate { util?.DismissSquad(squad); }));
+                }));
+
+            if (!squad.IsPhysicallyDeployed())
+            {
+                list.Add(new FloatMenuOption("fcResetSquadPawns".Translate(), delegate
+                {
+                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                        "fcResetSquadPawnsConfirm".Translate((NamedArgument)(squad.outfit?.name ?? squad.name ?? "?")),
+                        delegate
+                        {
+                            squad.InitiateSquad();
+                            Messages.Message("FCResetSquadPawns".Translate(), MessageTypeDefOf.NeutralEvent);
+                        }));
+                }));
+            }
+
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
         private Vector2 scrollVectorBuildings = new Vector2();
         public void DrawFacilities(Rect boundingBox)
         {

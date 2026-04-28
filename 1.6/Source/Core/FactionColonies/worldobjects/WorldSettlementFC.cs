@@ -222,6 +222,52 @@ namespace FactionColonies
                 return cachedMilitaryComp;
             }
         }
+
+        /// <summary>Squads currently assigned to this settlement (their billet).
+        /// Lazily filtered from the faction-wide mercenary pool — pool sizes are small enough
+        /// that a per-call scan is cheap. Add a cache only if profiling shows hot paths.</summary>
+        public List<MercenarySquadFC> StationedSquads
+        {
+            get
+            {
+                List<MercenarySquadFC> result = new List<MercenarySquadFC>();
+                List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+                if (pool is null) return result;
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC s = pool[i];
+                    if (s is object && s.settlement == this) result.Add(s);
+                }
+                return result;
+            }
+        }
+
+        /// <summary>Number of squads this settlement can simultaneously host. Base 1, modified by
+        /// the <c>squadCapPerSettlement</c> stat (buildings, policies, settlement-type extensions).
+        /// Floored at 1.</summary>
+        public int SquadCap
+        {
+            get
+            {
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is null) return 1;
+                int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.squadCapPerSettlement, this));
+                return Math.Max(1, 1 + bonus);
+            }
+        }
+
+        /// <summary>Maximum number of mercenaries a squad assigned here may have. Base 30 (matches
+        /// <c>MilSquadFC.MaxSquadSize</c>), modified by the <c>maxSquadSize</c> stat. Floored at 1.</summary>
+        public int MaxSquadSize
+        {
+            get
+            {
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is null) return MilSquadFC.MaxSquadSize;
+                int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.maxSquadSize, this));
+                return Math.Max(1, MilSquadFC.MaxSquadSize + bonus);
+            }
+        }
         public WorldObjectComp_SettlementBuildings BuildingsComp
         {
             get

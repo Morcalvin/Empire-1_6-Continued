@@ -67,6 +67,23 @@ namespace FactionColonies.util
             settlement.settlementDef.GetSettlementTypeExtension()?.PreDestruction(settlement);
             settlement.PrepareDestroy();
             FactionFC faction = FactionCache.FactionComp;
+
+            // Squad-first: unassign any squads billeted here so they return to the pool rather
+            // than dangling with a destroyed settlement reference. The faction-wide pool
+            // survives settlement removal — squads aren't owned by settlements.
+            MilitaryCustomizationUtil mcu = faction.militaryCustomizationUtil;
+            if (mcu?.mercenarySquads is object)
+            {
+                foreach (MercenarySquadFC s in mcu.mercenarySquads)
+                {
+                    if (s is object && s.settlement == settlement)
+                    {
+                        s.settlement = null;
+                        s.autoDefend = false;
+                    }
+                }
+            }
+
             LifecycleRegistry.InvokeOnSettlementRemoved(settlement);
             faction.settlements.Remove(settlement);
 

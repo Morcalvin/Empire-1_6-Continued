@@ -59,10 +59,75 @@ namespace FactionColonies
         }
         public Map Map => WorldSettlement.Map;
 
-        public MercenarySquadFC militarySquad;
         public int artilleryTimer = 0;
-        public bool autoDefend = false;
         public int settlementMilitaryLevel;
+
+        /// <summary>Legacy 1:1 settlement-to-squad accessor. Squads now live on the faction-wide
+        /// pool and reference their billet via <see cref="MercenarySquadFC.settlement"/>.
+        /// New code should iterate <see cref="WorldSettlementFC.StationedSquads"/>; this shim
+        /// returns the first stationed squad for cross-mod source compatibility.</summary>
+        [System.Obsolete("Use WorldSettlementFC.StationedSquads. This shim returns the primary stationed squad for back-compat.")]
+        public MercenarySquadFC militarySquad
+        {
+            get
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed is null || stationed.Count == 0) return null;
+                return stationed[0];
+            }
+            set
+            {
+                // Legacy setter: translate to canonical squad.settlement assignment.
+                if (value is null)
+                {
+                    // Detach all currently-stationed squads.
+                    if (WorldSettlement is null) return;
+                    foreach (MercenarySquadFC s in WorldSettlement.StationedSquads)
+                    {
+                        if (s is object) s.settlement = null;
+                    }
+                    return;
+                }
+                if (value.settlement == WorldSettlement) return;
+                value.settlement = WorldSettlement;
+            }
+        }
+
+        /// <summary>Legacy per-settlement auto-defend flag. Auto-defend now lives on the squad
+        /// (<see cref="MercenarySquadFC.autoDefend"/>) so a settlement with multiple squads can
+        /// opt some in and some out. The shim returns true when any stationed squad has
+        /// <c>autoDefend</c> set; the setter applies the flag to all stationed squads.</summary>
+        [System.Obsolete("Use MercenarySquadFC.autoDefend. This shim aggregates across stationed squads for back-compat.")]
+        public bool autoDefend
+        {
+            get
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed is null) return false;
+                for (int i = 0; i < stationed.Count; i++)
+                {
+                    if (stationed[i] != null && stationed[i].autoDefend) return true;
+                }
+                return false;
+            }
+            set
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed is null) return;
+                for (int i = 0; i < stationed.Count; i++)
+                {
+                    if (stationed[i] != null) stationed[i].autoDefend = value;
+                }
+            }
+        }
+
+        // -*-*-*-*- Squad-first migration buffers -*-*-*-*-
+        // Pre-refactor saves wrote militarySquad/autoDefend on the comp itself. After this
+        // refactor those fields live on MercenarySquadFC (squad.settlement / squad.autoDefend).
+        // On load we capture the legacy values into [Unsaved] buffers; MilitaryMigrationUtil
+        // drains them in PostLoadInit. Never written on save.
+        [Unsaved] public MercenarySquadFC _legacyMilitarySquad;
+        [Unsaved] public bool _legacyAutoDefend;
 
         /* -*-*-*-*- Legacy load buffers -*-*-*-*-
          * Old saves carried operation state on the comp directly. The canonical state now lives
@@ -207,9 +272,7 @@ namespace FactionColonies
         public override void PostExposeData()
         {
             base.PostExposeData();
-            Scribe_References.Look(ref militarySquad, "militarySquad");
             Scribe_Values.Look(ref artilleryTimer, "artilleryTimer");
-            Scribe_Values.Look(ref autoDefend, "autoDefend");
             Scribe_Values.Look(ref settlementMilitaryLevel, "settlementMilitaryLevel");
 
             /* Backward compat: load pre-refactor save state into legacy buffers consumed by
@@ -218,6 +281,12 @@ namespace FactionColonies
              * These are NOT written on save — post-refactor saves use the new layout. */
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
+                // Squad-first refactor: capture pre-refactor militarySquad/autoDefend on the comp
+                // into [Unsaved] buffers. Drained in PostLoadInit by MigrateLegacyComp_MilitarySquad
+                // which writes squad.settlement = this and squad.autoDefend = legacy value.
+                Scribe_References.Look(ref _legacyMilitarySquad, "militarySquad");
+                Scribe_Values.Look(ref _legacyAutoDefend, "autoDefend", false);
+
                 Scribe_Values.Look(ref _legacyMilitaryBusy, "militaryBusy", false);
                 Scribe_Defs.Look(ref _legacyMilitaryJob, "militaryJob");
                 Scribe_Values.Look(ref _legacyMilitaryLocation, "militaryLocation", PlanetTile.Invalid);
@@ -692,15 +761,17 @@ namespace FactionColonies
             base.PostCaravanFormed(caravan);
         }
 
-        public void SendMilitary(PlanetTile location, MilitaryJobDef job, int timeToFinish, Faction enemy)
+        /// <summary>Squad-first entry point. Routes <paramref name="squad"/> through the manager
+        /// to launch a handler-driven offensive op.</summary>
+        public void SendMilitary(MercenarySquadFC squad, PlanetTile location, MilitaryJobDef job, int timeToFinish, Faction enemy)
         {
-            if (IsMilitaryBusy() || IsTargetOccupied(location)) return;
+            if (squad is null)
+            {
+                LogUtil.Warning("SendMilitary: null squad parameter; aborting.");
+                return;
+            }
+            if (IsTargetOccupied(location)) return;
 
-            // Jobs with a MilitaryJobHandler (Raid / Capture / Enslave + submod handlers) route
-            // through MilitaryOperationManager. The op fires arrival / cooldown FCEvents linked
-            // back to itself; FCEventMaker dispatches them to op.OnEventFired which drives the
-            // auto-resolve / manual battle / cooldown / resolve chain. The comp's surface fields
-            // (militaryBusy / militaryJob / etc.) are computed properties reading from the manager.
             if (job?.Handler is object)
             {
                 MilitaryOperationManager manager = FactionCache.MilitaryManager;
@@ -715,15 +786,25 @@ namespace FactionColonies
                     LogUtil.Warning($"SendMilitary: no world object found at tile {location}; aborting.");
                     return;
                 }
-                manager.CreateOffensiveOp(WorldSettlement, target, job, enemy, timeToFinish);
+                manager.CreateOffensiveOp(squad, target, job, enemy, timeToFinish);
                 return;
             }
+        }
 
-            // Handler-less state jobs (Deploy / DefendFriendlySettlement) — the canonical squad
-            // commitment lives on MilitaryOperation. Deploy ops are created by MilitaryUtil.SpawnSquad
-            // via Manager.CreateDeployOp; foreign defender ops via Manager.CreateDefensiveOp
-            // auto-defender selection or MilitaryUtilFC.ChangeDefendingMilitaryForce. External
-            // callers reaching this branch are no-ops — manager state covers occupancy.
+        /// <summary>Pre-refactor entry point. Resolves the settlement's primary stationed squad
+        /// (via the obsolete <see cref="militarySquad"/> shim) and forwards. Will be removed in a
+        /// follow-up — callers should pick a specific squad via <see cref="WorldSettlementFC.StationedSquads"/>
+        /// or the new source-picker dialog.</summary>
+        [System.Obsolete("Pass an explicit MercenarySquadFC squad. Resolves to the primary stationed squad as a fallback.")]
+        public void SendMilitary(PlanetTile location, MilitaryJobDef job, int timeToFinish, Faction enemy)
+        {
+            MercenarySquadFC squad = WorldSettlement?.StationedSquads.FirstOrDefault();
+            if (squad is null)
+            {
+                Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+            SendMilitary(squad, location, job, timeToFinish, enemy);
         }
 
         /// <summary>

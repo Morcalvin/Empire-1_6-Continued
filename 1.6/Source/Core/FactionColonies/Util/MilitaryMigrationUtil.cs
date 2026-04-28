@@ -32,6 +32,36 @@ namespace FactionColonies
         /// drained into the manager. Cheap detection: checks for any settlement with active op
         /// flags or pending military events.
         /// </summary>
+        /// <summary>
+        /// Squad-first refactor migration: pre-refactor saves carried <c>militarySquad</c> and
+        /// <c>autoDefend</c> on the comp itself. The values are loaded into <c>_legacyMilitarySquad</c>
+        /// and <c>_legacyAutoDefend</c> buffers in <c>PostExposeData</c>'s LoadingVars branch.
+        /// This method drains them onto the squads (settlement billet + per-squad autoDefend flag)
+        /// during PostLoadInit. Idempotent across reloads because the legacy fields are not
+        /// re-serialized after migration.
+        /// </summary>
+        public static void MigrateLegacyComp_MilitarySquad(FactionFC faction)
+        {
+            if (faction is null || faction.settlements is null) return;
+            int migrated = 0;
+            foreach (WorldSettlementFC settlement in faction.settlements)
+            {
+                var comp = settlement?.MilitaryComp;
+                if (comp is null) continue;
+                MercenarySquadFC legacy = comp._legacyMilitarySquad;
+                if (legacy is null) continue;
+                if (legacy.settlement is null) legacy.settlement = settlement;
+                if (comp._legacyAutoDefend && !legacy.autoDefend) legacy.autoDefend = true;
+                comp._legacyMilitarySquad = null;
+                comp._legacyAutoDefend = false;
+                migrated++;
+            }
+            if (migrated > 0)
+            {
+                LogUtil.MessageForce($"MilitaryMigrationUtil.MigrateLegacyComp_MilitarySquad: bound {migrated} legacy squad(s) to their settlements.");
+            }
+        }
+
         public static bool AnyLegacyStatePresent(FactionFC faction)
         {
             if (faction is null) return false;
@@ -83,6 +113,10 @@ namespace FactionColonies
             if (faction is null) return;
             MilitaryOperationManager manager = faction.militaryOperationManager;
             if (manager is null) return;
+
+            // Squad-first refactor: drain comp._legacyMilitarySquad / _legacyAutoDefend onto the
+            // squads themselves before any other migration runs (downstream calls read squad.settlement).
+            MigrateLegacyComp_MilitarySquad(faction);
 
             int migratedCount = 0;
 

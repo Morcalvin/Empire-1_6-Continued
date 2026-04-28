@@ -44,34 +44,20 @@ namespace FactionColonies
             parent.Faction != FactionCache.PlayerColonyFaction &&
             parent.Faction != Find.FactionManager.OfPlayer;
 
-        private static bool SettlementHasUsableMilitary(WorldSettlementFC settlement) =>
-            settlement.MilitaryComp != null &&
-            settlement.MilitaryComp.IsMilitaryValid() &&
-            !settlement.MilitaryComp.militaryBusy;
-
         private static FloatMenuOption NewOption(FactionFC factionFC, Faction faction, PlanetTile tile, MilitaryJobDef job) =>
             new FloatMenuOption((job.floatMenuLabelKey ?? "FCUnsupportedMilJobError").Translate(), delegate
             {
-                List<FloatMenuOption> settlementList = new List<FloatMenuOption>();
-
-                foreach (WorldSettlementFC settlement in factionFC.settlements)
+                // Squad-first refactor: replaced the second-level "settlement picker" float menu
+                // with the richer Dialog_SquadSourcePicker. Picker handles travel time, win
+                // chance forecast, status filtering, and dispatches the selected squad through
+                // the manager on confirm.
+                WorldObject target = Find.WorldObjects.WorldObjectAt<WorldObject>(tile);
+                if (target is null)
                 {
-                    if (SettlementHasUsableMilitary(settlement))
-                    {
-                        settlementList.Add(new FloatMenuOption(
-                            (job.floatMenuDescKey ?? "FCUnsupportedMilJobError").Translate(settlement.Name, settlement.settlementMilitaryLevel),
-                            delegate
-                            {
-                                RelationsUtilFC.AttackFaction(faction);
-                                settlement.MilitaryComp?.SendMilitary(tile, job, 60000, faction);
-                            }));
-                    }
+                    Messages.Message("FCNoValidMilitaries".Translate(), MessageTypeDefOf.RejectInput, false);
+                    return;
                 }
-
-                if (settlementList.Count == 0)
-                    settlementList.Add(new FloatMenuOption("FCNoValidMilitaries".Translate(), null));
-
-                Find.WindowStack.Add(new FloatMenu(settlementList));
+                Find.WindowStack.Add(new Dialog_SquadSourcePicker(target, job, faction));
             });
 
         private static Command_Action HostileAction(FactionFC factionFC, Faction faction, PlanetTile tile) =>

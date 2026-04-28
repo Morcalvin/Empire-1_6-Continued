@@ -141,6 +141,37 @@ namespace FactionColonies
             }
         }
 
+        /* Squad lifecycle */
+        public static void InvokeOnSquadHired(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            foreach (ILifecycleParticipant p in _participants)
+            {
+                try { p.OnSquadHired(squad); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadHired: {e}"); }
+            }
+        }
+
+        public static void InvokeOnSquadDismissed(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            foreach (ILifecycleParticipant p in _participants)
+            {
+                try { p.OnSquadDismissed(squad); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadDismissed: {e}"); }
+            }
+        }
+
+        public static void InvokeOnSquadUpgraded(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            foreach (ILifecycleParticipant p in _participants)
+            {
+                try { p.OnSquadUpgraded(squad); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadUpgraded: {e}"); }
+            }
+        }
+
         /* Research */
         public static void InvokeOnResearchCompleted(ResearchProjectDef project)
         {

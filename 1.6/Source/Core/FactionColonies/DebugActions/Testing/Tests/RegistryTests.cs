@@ -100,7 +100,7 @@ namespace FactionColonies
         {
             public bool Allow = true;
             public string RejectReason = "test reject";
-            public bool CanAssign(WorldSettlementFC s, MilSquadFC sq, out string reason)
+            public bool CanAssign(WorldSettlementFC s, MercenarySquadFC sq, out string reason)
             {
                 reason = Allow ? null : RejectReason;
                 return Allow;
@@ -109,7 +109,7 @@ namespace FactionColonies
 
         private class ThrowingSquadValidator : ISquadAssignmentValidator
         {
-            public bool CanAssign(WorldSettlementFC s, MilSquadFC sq, out string reason)
+            public bool CanAssign(WorldSettlementFC s, MercenarySquadFC sq, out string reason)
             {
                 reason = null;
                 throw new InvalidOperationException("test");

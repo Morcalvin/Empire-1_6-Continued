@@ -1501,6 +1501,11 @@ namespace FactionColonies
             EdictTabDrawer.Draw(rect, faction);
         }
 
+        // Squad-first refactor: military tab gains two subtabs (By Settlement / By Squad).
+        // 0 = By Settlement, 1 = By Squad. Persists across this MainTabWindow_Colony instance.
+        private int militarySubtab = 0;
+        private HireSquadsWindow _bySquadRenderer;
+
         private void DrawMilitaryTab(Rect rect)
         {
             float x = rect.x;
@@ -1523,8 +1528,6 @@ namespace FactionColonies
             Widgets.DrawHighlight(labelBox);
             Widgets.Label(labelTextBox, faction.name ?? "");
 
-            // Only allow the creation of units, squads, and fire support if there is at least one settlement. Required due to the fact that
-            //   the design units menu pulls the list of possible material stuffs from the list of things that settlements can produce.
             if (faction.settlements?.Count > 0)
             {
                 if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight), "FCMilitaryTableButtonCreateUnit".Translate()))
@@ -1541,10 +1544,30 @@ namespace FactionColonies
 
             y += buttonHeight + margin * 2;
 
-            // --- Settlements Card List ---
+            // Subtab switcher
+            float subtabH = 28f;
+            Rect bySettlementBtn = new Rect(x + margin, y, 160f, subtabH);
+            Rect bySquadBtn = new Rect(bySettlementBtn.xMax + 6f, y, 160f, subtabH);
+            if (UIUtil.ButtonFlat(bySettlementBtn, "FCMilitaryTabBySettlement".Translate(), highlighted: militarySubtab == 0))
+                militarySubtab = 0;
+            if (UIUtil.ButtonFlat(bySquadBtn, "FCMilitaryTabBySquad".Translate(), highlighted: militarySubtab == 1))
+                militarySubtab = 1;
+
+            y += subtabH + margin;
+
             float tableH = rect.yMax - y - margin;
-            if (tableH > 0f)
-                DrawMilitarySettlementCards(new Rect(x + margin, y, width - (margin * 2), tableH));
+            if (tableH <= 0f) return;
+            Rect tableRect = new Rect(x + margin, y, width - (margin * 2), tableH);
+
+            if (militarySubtab == 0)
+            {
+                DrawMilitarySettlementCards(tableRect);
+            }
+            else
+            {
+                if (_bySquadRenderer is null) _bySquadRenderer = new HireSquadsWindow();
+                _bySquadRenderer.Draw(tableRect);
+            }
         }
 
         private void DrawMilitarySettlementCards(Rect tableRect)
@@ -1688,13 +1711,19 @@ namespace FactionColonies
                 float btnY = botY + 2f;
                 float totalBtnW = btnW * 4 + btnGap * 3;
 
-                // Bottom-left: Squad name with prefix
+                // Bottom-left: Squad name with prefix. With squad-first refactor, settlements
+                // can host multiple squads — show the primary squad's name plus "(N/M)" cap info.
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                string squadName = milComp.militarySquad?.outfit?.name ?? "FCNone".Translate();
-                string squadLabel = "FCMilSquadPrefix".Translate() + ": " + squadName;
+                List<MercenarySquadFC> stationed = settlement.StationedSquads;
+                int settlementCap = settlement.SquadCap;
+                string squadName = stationed.Count > 0
+                    ? (stationed[0]?.name ?? stationed[0]?.outfit?.name ?? "FCNone".Translate())
+                    : (string)"FCNone".Translate();
+                string squadLabel = "FCMilSquadPrefix".Translate() + ": " + squadName
+                    + " (" + stationed.Count + "/" + settlementCap + ")";
                 float infoAreaW = contentW - totalBtnW - 4f;
                 Widgets.Label(new Rect(contentX, botY, infoAreaW, lineH), squadLabel);
                 Text.Font = fontBefore;

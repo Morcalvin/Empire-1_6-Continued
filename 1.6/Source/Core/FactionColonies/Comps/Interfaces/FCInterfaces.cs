@@ -148,6 +148,22 @@ namespace FactionColonies
         /// Set <see cref="MercenaryDeathEvent.CancelReplacement"/> to prevent auto-replacement.
         /// </summary>
         void OnMercenaryDeath(MercenaryDeathEvent evt);
+        /// <summary>
+        /// Called immediately after a fresh <see cref="MercenarySquadFC"/> is hired (silver paid,
+        /// squad created from a template, added to <c>mercenarySquads</c>) and before the player
+        /// has assigned it to a settlement. <c>squad.settlement</c> is null at this point.
+        /// </summary>
+        void OnSquadHired(MercenarySquadFC squad);
+        /// <summary>
+        /// Called when a squad is dismissed by the player. The squad has been removed from
+        /// <c>mercenarySquads</c> and any partial refund has already been applied.
+        /// </summary>
+        void OnSquadDismissed(MercenarySquadFC squad);
+        /// <summary>
+        /// Called after a squad's loadout is brought up to its source template via
+        /// <see cref="MercenarySquadFC.UpgradeToTemplate"/>. Silver has already been paid.
+        /// </summary>
+        void OnSquadUpgraded(MercenarySquadFC squad);
     }
     /// <summary>
     /// Defines an interface to let classes modify military forces before a battle is resolved.
@@ -175,8 +191,10 @@ namespace FactionColonies
         bool CanDefend(WorldSettlementFC defender, WorldSettlementFC target);
     }
     /// <summary>
-    /// Allows submods to veto squad assignments. Called before a squad loadout is
-    /// assigned to a settlement. Register implementations via <see cref="SquadAssignmentRegistry"/>.
+    /// Allows submods to veto squad assignments. Called before a squad is assigned to a
+    /// settlement. Receives the actual <see cref="MercenarySquadFC"/> instance so validators
+    /// can read per-squad state (current loadout cost, mercenary count, cooldown, etc.) rather
+    /// than just the source template. Register implementations via <see cref="SquadAssignmentRegistry"/>.
     /// </summary>
     public interface ISquadAssignmentValidator
     {
@@ -184,7 +202,7 @@ namespace FactionColonies
         /// Returns true if <paramref name="squad"/> can be assigned to <paramref name="settlement"/>.
         /// If false, <paramref name="reason"/> is shown to the player as a rejection message.
         /// </summary>
-        bool CanAssign(WorldSettlementFC settlement, MilSquadFC squad, out string reason);
+        bool CanAssign(WorldSettlementFC settlement, MercenarySquadFC squad, out string reason);
     }
     /// <summary>
     /// Allows submods to add custom validation, display additional costs, and perform

@@ -38,6 +38,17 @@ namespace FactionColonies
         public XenotypeDef xenotype1;
         public List<Gene> GeneList;
 
+        /* -*-*-*-*- Squad-first refactor fields -*-*-*-*-
+         * nextAvailableTick: per-squad cooldown expiry. Updated in MilitaryOperation.EnterCooldown.
+         * hireCostPaid: silver paid when this squad was hired; basis for the dismissal refund.
+         * hiredAtTick: tick at which the squad was hired (analytics + future age hooks).
+         * autoDefend: per-squad opt-in to foreign-defender candidate selection. Replaces the
+         * old per-settlement comp.autoDefend flag — auto-defend now lives on the squad. */
+        public int nextAvailableTick;
+        public int hireCostPaid;
+        public int hiredAtTick;
+        public bool autoDefend;
+
         public virtual void ExposeData()
         {
             Scribe_Values.Look(ref loadID, "loadID", -1);
@@ -60,6 +71,10 @@ namespace FactionColonies
             Scribe_Values.Look(ref hasLord, "hasLord");
             Scribe_References.Look(ref map, "map");
             Scribe_References.Look(ref lord, "lord");
+            Scribe_Values.Look(ref nextAvailableTick, "nextAvailableTick", 0);
+            Scribe_Values.Look(ref hireCostPaid, "hireCostPaid", 0);
+            Scribe_Values.Look(ref hiredAtTick, "hiredAtTick", 0);
+            Scribe_Values.Look(ref autoDefend, "autoDefend", false);
         }
 
         public string GetUniqueLoadID()
@@ -104,6 +119,65 @@ namespace FactionColonies
 
         /// <summary>True when this squad is in any active op (offensive, defensive, deploy, or cooldown).</summary>
         public bool IsBusy => Operation is object;
+
+        /// <summary>True when this squad is currently assigned to a billet (settlement). False
+        /// when the squad sits in the unassigned hire pool.</summary>
+        public bool IsAssigned => settlement is object;
+
+        /// <summary>True when the squad is assigned, not in any active op, and past its
+        /// post-op cooldown. Canonical "can launch a new op" gate.</summary>
+        public bool IsAvailable => IsAssigned && !IsBusy && nextAvailableTick <= Find.TickManager.TicksGame;
+
+        /// <summary>Sum of equipment market values across all currently-equipped mercenaries.
+        /// Used by <see cref="UpgradeCost"/> to compute the diff against the source template.</summary>
+        public double GetCurrentLoadoutCost()
+        {
+            double total = 0;
+            if (mercenaries is null) return total;
+            foreach (Mercenary merc in mercenaries)
+            {
+                if (merc?.loadout is null) continue;
+                total += merc.loadout.getTotalCost;
+            }
+            return total;
+        }
+
+        /// <summary>Silver cost to bring this squad's loadout up to its source template's current
+        /// equipment cost. Zero when already current or when the template is missing.</summary>
+        public int UpgradeCost
+        {
+            get
+            {
+                if (outfit is null) return 0;
+                int target = (int)Math.Round(outfit.GetEquipmentTotalCost() * FCSettings.squadUpgradeCostMultiplier);
+                int current = (int)Math.Round(GetCurrentLoadoutCost() * FCSettings.squadUpgradeCostMultiplier);
+                return Math.Max(0, target - current);
+            }
+        }
+
+        /// <summary>Pays <see cref="UpgradeCost"/> silver and re-runs <see cref="OutfitSquad"/>
+        /// against the current template, bringing the squad's gear up to date. No-op when
+        /// the template is missing, the squad is busy, or there's no upgrade needed.</summary>
+        public bool UpgradeToTemplate()
+        {
+            if (outfit is null) return false;
+            if (IsBusy)
+            {
+                Messages.Message("FCSquadCannotUpgradeBusy".Translate(), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            int cost = UpgradeCost;
+            if (cost <= 0) return false;
+            if (PaymentUtil.GetSilver() < cost)
+            {
+                Messages.Message("FCSquadUpgradeInsufficientSilver".Translate(cost), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadUpgrade, settlement);
+            OutfitSquad(outfit);
+            LifecycleRegistry.InvokeOnSquadUpgraded(this);
+            return true;
+        }
 
         public WorldSettlementFC getSettlement
         {
