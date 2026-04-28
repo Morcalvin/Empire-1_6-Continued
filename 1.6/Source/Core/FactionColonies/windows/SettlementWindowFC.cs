@@ -1235,6 +1235,9 @@ namespace FactionColonies
             MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
             List<FloatMenuOption> list = new List<FloatMenuOption>();
 
+            list.Add(new FloatMenuOption("FCSquadMenuInspect".Translate(),
+                delegate { Find.WindowStack.Add(new Dialog_SquadInspection(squad)); }));
+
             list.Add(new FloatMenuOption(
                 "FCSquadMenuToggleAutoDefend".Translate(squad.autoDefend ? (string)"FCOn".Translate() : (string)"FCOff".Translate()),
                 delegate { squad.autoDefend = !squad.autoDefend; }));
@@ -1269,6 +1272,8 @@ namespace FactionColonies
                         "fcResetSquadPawnsConfirm".Translate((NamedArgument)(squad.outfit?.name ?? squad.name ?? "?")),
                         delegate
                         {
+                            // Bypass InitiateSquad's empty-slot guard — explicit player reset.
+                            squad.mercenaries = null;
                             squad.InitiateSquad();
                             Messages.Message("FCResetSquadPawns".Translate(), MessageTypeDefOf.NeutralEvent);
                         }));

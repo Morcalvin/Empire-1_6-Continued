@@ -454,6 +454,32 @@ namespace FactionColonies
             FactionCache.FactionComp.militaryCustomizationUtil.units.Remove(this);
         }
 
+        /* Deep copy used by per-merc owned-loadout snapshots. The clone is owned by a
+         * single Mercenary (not added to the pool), so it gets a fresh load id but no
+         * registration with militaryCustomizationUtil.units. Subclasses that add fields
+         * should override CopyExtraFieldsTo. */
+        public virtual MilUnitFC Clone()
+        {
+            MilUnitFC copy = MilTemplateFactory.CreateUnit(isBlank);
+            copy.name = name;
+            copy.pawnKind = pawnKind;
+            copy.xenotype = xenotype;
+            copy.customXenotypeName = customXenotypeName;
+            copy.animal = animal;
+            copy.preferredAmmo = preferredAmmo;
+            copy.weapons = new List<SavedThing>(weapons ?? new List<SavedThing>());
+            copy.apparel = new List<SavedThing>(apparel ?? new List<SavedThing>());
+            CopyExtraFieldsTo(copy);
+            copy.ChangeTick();
+            copy.UpdateEquipmentTotalCost();
+            return copy;
+        }
+
+        /* Subclass hook for Clone — copy any extra fields onto the destination. */
+        protected virtual void CopyExtraFieldsTo(MilUnitFC dest)
+        {
+        }
+
         /// <summary>
         /// Re-roll the preview pawn (new appearance) while keeping equipment.
         /// Used by "Roll New Pawn" and race/xeno change buttons.

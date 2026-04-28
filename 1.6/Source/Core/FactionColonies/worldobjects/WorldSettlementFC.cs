@@ -244,7 +244,9 @@ namespace FactionColonies
 
         /// <summary>Number of squads this settlement can simultaneously host. Base 1, modified by
         /// the <c>squadCapPerSettlement</c> stat (buildings, policies, settlement-type extensions).
-        /// Floored at 1.</summary>
+        /// Floored at 0 — settlements can have no squad capacity at all (e.g. structurally
+        /// non-military settlement types). Fire support remains independent of cap (gated only
+        /// by the artillery building).</summary>
         public int SquadCap
         {
             get
@@ -252,7 +254,7 @@ namespace FactionColonies
                 FactionFC fc = FactionCache.FactionComp;
                 if (fc is null) return 1;
                 int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.squadCapPerSettlement, this));
-                return Math.Max(1, 1 + bonus);
+                return Math.Max(0, 1 + bonus);
             }
         }
 

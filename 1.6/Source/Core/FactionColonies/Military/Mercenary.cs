@@ -7,7 +7,18 @@ namespace FactionColonies
     public class Mercenary : IExposable, ILoadReferenceable
     {
         //init variables
+        /* Pool unit pointer for display ("Marksman" template tag). Mutable from the
+         * outside via DesignUnitsWindow — do NOT trust this for cost/gear queries.
+         * Goes null only on pool unit deletion. */
         public MilUnitFC loadout;
+        /* "This pawn has been personalized" marker. Cloned from currentLoadout on
+         * direct edit (Dialog_PawnLoadout) or pool unit deletion. Cleared on per-pawn
+         * pool swap, bulk Upgrade All claim, or "Reset to pool" action. */
+        public MilUnitFC ownedLoadout;
+        /* Truth of equipped gear right now. Always populated when the pawn is alive.
+         * Re-cloned on every gear-touching event (hire / fill / upgrade / per-pawn
+         * edit / reset). All cost / gear queries should read this, not loadout. */
+        public MilUnitFC currentLoadout;
         public MercenarySquadFC squad;
         public WorldSettlementFC settlement;
         public Mercenary handler;
@@ -15,6 +26,11 @@ namespace FactionColonies
         public Pawn pawn;
         public bool deployable = false;
         public int loadID;
+
+        /* Back-compat shim. New code should read currentLoadout directly. */
+        public MilUnitFC EffectiveLoadout => currentLoadout ?? ownedLoadout ?? loadout;
+        /* True when the slot has no pawn — alive in the list as a placeholder for Fill. */
+        public bool IsEmptySlot => pawn is null;
         // True when the pawn has another deep owner at save time (Map.mapPawns or
         // WorldPawns). Falls back to Scribe_References to avoid duplicate-id load
         // errors. Scribed under the legacy "isOnMap" key for back-compat with
@@ -49,6 +65,8 @@ namespace FactionColonies
 
             Scribe_Values.Look(ref isExternallyOwned, "isOnMap", false);
             Scribe_References.Look(ref loadout, "loadout");
+            Scribe_Deep.Look(ref ownedLoadout, "ownedLoadout");
+            Scribe_Deep.Look(ref currentLoadout, "currentLoadout");
             Scribe_References.Look(ref squad, "squad");
             Scribe_References.Look(ref settlement, "settlement");
             Scribe_References.Look(ref handler, "handler");
@@ -85,6 +103,24 @@ namespace FactionColonies
             {
                 pawn.kindDef = PawnKindDefOf.Colonist;
                 LogUtil.Warning($"Mercenary pawn {pawn.LabelShort} had null kindDef on load, reset to Colonist.");
+            }
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                /* currentLoadout migration. Three save shapes:
+                 *   1. Pre-refactor saves: only loadout (ref) populated.
+                 *   2. Intermediate-refactor saves: loadout + ownedLoadout, no currentLoadout.
+                 *   3. Post-refactor saves: currentLoadout already populated.
+                 * Adopt ownedLoadout when present (it was the truth in shape 2), else
+                 * clone the pool unit for shape 1. Mercs without a pawn or loadout
+                 * stay null (empty slot or fresh-created). */
+                if (currentLoadout == null)
+                {
+                    if (ownedLoadout != null)
+                        currentLoadout = ownedLoadout;
+                    else if (loadout != null)
+                        currentLoadout = loadout.Clone();
+                }
             }
         }
 

@@ -203,7 +203,9 @@ namespace FactionColonies
                         "FCConfirmDeleteSquad".Translate((NamedArgument)squadToDelete.name),
                         delegate
                         {
-                            squadToDelete.DeleteSquad();
+                            // Routes through DeleteTemplate so any mercenary squad referencing
+                            // the template gets its outfit cleared (mercs keep their gear).
+                            util.DeleteTemplate(squadToDelete);
                             util.CheckMilitaryUtilForErrors();
                             if (selectedSquad == squadToDelete)
                             {

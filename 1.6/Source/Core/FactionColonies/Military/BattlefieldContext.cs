@@ -633,7 +633,6 @@ namespace FactionColonies
 
             var squad = homeComp.militarySquad;
             squad.CheckInitialization();
-            squad.OutfitSquad(squad.outfit);
             squad.UpdateSquadStats(op.defender.force.homeSettlement.settlementMilitaryLevel);
             squad.ResetNeeds();
 
@@ -811,7 +810,6 @@ namespace FactionColonies
                 {
                     var squad = force.homeSettlement.MilitaryComp.militarySquad;
                     squad.CheckInitialization();
-                    squad.OutfitSquad(squad.outfit);
                     squad.UpdateSquadStats(force.homeSettlement.settlementMilitaryLevel);
                     squad.ResetNeeds();
 

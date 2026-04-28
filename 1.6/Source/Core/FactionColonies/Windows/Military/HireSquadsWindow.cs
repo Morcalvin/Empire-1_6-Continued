@@ -142,12 +142,11 @@ namespace FactionColonies
                 }
                 GUI.color = cb;
 
-                // Click on Name to rename
+                // Click on Name to inspect the squad. Renaming moved into the inspection window header.
                 Rect nameClickRect = new Rect(rowRect.x + ColumnOffset(0), rowRect.y, ColumnWidth(0), rowH);
                 if (Widgets.ButtonInvisible(nameClickRect))
                 {
-                    Find.WindowStack.Add(new FCWindow_Rename(squad.name ?? "", "FCRenameSquad",
-                        n => { capturedSquad.name = n; }));
+                    Find.WindowStack.Add(new Dialog_SquadInspection(capturedSquad));
                 }
             }
             Widgets.EndScrollView();

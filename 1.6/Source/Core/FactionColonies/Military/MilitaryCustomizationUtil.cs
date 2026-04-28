@@ -17,7 +17,6 @@ namespace FactionColonies
         public List<MilitaryFireSupport> fireSupportDefs = new List<MilitaryFireSupport>();
         public MilUnitFC blankUnit;
         public List<Mercenary> deadPawns = new List<Mercenary>();
-        public int tickChanged;
 
         private HashSet<Pawn> mercenaryPawnSet = new HashSet<Pawn>();
 
@@ -87,17 +86,15 @@ namespace FactionColonies
             try { ValidateTemplateUnits(); }
             catch (Exception ex) { LogUtil.Error($"Error in ValidateTemplateUnits: {ex}"); }
 
-            try
-            {
-                ValidateDeployedSquadOutfits();
-                PropagateTemplateChanges();
-            }
+            try { ValidateDeployedSquadOutfits(); }
             catch (Exception ex) { LogUtil.Error($"Error in squad reconciliation: {ex}"); }
         }
 
         /// <summary>
         /// Validates that all unit references in squad templates are still valid.
-        /// Replaces invalid refs with blankUnit and re-outfits affected deployed squads.
+        /// Replaces invalid refs with blankUnit. Deployed squads are NOT re-outfitted —
+        /// gear changes happen only when the player explicitly hires, fills, or upgrades
+        /// (strict-manual outfit policy).
         /// </summary>
         public void ValidateTemplateUnits()
         {
@@ -105,60 +102,29 @@ namespace FactionColonies
             {
                 if (squad?.Units is null) continue;
 
-                bool changed = false;
                 for (int count = 0; count < MilSquadFC.MaxSquadSize && count < squad.Units.Count; count++)
                 {
                     if (squad.Units[count] != null &&
                         (units.Contains(squad.Units[count]) || squad.Units[count] == blankUnit)) continue;
                     squad.SetUnit(count, blankUnit);
-                    changed = true;
-                }
-
-                if (!changed) continue;
-                foreach (var squadMerc in mercenarySquads.Where(squadMerc =>
-                    squadMerc.outfit != null && squadMerc.outfit == squad))
-                {
-                    squadMerc.OutfitSquad(squad);
                 }
             }
         }
 
         /// <summary>
-        /// Strips deployed squads whose outfit template was deleted. Unlike pre-refactor, squads
-        /// no longer get unassigned when their cost exceeds a per-settlement budget — squad-first
-        /// economy uses the up-front hire cost instead, and players are free to keep an
-        /// expensive squad attached to a low-level settlement if they paid for it.
+        /// Nulls the outfit reference for any deployed squad whose template has been deleted.
+        /// Mercenaries and their gear are left untouched — the squad keeps whatever loadout
+        /// it had at the moment the player last edited it. Per-merc <see cref="Mercenary.loadout"/>
+        /// pool references stay valid; deletion of pool units snapshots into <c>ownedLoadout</c>
+        /// via <see cref="DeleteUnit"/>.
         /// </summary>
         public void ValidateDeployedSquadOutfits()
         {
             foreach (MercenarySquadFC squad in mercenarySquads)
             {
-                if (squad?.outfit is null || !squads.Contains(squad.outfit))
-                {
-                    squad?.StripSquad();
-                    if (squad is object) squad.outfit = null;
-                }
+                if (squad?.outfit is null) continue;
+                if (!squads.Contains(squad.outfit)) squad.outfit = null;
             }
-        }
-
-        /// <summary>
-        /// Re-outfits all deployed squads if any template has changed since the last check.
-        /// </summary>
-        public void PropagateTemplateChanges()
-        {
-            if (tickChanged >= GETLatestChange) return;
-            foreach (var merc in mercenarySquads.Where(merc => merc.outfit != null))
-            {
-                merc.OutfitSquad(merc.outfit);
-            }
-
-            ChangeTick();
-            RebuildMercenaryPawnSet();
-        }
-
-        public int GETLatestChange
-        {
-            get { return squads.Select(squadFC => squadFC.getLatestChanged).Prepend(0).Max(); }
         }
 
         public static double CalculateSquadBudget(int militaryLevel)
@@ -331,6 +297,60 @@ namespace FactionColonies
         public void ResetSquads()
         {
             squads = new List<MilSquadFC>();
+        }
+
+        /// <summary>Removes <paramref name="unit"/> from the units pool. For every merc that
+        /// referenced it via <see cref="Mercenary.loadout"/>, snapshots the merc's
+        /// <see cref="Mercenary.currentLoadout"/> (the equipped truth) into
+        /// <see cref="Mercenary.ownedLoadout"/> as the divergence marker, then nulls the
+        /// pool reference. Also replaces template references to the unit with
+        /// <see cref="blankUnit"/>.</summary>
+        public void DeleteUnit(MilUnitFC unit)
+        {
+            if (unit is null || unit == blankUnit) return;
+
+            foreach (MercenarySquadFC squad in mercenarySquads)
+            {
+                if (squad?.mercenaries is null) continue;
+                foreach (Mercenary m in squad.mercenaries)
+                {
+                    if (m is null || m.loadout != unit) continue;
+                    if (m.ownedLoadout is null)
+                    {
+                        // Prefer the equipped-truth snapshot. Fall back to cloning the
+                        // about-to-be-deleted pool unit if currentLoadout was never set
+                        // (empty slot or unmigrated save).
+                        m.ownedLoadout = (m.currentLoadout ?? unit).Clone();
+                    }
+                    m.loadout = null;
+                }
+            }
+
+            foreach (MilSquadFC sq in squads)
+            {
+                if (sq?.Units is null) continue;
+                for (int i = 0; i < sq.Units.Count; i++)
+                {
+                    if (sq.Units[i] == unit) sq.SetUnit(i, blankUnit);
+                }
+            }
+
+            units.Remove(unit);
+        }
+
+        /// <summary>Removes <paramref name="template"/> from the templates pool. Clears
+        /// <see cref="MercenarySquadFC.outfit"/> on every mercenary squad that referenced it —
+        /// mercs and gear are left untouched (each merc still references its pool unit through
+        /// <see cref="Mercenary.loadout"/>). No snapshot is needed; templates don't directly
+        /// own gear.</summary>
+        public void DeleteTemplate(MilSquadFC template)
+        {
+            if (template is null) return;
+            foreach (MercenarySquadFC squad in mercenarySquads)
+            {
+                if (squad?.outfit == template) squad.outfit = null;
+            }
+            squads.Remove(template);
         }
 
         public void UpdateUnits()
@@ -507,11 +527,6 @@ namespace FactionColonies
             return settlement.MilitaryComp?.militarySquad != null;
         }
 
-        public void ChangeTick()
-        {
-            tickChanged = Find.TickManager.TicksGame;
-        }
-
         public void ExposeData()
         {
             Scribe_Collections.Look(ref units, "units", LookMode.Deep);
@@ -522,7 +537,6 @@ namespace FactionColonies
             Scribe_Collections.Look(ref deadPawns, "deadPawns", LookMode.Deep);
 
             Scribe_Deep.Look(ref blankUnit, "blankUnit");
-            Scribe_Values.Look(ref tickChanged, "tickChanged");
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {

@@ -240,11 +240,63 @@
 	<FCSquadMenuReassign>Reassign...</FCSquadMenuReassign>
 	<FCSquadMenuUpgrade>Upgrade (${0} silver)</FCSquadMenuUpgrade>
 	<FCSquadMenuDismiss>Dismiss (${0} refund)</FCSquadMenuDismiss>
+	<FCSquadMenuInspect>Inspect...</FCSquadMenuInspect>
 
 	<FCOn>On</FCOn>
 	<FCOff>Off</FCOff>
 
 	<FCTraitDesc_squadCapPerSettlement>Increases the number of squads each settlement can host. Base cap is 1.</FCTraitDesc_squadCapPerSettlement>
 	<FCTraitDesc_maxSquadSize>Modifies the maximum number of mercenaries a squad assigned here may have. Base size is 30.</FCTraitDesc_maxSquadSize>
+
+	<!-- Squad Fill Empty Slots -->
+	<FCSquadFillSlotsInsufficient>Not enough silver (${0} required) to fill empty slots.</FCSquadFillSlotsInsufficient>
+
+	<!-- Military tab: 1+N row layout -->
+	<FCMilitaryTableNoMilitary>No military</FCMilitaryTableNoMilitary>
+	<FCMilitaryTableSquadsCounter>Squads: {0} / {1}</FCMilitaryTableSquadsCounter>
+	<FCMilitaryTableSlotPrefix>Slot {0}:</FCMilitaryTableSlotPrefix>
+	<FCMilitaryTableSlotEmpty>(empty)</FCMilitaryTableSlotEmpty>
+	<FCMilitaryTableChangeSquad>Change</FCMilitaryTableChangeSquad>
+	<FCMilitaryTableInspect>Inspect</FCMilitaryTableInspect>
+	<FCMilBtnInspectTip>Inspect this squad's mercenaries</FCMilBtnInspectTip>
+
+	<!-- Squad Inspection window -->
+	<FCSquadInspectionTitle>Squad: {0}</FCSquadInspectionTitle>
+	<FCSquadInspectionNoSquad>(no squad selected)</FCSquadInspectionNoSquad>
+	<FCSquadInspectionRename>Rename</FCSquadInspectionRename>
+	<FCSquadInspectionTemplate>Template: {0}</FCSquadInspectionTemplate>
+	<FCSquadInspectionSettlement>Settlement: {0}</FCSquadInspectionSettlement>
+	<FCSquadInspectionClearTemplate>Clear template</FCSquadInspectionClearTemplate>
+	<FCSquadInspectionFillEmptySlots>Fill {0} empty slot(s) (${1})</FCSquadInspectionFillEmptySlots>
+	<FCSquadInspectionFillEmptyNone>No empty slots</FCSquadInspectionFillEmptyNone>
+	<FCSquadInspectionUpgradeAll>Upgrade all (${0})</FCSquadInspectionUpgradeAll>
+	<FCSquadInspectionUpgradeAllUpToDate>Upgrade all (up to date)</FCSquadInspectionUpgradeAllUpToDate>
+	<FCSquadInspectionUpgradeAllNoTemplate>Upgrade all (no template)</FCSquadInspectionUpgradeAllNoTemplate>
+	<FCSquadInspectionUpgradeAllTooltip>Upgrade existing mercs: +${0}\nHire fresh: +${1}\nFire mismatched mercs: -${2}\nNet: ${3}</FCSquadInspectionUpgradeAllTooltip>
+	<FCSquadInspectionColSlot>Slot</FCSquadInspectionColSlot>
+	<FCSquadInspectionColPawn>Pawn</FCSquadInspectionColPawn>
+	<FCSquadInspectionColLoadout>Loadout</FCSquadInspectionColLoadout>
+	<FCSquadInspectionColStatus>Status</FCSquadInspectionColStatus>
+	<FCSquadInspectionColActions>Actions</FCSquadInspectionColActions>
+	<FCSquadInspectionEmptyPawn>(empty)</FCSquadInspectionEmptyPawn>
+	<FCSquadInspectionDivergedTip>This pawn has a personal loadout that differs from the pool unit. Reset in the editor to restore inheritance.</FCSquadInspectionDivergedTip>
+	<FCSquadInspectionStatusOk>OK</FCSquadInspectionStatusOk>
+	<FCSquadInspectionStatusInjured>Injured ({0})</FCSquadInspectionStatusInjured>
+	<FCSquadInspectionStatusEmpty>EMPTY</FCSquadInspectionStatusEmpty>
+	<FCSquadInspectionStatusDead>Dead</FCSquadInspectionStatusDead>
+	<FCSquadInspectionEdit>Edit</FCSquadInspectionEdit>
+	<FCSquadInspectionPerSlotUpgrade>Upgrade ${0}</FCSquadInspectionPerSlotUpgrade>
+	<FCSquadInspectionPerSlotFill>Fill (${0})</FCSquadInspectionPerSlotFill>
+	<FCSquadInspectionPersonalLoadoutDefaultName>Custom loadout</FCSquadInspectionPersonalLoadoutDefaultName>
+
+	<!-- Per-pawn loadout dialog -->
+	<FCDialogPawnLoadoutTitle>Edit pawn: {0}</FCDialogPawnLoadoutTitle>
+	<FCDialogPawnLoadoutTitleEmpty>Edit empty slot</FCDialogPawnLoadoutTitleEmpty>
+	<FCDialogPawnLoadoutInheritedSubtitle>Inherits from pool unit: {0}</FCDialogPawnLoadoutInheritedSubtitle>
+	<FCDialogPawnLoadoutDivergedSubtitle>Personal loadout (template association broken)</FCDialogPawnLoadoutDivergedSubtitle>
+	<FCDialogPawnLoadoutPickFromPool>Pick from pool unit...</FCDialogPawnLoadoutPickFromPool>
+	<FCDialogPawnLoadoutResetToPool>Reset to pool unit</FCDialogPawnLoadoutResetToPool>
+
+	<FCNoUnitAvailable>No units available</FCNoUnitAvailable>
 
 </LanguageData>

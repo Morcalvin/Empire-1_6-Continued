@@ -44,6 +44,7 @@ namespace FactionColonies
             RaidTargetRegistry.ClearAll();
             DefenseValidatorRegistry.ClearAll();
             SquadAssignmentRegistry.ClearAll();
+            SquadInspectionRegistry.ClearAll();
             ThreatScalingRegistry.ClearAll();
             SilverPaymentRegistry.ClearAll();
             RaidWeightRegistry.ClearAll();

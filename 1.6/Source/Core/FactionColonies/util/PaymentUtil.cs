@@ -22,6 +22,7 @@ namespace FactionColonies
         public const string Reason_SquadHire = "squad_hire";
         public const string Reason_SquadUpgrade = "squad_upgrade";
         public const string Reason_SquadDismissalRefund = "squad_dismissal_refund";
+        public const string Reason_SquadFillSlot = "squad_fill_slot";
 
         public static (List<BillFC>, List<BillFC>) returnBillTypes(List<BillFC> bills)
         {

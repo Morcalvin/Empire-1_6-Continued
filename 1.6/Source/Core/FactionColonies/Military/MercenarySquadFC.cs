@@ -128,53 +128,268 @@ namespace FactionColonies
         /// post-op cooldown. Canonical "can launch a new op" gate.</summary>
         public bool IsAvailable => IsAssigned && !IsBusy && nextAvailableTick <= Find.TickManager.TicksGame;
 
-        /// <summary>Sum of equipment market values across all currently-equipped mercenaries.
-        /// Used by <see cref="UpgradeCost"/> to compute the diff against the source template.</summary>
+        /// <summary>Sum of equipment market values across all currently-equipped mercenaries,
+        /// read from each merc's <see cref="Mercenary.currentLoadout"/> (the source of truth
+        /// for what's actually equipped). Pool-unit mutations after a hire/fill/upgrade are
+        /// not reflected here — only what was applied to the pawn.</summary>
         public double GetCurrentLoadoutCost()
         {
             double total = 0;
             if (mercenaries is null) return total;
             foreach (Mercenary merc in mercenaries)
             {
-                if (merc?.loadout is null) continue;
-                total += merc.loadout.getTotalCost;
+                MilUnitFC current = merc?.currentLoadout;
+                if (current is null) continue;
+                total += current.getTotalCost;
             }
             return total;
         }
 
-        /// <summary>Silver cost to bring this squad's loadout up to its source template's current
-        /// equipment cost. Zero when already current or when the template is missing.</summary>
+        /* Race + xenotype identity tuple comparison. With Biotech off, race alone is
+         * enough; with Biotech on, xenotype (or custom xenotype name) must match too.
+         * Returns true if the merc's pawn can stand in for a slot of the given unit. */
+        private static bool IsRaceXenoMatch(Mercenary merc, MilUnitFC slot)
+        {
+            if (merc?.pawn?.kindDef?.race == null || slot?.pawnKind?.race == null) return false;
+            if (merc.pawn.kindDef.race != slot.pawnKind.race) return false;
+
+            if (!ModsConfig.BiotechActive) return true;
+
+            if (slot.customXenotypeName != null)
+            {
+                string mercCustom = merc.pawn.genes?.CustomXenotype?.name;
+                return mercCustom == slot.customXenotypeName;
+            }
+            XenotypeDef mercXeno = merc.pawn.genes?.Xenotype;
+            return mercXeno == slot.xenotype;
+        }
+
+        /* Per-slot decision in a re-template plan. Each non-null template slot resolves
+         * to either a claim (existing merc reused) or a fresh-hire (new pawn needed).
+         * Slot index is the position in outfit.Units. */
+        private struct SlotDecision
+        {
+            public int slotIndex;
+            public MilUnitFC slotUnit;
+            public Mercenary claim;        // null when this is a fresh-hire
+        }
+
+        /* Cost decomposition + per-slot decisions for a re-template against the current
+         * outfit. Used by both the cost preview and the commit path. */
+        private struct UpgradePlan
+        {
+            public List<SlotDecision> Slots;   // claims and fresh-hires, in slot order
+            public List<Mercenary> Fires;      // mercs to be fired (unclaimed by any slot)
+            public int UpgradeSilver;          // sum of positive diffs on claims (× upgradeMult)
+            public int FreshHireSilver;        // sum of fresh-hire costs (× hireMult)
+            public int FireRefund;             // sum of refunds for fires (× dismissalRefund)
+        }
+
+        private UpgradePlan BuildUpgradePlan()
+        {
+            UpgradePlan plan = new UpgradePlan
+            {
+                Slots = new List<SlotDecision>(),
+                Fires = new List<Mercenary>(),
+            };
+            if (outfit is null || outfit.Units is null || mercenaries is null) return plan;
+
+            List<Mercenary> claimable = new List<Mercenary>();
+            foreach (Mercenary m in mercenaries)
+            {
+                if (m?.pawn?.kindDef != null) claimable.Add(m);
+            }
+
+            IReadOnlyList<MilUnitFC> templateUnits = outfit.Units;
+            int slotCount = Math.Min(templateUnits.Count, MilSquadFC.MaxSquadSize);
+
+            double upgradeSum = 0;
+            double freshHireSum = 0;
+            for (int i = 0; i < slotCount; i++)
+            {
+                MilUnitFC slotUnit = templateUnits[i];
+                if (slotUnit is null) continue;
+
+                int idx = claimable.FindIndex(m => IsRaceXenoMatch(m, slotUnit));
+                if (idx >= 0)
+                {
+                    Mercenary picked = claimable[idx];
+                    claimable.RemoveAt(idx);
+                    plan.Slots.Add(new SlotDecision { slotIndex = i, slotUnit = slotUnit, claim = picked });
+
+                    double oldCost = picked.currentLoadout?.getTotalCost ?? 0;
+                    double newCost = slotUnit.getTotalCost;
+                    if (newCost > oldCost) upgradeSum += (newCost - oldCost);
+                }
+                else
+                {
+                    plan.Slots.Add(new SlotDecision { slotIndex = i, slotUnit = slotUnit, claim = null });
+                    freshHireSum += slotUnit.getTotalCost;
+                }
+            }
+
+            // Mercs not claimed are fired (refunded).
+            plan.Fires.AddRange(claimable);
+            double fireRefundSum = 0;
+            foreach (Mercenary m in plan.Fires)
+            {
+                MilUnitFC current = m?.currentLoadout;
+                if (current != null) fireRefundSum += current.getTotalCost;
+            }
+
+            plan.UpgradeSilver = (int)Math.Round(upgradeSum * FCSettings.squadUpgradeCostMultiplier);
+            plan.FreshHireSilver = (int)Math.Round(freshHireSum * FCSettings.squadHireCostMultiplier);
+            plan.FireRefund = (int)Math.Round(fireRefundSum * FCSettings.squadDismissalRefundFraction);
+            return plan;
+        }
+
+        /// <summary>Net silver cost of running <see cref="UpgradeToTemplate"/> right now.
+        /// Computed as upgrade-diff (claimed mercs) + hire-cost (fresh slots) − refund (fired
+        /// mercs). May be negative if downsizing dominates. Zero when no template, no
+        /// changes, or the squad is missing/busy.</summary>
         public int UpgradeCost
         {
             get
             {
-                if (outfit is null) return 0;
-                int target = (int)Math.Round(outfit.GetEquipmentTotalCost() * FCSettings.squadUpgradeCostMultiplier);
-                int current = (int)Math.Round(GetCurrentLoadoutCost() * FCSettings.squadUpgradeCostMultiplier);
-                return Math.Max(0, target - current);
+                if (outfit is null || outfit.Units is null || mercenaries is null) return 0;
+                UpgradePlan plan = BuildUpgradePlan();
+                return plan.UpgradeSilver + plan.FreshHireSilver - plan.FireRefund;
             }
         }
 
-        /// <summary>Pays <see cref="UpgradeCost"/> silver and re-runs <see cref="OutfitSquad"/>
-        /// against the current template, bringing the squad's gear up to date. No-op when
-        /// the template is missing, the squad is busy, or there's no upgrade needed.</summary>
+        /// <summary>Component breakdown of <see cref="UpgradeCost"/>: gross upgrade silver,
+        /// fresh-hire silver, and refund silver from fires. Useful for inspection-window
+        /// tooltips that explain where the displayed total came from.</summary>
+        public (int upgrade, int hire, int refund) UpgradeCostBreakdown
+        {
+            get
+            {
+                if (outfit is null || outfit.Units is null || mercenaries is null)
+                    return (0, 0, 0);
+                UpgradePlan plan = BuildUpgradePlan();
+                return (plan.UpgradeSilver, plan.FreshHireSilver, plan.FireRefund);
+            }
+        }
+
+        /// <summary>Sets the squad's template reference to <paramref name="newTemplate"/> without
+        /// touching mercenaries or gear — pure metadata change. The player can then run
+        /// <see cref="UpgradeToTemplate"/> to conform mercs to the new template (kindDef-aware).
+        /// Pass null to clear the template association.</summary>
+        public void SwapTemplate(MilSquadFC newTemplate)
+        {
+            outfit = newTemplate;
+        }
+
+        /// <summary>Race + xenotype-aware re-template. For each template slot:
+        /// reuse an existing merc whose pawn race (and Biotech xenotype) matches; otherwise
+        /// fresh-hire a new pawn. Mercs unclaimed by any slot are fired with a per-merc
+        /// dismissal refund. Net cost = upgrade-diff + fresh-hire − refund (may be negative).
+        /// Affordability is gated on net cost, not gross.</summary>
         public bool UpgradeToTemplate()
         {
-            if (outfit is null) return false;
+            if (outfit is null || outfit.Units is null || mercenaries is null) return false;
             if (IsBusy)
             {
                 Messages.Message("FCSquadCannotUpgradeBusy".Translate(), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
-            int cost = UpgradeCost;
-            if (cost <= 0) return false;
-            if (PaymentUtil.GetSilver() < cost)
+
+            UpgradePlan plan = BuildUpgradePlan();
+            int net = plan.UpgradeSilver + plan.FreshHireSilver - plan.FireRefund;
+
+            if (net > 0 && PaymentUtil.GetSilver() < net)
             {
-                Messages.Message("FCSquadUpgradeInsufficientSilver".Translate(cost), MessageTypeDefOf.RejectInput, false);
+                Messages.Message("FCSquadUpgradeInsufficientSilver".Translate(net), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
-            PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadUpgrade, settlement);
-            OutfitSquad(outfit);
+
+            if (net > 0)
+            {
+                PaymentUtil.PaySilver(net, PaymentUtil.Reason_SquadUpgrade, settlement);
+            }
+            else if (net < 0)
+            {
+                // Net refund — spawn the surplus silver onto the active tax map.
+                Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
+                silver.stackCount = -net;
+                PaymentUtil.PlaceThing(silver);
+            }
+
+            FactionFC faction = FactionCache.FactionComp;
+            MilUnitFC blankUnit = faction?.militaryCustomizationUtil?.blankUnit;
+            UsedWeaponList = new List<ThingWithComps>();
+            UsedApparelList = new List<Apparel>();
+
+            // Fire pass: strip + destroy each fired merc's pawn. Merc instances are dropped
+            // from the rebuilt mercenaries list below.
+            foreach (Mercenary m in plan.Fires)
+            {
+                StripPawn(m);
+                if (m?.pawn != null && !m.pawn.Destroyed) m.pawn.Destroy();
+                m.pawn = null;
+                if (m?.animal?.pawn != null && !m.animal.pawn.Destroyed) m.animal.pawn.Destroy();
+                if (m != null) m.animal = null;
+            }
+
+            // Slot pass: re-equip claims, fresh-hire fresh slots. The slot order in
+            // plan.Slots matches outfit.Units traversal order, so the rebuilt list stays
+            // in slot order.
+            List<Mercenary> rebuilt = new List<Mercenary>();
+            foreach (SlotDecision dec in plan.Slots)
+            {
+                MilUnitFC slotUnit = dec.slotUnit;
+                Mercenary merc;
+
+                if (dec.claim != null)
+                {
+                    merc = dec.claim;
+                    StripPawn(merc);
+                    EquipPawn(merc, slotUnit);
+                }
+                else
+                {
+                    merc = new Mercenary(true);
+                    CreateNewPawn(ref merc, slotUnit.pawnKind, slotUnit.xenotype, slotUnit.customXenotypeName);
+                    if (merc.pawn == null)
+                    {
+                        LogUtil.Warning($"UpgradeToTemplate: failed to generate fresh pawn for slot {dec.slotIndex}");
+                        continue;
+                    }
+                    EquipPawn(merc, slotUnit);
+                    merc.squad = this;
+                    merc.settlement = settlement;
+                }
+
+                merc.loadout = slotUnit;
+                merc.ownedLoadout = null;
+                merc.currentLoadout = slotUnit.Clone();
+
+                if (slotUnit.animal != null)
+                {
+                    Mercenary animal = new Mercenary(true);
+                    CreateNewAnimal(ref animal, slotUnit.animal);
+                    animal.handler = merc;
+                    merc.animal = animal;
+                    if (animals == null) animals = new List<Mercenary>();
+                    animals.Add(animal);
+                }
+                else
+                {
+                    merc.animal = null;
+                }
+
+                merc.deployable = blankUnit != null && merc.loadout != blankUnit;
+
+                if (merc.pawn?.equipment?.AllEquipmentListForReading != null)
+                    UsedWeaponList.AddRange(merc.pawn.equipment.AllEquipmentListForReading);
+                if (merc.pawn?.apparel?.WornApparel != null)
+                    UsedApparelList.AddRange(merc.pawn.apparel.WornApparel);
+
+                rebuilt.Add(merc);
+            }
+            mercenaries = rebuilt;
+
+            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(this);
             return true;
         }
@@ -211,6 +426,11 @@ namespace FactionColonies
 
         public void InitiateSquad()
         {
+            /* Strict-manual outfit policy: bail out if we already have pawns. Late callers
+             * (CheckInitialization on a fully-populated squad after load) must not regenerate
+             * fresh pawns and overwrite the player's gear. InitiateSquad runs once at hire. */
+            if (mercenaries != null && mercenaries.Any(m => m?.pawn != null)) return;
+
             mercenaries = new List<Mercenary>();
             UsedApparelList = new List<Apparel>();
             UsedWeaponList = new List<ThingWithComps>();
@@ -266,17 +486,14 @@ namespace FactionColonies
             }
         }
         /// <summary>
-        /// Checks if the squad is initialized, and initializes it if it isn't.
+        /// Ensures the squad's mercenary list isn't empty after load. Does NOT re-outfit —
+        /// gear changes only happen on explicit player action (hire / fill / upgrade / edit).
         /// </summary>
         public void CheckInitialization()
         {
             if (mercenaries == null || !mercenaries.Any(m => m?.pawn != null))
             {
                 InitiateSquad();
-            }
-            else if (outfit != null && !EquippedMercenaries.Any())
-            {
-                OutfitSquad(outfit);
             }
         }
 
@@ -554,6 +771,84 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>Total silver to refill all empty slots, summed over each empty slot's
+        /// blueprint cost × <see cref="FCSettings.squadHireCostMultiplier"/>. The blueprint
+        /// is the merc's <see cref="Mercenary.currentLoadout"/> (last equipped state) when
+        /// available, falling back to the pool reference. Slots with neither contribute
+        /// zero.</summary>
+        public int FillEmptySlotsCost
+        {
+            get
+            {
+                int total = 0;
+                if (mercenaries is null) return total;
+                foreach (Mercenary m in mercenaries)
+                {
+                    if (m is null || !m.IsEmptySlot) continue;
+                    MilUnitFC blueprint = m.currentLoadout ?? m.loadout;
+                    if (blueprint is null) continue;
+                    total += (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier);
+                }
+                return total;
+            }
+        }
+
+        /// <summary>Number of currently empty slots (pawn == null) in this squad.</summary>
+        public int EmptySlotCount
+        {
+            get
+            {
+                int n = 0;
+                if (mercenaries is null) return 0;
+                foreach (Mercenary m in mercenaries)
+                {
+                    if (m != null && m.IsEmptySlot) n++;
+                }
+                return n;
+            }
+        }
+
+        /// <summary>Pays <see cref="FillEmptySlotsCost"/> silver and generates fresh pawns into
+        /// every empty slot, equipping each from its resolved loadout. Slots with no loadout are
+        /// skipped. Returns false (no payment) if the player can't afford the total.</summary>
+        public bool FillEmptySlots()
+        {
+            int total = FillEmptySlotsCost;
+            if (total > 0 && PaymentUtil.GetSilver() < total)
+            {
+                Messages.Message("FCSquadFillSlotsInsufficient".Translate(total),
+                    MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            if (total > 0) PaymentUtil.PaySilver(total, PaymentUtil.Reason_SquadFillSlot, settlement);
+
+            if (mercenaries != null)
+            {
+                if (UsedWeaponList == null) UsedWeaponList = new List<ThingWithComps>();
+                if (UsedApparelList == null) UsedApparelList = new List<Apparel>();
+                foreach (Mercenary m in mercenaries)
+                {
+                    if (m is null || !m.IsEmptySlot) continue;
+                    MilUnitFC blueprint = m.currentLoadout ?? m.loadout;
+                    if (blueprint is null) continue;
+                    Mercenary slot = m;
+                    CreateNewPawn(ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+                    if (slot.pawn != null) EquipPawn(slot, blueprint);
+                    // Sync currentLoadout with what we just equipped — re-snap from the blueprint.
+                    slot.currentLoadout = blueprint.Clone();
+                    if (slot.pawn?.equipment?.AllEquipmentListForReading != null)
+                        UsedWeaponList.AddRange(slot.pawn.equipment.AllEquipmentListForReading);
+                    if (slot.pawn?.apparel?.WornApparel != null)
+                        UsedApparelList.AddRange(slot.pawn.apparel.WornApparel);
+                }
+            }
+
+            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            LifecycleRegistry.InvokeOnSquadUpgraded(this);
+            return true;
+        }
+
+        [System.Obsolete("Auto-replacement removed by the strict-manual outfit refactor; player must use FillEmptySlots.")]
         public void PassPawnToDeadMercenaries(Mercenary merc)
         {
             //If ever add past dead pawns, use this code
@@ -705,6 +1000,10 @@ namespace FactionColonies
                         }
 
                         mercenaries[count].loadout = loadout;
+                        // Sync currentLoadout with what we just equipped — clear any prior
+                        // divergence since this is a fresh outfit pass.
+                        mercenaries[count].ownedLoadout = null;
+                        mercenaries[count].currentLoadout = loadout.Clone();
                         mercenaries[count].deployable = faction?.militaryCustomizationUtil != null
                             && mercenaries[count].loadout != faction.militaryCustomizationUtil.blankUnit;
                     }

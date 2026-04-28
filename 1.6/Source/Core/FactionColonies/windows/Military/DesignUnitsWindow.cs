@@ -195,7 +195,9 @@ namespace FactionColonies
                         "FCConfirmDeleteUnit".Translate((NamedArgument)unitToDelete.name),
                         delegate
                         {
-                            unitToDelete.RemoveUnit();
+                            // Routes through DeleteUnit so any merc referencing the unit
+                            // snapshots into ownedLoadout (gear preserved).
+                            util.DeleteUnit(unitToDelete);
                             util.CheckMilitaryUtilForErrors();
                             if (selectedUnit == unitToDelete)
                             {
