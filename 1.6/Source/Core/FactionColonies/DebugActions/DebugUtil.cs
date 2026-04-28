@@ -157,8 +157,8 @@ namespace FactionColonies
 
             for (int k = util.mercenarySquads.Count() - 1; k >= 0; k--)
             {
-                if (util.mercenarySquads[k].settlement.MilitaryComp != null)
-                    util.mercenarySquads[k].settlement.MilitaryComp.militarySquad = null;
+                MercenarySquadFC squad = util.mercenarySquads[k];
+                if (squad?.settlement != null) squad.settlement = null;
                 util.mercenarySquads.RemoveAt(k);
             }
 
@@ -423,8 +423,7 @@ namespace FactionColonies
                         merc.pawn.Destroy();
                 }
 
-                if (squad.settlement?.MilitaryComp != null)
-                    squad.settlement.MilitaryComp.militarySquad = null;
+                squad.settlement = null;
 
                 util.mercenarySquads.RemoveAt(i);
             }
@@ -495,7 +494,8 @@ namespace FactionColonies
             List<DebugMenuOption> list = new List<DebugMenuOption>();
             foreach (WorldSettlementFC settlement in FactionCache.FactionComp.settlements)
             {
-                if (settlement.MilitaryComp?.militarySquad != null)
+                MercenarySquadFC squad = settlement.PrimaryStationedSquad;
+                if (squad != null)
                 {
                     list.Add(new DebugMenuOption(settlement.Name, DebugMenuOptionMode.Action, delegate
                     {
@@ -509,22 +509,22 @@ namespace FactionColonies
                         parms.raidArrivalMode = PawnsArrivalModeDefOf.CenterDrop;
                         parms.raidStrategy = RaidStrategyDefOf.ImmediateAttackFriendly;
 
-                        settlement.MilitaryComp.militarySquad.CheckInitialization();
-                        settlement.MilitaryComp.militarySquad.UpdateSquadStats(settlement.settlementMilitaryLevel);
+                        squad.CheckInitialization();
+                        squad.UpdateSquadStats(settlement.settlementMilitaryLevel);
 
                         DebugTools.curTool = new DebugTool("Select Drop Position", delegate
                         {
                             IntVec3 dropPosition = UI.MouseCell();
                             parms.spawnCenter = dropPosition;
 
-                            settlement.MilitaryComp.militarySquad.orderLocation = dropPosition;
+                            squad.orderLocation = dropPosition;
 
-                            var debugEquippedPawns = settlement.MilitaryComp.militarySquad.AllEquippedMercenaryPawns.ToList();
+                            var debugEquippedPawns = squad.AllEquippedMercenaryPawns.ToList();
                             PawnsArrivalModeWorkerUtility.DropInDropPodsNearSpawnCenter(parms, debugEquippedPawns);
                             debugEquippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
                             // Register the deploy op so squad.IsPhysicallyDeployed reflects the state.
                             // Squad-first: pass the squad, not the settlement.
-                            FactionCache.MilitaryManager?.CreateDeployOp(settlement.MilitaryComp.militarySquad, Find.CurrentMap.Tile);
+                            FactionCache.MilitaryManager?.CreateDeployOp(squad, Find.CurrentMap.Tile);
                             DebugTools.curTool = null;
                         });
                     }));
@@ -945,9 +945,21 @@ namespace FactionColonies
                     LogUtil.MessageForce($"[{s.Name}] MilitaryComp: null");
                     continue;
                 }
-                string squadInfo = comp.militarySquad != null
-                    ? $"Deployed:{comp.militarySquad.IsPhysicallyDeployed()} Job:{comp.militaryJob}"
-                    : "No squad";
+                List<MercenarySquadFC> stationed = s.StationedSquads;
+                string squadInfo;
+                if (stationed.Count == 0)
+                {
+                    squadInfo = "No squad";
+                }
+                else
+                {
+                    int deployedCount = 0;
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        if (stationed[i] != null && stationed[i].IsPhysicallyDeployed()) deployedCount++;
+                    }
+                    squadInfo = $"Squads:{stationed.Count} Deployed:{deployedCount} Job:{comp.militaryJob}";
+                }
                 LogUtil.MessageForce($"[{s.Name}] MilLv:{s.settlementMilitaryLevel} Busy:{comp.militaryBusy} | {squadInfo}");
             }
         }

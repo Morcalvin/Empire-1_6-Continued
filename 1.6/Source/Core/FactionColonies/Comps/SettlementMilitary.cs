@@ -841,8 +841,19 @@ namespace FactionColonies
         {
             if (!militaryBusy) return; // No active op — nothing to do
 
-            if (militarySquad != null)
-                FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(militarySquad);
+            // Register injuries across every stationed squad so injured pawns get healed.
+            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            if (util != null)
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed != null)
+                {
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        if (stationed[i] != null) util.RegisterSquadInjuries(stationed[i]);
+                    }
+                }
+            }
 
             if (alert)
             {
@@ -863,27 +874,27 @@ namespace FactionColonies
 
         public bool IsMilitarySquadValid()
         {
-            if (militarySquad != null)
+            List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+            if (stationed is null || stationed.Count == 0)
             {
-                militarySquad.CheckInitialization();
-                if (militarySquad.outfit != null)
-                {
-                    if (militarySquad.EquippedMercenaries.Any())
-                    {
-                        return true;
-                    }
-
-                    Messages.Message("FCNoSquadEquipped".Translate(),
-                        MessageTypeDefOf.RejectInput);
-                    return false;
-                }
-
-                Messages.Message("FCNoSquadLoadoutAssigned".Translate(),
-                    MessageTypeDefOf.RejectInput);
+                Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
                 return false;
             }
 
-            Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
+            // Valid if any stationed squad has an outfit and equipped mercs ready to deploy.
+            bool anyHasOutfit = false;
+            for (int i = 0; i < stationed.Count; i++)
+            {
+                MercenarySquadFC s = stationed[i];
+                if (s is null) continue;
+                s.CheckInitialization();
+                if (s.outfit is null) continue;
+                anyHasOutfit = true;
+                if (s.EquippedMercenaries.Any()) return true;
+            }
+
+            Messages.Message((anyHasOutfit ? "FCNoSquadEquipped" : "FCNoSquadLoadoutAssigned").Translate(),
+                MessageTypeDefOf.RejectInput);
             return false;
         }
 

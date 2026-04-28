@@ -242,6 +242,43 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>The first stationed squad, or null. Use for read-only queries that just
+        /// need any squad reference (loadout outfit, status icon, cost basis). For deploy /
+        /// reinforcement / actions that consume a squad, prefer
+        /// <see cref="FirstAvailableStationedSquad"/>.</summary>
+        public MercenarySquadFC PrimaryStationedSquad
+        {
+            get
+            {
+                List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+                if (pool is null) return null;
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC s = pool[i];
+                    if (s is object && s.settlement == this) return s;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>The first stationed squad with <see cref="MercenarySquadFC.IsAvailable"/> true
+        /// (assigned, not in any active op, past cooldown), or null. Use for deploy / foreign-
+        /// defender reinforcement / extra-deployment paths that need a squad ready to act.</summary>
+        public MercenarySquadFC FirstAvailableStationedSquad
+        {
+            get
+            {
+                List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+                if (pool is null) return null;
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC s = pool[i];
+                    if (s is object && s.settlement == this && s.IsAvailable) return s;
+                }
+                return null;
+            }
+        }
+
         /// <summary>Number of squads this settlement can simultaneously host. Base 1, modified by
         /// the <c>squadCapPerSettlement</c> stat (buildings, policies, settlement-type extensions).
         /// Floored at 0 — settlements can have no squad capacity at all (e.g. structurally

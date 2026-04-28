@@ -82,7 +82,9 @@ namespace FactionColonies
         /// <param name="overrideSquad"></param>
         public static void CallinAlliedForces(WorldSettlementFC settlement, bool DropPod, MercenarySquadFC overrideSquad = null)
         {
-            MercenarySquadFC squad = overrideSquad ?? settlement.MilitaryComp?.militarySquad;
+            MercenarySquadFC squad = overrideSquad
+                ?? settlement?.FirstAvailableStationedSquad
+                ?? settlement?.PrimaryStationedSquad;
 
             if (Find.CurrentMap.Parent is WorldSettlementFC)
             {
@@ -135,7 +137,9 @@ namespace FactionColonies
         {
             MercenarySquadFC squad = FactionCache.FactionComp.militaryCustomizationUtil.CreateMercenarySquad(settlement, true);
             if (squad == null) return;
-            MilSquadFC mainOutfit = settlement.MilitaryComp?.militarySquad?.outfit;
+            // Copy the outfit from the settlement's primary stationed squad (any squad with an
+            // outfit will do — we just need a template to clone the gear from).
+            MilSquadFC mainOutfit = settlement?.PrimaryStationedSquad?.outfit;
             if (mainOutfit != null) squad.OutfitSquad(mainOutfit);
             CallinAlliedForces(settlement, DropPod, squad);
         }

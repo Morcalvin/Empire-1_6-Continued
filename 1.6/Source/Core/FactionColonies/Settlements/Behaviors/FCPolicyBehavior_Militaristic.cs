@@ -74,11 +74,14 @@ namespace FactionColonies
                 yield break;
             }
 
-            if (milComp.militarySquad?.outfit == null)
+            // Use any stationed squad's outfit as the cost basis for the extra squad — the
+            // copy uses CallinExtraForces which itself reads the primary stationed squad.
+            MilSquadFC referenceOutfit = settlement?.PrimaryStationedSquad?.outfit;
+            if (referenceOutfit == null)
                 yield break;
 
             var ext = Ext<FCPolicyBehaviorExt_Militaristic>();
-            int cost = (int)Math.Round(milComp.militarySquad.outfit.UpdateEquipmentTotalCost() * ext.extraSquadCostFraction);
+            int cost = (int)Math.Round(referenceOutfit.UpdateEquipmentTotalCost() * ext.extraSquadCostFraction);
             yield return new FloatMenuOption("FCDeploySecondarySquad".Translate(cost), delegate
             {
                 if (PaymentUtil.GetSilver() >= cost)

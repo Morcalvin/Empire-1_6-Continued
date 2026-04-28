@@ -332,21 +332,49 @@ namespace FactionColonies
 
             if (squadsContainingUnit == null || squadsContainingUnit.Count == 0) return false;
 
-            List<WorldSettlementFC> settlementsContainingSquad = factionFC?.settlements
-                ?.FindAll(settlement => settlement?.MilitaryComp?.militarySquad?.outfit != null &&
-                    squadsContainingUnit.Any(squad => settlement.MilitaryComp.militarySquad.outfit == squad));
+            // Walk every stationed squad at every settlement and check if any uses a template
+            // containing this unit, then check if that squad is physically deployed or defending.
+            bool anyMatchingDeployed = false;
+            bool anyMatchingDefending = false;
+            List<WorldSettlementFC> settlementsContainingSquad = new List<WorldSettlementFC>();
+            if (factionFC?.settlements != null)
+            {
+                foreach (WorldSettlementFC settlement in factionFC.settlements)
+                {
+                    if (settlement?.MilitaryComp is null) continue;
+                    List<MercenarySquadFC> stationed = settlement.StationedSquads;
+                    bool anyStationedUsesUnit = false;
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        MercenarySquadFC s = stationed[i];
+                        if (s?.outfit is null) continue;
+                        if (!squadsContainingUnit.Contains(s.outfit)) continue;
+                        anyStationedUsesUnit = true;
+                        if (s.IsPhysicallyDeployed()) anyMatchingDeployed = true;
+                    }
+                    if (anyStationedUsesUnit) settlementsContainingSquad.Add(settlement);
+                }
+            }
 
-            if (settlementsContainingSquad == null || settlementsContainingSquad.Count == 0) return false;
+            if (settlementsContainingSquad.Count == 0) return false;
 
-            if (settlementsContainingSquad.Any(s => s.MilitaryComp.militarySquad.IsPhysicallyDeployed()))
+            if (anyMatchingDeployed)
             {
                 reason = "FCReasonDeployed".Translate();
                 return true;
             }
 
-            if (settlementsContainingSquad.Any(s => s.MilitaryComp.isUnderAttack
-                && s.MilitaryComp.defenderForce?.homeSettlement is object
-                && settlementsContainingSquad.Contains(s.MilitaryComp.defenderForce.homeSettlement)))
+            foreach (WorldSettlementFC s in settlementsContainingSquad)
+            {
+                if (!s.MilitaryComp.isUnderAttack) continue;
+                WorldSettlementFC defenderHome = s.MilitaryComp.defenderForce?.homeSettlement;
+                if (defenderHome != null && settlementsContainingSquad.Contains(defenderHome))
+                {
+                    anyMatchingDefending = true;
+                    break;
+                }
+            }
+            if (anyMatchingDefending)
             {
                 reason = "FCReasonDefending".Translate();
                 return true;

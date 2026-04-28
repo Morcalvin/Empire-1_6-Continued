@@ -589,19 +589,36 @@ namespace FactionColonies
         {
             reason = "";
             FactionFC factionFC = FactionCache.FactionComp;
-            List<WorldSettlementFC> settlementsWithSquad = factionFC?.settlements
-                ?.FindAll(settlement => settlement?.MilitaryComp?.militarySquad?.outfit == squad);
+            if (factionFC?.settlements is null) return false;
 
-            if (settlementsWithSquad == null || settlementsWithSquad.Count == 0) return false;
+            // Walk every stationed squad at every settlement; record any whose outfit matches.
+            List<WorldSettlementFC> settlementsWithSquad = new List<WorldSettlementFC>();
+            bool anyDeployed = false;
+            foreach (WorldSettlementFC settlement in factionFC.settlements)
+            {
+                if (settlement?.MilitaryComp is null) continue;
+                bool anyStationedUsesTemplate = false;
+                List<MercenarySquadFC> stationed = settlement.StationedSquads;
+                for (int i = 0; i < stationed.Count; i++)
+                {
+                    MercenarySquadFC s = stationed[i];
+                    if (s?.outfit != squad) continue;
+                    anyStationedUsesTemplate = true;
+                    if (s.IsPhysicallyDeployed()) anyDeployed = true;
+                }
+                if (anyStationedUsesTemplate) settlementsWithSquad.Add(settlement);
+            }
 
-            if (settlementsWithSquad.Any(s => s.MilitaryComp.militarySquad.IsPhysicallyDeployed()))
+            if (settlementsWithSquad.Count == 0) return false;
+
+            if (anyDeployed)
             {
                 reason = "FCReasonDeployedSquad".Translate();
                 return true;
             }
 
             if (settlementsWithSquad.Any(s => s.MilitaryComp.isUnderAttack
-                && settlementsWithSquad.Contains(s.MilitaryComp.defenderForce.homeSettlement)))
+                && settlementsWithSquad.Contains(s.MilitaryComp.defenderForce?.homeSettlement)))
             {
                 reason = "FCReasonDefendingSquad".Translate();
                 return true;

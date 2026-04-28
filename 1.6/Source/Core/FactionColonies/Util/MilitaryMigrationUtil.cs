@@ -263,6 +263,10 @@ namespace FactionColonies
             return null;
         }
 
+        /* Reconstruct* helpers are called from Migrate(), which runs in PostLoadInit AFTER
+         * MigrateLegacyComp_MilitarySquad has bound legacy squads to their home settlement
+         * via squad.settlement. By the time these methods read home.PrimaryStationedSquad,
+         * exactly one stationed squad exists per settlement (the migrated legacy one). */
         private static MilitaryOperation ReconstructOffensiveOp(MilitaryOperationManager manager,
             WorldSettlementFC home, WorldObjectComp_SettlementMilitary comp, FCEvent arrival)
         {
@@ -277,7 +281,7 @@ namespace FactionColonies
             op.nextPhaseTick = arrival.timeTillTrigger;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = home;
-            op.aggressor.squad = comp.militarySquad;
+            op.aggressor.squad = home.PrimaryStationedSquad;
             op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSettlement(home, isAttacking: true);
             op.defender.faction = comp._legacyMilitaryEnemy;
             manager.Register(op);
@@ -293,7 +297,7 @@ namespace FactionColonies
             op.nextPhaseTick = cooldown.timeTillTrigger;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = home;
-            op.aggressor.squad = comp.militarySquad;
+            op.aggressor.squad = home.PrimaryStationedSquad;
             manager.Register(op);
             return op;
         }
@@ -309,7 +313,7 @@ namespace FactionColonies
             op.phase = MilitaryOperationPhase.Engaged;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = home;
-            op.aggressor.squad = comp.militarySquad;
+            op.aggressor.squad = home.PrimaryStationedSquad;
             manager.Register(op);
             return op;
         }

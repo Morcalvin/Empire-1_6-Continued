@@ -524,7 +524,7 @@ namespace FactionColonies
 
         public bool SquadExists(WorldSettlementFC settlement)
         {
-            return settlement.MilitaryComp?.militarySquad != null;
+            return settlement?.PrimaryStationedSquad != null;
         }
 
         public void ExposeData()

@@ -1,6 +1,7 @@
 using FactionColonies.util;
 using RimWorld.Planet;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
@@ -66,9 +67,20 @@ namespace FactionColonies
             if (milComp.militaryBusy && (!milComp.militaryJob.isState || milComp.militaryJob == MilitaryJobDefOf.DefendFriendlySettlement))
                 return MilActiveMission;
             if (milComp.militaryJob == MilitaryJobDefOf.Cooldown) return MilCooldown;
-            if (milComp.militarySquad?.outfit != null && !milComp.militaryBusy)
+            if (!milComp.militaryBusy && AnyStationedSquadHasOutfit(milComp.WorldSettlement))
                 return MilReady;
             return MilInactive;
+        }
+
+        private static bool AnyStationedSquadHasOutfit(WorldSettlementFC settlement)
+        {
+            if (settlement is null) return false;
+            List<MercenarySquadFC> stationed = settlement.StationedSquads;
+            for (int i = 0; i < stationed.Count; i++)
+            {
+                if (stationed[i]?.outfit != null) return true;
+            }
+            return false;
         }
 
         public static string GetMilitaryStatusLabel(WorldObjectComp_SettlementMilitary milComp, WorldSettlementFC settlement = null)
@@ -90,7 +102,7 @@ namespace FactionColonies
                     ? milComp.militaryJob.statusLabelKey.Translate()
                     : "FCMilStatusBusy".Translate();
             }
-            if (milComp.militarySquad?.outfit != null) return "FCMilStatusReady".Translate();
+            if (AnyStationedSquadHasOutfit(milComp.WorldSettlement)) return "FCMilStatusReady".Translate();
             return "FCMilStatusNoSquad".Translate();
         }
 

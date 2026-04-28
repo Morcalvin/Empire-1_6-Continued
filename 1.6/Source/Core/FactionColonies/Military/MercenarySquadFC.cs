@@ -394,30 +394,9 @@ namespace FactionColonies
             return true;
         }
 
-        public WorldSettlementFC getSettlement
-        {
-            get
-            {
-                if (settlement != null)
-                {
-                    return settlement;
-                }
-
-                FactionFC comp = FactionCache.FactionComp;
-                if (comp is null) return null;
-
-                foreach (WorldSettlementFC s in comp.settlements)
-                {
-                    if (s.MilitaryComp?.militarySquad != null && s.MilitaryComp?.militarySquad == this)
-                    {
-                        this.settlement = s;
-                        return s;
-                    }
-                }
-
-                return null;
-            }
-        }
+        /* The squad's billet. settlement is the canonical source of truth in the squad-first
+         * model; the property exists only as a stable accessor for external callers. */
+        public WorldSettlementFC getSettlement => settlement;
 
         public void ChangeTick()
         {

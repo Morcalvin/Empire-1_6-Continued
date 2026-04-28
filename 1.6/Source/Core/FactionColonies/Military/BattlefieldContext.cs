@@ -620,18 +620,19 @@ namespace FactionColonies
 
             WorldSettlementFC ourSettlement = ParentSettlement;
 
-            var homeComp = op.defender.force.homeSettlement?.MilitaryComp;
-            if (homeComp is null) return;
+            WorldSettlementFC home = op.defender.force.homeSettlement;
+            if (home?.MilitaryComp is null) return;
             // Don't spawn reinforcements from the home settlement defending itself — already handled
-            if (op.defender.force.homeSettlement == ourSettlement) return;
+            if (home == ourSettlement) return;
 
-            bool hasSquad = homeComp.militarySquad != null
-                && homeComp.militarySquad.outfit != null
-                && homeComp.militarySquad.mercenaries.Any();
-            if (!hasSquad) return;
-            if (homeComp.militarySquad.IsPhysicallyDeployed()) return;
+            // Pick the first stationed squad that's available (assigned, not busy, past cooldown)
+            // and not physically deployed elsewhere. Must also have an outfit + mercs to send.
+            MercenarySquadFC squad = home.FirstAvailableStationedSquad;
+            if (squad is null
+                || squad.outfit is null
+                || !squad.mercenaries.Any()
+                || squad.IsPhysicallyDeployed()) return;
 
-            var squad = homeComp.militarySquad;
             squad.CheckInitialization();
             squad.UpdateSquadStats(op.defender.force.homeSettlement.settlementMilitaryLevel);
             squad.ResetNeeds();
@@ -796,21 +797,23 @@ namespace FactionColonies
 
             if (friendlies == null || friendlies.Count == 0)
             {
-                var homeComp = force.homeSettlement?.MilitaryComp;
-                bool hasSquad = homeComp?.militarySquad != null
-                    && homeComp.militarySquad.outfit != null
-                    && homeComp.militarySquad.mercenaries.Any();
-                bool squadDeployed = hasSquad && homeComp.militarySquad.IsPhysicallyDeployed();
+                WorldSettlementFC homeSettlement = force.homeSettlement;
+                WorldObjectComp_SettlementMilitary homeComp = homeSettlement?.MilitaryComp;
+                MercenarySquadFC squad = homeSettlement?.FirstAvailableStationedSquad;
+                bool hasSquad = squad != null
+                    && squad.outfit != null
+                    && squad.mercenaries.Any();
+                bool squadDeployed = hasSquad && squad.IsPhysicallyDeployed();
                 bool squadAvailable = hasSquad && !squadDeployed
+                    && homeComp != null
                     && (homeComp.militaryJob == null
                         || homeComp.militaryJob == MilitaryJobDefOf.Undefined
                         || homeComp.militaryJob == MilitaryJobDefOf.DefendFriendlySettlement);
 
                 if (squadAvailable)
                 {
-                    var squad = force.homeSettlement.MilitaryComp.militarySquad;
                     squad.CheckInitialization();
-                    squad.UpdateSquadStats(force.homeSettlement.settlementMilitaryLevel);
+                    squad.UpdateSquadStats(homeSettlement.settlementMilitaryLevel);
                     squad.ResetNeeds();
 
                     double efficiency = force.militaryEfficiency;
