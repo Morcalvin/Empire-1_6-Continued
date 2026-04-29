@@ -77,18 +77,26 @@ namespace FactionColonies
             }
             set
             {
-                // Legacy setter: translate to canonical squad.settlement assignment.
+                // Legacy 1:1 setter: "this is THE squad now". Translate to the canonical
+                // squad-first model by detaching any existing stationed squads, then
+                // attaching the new one.
+                if (WorldSettlement is null) return;
                 if (value is null)
                 {
-                    // Detach all currently-stationed squads.
-                    if (WorldSettlement is null) return;
-                    foreach (MercenarySquadFC s in WorldSettlement.StationedSquads)
+                    // Snapshot the list — assigning settlement = null mutates StationedSquads.
+                    List<MercenarySquadFC> stationed = new List<MercenarySquadFC>(WorldSettlement.StationedSquads);
+                    foreach (MercenarySquadFC s in stationed)
                     {
                         if (s is object) s.settlement = null;
                     }
                     return;
                 }
                 if (value.settlement == WorldSettlement) return;
+                List<MercenarySquadFC> existing = new List<MercenarySquadFC>(WorldSettlement.StationedSquads);
+                foreach (MercenarySquadFC s in existing)
+                {
+                    if (s is object && s != value) s.settlement = null;
+                }
                 value.settlement = WorldSettlement;
             }
         }

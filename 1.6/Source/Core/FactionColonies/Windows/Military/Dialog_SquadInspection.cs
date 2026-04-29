@@ -303,9 +303,10 @@ namespace FactionColonies
             Widgets.Label(new Rect(portraitRect.xMax + 4f, rowRect.y, colWidths[1] - portraitSize - 6f, rowRect.height), pawnName);
             x += colWidths[1];
 
-            // Loadout name + diverged marker. Display reads the pool reference (loadout)
-            // for the human-readable template tag; the marker reflects ownedLoadout.
-            string loadoutLabel = merc?.loadout?.name ?? (string)"FCNone".Translate();
+            // Loadout name + diverged marker. Display reads EffectiveLoadout so a merc whose
+            // pool reference was deleted (loadout=null, ownedLoadout=snapshot) still shows
+            // its actual loadout name. The asterisk reflects personalization (ownedLoadout).
+            string loadoutLabel = merc?.EffectiveLoadout?.name ?? (string)"FCNone".Translate();
             if (merc?.ownedLoadout != null) loadoutLabel = "* " + loadoutLabel;
             Widgets.Label(new Rect(x, rowRect.y, colWidths[2], rowRect.height), loadoutLabel);
             if (merc?.ownedLoadout != null)
@@ -328,7 +329,7 @@ namespace FactionColonies
             float bx = x;
             if (merc != null && merc.IsEmptySlot)
             {
-                MilUnitFC blueprint = merc.currentLoadout ?? merc.loadout;
+                MilUnitFC blueprint = merc.BlueprintLoadout;
                 int slotFillCost = blueprint != null
                     ? (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier)
                     : 0;
@@ -390,14 +391,14 @@ namespace FactionColonies
         // --- Per-pawn upgrade ---
 
         /// <summary>Cost to upgrade the merc at <paramref name="slotIndex"/> to the template's
-        /// slot at the same index. Reads <see cref="Mercenary.currentLoadout"/> for the
+        /// slot at the same index. Reads <see cref="Mercenary.EffectiveLoadout"/> for the
         /// "what's equipped now" baseline. Returns 0 when no template, slot is null/missing,
         /// or there's no positive diff.</summary>
         private int ComputePerPawnUpgradeCost(int slotIndex, Mercenary merc)
         {
             MilUnitFC target = GetTemplateSlot(slotIndex);
             if (target is null || merc is null) return 0;
-            double oldCost = merc.currentLoadout?.getTotalCost ?? 0;
+            double oldCost = merc.EffectiveLoadout?.getTotalCost ?? 0;
             double newCost = target.getTotalCost;
             if (newCost <= oldCost) return 0;
             return (int)Math.Round((newCost - oldCost) * FCSettings.squadUpgradeCostMultiplier);

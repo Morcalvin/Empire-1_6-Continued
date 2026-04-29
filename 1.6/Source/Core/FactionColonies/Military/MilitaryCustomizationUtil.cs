@@ -421,10 +421,10 @@ namespace FactionColonies
             squad.outfit = template;
             squad.hireCostPaid = cost;
             squad.hiredAtTick = Find.TickManager.TicksGame;
-            squad.name = template.name + " #" + (mercenarySquads.Count(s => s != null && s.outfit == template) + 1);
+            template.hiresEverMade++;
+            squad.name = template.name + " #" + template.hiresEverMade;
             squad.InitiateSquad();
             mercenarySquads.Add(squad);
-            squad.OutfitSquad(template);
 
             RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadHired(squad);
@@ -446,10 +446,7 @@ namespace FactionColonies
             int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
             if (refund > 0)
             {
-                // Spawn refund silver via DeliverThings to the active tax map.
-                Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
-                silver.stackCount = refund;
-                PaymentUtil.PlaceThing(silver);
+                PaymentUtil.RefundSilver(refund, PaymentUtil.Reason_SquadDismissalRefund, squad.settlement);
             }
             // Detach from billet so StationedSquads queries see it gone immediately.
             squad.settlement = null;

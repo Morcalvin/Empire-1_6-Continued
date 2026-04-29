@@ -16,6 +16,10 @@ namespace FactionColonies
         public IReadOnlyList<MilUnitFC> Units => units;
         public double equipmentTotalCost;
         public int tickChanged;
+        /// <summary>Monotonically increasing count of <see cref="MilitaryCustomizationUtil.HireSquad"/>
+        /// invocations against this template. Drives the per-template suffix in hired squad
+        /// names so every hire produces a unique number even after dismissals.</summary>
+        public int hiresEverMade;
 
         public static void UpdateEquipmentTotalCostOfSquadsContaining(MilUnitFC unit)
         {
@@ -47,6 +51,7 @@ namespace FactionColonies
             Scribe_Collections.Look(ref units, "units", LookMode.Reference);
             Scribe_Values.Look(ref equipmentTotalCost, "equipmentTotalCost", -1);
             Scribe_Values.Look(ref tickChanged, "tickChanged");
+            Scribe_Values.Look(ref hiresEverMade, "hiresEverMade", 0);
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {

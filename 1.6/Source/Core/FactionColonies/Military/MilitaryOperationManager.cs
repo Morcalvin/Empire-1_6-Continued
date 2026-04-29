@@ -124,8 +124,13 @@ namespace FactionColonies
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = source.settlement;
             op.aggressor.squad = source;
+            // Squad-derived force: SquadPowerRegistry maps loadout cost -> military level so
+            // two squads at the same billet project distinct forces. Falls through to the
+            // unstaffed-billet half-power path only if the squad somehow has no settlement
+            // (defensive coding — CreateOffensiveOp's null-settlement check above already
+            // rejects this case).
             op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSquad(source, isAttacking: true)
-                              ?? MilitaryForce.CreateMilitaryForceFromSettlement(source.settlement, isAttacking: true);
+                              ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(source.settlement, isAttacking: true);
 
             op.defender.faction = enemy;
             // op.defender.force is computed lazily in BeginEngagement via CreateMilitaryForceFromFaction.
@@ -190,11 +195,14 @@ namespace FactionColonies
             if (targetSettlement is object)
             {
                 op.defender.homeSettlement = targetSettlement;
-                // Squad-first defense: pick the strongest available squad billeted at the target.
-                // If none qualify (all busy, none stationed), op.defender.squad stays null and the
-                // settlement still defends with its raw militaryLevel-derived force.
+                // Squad-first defense: pick the strongest available squad billeted at the target,
+                // and project its squad-derived force. Empty billets still defend at half-power so
+                // the settlement isn't defenseless; cap-0 settlements (structurally non-military)
+                // produce null and rely entirely on auto-defender selection / external defenders.
                 op.defender.squad = PickPrimaryDefendingSquad(targetSettlement);
-                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement);
+                op.defender.force = op.defender.squad is object
+                    ? MilitaryForce.CreateMilitaryForceFromSquad(op.defender.squad)
+                    : MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(targetSettlement);
             }
             // For external raid targets, defender.force is set below by the auto-defender path.
 
@@ -270,16 +278,17 @@ namespace FactionColonies
         /// <summary>
         /// Runs auto-defender selection for a freshly-created defensive op.
         /// Mutates <paramref name="op"/>'s <c>defender</c> participant if a stronger foreign
-        /// settlement or external <see cref="IAutoDefender"/> is selected.
+        /// squad or external <see cref="IAutoDefender"/> is selected. Rankings use real
+        /// squad power (<see cref="SquadPowerRegistry"/>), so a strong squad at a low-level
+        /// settlement can outrank a weak squad at a high-level settlement.
         /// </summary>
         private static void ApplyAutoDefenderSelection(MilitaryOperation op, WorldObject target,
             WorldSettlementFC targetSettlement, FactionFC factionFC)
         {
-            // Find strongest eligible Empire foreign-defender squad. With squad-first auto-defend,
-            // candidates come from any settlement's stationed-squad list (not the settlement
-            // itself); a settlement with two squads can have one auto-defend on, one off.
+            // Find strongest eligible Empire foreign-defender squad, ranked by squad power.
             MercenarySquadFC bestForeignSquad = null;
             WorldSettlementFC bestForeignBillet = null;
+            double bestForeignLevel = -1;
             foreach (WorldSettlementFC candidate in factionFC.settlements)
             {
                 if (candidate == targetSettlement) continue;
@@ -290,10 +299,12 @@ namespace FactionColonies
                 {
                     if (squad is null || !squad.autoDefend) continue;
                     if (!squad.IsAvailable) continue;
-                    if (bestForeignSquad is null || candidate.settlementMilitaryLevel > (bestForeignBillet?.settlementMilitaryLevel ?? -1))
+                    double squadLevel = SquadPowerRegistry.Resolve(squad).militaryLevel;
+                    if (squadLevel > bestForeignLevel)
                     {
                         bestForeignSquad = squad;
                         bestForeignBillet = candidate;
+                        bestForeignLevel = squadLevel;
                     }
                 }
             }
@@ -301,11 +312,14 @@ namespace FactionColonies
             // Find best external auto-defender in range.
             IAutoDefender bestExternal = AutoDefenderRegistry.FindBestDefender(target.Tile, 0);
 
-            int targetLevel = targetSettlement?.settlementMilitaryLevel ?? 0;
-            int foreignLevel = bestForeignBillet?.settlementMilitaryLevel ?? 0;
-            int externalLevel = bestExternal?.MilitaryLevel ?? 0;
+            // Target's defending power is the projected level of whatever's currently in
+            // op.defender.force — squad-derived if a squad is stationed, half-power synthetic
+            // if the billet is empty, or 0 for an external raid target with no force yet.
+            double targetLevel = op.defender.force?.militaryLevel ?? 0;
+            double foreignLevel = bestForeignSquad is object ? bestForeignLevel : 0;
+            double externalLevel = bestExternal?.MilitaryLevel ?? 0;
 
-            // Foreign settlement wins if it beats both the target's level and any external option.
+            // Foreign squad wins if it beats both the target's level and any external option.
             if (bestForeignSquad is object && foreignLevel > targetLevel && foreignLevel >= externalLevel)
             {
                 MilitaryForce homeForce = targetSettlement is object
@@ -313,7 +327,7 @@ namespace FactionColonies
                     : null;
                 op.defender.homeSettlement = bestForeignBillet;
                 op.defender.squad = bestForeignSquad;
-                op.defender.force = MilitaryForce.CreateMilitaryForceFromSettlement(bestForeignBillet, isAttacking: false, homeDefendingForce: homeForce);
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSquad(bestForeignSquad, isAttacking: false, homeDefendingForce: homeForce);
                 op.externalDefenderSource = null;
                 return;
             }
@@ -332,18 +346,19 @@ namespace FactionColonies
         }
 
         /// <summary>Picks the strongest <see cref="MercenarySquadFC.IsAvailable"/> squad stationed
-        /// at <paramref name="settlement"/> as the primary defender. Returns null if no squad
-        /// qualifies (all busy / cooldown / no squads stationed).</summary>
+        /// at <paramref name="settlement"/> as the primary defender, ranked by
+        /// <see cref="SquadPowerRegistry"/> projected power. Returns null if no squad qualifies
+        /// (all busy / cooldown / no squads stationed).</summary>
         private static MercenarySquadFC PickPrimaryDefendingSquad(WorldSettlementFC settlement)
         {
             if (settlement is null) return null;
             MercenarySquadFC best = null;
-            int bestPower = -1;
+            double bestPower = -1;
             foreach (MercenarySquadFC squad in settlement.StationedSquads)
             {
                 if (squad is null) continue;
                 if (!squad.IsAvailable) continue;
-                int power = squad.outfit?.UpdateEquipmentTotalCost() ?? 0;
+                double power = SquadPowerRegistry.Resolve(squad).militaryLevel;
                 if (power > bestPower)
                 {
                     best = squad;

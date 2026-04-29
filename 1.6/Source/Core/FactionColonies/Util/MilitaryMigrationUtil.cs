@@ -28,11 +28,6 @@ namespace FactionColonies
     public static class MilitaryMigrationUtil
     {
         /// <summary>
-        /// Returns true if any pre-refactor military state was loaded that has not yet been
-        /// drained into the manager. Cheap detection: checks for any settlement with active op
-        /// flags or pending military events.
-        /// </summary>
-        /// <summary>
         /// Squad-first refactor migration: pre-refactor saves carried <c>militarySquad</c> and
         /// <c>autoDefend</c> on the comp itself. The values are loaded into <c>_legacyMilitarySquad</c>
         /// and <c>_legacyAutoDefend</c> buffers in <c>PostExposeData</c>'s LoadingVars branch.
@@ -62,6 +57,11 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>
+        /// Returns true if any pre-refactor military state was loaded that has not yet been
+        /// drained into the manager. Cheap detection: checks for any settlement with active op
+        /// flags or pending military events.
+        /// </summary>
         public static bool AnyLegacyStatePresent(FactionFC faction)
         {
             if (faction is null) return false;

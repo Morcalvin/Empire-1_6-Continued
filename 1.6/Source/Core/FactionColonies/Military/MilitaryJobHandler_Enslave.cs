@@ -27,8 +27,10 @@ namespace FactionColonies
 
         public override BattleResult OnAutoResolve(MilitaryOperation op)
         {
+            // Defensive fallback (see MilitaryJobHandler_Raid.OnAutoResolve note).
             MilitaryForce attacker = op.aggressor?.force
-                ?? MilitaryForce.CreateMilitaryForceFromSettlement(op.aggressor?.homeSettlement, true);
+                ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
+                ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
             MilitaryForce defender = op.defender?.force
                 ?? MilitaryForce.CreateMilitaryForceFromFaction(op.defender?.faction, false);
             return SimulateBattleFc.FightBattle(attacker, defender);

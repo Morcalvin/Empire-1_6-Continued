@@ -30,8 +30,12 @@ namespace FactionColonies
         {
             // Forces are populated in CreateOffensiveOp + BeginEngagement. Use them directly so
             // BattleModifierRegistry / op-aware modifiers see the same instances.
+            // Defensive fallback: CreateOffensiveOp populates aggressor.force eagerly via the
+            // squad-derived path, so this should never be reached on modern saves. Kept for
+            // resilience against legacy paths that never set the force.
             MilitaryForce attacker = op.aggressor?.force
-                ?? MilitaryForce.CreateMilitaryForceFromSettlement(op.aggressor?.homeSettlement, true);
+                ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
+                ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
             MilitaryForce defender = op.defender?.force
                 ?? MilitaryForce.CreateMilitaryForceFromFaction(op.defender?.faction, false);
             return SimulateBattleFc.FightBattle(attacker, defender);

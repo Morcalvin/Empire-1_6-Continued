@@ -4,7 +4,10 @@ namespace FactionColonies
 {
     /// <summary>
     /// Built-in <see cref="ISquadAssignmentValidator"/>. Rejects assignment when the squad's
-    /// active mercenary count exceeds the target settlement's <see cref="WorldSettlementFC.MaxSquadSize"/>.
+    /// occupied slot count exceeds the target settlement's <see cref="WorldSettlementFC.MaxSquadSize"/>.
+    /// <para>Counts any merc with a non-blank effective loadout — covers personalized mercs
+    /// (loadout pool reference deleted, gear lives in <see cref="Mercenary.ownedLoadout"/>)
+    /// and freshly-hired mercs alike. Empty placeholder slots awaiting Fill are excluded.</para>
     /// </summary>
     public class SquadSizeValidator : ISquadAssignmentValidator
     {
@@ -15,8 +18,10 @@ namespace FactionColonies
             int size = 0;
             foreach (Mercenary m in squad.mercenaries)
             {
-                if (m?.loadout is null) continue;
-                if (m.loadout.isBlank) continue;
+                if (m is null) continue;
+                if (m.IsEmptySlot) continue;
+                MilUnitFC effective = m.EffectiveLoadout;
+                if (effective is null || effective.isBlank) continue;
                 size++;
             }
             int max = settlement.MaxSquadSize;

@@ -330,7 +330,7 @@ namespace FactionColonies
         {
             MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
             if (util?.units is null) return;
-            double currentCost = merc.currentLoadout?.getTotalCost ?? 0;
+            double currentCost = merc.EffectiveLoadout?.getTotalCost ?? 0;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             foreach (MilUnitFC unit in util.units)
             {

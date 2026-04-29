@@ -295,6 +295,14 @@ namespace FactionColonies
             if (defender?.squad is object && defender.squad != aggressor?.squad)
                 defender.squad.nextAvailableTick = wakeTick;
 
+            // Reset the per-op death counter now that ComputeCooldownTicks has consumed it.
+            // Without this reset, squad.dead accumulates monotonically across ops, so every
+            // future cooldown is extended by the squad's lifetime death count rather than
+            // just the deaths from the most recent op.
+            if (aggressor?.squad is object) aggressor.squad.dead = 0;
+            if (defender?.squad is object && defender.squad != aggressor?.squad)
+                defender.squad.dead = 0;
+
             // Cooldown event fires on the home settlement's tile (or target tile if there's no home
             // — e.g. external defender ops). Aggressor home preferred since that's where the squad
             // returns; falls back to defender home for purely-defensive ops.

@@ -22,6 +22,7 @@ namespace FactionColonies
         public const string Reason_SquadHire = "squad_hire";
         public const string Reason_SquadUpgrade = "squad_upgrade";
         public const string Reason_SquadDismissalRefund = "squad_dismissal_refund";
+        public const string Reason_SquadUpgradeRefund = "squad_upgrade_refund";
         public const string Reason_SquadFillSlot = "squad_fill_slot";
 
         public static (List<BillFC>, List<BillFC>) returnBillTypes(List<BillFC> bills)
@@ -207,6 +208,26 @@ namespace FactionColonies
 
             return true;
         }
+        /// <summary>Refunds <paramref name="amount"/> silver back to the player by spawning
+        /// a silver Thing onto the active tax map. Symmetric counterpart to
+        /// <see cref="PaySilver"/>: invokes <see cref="SilverPaymentRegistry"/> with a
+        /// negative-amount context so observers can record the refund alongside other
+        /// payment events. <paramref name="amount"/> must be non-negative.</summary>
+        public static void RefundSilver(int amount, string reason = null, WorldSettlementFC settlement = null)
+        {
+            if (amount <= 0) return;
+            // Surface the refund through the same observer channel as PaySilver. The negative
+            // amount lets modifiers distinguish refunds from outflows.
+            SilverPaymentContext context = new SilverPaymentContext(-amount, reason, settlement);
+            SilverPaymentRegistry.InvokeModifiers(context);
+            int finalAmount = -context.Amount;
+            if (finalAmount <= 0) return;
+
+            Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
+            silver.stackCount = finalAmount;
+            PlaceThing(silver);
+        }
+
         public static int GetSilver()
         {
             int silver = 0;

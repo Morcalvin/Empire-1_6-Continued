@@ -27,8 +27,17 @@ namespace FactionColonies
         public bool deployable = false;
         public int loadID;
 
-        /* Back-compat shim. New code should read currentLoadout directly. */
-        public MilUnitFC EffectiveLoadout => currentLoadout ?? ownedLoadout ?? loadout;
+        /// <summary>Equipped truth — the gear actually on the pawn right now.
+        /// Falls back to <see cref="BlueprintLoadout"/> if <see cref="currentLoadout"/>
+        /// has not yet been populated (intermediate save shape, freshly created merc,
+        /// empty slot).</summary>
+        public MilUnitFC EffectiveLoadout => currentLoadout ?? BlueprintLoadout;
+
+        /// <summary>Blueprint of last record — what gear the merc *should* have.
+        /// <see cref="ownedLoadout"/> (personalization snapshot) supersedes
+        /// <see cref="loadout"/> (pool reference). Use this for "what would Fill /
+        /// Upgrade equip", not for "what's worn right now".</summary>
+        public MilUnitFC BlueprintLoadout => ownedLoadout ?? loadout;
         /* True when the slot has no pawn — alive in the list as a placeholder for Fill. */
         public bool IsEmptySlot => pawn is null;
         // True when the pawn has another deep owner at save time (Map.mapPawns or

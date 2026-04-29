@@ -40,22 +40,55 @@ namespace FactionColonies
             forceRemaining = Math.Max(1, Math.Round(militaryLevel * militaryEfficiency));
         }
 
-        /// <summary>Creates the force a specific squad would project. Currently a thin wrapper
-        /// over <see cref="CreateMilitaryForceFromSettlement"/> using <paramref name="squad"/>'s
-        /// billet — squads inherit their settlement's military level and combat efficiency.
-        /// Submods can replace this with a per-squad implementation later.</summary>
+        /// <summary>Creates the force that this <paramref name="squad"/> projects. Reads the squad's
+        /// power via <see cref="SquadPowerRegistry"/> (loadout-cost-derived militaryLevel +
+        /// combat efficiency from the billet), then applies faction-level isAttacking /
+        /// isDefending bonuses and the optional <paramref name="homeDefendingForce"/> blend.
+        /// Returns null if the squad is unassigned (no billet to anchor the force).</summary>
         public static MilitaryForce CreateMilitaryForceFromSquad(MercenarySquadFC squad, bool isAttacking = false, MilitaryForce homeDefendingForce = null)
         {
             if (squad?.settlement is null) return null;
-            return CreateMilitaryForceFromSettlement(squad.settlement, isAttacking, homeDefendingForce);
+
+            SquadPower power = SquadPowerRegistry.Resolve(squad);
+            return CombineForce(power.militaryLevel, power.militaryEfficiency, squad.settlement, isAttacking, homeDefendingForce);
+        }
+
+        /// <summary>Half-power synthetic force for a settlement with squad capacity but no
+        /// stationed squad. Lets empty billets still participate in the squad-driven battle
+        /// pipeline at a reduced effectiveness, while <see cref="WorldSettlementFC.SquadCap"/>
+        /// of 0 (structurally non-military) yields null. Power is the squad-equivalent of the
+        /// settlement's military level — half of what a fully-kitted squad at that level would
+        /// project.</summary>
+        public static MilitaryForce CreateMilitaryForceFromUnstaffedBillet(WorldSettlementFC settlement, bool isAttacking = false, MilitaryForce homeDefendingForce = null)
+        {
+            if (settlement is null) return null;
+            if (settlement.SquadCap <= 0) return null;
+
+            double level = Math.Max(1, settlement.settlementMilitaryLevel) * 0.5;
+            double efficiency = 1.0;
+            FactionFC faction = FactionCache.FactionComp;
+            if (faction is object)
+            {
+                efficiency = faction.GetStatValue(FCStatDefOf.militaryCombatEfficiency, settlement);
+            }
+            return CombineForce(level, efficiency, settlement, isAttacking, homeDefendingForce);
         }
 
         public static MilitaryForce CreateMilitaryForceFromSettlement(WorldSettlementFC settlement, bool isAttacking = false, MilitaryForce homeDefendingForce = null)
         {
-            FactionFC faction = FactionCache.FactionComp;
-
             double reinforcerLevel = settlement.settlementMilitaryLevel;
             double reinforcerEff = settlement.GetStatValue(FCStatDefOf.militaryCombatEfficiency);
+            return CombineForce(reinforcerLevel, reinforcerEff, settlement, isAttacking, homeDefendingForce);
+        }
+
+        /* Shared force assembly: blend reinforcer level/efficiency with the optional
+         * home-defending force, then apply the faction's attacking/defending stat
+         * bonuses. Used by every public force factory so the bonus chain stays in one
+         * place. */
+        private static MilitaryForce CombineForce(double reinforcerLevel, double reinforcerEff,
+            WorldSettlementFC anchorSettlement, bool isAttacking, MilitaryForce homeDefendingForce)
+        {
+            FactionFC faction = FactionCache.FactionComp;
 
             double combinedLevel = reinforcerLevel;
             double blendedEff = reinforcerEff;
@@ -75,18 +108,21 @@ namespace FactionColonies
                 combinedLevel += homeDefendingForce.militaryLevel;
             }
 
-            if (isAttacking)
+            if (faction is object)
             {
-                combinedLevel += faction.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking);
-                blendedEff *= faction.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking);
-            }
-            else
-            {
-                combinedLevel += faction.GetStatValue(FCStatDefOf.militaryLevelBonusDefending);
-                blendedEff *= faction.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending);
+                if (isAttacking)
+                {
+                    combinedLevel += faction.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking);
+                    blendedEff *= faction.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking);
+                }
+                else
+                {
+                    combinedLevel += faction.GetStatValue(FCStatDefOf.militaryLevelBonusDefending);
+                    blendedEff *= faction.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending);
+                }
             }
 
-            return new MilitaryForce(combinedLevel, blendedEff, settlement, FactionCache.PlayerColonyFaction);
+            return new MilitaryForce(combinedLevel, blendedEff, anchorSettlement, FactionCache.PlayerColonyFaction);
         }
 
         public static void GetMilitaryLevelAndEfficiencyFromTechLevel(TechLevel techlevel, out double militaryLevel, out double efficiency)

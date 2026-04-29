@@ -205,6 +205,37 @@ namespace FactionColonies
         bool CanAssign(WorldSettlementFC settlement, MercenarySquadFC squad, out string reason);
     }
     /// <summary>
+    /// Lets submods derive a squad's projected military level + combat efficiency from
+    /// per-squad state (loadout, mercs, veterancy, etc.). Higher <see cref="Priority"/>
+    /// runs first; the first provider returning a non-null value wins. The base mod
+    /// always registers a default provider at priority 0 that maps loadout cost to a
+    /// settlement-equivalent military level via the inverse of the squad-budget formula.
+    /// Register via <see cref="SquadPowerRegistry"/>.
+    /// </summary>
+    public interface ISquadPowerProvider
+    {
+        /// <summary>Higher priorities are consulted first. Return null to defer.</summary>
+        int Priority { get; }
+        /// <summary>Returns (militaryLevel, militaryEfficiency) or null to defer to the
+        /// next provider. Implementations may consult <c>squad.outfit</c>, individual
+        /// merc skills/equipment, custom data, etc.</summary>
+        SquadPower? GetSquadPower(MercenarySquadFC squad);
+    }
+    /// <summary>Squad-projected combat power. <see cref="militaryLevel"/> is on the same
+    /// 1-9 scale as <see cref="WorldSettlementFC.settlementMilitaryLevel"/>.
+    /// <see cref="militaryEfficiency"/> is a multiplier (typical range 0.5-1.5, dampened
+    /// by <see cref="FCSettings.efficiencyDamping"/> in <see cref="SimulateBattleFc"/>).</summary>
+    public struct SquadPower
+    {
+        public double militaryLevel;
+        public double militaryEfficiency;
+        public SquadPower(double level, double efficiency)
+        {
+            militaryLevel = level;
+            militaryEfficiency = efficiency;
+        }
+    }
+    /// <summary>
     /// Allows submods to add custom validation, display additional costs, and perform
     /// side effects (e.g., resource consumption) when settlements are founded.
     /// Register implementations via <see cref="FoundingValidatorRegistry"/>.

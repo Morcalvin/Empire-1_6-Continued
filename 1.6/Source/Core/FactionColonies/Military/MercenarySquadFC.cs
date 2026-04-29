@@ -31,7 +31,6 @@ namespace FactionColonies
         public MilSquadFC outfit;
         public List<ThingWithComps> UsedWeaponList;
         public List<Apparel> UsedApparelList;
-        public int tickChanged;
         public bool hasLord;
         public Map map;
         public Lord lord;
@@ -55,9 +54,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref name, "name");
             Scribe_Collections.Look(ref mercenaries, "mercenaries", LookMode.Deep);
             Scribe_Collections.Look(ref animals, "animals", LookMode.Deep);
-            // isDeployed/timeDeployed: legacy fields removed. isDeployed/timeDeployed are now
-            // computed properties derived from the squad's MilitaryOperation. Old saves' XML
-            // values are silently ignored on load.
             Scribe_Values.Look(ref isExtraSquad, "isExtraSquad");
             Scribe_Values.Look(ref hitMap, "hitMap");
             Scribe_References.Look(ref outfit, "outfit");
@@ -65,7 +61,6 @@ namespace FactionColonies
             Scribe_Collections.Look(ref UsedWeaponList, "UsedWeaponList", LookMode.Reference);
             Scribe_Collections.Look(ref UsedApparelList, "UsedApparelList", LookMode.Reference);
             Scribe_References.Look(ref settlement, "Settlement");
-            Scribe_Values.Look(ref tickChanged, "tickChanged");
             Scribe_Values.Look(ref orderLocation, "orderLocation");
             Scribe_Values.Look(ref militaryOrder, "militaryOrder", MilitaryOrder.Undefined);
             Scribe_Values.Look(ref hasLord, "hasLord");
@@ -109,7 +104,10 @@ namespace FactionColonies
         public IEnumerable<Mercenary> DeployedMercenaryAnimals =>
             animals.Where(merc => merc?.pawn?.Map != null);
 
-        /// <summary>True if any mercenary pawn is currently spawned on a map.</summary>
+        /// <summary>True if any mercenary pawn is currently spawned on a map. Walks the
+        /// merc list rather than reading <c>Operation.battlefieldRef</c> so it works for
+        /// squads spawned outside an op (legacy paths, drop pods that haven't yet wired up
+        /// their op).</summary>
         public bool IsPhysicallyDeployed() => mercenaries.Any(m => m?.pawn?.Map != null);
 
         /// <summary>The <see cref="MilitaryOperation"/> this squad is currently part of, if any.
@@ -129,16 +127,17 @@ namespace FactionColonies
         public bool IsAvailable => IsAssigned && !IsBusy && nextAvailableTick <= Find.TickManager.TicksGame;
 
         /// <summary>Sum of equipment market values across all currently-equipped mercenaries,
-        /// read from each merc's <see cref="Mercenary.currentLoadout"/> (the source of truth
-        /// for what's actually equipped). Pool-unit mutations after a hire/fill/upgrade are
-        /// not reflected here — only what was applied to the pawn.</summary>
+        /// read from each merc's <see cref="Mercenary.EffectiveLoadout"/> (the source of truth
+        /// for what's actually equipped, falling back to the blueprint when no equip snapshot
+        /// exists yet). Pool-unit mutations after a hire/fill/upgrade are not reflected here
+        /// — only what was applied to the pawn.</summary>
         public double GetCurrentLoadoutCost()
         {
             double total = 0;
             if (mercenaries is null) return total;
             foreach (Mercenary merc in mercenaries)
             {
-                MilUnitFC current = merc?.currentLoadout;
+                MilUnitFC current = merc?.EffectiveLoadout;
                 if (current is null) continue;
                 total += current.getTotalCost;
             }
@@ -217,7 +216,7 @@ namespace FactionColonies
                     claimable.RemoveAt(idx);
                     plan.Slots.Add(new SlotDecision { slotIndex = i, slotUnit = slotUnit, claim = picked });
 
-                    double oldCost = picked.currentLoadout?.getTotalCost ?? 0;
+                    double oldCost = picked.EffectiveLoadout?.getTotalCost ?? 0;
                     double newCost = slotUnit.getTotalCost;
                     if (newCost > oldCost) upgradeSum += (newCost - oldCost);
                 }
@@ -233,7 +232,7 @@ namespace FactionColonies
             double fireRefundSum = 0;
             foreach (Mercenary m in plan.Fires)
             {
-                MilUnitFC current = m?.currentLoadout;
+                MilUnitFC current = m?.EffectiveLoadout;
                 if (current != null) fireRefundSum += current.getTotalCost;
             }
 
@@ -309,10 +308,9 @@ namespace FactionColonies
             }
             else if (net < 0)
             {
-                // Net refund — spawn the surplus silver onto the active tax map.
-                Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
-                silver.stackCount = -net;
-                PaymentUtil.PlaceThing(silver);
+                // Net refund — surplus silver returns through the standard payment channel
+                // so observers see the upgrade and its refund as paired events.
+                PaymentUtil.RefundSilver(-net, PaymentUtil.Reason_SquadUpgradeRefund, settlement);
             }
 
             FactionFC faction = FactionCache.FactionComp;
@@ -398,17 +396,13 @@ namespace FactionColonies
          * model; the property exists only as a stable accessor for external callers. */
         public WorldSettlementFC getSettlement => settlement;
 
-        public void ChangeTick()
-        {
-            tickChanged = Find.TickManager.TicksGame;
-        }
-
         public void InitiateSquad()
         {
-            /* Strict-manual outfit policy: bail out if we already have pawns. Late callers
-             * (CheckInitialization on a fully-populated squad after load) must not regenerate
-             * fresh pawns and overwrite the player's gear. InitiateSquad runs once at hire. */
-            if (mercenaries != null && mercenaries.Any(m => m?.pawn != null)) return;
+            /* Strict-manual outfit policy: bail out if the merc list exists at all. An empty
+             * list with placeholder mercs (all pawns dead in battle) is a valid post-strict-
+             * manual state — the player must explicitly Fill the slots, not have InitiateSquad
+             * silently regenerate them. InitiateSquad runs once at hire (via HireSquad). */
+            if (mercenaries != null && mercenaries.Count > 0) return;
 
             mercenaries = new List<Mercenary>();
             UsedApparelList = new List<Apparel>();
@@ -465,15 +459,15 @@ namespace FactionColonies
             }
         }
         /// <summary>
-        /// Ensures the squad's mercenary list isn't empty after load. Does NOT re-outfit —
-        /// gear changes only happen on explicit player action (hire / fill / upgrade / edit).
+        /// Ensures the squad's mercenary list exists. Does NOT re-outfit, refill, or
+        /// regenerate dead pawns — under strict-manual outfit policy, gear / pawn changes
+        /// only happen on explicit player action (Hire / Fill / Upgrade / Edit). A list of
+        /// all-empty placeholder slots is a valid state post-battle and stays that way until
+        /// the player calls Fill.
         /// </summary>
         public void CheckInitialization()
         {
-            if (mercenaries == null || !mercenaries.Any(m => m?.pawn != null))
-            {
-                InitiateSquad();
-            }
+            if (mercenaries is null) InitiateSquad();
         }
 
         public void ResetNeeds()
@@ -752,9 +746,8 @@ namespace FactionColonies
 
         /// <summary>Total silver to refill all empty slots, summed over each empty slot's
         /// blueprint cost × <see cref="FCSettings.squadHireCostMultiplier"/>. The blueprint
-        /// is the merc's <see cref="Mercenary.currentLoadout"/> (last equipped state) when
-        /// available, falling back to the pool reference. Slots with neither contribute
-        /// zero.</summary>
+        /// is the merc's <see cref="Mercenary.BlueprintLoadout"/> (personalization snapshot
+        /// or pool reference). Slots with no blueprint contribute zero.</summary>
         public int FillEmptySlotsCost
         {
             get
@@ -764,7 +757,7 @@ namespace FactionColonies
                 foreach (Mercenary m in mercenaries)
                 {
                     if (m is null || !m.IsEmptySlot) continue;
-                    MilUnitFC blueprint = m.currentLoadout ?? m.loadout;
+                    MilUnitFC blueprint = m.BlueprintLoadout;
                     if (blueprint is null) continue;
                     total += (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier);
                 }
@@ -808,7 +801,7 @@ namespace FactionColonies
                 foreach (Mercenary m in mercenaries)
                 {
                     if (m is null || !m.IsEmptySlot) continue;
-                    MilUnitFC blueprint = m.currentLoadout ?? m.loadout;
+                    MilUnitFC blueprint = m.BlueprintLoadout;
                     if (blueprint is null) continue;
                     Mercenary slot = m;
                     CreateNewPawn(ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
@@ -827,56 +820,16 @@ namespace FactionColonies
             return true;
         }
 
+        /// <summary>Vestigial. Auto-replacement was removed by the strict-manual outfit
+        /// refactor — the player explicitly uses <see cref="FillEmptySlots"/> instead. This
+        /// method is kept only so submods that previously called it (typically with
+        /// <see cref="MercenaryDeathEvent.CancelReplacement"/> set) still link. Calling it
+        /// is a no-op apart from a warning log.</summary>
         [System.Obsolete("Auto-replacement removed by the strict-manual outfit refactor; player must use FillEmptySlots.")]
         public void PassPawnToDeadMercenaries(Mercenary merc)
         {
-            //If ever add past dead pawns, use this code
-            /*MilitaryCustomizationUtil util = FactionCache.FactionComp.militaryCustomizationUtil;
-            Mercenary pwn = new Mercenary(true);
-            if (merc.animal != null)
-            {
-                Mercenary animal = new Mercenary(true);
-                animal = merc.animal;
-                util.deadPawns.Add(animal);
-            }
-            pwn = merc;*/
-
-            //util.deadPawns.Add(pwn);
-            Mercenary pawn2 = new Mercenary(true);
-            PawnKindDef kindDef = merc?.pawn?.kindDef ?? PawnKindDefOf.Colonist;
-            XenotypeDef xenotype = null;
-            string customXenoName = null;
-
-            // Recover xenotype — prefer loadout (most reliable), then pawn genes
-            if (merc?.loadout != null)
-            {
-                xenotype = merc.loadout.xenotype;
-                customXenoName = merc.loadout.customXenotypeName;
-            }
-            else if (merc?.pawn?.genes != null)
-            {
-                CustomXenotype customXeno = merc.pawn.genes.CustomXenotype;
-                if (customXeno != null)
-                    customXenoName = customXeno.name;
-                else
-                    xenotype = merc.pawn.genes.Xenotype;
-            }
-
-            if (xenotype == null && customXenoName == null)
-                xenotype = XenotypeDefOf.Baseliner;
-
-            CreateNewPawn(ref pawn2, kindDef, xenotype, customXenoName);
-
-            // Only replace if new pawn was successfully created
-            if (pawn2?.pawn != null)
-            {
-                mercenaries.Replace(merc, pawn2);
-            }
-            else
-            {
-                LogUtil.Warning("Failed to replace dead mercenary with new pawn.");
-            }
-            FactionCache.FactionComp.militaryCustomizationUtil.RebuildMercenaryPawnSet();
+            LogUtil.Warning("MercenarySquadFC.PassPawnToDeadMercenaries was called but is a no-op. " +
+                            "Use FillEmptySlots to refill empty slots after a death.");
         }
 
         public void HealPawn(Mercenary merc)
@@ -898,6 +851,13 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>Re-equips every mercenary slot from <paramref name="outfit"/>'s units,
+        /// generating fresh pawns for empty / mismatched slots and stripping/re-applying gear
+        /// on existing pawns. Called only from explicit player actions: <see cref="InitiateSquad"/>
+        /// at hire, <see cref="UpgradeToTemplate"/>, <see cref="FillEmptySlots"/>, and the per-pawn
+        /// editor in <c>Dialog_PawnLoadout</c>. Per the strict-manual outfit policy, no automatic
+        /// path (death replacement, template propagation, pre-deploy refresh) re-enters this method.
+        /// External submods may call it during their own player-driven flows.</summary>
         public virtual void OutfitSquad(MilSquadFC outfit)
         {
             FactionFC faction = FactionCache.FactionComp;
