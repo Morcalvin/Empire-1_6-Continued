@@ -482,7 +482,25 @@ namespace FactionColonies
                 // victory detection. No need to seed initialPawnCount here (the auto-resolve path
                 // never spawns map pawns).
                 BattleResult battleResult = SimulateBattleFc.FightBattle(atkForce, defForce);
-                EndBattle(battleResult.DefenderVictory, (int)defForce.forceRemaining, battleResult);
+
+                // Time-based auto-resolve: hold the result and stay in Engaged phase for a
+                // duration scaled to the simulator's round count. comp.isUnderAttack /
+                // comp.militaryBusy / squad.IsBusy all read manager state, so they continue
+                // reflecting "engaged" through the window. CompleteBattle (with its
+                // settlement-side effects via MilitaryJobHandler_Defend.ApplyResult) fires
+                // when the autoResolveBattleComplete event lands.
+                int duration = op.ComputeAutoResolveDuration(battleResult);
+                op.ScheduleAutoResolveCompletion(battleResult, duration);
+
+                // "Battle commenced" letter: the 24h warning announced the imminent attack;
+                // this confirms it has now begun. Outcome letter still fires from the handler
+                // at the end of the duration window.
+                string enemyName = op.aggressor?.faction?.Name ?? "Unknown";
+                Find.LetterStack.ReceiveLetter(
+                    "FCAutoBattleCommenced".Translate(settlement.Name),
+                    "FCAutoBattleCommencedDesc".Translate(settlement.Name, enemyName),
+                    LetterDefOf.ThreatBig,
+                    new LookTargets(settlement));
                 return;
             }
 

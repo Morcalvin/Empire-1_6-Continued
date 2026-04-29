@@ -159,6 +159,21 @@ namespace FactionColonies
         /// <summary>Max simultaneous manual battle maps across all settlements. 0 = unlimited.</summary>
         public static int maxConcurrentBattleMaps = 0;
 
+        /* Auto-resolve battle pacing. Defensive auto-resolve battles stay in the Engaged
+         * phase for ComputeAutoResolveDuration(BattleResult) ticks before CompleteBattle
+         * fires, so a sweep feels different from a grueling slog. Formula:
+         *   ticks = clamp(autoResolveBaseTicks + rounds * autoResolveTicksPerRound,
+         *                 [autoResolveMinTicks, autoResolveMaxTicks])
+         * then IAutoResolveDurationProvider modifiers run via AutoResolveDurationRegistry. */
+        public const int DEFAULT_AUTO_RESOLVE_BASE_TICKS = 5000;
+        public const int DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND = 600;
+        public const int DEFAULT_AUTO_RESOLVE_MIN_TICKS = 2500;
+        public const int DEFAULT_AUTO_RESOLVE_MAX_TICKS = 120000;
+        public static int autoResolveBaseTicks = DEFAULT_AUTO_RESOLVE_BASE_TICKS;
+        public static int autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
+        public static int autoResolveMinTicks = DEFAULT_AUTO_RESOLVE_MIN_TICKS;
+        public static int autoResolveMaxTicks = DEFAULT_AUTO_RESOLVE_MAX_TICKS;
+
         public static int maxPolicyCount = 2;
 
         /* Flag for debug/verbose logging. */
@@ -233,6 +248,10 @@ namespace FactionColonies
             Scribe_Values.Look(ref defenderAdvantage, "defenderAdvantage", DEFAULT_DEFENDER_ADVANTAGE);
             Scribe_Values.Look(ref efficiencyDamping, "efficiencyDamping", DEFAULT_EFFICIENCY_DAMPING);
             Scribe_Values.Look(ref maxConcurrentBattleMaps, "maxConcurrentBattleMaps", 0);
+            Scribe_Values.Look(ref autoResolveBaseTicks, "autoResolveBaseTicks", DEFAULT_AUTO_RESOLVE_BASE_TICKS);
+            Scribe_Values.Look(ref autoResolveTicksPerRound, "autoResolveTicksPerRound", DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND);
+            Scribe_Values.Look(ref autoResolveMinTicks, "autoResolveMinTicks", DEFAULT_AUTO_RESOLVE_MIN_TICKS);
+            Scribe_Values.Look(ref autoResolveMaxTicks, "autoResolveMaxTicks", DEFAULT_AUTO_RESOLVE_MAX_TICKS);
             Scribe_Values.Look(ref mercenaryHealRatePerHour, "mercenaryHealRatePerHour", 1f);
             Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
             Scribe_Values.Look(ref squadDismissalRefundFraction, "squadDismissalRefundFraction", DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION);
@@ -648,6 +667,10 @@ namespace FactionColonies
                 defenderAdvantage = DEFAULT_DEFENDER_ADVANTAGE;
                 efficiencyDamping = DEFAULT_EFFICIENCY_DAMPING;
                 maxConcurrentBattleMaps = 0;
+                autoResolveBaseTicks = DEFAULT_AUTO_RESOLVE_BASE_TICKS;
+                autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
+                autoResolveMinTicks = DEFAULT_AUTO_RESOLVE_MIN_TICKS;
+                autoResolveMaxTicks = DEFAULT_AUTO_RESOLVE_MAX_TICKS;
                 mercenaryHealRatePerHour = 1f;
                 squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
                 squadDismissalRefundFraction = DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION;

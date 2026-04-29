@@ -43,6 +43,12 @@ namespace FactionColonies
         /* Result, set on resolution */
         public BattleResult result;
 
+        /* Eagerly simulated result awaiting time-based completion of an auto-resolve battle.
+         * Populated by ScheduleAutoResolveCompletion when the simulator runs at engagement
+         * start; consumed (and cleared) when the autoResolveBattleComplete event fires and
+         * we hand off to CompleteBattle. */
+        public BattleResult pendingResult;
+
         /* Wakeup events scheduled by this op (arrival, cooldown, ...). */
         public List<FCEvent> sourceEvents = new List<FCEvent>();
 
@@ -86,6 +92,7 @@ namespace FactionColonies
             Scribe_Deep.Look(ref defender, "defender");
             Scribe_References.Look(ref externalDefenderSource, "externalDefenderSource");
             Scribe_Deep.Look(ref result, "result");
+            Scribe_Deep.Look(ref pendingResult, "pendingResult");
             Scribe_Collections.Look(ref sourceEvents, "sourceEvents", LookMode.Reference);
             Scribe_Values.Look(ref battlefieldRef, "battlefieldRef", PlanetTile.Invalid);
 
@@ -163,6 +170,51 @@ namespace FactionColonies
                 IAutoDefender def = AutoDefenderRegistry.FindByWorldObject(externalDefenderSource);
                 def?.OnDefenseStarted(targetObject);
             }
+        }
+
+        /// <summary>
+        /// Stash an eagerly-simulated <paramref name="result"/> on the op and schedule a delayed
+        /// <c>autoResolveBattleComplete</c> event so the op stays in <see cref="MilitaryOperationPhase.Engaged"/>
+        /// for <paramref name="durationTicks"/> before <see cref="CompleteBattle"/> runs. Settlements/squads
+        /// remain "militarily engaged" during the window (computed comp/squad properties read manager state).
+        /// <para>If the op is not in <see cref="MilitaryOperationPhase.Engaged"/>, falls through to
+        /// <see cref="CompleteBattle"/> immediately as a safety net.</para>
+        /// </summary>
+        public void ScheduleAutoResolveCompletion(BattleResult result, int durationTicks)
+        {
+            if (phase != MilitaryOperationPhase.Engaged)
+            {
+                LogUtil.Warning($"ScheduleAutoResolveCompletion: op id={id} not in Engaged (phase={phase}); falling through to immediate CompleteBattle.");
+                CompleteBattle(result);
+                return;
+            }
+
+            pendingResult = result;
+            PlanetTile evtTile = targetTile.Valid
+                ? targetTile
+                : (defender?.homeSettlement?.Tile ?? aggressor?.homeSettlement?.Tile ?? PlanetTile.Invalid);
+            ScheduleEvent(FCEventDefOf.autoResolveBattleComplete, evtTile, Math.Max(1, durationTicks));
+        }
+
+        /// <summary>
+        /// Compute how many ticks an auto-resolved battle should occupy the Engaged phase, based
+        /// on the simulator's round count and configured pacing. Registry providers can adjust the
+        /// final value via <see cref="AutoResolveDurationRegistry"/>.
+        /// </summary>
+        public int ComputeAutoResolveDuration(BattleResult battleResult)
+        {
+            if (DebugSettings.godMode) return 1;
+
+            int rounds = battleResult?.totalRounds ?? 0;
+            int ticks = FCSettings.autoResolveBaseTicks
+                      + rounds * FCSettings.autoResolveTicksPerRound;
+            int min = Math.Max(1, FCSettings.autoResolveMinTicks);
+            int max = Math.Max(min, FCSettings.autoResolveMaxTicks);
+            ticks = Math.Max(min, Math.Min(max, ticks));
+
+            AutoResolveDurationRegistry.InvokeModifyDuration(this, battleResult, ref ticks);
+
+            return Math.Max(1, ticks);
         }
 
         /// <summary>
@@ -429,6 +481,20 @@ namespace FactionColonies
                 // schedules wakeup events that hit this branch). Auto-resolve as a safety net.
                 LogUtil.Warning($"MilitaryOperation.OnEventFired: handler-less op id={id} kind={kind?.defName} reached engagement path; auto-resolving.");
                 AutoResolveAndComplete();
+                return;
+            }
+
+            if (phase == MilitaryOperationPhase.Engaged
+                && evt.def == FCEventDefOf.autoResolveBattleComplete)
+            {
+                BattleResult r = pendingResult;
+                pendingResult = null;
+                if (r is null)
+                {
+                    LogUtil.Error($"MilitaryOperation.OnEventFired: autoResolveBattleComplete fired on op id={id} with null pendingResult; using Error result.");
+                    r = new BattleResult { winner = BattleWinner.Error };
+                }
+                CompleteBattle(r);
                 return;
             }
 

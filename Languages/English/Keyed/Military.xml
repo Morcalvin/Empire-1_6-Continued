@@ -54,6 +54,8 @@
 	<FCReformCaravanBattleStillActive>The battle isn't over until every hostile has died or left the map.</FCReformCaravanBattleStillActive>
 	<FCManualBattleStarted>Battle for {0}</FCManualBattleStarted>
 	<FCManualBattleStartedDesc>{0} is under attack by {1}! Take command of the settlement's defenses.</FCManualBattleStartedDesc>
+	<FCAutoBattleCommenced>Battle commenced at {0}</FCAutoBattleCommenced>
+	<FCAutoBattleCommencedDesc>The defenders of {0} have engaged forces from {1}. The settlement remains militarily committed until the battle resolves.</FCAutoBattleCommencedDesc>
 	<FCNewWaveArrived>New Wave at {0}</FCNewWaveArrived>
 	<FCNewWaveArrivedDesc>A new wave of attackers from {1} has arrived at {0}! Reinforcements may be on the way.</FCNewWaveArrivedDesc>
 	<FCDefendColony>Defend</FCDefendColony>

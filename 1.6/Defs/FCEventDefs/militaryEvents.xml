@@ -50,4 +50,14 @@
 		<category>EC_Military</category>
 	</FactionColonies.FCEventDef>
 
+	<FactionColonies.FCEventDef>
+		<defName>autoResolveBattleComplete</defName>
+		<label>Auto-Resolve Battle Complete</label>
+		<timeTillTrigger>0</timeTillTrigger>
+		<desc>-Replace Description-</desc>
+
+		<isMilitaryEvent>true</isMilitaryEvent>
+		<category>EC_Military</category>
+	</FactionColonies.FCEventDef>
+
 </Defs>
