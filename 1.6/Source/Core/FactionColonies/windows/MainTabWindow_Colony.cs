@@ -1691,25 +1691,34 @@ namespace FactionColonies
                 if (Mouse.IsOver(nameRect))
                     Widgets.DrawHighlight(nameRect);
 
-                // Header-center-left: Atk/Def/Budget badge
+                // Header-center-left: Atk/Def/Budget badge.
+                // Power is squad-derived: strongest available stationed squad (white), or
+                // strongest stationed if all busy (yellow), or half-power ghost if empty
+                // billet (red). Grey when cap=0. Budget remains settlement-derived since
+                // it represents the loadout cost ceiling, not realized power.
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
                 double budget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
-                double efficiency = settlement.GetStatValue(FCStatDefOf.militaryCombatEfficiency);
                 FactionFC fcBadge = FactionCache.FactionComp;
+                (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
                 double atkPower = Math.Round(
-                    (settlement.settlementMilitaryLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking))
-                    * efficiency * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking));
+                    (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking))
+                    * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking));
                 double defPower = Math.Round(
-                    (settlement.settlementMilitaryLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))
-                    * efficiency * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
+                    (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))
+                    * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
                     * FCSettings.defenderAdvantage);
                 string badgeStr = "FCMilBadge".Translate(atkPower, defPower, budget);
+                Color badgeColorBefore = GUI.color;
+                GUI.color = ColorForPowerStatus(powStatus);
                 Widgets.Label(new Rect(contentX + nameW, topY, badgeW, lineH), badgeStr);
+                GUI.color = badgeColorBefore;
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
+                Rect badgeRect = new Rect(contentX + nameW, topY, badgeW, lineH);
+                TooltipHandler.TipRegion(badgeRect, TooltipForPowerStatus(powStatus, settlement, stationed));
 
                 // Header-center-right: "Squads: N / M" counter (or "No military" for cap=0)
                 fontBefore = Text.Font;
@@ -2119,6 +2128,43 @@ namespace FactionColonies
             }
 
             Find.WindowStack.Add(new FCWindow_Military(content, title));
+        }
+
+        private static Color ColorForPowerStatus(SettlementPowerStatus status)
+        {
+            switch (status)
+            {
+                case SettlementPowerStatus.AllBusy: return new Color(1f, 0.85f, 0.4f);
+                case SettlementPowerStatus.Ghost: return new Color(0.95f, 0.4f, 0.4f);
+                case SettlementPowerStatus.NoMilitary: return Color.gray;
+                default: return Color.white;
+            }
+        }
+
+        private static string TooltipForPowerStatus(SettlementPowerStatus status,
+            WorldSettlementFC settlement, List<MercenarySquadFC> stationed)
+        {
+            switch (status)
+            {
+                case SettlementPowerStatus.Squad:
+                    MercenarySquadFC strongest = null;
+                    double bestLevel = -1;
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        MercenarySquadFC s = stationed[i];
+                        if (s is null || !s.IsAvailable) continue;
+                        double lvl = SquadPowerRegistry.Resolve(s).militaryLevel;
+                        if (lvl > bestLevel) { strongest = s; bestLevel = lvl; }
+                    }
+                    return "FCMilPowerTipSquad".Translate(strongest?.name ?? "?");
+                case SettlementPowerStatus.AllBusy:
+                    return "FCMilPowerTipAllBusy".Translate();
+                case SettlementPowerStatus.Ghost:
+                    return "FCMilPowerTipGhost".Translate();
+                case SettlementPowerStatus.NoMilitary:
+                    return "FCMilPowerTipNoMilitary".Translate();
+            }
+            return "";
         }
 
     }

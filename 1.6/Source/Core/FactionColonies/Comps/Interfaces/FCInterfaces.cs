@@ -205,21 +205,24 @@ namespace FactionColonies
         bool CanAssign(WorldSettlementFC settlement, MercenarySquadFC squad, out string reason);
     }
     /// <summary>
-    /// Lets submods derive a squad's projected military level + combat efficiency from
-    /// per-squad state (loadout, mercs, veterancy, etc.). Higher <see cref="Priority"/>
-    /// runs first; the first provider returning a non-null value wins. The base mod
-    /// always registers a default provider at priority 0 that maps loadout cost to a
-    /// settlement-equivalent military level via the inverse of the squad-budget formula.
+    /// Lets submods compose adjustments to a squad's projected combat power
+    /// (veterancy bonuses, specialist multipliers, augmentations, etc.). Modifiers
+    /// chain: each receives the running <see cref="SquadPower"/> (initially the
+    /// base computed from loadout cost + settlement efficiency) and returns the
+    /// modified value. Higher <see cref="Priority"/> runs first.
+    /// <para>Submods that don't want to apply in a given case should return
+    /// <paramref name="currentPower"/> unchanged.</para>
     /// Register via <see cref="SquadPowerRegistry"/>.
     /// </summary>
-    public interface ISquadPowerProvider
+    public interface ISquadPowerModifier
     {
-        /// <summary>Higher priorities are consulted first. Return null to defer.</summary>
+        /// <summary>Higher priorities run first. Modifiers see the power after all
+        /// higher-priority modifiers have run.</summary>
         int Priority { get; }
-        /// <summary>Returns (militaryLevel, militaryEfficiency) or null to defer to the
-        /// next provider. Implementations may consult <c>squad.outfit</c>, individual
-        /// merc skills/equipment, custom data, etc.</summary>
-        SquadPower? GetSquadPower(MercenarySquadFC squad);
+        /// <summary>Returns the squad's adjusted power. Implementations may consult
+        /// <c>squad.outfit</c>, mercs, custom data, etc. Throw-safe: exceptions are
+        /// logged and the modifier is skipped (running power is preserved).</summary>
+        SquadPower ModifyPower(MercenarySquadFC squad, SquadPower currentPower);
     }
     /// <summary>Squad-projected combat power. <see cref="militaryLevel"/> is on the same
     /// 1-9 scale as <see cref="WorldSettlementFC.settlementMilitaryLevel"/>.

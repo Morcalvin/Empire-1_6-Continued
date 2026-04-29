@@ -908,23 +908,36 @@ namespace FactionColonies
         private string DrawStatMilitaryLevel(Rect buttonBox, Rect labelBox)
         {
             Widgets.Label(buttonBox, new GUIContent(TexLoad.iconMilitary));
-            Widgets.Label(labelBox, settlement.settlementMilitaryLevel.ToString());
+            // Squad-derived display: shows the strongest available stationed squad's level
+            // (white), strongest stationed if all busy (yellow), half-power ghost (red),
+            // or "—" greyed when SquadCap == 0.
+            (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
             FactionFC fc = FactionCache.FactionComp;
-            double baseLvl = settlement.settlementMilitaryLevel;
-            double eff = settlement.GetStatValue(FCStatDefOf.militaryCombatEfficiency);
+
+            string label = powStatus == SettlementPowerStatus.NoMilitary
+                ? "—"
+                : ((int)Math.Round(powLevel)).ToString();
+            Color colorBefore = GUI.color;
+            GUI.color = ColorForPowerStatus(powStatus);
+            Widgets.Label(labelBox, label);
+            GUI.color = colorBefore;
+
             double atkLvlBonus = fc.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking);
             double atkEffBonus = fc.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking);
             double defLvlBonus = fc.GetStatValue(FCStatDefOf.militaryLevelBonusDefending);
             double defEffBonus = fc.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending);
             double defAdv = FCSettings.defenderAdvantage;
-            double offPower = Math.Round((baseLvl + atkLvlBonus) * eff * atkEffBonus);
-            double defPower = Math.Round((baseLvl + defLvlBonus) * eff * defEffBonus * defAdv);
+            double offPower = Math.Round((powLevel + atkLvlBonus) * powEff * atkEffBonus);
+            double defPower = Math.Round((powLevel + defLvlBonus) * powEff * defEffBonus * defAdv);
 
+            string statusLine = StatusLineForPower(powStatus);
             string tooltip = "FCSettlementMilitaryLevel".Translate() + "\n-----\n"
                 + "FCSettlementMilitaryLevelDesc".Translate() + "\n\n"
-                + "Base level: " + baseLvl;
-            if (Math.Abs(eff - 1.0) > 0.001)
-                tooltip += "\nCombat efficiency: " + eff.ToString("0.0#") + "x";
+                + statusLine + "\n"
+                + "Power level: " + powLevel.ToString("0.#")
+                + " (settlement militaryLevel: " + settlement.settlementMilitaryLevel + ")";
+            if (Math.Abs(powEff - 1.0) > 0.001)
+                tooltip += "\nCombat efficiency: " + powEff.ToString("0.0#") + "x";
             tooltip += "\n\nOffensive Power: " + offPower;
             if (Math.Abs(atkLvlBonus) > 0.001)
                 tooltip += "\n  Level bonus: +" + atkLvlBonus.ToString("0.#");
@@ -938,6 +951,28 @@ namespace FactionColonies
             if (Math.Abs(defAdv - 1.0) > 0.001)
                 tooltip += "\n  Defender advantage: " + defAdv.ToString("0.0#") + "x";
             return tooltip + CodexTooltips.GetMilitaryTargetingInfo(settlement);
+        }
+
+        private static Color ColorForPowerStatus(SettlementPowerStatus status)
+        {
+            switch (status)
+            {
+                case SettlementPowerStatus.AllBusy: return new Color(1f, 0.85f, 0.4f);
+                case SettlementPowerStatus.Ghost: return new Color(0.95f, 0.4f, 0.4f);
+                case SettlementPowerStatus.NoMilitary: return Color.gray;
+                default: return Color.white;
+            }
+        }
+
+        private static string StatusLineForPower(SettlementPowerStatus status)
+        {
+            switch (status)
+            {
+                case SettlementPowerStatus.AllBusy: return "FCMilPowerTipAllBusy".Translate();
+                case SettlementPowerStatus.Ghost: return "FCMilPowerTipGhost".Translate();
+                case SettlementPowerStatus.NoMilitary: return "FCMilPowerTipNoMilitary".Translate();
+                default: return "FCMilPowerTipSquadShort".Translate();
+            }
         }
 
         private string DrawStatWithGainBox(Rect buttonBox, Rect labelBox, Rect statGainBox,

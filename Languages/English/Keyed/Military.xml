@@ -173,6 +173,11 @@
 	<FCMilBtnAutoDefendTip>Automatically send this settlement's forces to defend other settlements under attack</FCMilBtnAutoDefendTip>
 	<FCMilAutoDefendDisabled>This settlement's military level is too low to auto-defend. Upgrade the settlement to increase its military level.</FCMilAutoDefendDisabled>
 	<FCMilBadge>Atk {0} / Def {1}  &#x2022;  ${2}</FCMilBadge>
+	<FCMilPowerTipSquad>Power from {0}</FCMilPowerTipSquad>
+	<FCMilPowerTipSquadShort>Power source: stationed squad</FCMilPowerTipSquadShort>
+	<FCMilPowerTipAllBusy>All stationed squads are currently busy. Power shown is potential when recalled.</FCMilPowerTipAllBusy>
+	<FCMilPowerTipGhost>No squad assigned — defending at half power. Assign a squad to use this billet.</FCMilPowerTipGhost>
+	<FCMilPowerTipNoMilitary>This settlement type has no military capacity.</FCMilPowerTipNoMilitary>
 
 	<!-- Squad-first refactor (hire / assign / cap / dialogs) -->
 	<FCMilitaryTabBySettlement>By Settlement</FCMilitaryTabBySettlement>

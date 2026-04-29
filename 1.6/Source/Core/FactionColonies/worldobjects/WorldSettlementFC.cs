@@ -11,6 +11,20 @@ using Verse;
 
 namespace FactionColonies
 {
+    /// <summary>Display state for a settlement's squad-derived military power.
+    /// Drives text color and tooltip in the settlement window and main military tab.</summary>
+    public enum SettlementPowerStatus
+    {
+        /// <summary>At least one stationed squad is available (white text).</summary>
+        Squad,
+        /// <summary>Squads are stationed but all are busy in ops/cooldown (yellow text).</summary>
+        AllBusy,
+        /// <summary>SquadCap > 0 but no squad stationed — defending at half power (red text).</summary>
+        Ghost,
+        /// <summary>SquadCap == 0 — settlement type has no military capacity (greyed out).</summary>
+        NoMilitary
+    }
+
     /// <summary>
     ///     WorldObject that in many ways re-implements Settlement.cs from Rimworld.Planet. May cause compatibility issues with
     ///     other mods that rely on finding Settlement objects on the world map. Recommend testing this extensively with mods
@@ -293,6 +307,62 @@ namespace FactionColonies
                 int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.squadCapPerSettlement, this));
                 return Math.Max(0, 1 + bonus);
             }
+        }
+
+        /// <summary>Settlement-wide military power for UI display. Reflects the strongest
+        /// available stationed squad's projected force (white). Yellow when squads exist
+        /// but all are busy (raid, cooldown, defense). Red half-power "ghost" when the
+        /// billet is empty but cap > 0 (still defends — see
+        /// <see cref="MilitaryForce.CreateMilitaryForceFromUnstaffedBillet"/>). Greyed out
+        /// when cap == 0 (structurally non-military).</summary>
+        public (double level, double efficiency, SettlementPowerStatus status) GetDisplayedPower()
+        {
+            int cap = SquadCap;
+            if (cap <= 0) return (0, 0, SettlementPowerStatus.NoMilitary);
+
+            List<MercenarySquadFC> stationed = StationedSquads;
+            if (stationed.Count == 0)
+            {
+                // Empty cap-slot — half-power synthetic. Mirrors
+                // CreateMilitaryForceFromUnstaffedBillet's formula so display matches battle.
+                double ghostLevel = Math.Max(1, settlementMilitaryLevel) * 0.5;
+                double ghostEff = 1.0;
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is object) ghostEff = fc.GetStatValue(FCStatDefOf.militaryCombatEfficiency, this);
+                return (ghostLevel, ghostEff, SettlementPowerStatus.Ghost);
+            }
+
+            // Pick the strongest squad, preferring available ones. If none are available,
+            // we still report the strongest stationed squad's potential (yellow tint).
+            MercenarySquadFC bestAvailable = null;
+            double bestAvailableLevel = -1;
+            MercenarySquadFC bestStationed = null;
+            double bestStationedLevel = -1;
+            for (int i = 0; i < stationed.Count; i++)
+            {
+                MercenarySquadFC s = stationed[i];
+                if (s is null) continue;
+                double level = SquadPowerRegistry.Resolve(s).militaryLevel;
+                if (level > bestStationedLevel)
+                {
+                    bestStationed = s;
+                    bestStationedLevel = level;
+                }
+                if (s.IsAvailable && level > bestAvailableLevel)
+                {
+                    bestAvailable = s;
+                    bestAvailableLevel = level;
+                }
+            }
+
+            MercenarySquadFC pick = bestAvailable ?? bestStationed;
+            if (pick is null) return (0, 0, SettlementPowerStatus.NoMilitary);
+
+            SquadPower power = SquadPowerRegistry.Resolve(pick);
+            SettlementPowerStatus status = bestAvailable is object
+                ? SettlementPowerStatus.Squad
+                : SettlementPowerStatus.AllBusy;
+            return (power.militaryLevel, power.militaryEfficiency, status);
         }
 
         /// <summary>Maximum number of mercenaries a squad assigned here may have. Base 30 (matches

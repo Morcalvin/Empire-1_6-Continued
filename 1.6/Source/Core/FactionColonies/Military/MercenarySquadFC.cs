@@ -396,12 +396,18 @@ namespace FactionColonies
          * model; the property exists only as a stable accessor for external callers. */
         public WorldSettlementFC getSettlement => settlement;
 
+        /// <summary>
+        /// Initial population pass: creates 30 mercs (one per template slot, or blank if no
+        /// outfit) and equips them via <see cref="OutfitSquad"/>. The canonical first call
+        /// is from <see cref="MilitaryCustomizationUtil.HireSquad"/>, where a freshly-
+        /// constructed squad has <c>mercenaries.Count == 0</c> so the early-return guard
+        /// does not fire.
+        /// <para>Strict-manual outfit policy: the guard exists for post-load reentry
+        /// (<see cref="CheckInitialization"/>) so a squad with all-dead placeholder mercs
+        /// is NOT silently regenerated. The player must explicitly Fill those slots.</para>
+        /// </summary>
         public void InitiateSquad()
         {
-            /* Strict-manual outfit policy: bail out if the merc list exists at all. An empty
-             * list with placeholder mercs (all pawns dead in battle) is a valid post-strict-
-             * manual state — the player must explicitly Fill the slots, not have InitiateSquad
-             * silently regenerate them. InitiateSquad runs once at hire (via HireSquad). */
             if (mercenaries != null && mercenaries.Count > 0) return;
 
             mercenaries = new List<Mercenary>();
