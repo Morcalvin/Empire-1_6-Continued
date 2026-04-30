@@ -239,6 +239,7 @@
 
 	<FCHireSquadsHeader>Squad pool</FCHireSquadsHeader>
 	<FCHireSquadsEmpty>No squads hired.</FCHireSquadsEmpty>
+	<FCHireSquadsCount>{0} squads</FCHireSquadsCount>
 	<FCSetSquadCurrent>(current)</FCSetSquadCurrent>
 
 	<FCSettlementMilHeader>Squads: {0} / {1}  &#x2022;  Max squad size: {2}</FCSettlementMilHeader>

@@ -1523,10 +1523,14 @@ namespace FactionColonies
             Rect labelBox = new Rect(iconRect.xMax + margin, y + margin, bx - iconRect.xMax - (margin * 2), buttonHeight);
             Rect labelTextBox = new Rect(labelBox.x + margin, labelBox.y, labelBox.width - (margin * 2), labelBox.height);
 
+            GameFont headerFontBefore = Text.Font;
+            TextAnchor headerAnchorBefore = Text.Anchor;
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
             Widgets.DrawHighlight(labelBox);
             Widgets.Label(labelTextBox, faction.name ?? "");
+            Text.Font = headerFontBefore;
+            Text.Anchor = headerAnchorBefore;
 
             if (faction.settlements?.Count > 0)
             {
@@ -1544,11 +1548,15 @@ namespace FactionColonies
 
             y += buttonHeight + margin * 2;
 
-            /* Subtab strip spans full inner width; DrawTabRow returns the content area below. */
+            /* Subtab strip spans full inner width; DrawTabRow returns the content area below.
+               Force Small font here — ButtonFlat inherits the ambient Text.Font, and the
+               header label above this method runs at Medium on the very first frame
+               (before any tab content has had a chance to set its own font). */
             float subtabAreaH = rect.yMax - y - margin;
             if (subtabAreaH <= 0f) return;
             Rect subtabBox = new Rect(x + margin, y, width - (margin * 2), subtabAreaH);
 
+            Text.Font = GameFont.Small;
             List<string> tabLabels = new List<string>
             {
                 (string)"FCMilitaryTabBySettlement".Translate(),

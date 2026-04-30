@@ -33,8 +33,10 @@ namespace FactionColonies
             Draw(inRect);
         }
 
-        /* Draw layout constants. cardH = cardHeaderH + cardDetailH; cards stack with rowGap. */
-        private const float HeaderLabelH = 30f;
+        /* Draw layout constants. cardH = cardHeaderH + cardDetailH; cards stack with rowGap.
+           SummaryH matches DrawMilitarySettlementCards' "# settlements" readout so the two
+           subtabs share the same top-of-content rhythm. */
+        private const float SummaryH     = 24f;
         private const float Pad          = 4f;
         private const float RowGap       = 2f;
         private const float CardHeaderH  = 24f;
@@ -50,17 +52,24 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            Text.Font = GameFont.Medium;
-            Text.Anchor = TextAnchor.UpperLeft;
-            Widgets.Label(new Rect(rect.x, rect.y, rect.width, HeaderLabelH), "FCHireSquadsHeader".Translate());
-
-            Text.Font = GameFont.Small;
-            Rect tableRect = new Rect(rect.x, rect.y + HeaderLabelH + 4f,
-                rect.width, rect.height - HeaderLabelH - 4f);
-
             FactionFC fc = FactionCache.FactionComp;
             MilitaryCustomizationUtil util = fc?.militaryCustomizationUtil;
             List<MercenarySquadFC> pool = util?.mercenarySquads ?? new List<MercenarySquadFC>();
+
+            float innerX = rect.x + Pad;
+            float innerW = rect.width - Pad * 2f;
+
+            // Count readout — small/grey, matches DrawMilitarySettlementCards' "# settlements".
+            Color origColor = GUI.color;
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = Color.gray;
+            Widgets.Label(new Rect(innerX, rect.y + Pad, innerW * 0.5f, SummaryH),
+                "FCHireSquadsCount".Translate(pool.Count));
+            GUI.color = origColor;
+
+            Rect tableRect = new Rect(rect.x, rect.y + SummaryH + 4f,
+                rect.width, rect.height - SummaryH - 4f);
 
             if (pool.Count == 0)
             {
@@ -75,8 +84,6 @@ namespace FactionColonies
                 return;
             }
 
-            float innerX = tableRect.x + Pad;
-            float innerW = tableRect.width - Pad * 2f;
             float listY  = tableRect.y + Pad;
             float viewH  = tableRect.yMax - listY - Pad;
             float totalH = pool.Count * (CardH + RowGap);
