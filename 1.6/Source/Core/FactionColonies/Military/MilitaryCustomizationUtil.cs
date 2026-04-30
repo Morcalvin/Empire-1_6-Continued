@@ -361,28 +361,43 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Builds float-menu options for hiring a squad from each available template.
-        /// Click handler routes through <see cref="HireSquad"/> + <see cref="AttemptToAssign"/> so
-        /// the player ends up with a hired squad attached to <paramref name="settlement"/>.</summary>
+        /// <summary>Builds float-menu options for assigning an existing hired squad to
+        /// <paramref name="settlement"/>. Lists every squad in <see cref="mercenarySquads"/>:
+        /// squads billeted at another settlement appear greyed (null Action) with that
+        /// settlement's name as a suffix; the squad already in this settlement appears with
+        /// a "(current)" suffix and a no-op Action. Hiring lives in the Create-Squad window
+        /// now; this menu only reassigns the existing pool.</summary>
         public List<FloatMenuOption> BuildSquadAssignmentOptions(WorldSettlementFC settlement)
         {
-            if (squads is null) ResetSquads();
-
             List<FloatMenuOption> options = new List<FloatMenuOption>();
-            foreach (MilSquadFC template in squads)
+            if (mercenarySquads is null || mercenarySquads.Count == 0)
             {
-                MilSquadFC captured = template;
-                int hireCost = (int)Math.Round(captured.GetEquipmentTotalCost() * FCSettings.squadHireCostMultiplier);
-                string label = captured.name + " - " + "FCCost".Translate() + ": " + hireCost;
-                options.Add(new FloatMenuOption(label, delegate
-                {
-                    MercenarySquadFC hired = HireSquad(captured);
-                    if (hired is object) AttemptToAssign(hired, settlement);
-                }));
+                options.Add(new FloatMenuOption("FCNoSquadAvailable".Translate(), null));
+                return options;
             }
 
-            if (options.Count == 0)
-                options.Add(new FloatMenuOption("FCNoSquadAvailable".Translate(), null));
+            foreach (MercenarySquadFC squad in mercenarySquads)
+            {
+                if (squad is null) continue;
+                MercenarySquadFC captured = squad;
+
+                bool alreadyHere = squad.settlement == settlement;
+                bool elsewhere = squad.IsAssigned && !alreadyHere;
+
+                string suffix;
+                if (alreadyHere) suffix = "  " + (string)"FCSetSquadCurrent".Translate();
+                else if (elsewhere) suffix = "  - " + squad.settlement.Name;
+                else suffix = "";
+
+                string label = (squad.name ?? squad.outfit?.name ?? "(?)") + suffix;
+
+                Action onPick;
+                if (alreadyHere) onPick = delegate { /* no-op: squad already billeted here */ };
+                else if (elsewhere) onPick = null;   // null Action greys the row in FloatMenu
+                else onPick = delegate { AttemptToAssign(captured, settlement); };
+
+                options.Add(new FloatMenuOption(label, onPick));
+            }
 
             return options;
         }

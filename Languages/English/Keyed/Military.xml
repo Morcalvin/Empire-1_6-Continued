@@ -238,6 +238,8 @@
 	<FCSquadActDismissConfirm>Dismiss "{0}"? You will be refunded ${1} silver.</FCSquadActDismissConfirm>
 
 	<FCHireSquadsHeader>Squad pool</FCHireSquadsHeader>
+	<FCHireSquadsEmpty>No squads hired.</FCHireSquadsEmpty>
+	<FCSetSquadCurrent>(current)</FCSetSquadCurrent>
 
 	<FCSettlementMilHeader>Squads: {0} / {1}  &#x2022;  Max squad size: {2}</FCSettlementMilHeader>
 	<FCSettlementMilSquadEntry>{0} (auto-defend: {1})</FCSettlementMilSquadEntry>

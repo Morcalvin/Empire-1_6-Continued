@@ -8,9 +8,10 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>
-    /// Faction-wide squad pool overview. Lists every <see cref="MercenarySquadFC"/> with billet,
-    /// status, hire cost, and upgrade cost. Per-row actions: Rename, Reassign, Upgrade, Dismiss.
-    /// Reused as the "By Squad" subtab body of the main military tab.
+    /// Faction-wide squad pool overview. Lists every <see cref="MercenarySquadFC"/> as a
+    /// header+detail card with accent strip, billet, status, hire/upgrade costs, and per-squad
+    /// actions: Inspect, Reassign, Upgrade, Dismiss. Reused as the "By Squad" subtab body of
+    /// the main military tab.
     /// </summary>
     public class HireSquadsWindow : Window
     {
@@ -32,9 +33,18 @@ namespace FactionColonies
             Draw(inRect);
         }
 
-        /// <summary>Draws the table directly into <paramref name="rect"/>. Used both standalone
-        /// (this Window's DoWindowContents) and embedded inside the main military tab's
-        /// "By Squad" subtab.</summary>
+        /* Draw layout constants. cardH = cardHeaderH + cardDetailH; cards stack with rowGap. */
+        private const float HeaderLabelH = 30f;
+        private const float Pad          = 4f;
+        private const float RowGap       = 2f;
+        private const float CardHeaderH  = 24f;
+        private const float CardDetailH  = 22f;
+        private const float CardH        = CardHeaderH + CardDetailH;
+        private const float AccentW      = 4f;
+
+        /// <summary>Draws the squad pool list directly into <paramref name="rect"/>. Used both
+        /// standalone (this Window's DoWindowContents) and embedded inside the main military
+        /// tab's "By Squad" subtab.</summary>
         public void Draw(Rect rect)
         {
             GameFont fontBefore = Text.Font;
@@ -42,145 +52,211 @@ namespace FactionColonies
 
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.UpperLeft;
-            Widgets.Label(new Rect(rect.x, rect.y, rect.width, 30f), "FCHireSquadsHeader".Translate());
+            Widgets.Label(new Rect(rect.x, rect.y, rect.width, HeaderLabelH), "FCHireSquadsHeader".Translate());
 
             Text.Font = GameFont.Small;
-            float headerH = 30f;
-            Rect tableRect = new Rect(rect.x, rect.y + headerH + 4f, rect.width, rect.height - headerH - 4f);
-            DrawTable(tableRect);
-
-            Text.Font = fontBefore;
-            Text.Anchor = anchorBefore;
-        }
-
-        private void DrawTable(Rect rect)
-        {
-            // Column header
-            float colHeaderH = 22f;
-            Rect headerRect = new Rect(rect.x, rect.y, rect.width, colHeaderH);
-            Widgets.DrawHighlight(headerRect);
-            DrawColumns(headerRect, isHeader: true,
-                name: "FCSquadColName".Translate(),
-                template: "FCSquadColTemplate".Translate(),
-                billet: "FCSquadColBillet".Translate(),
-                status: "FCSquadColStatus".Translate(),
-                cost: "FCSquadColCost".Translate(),
-                upgrade: "FCSquadColUpgrade".Translate(),
-                actions: "FCSquadColActions".Translate());
+            Rect tableRect = new Rect(rect.x, rect.y + HeaderLabelH + 4f,
+                rect.width, rect.height - HeaderLabelH - 4f);
 
             FactionFC fc = FactionCache.FactionComp;
             MilitaryCustomizationUtil util = fc?.militaryCustomizationUtil;
             List<MercenarySquadFC> pool = util?.mercenarySquads ?? new List<MercenarySquadFC>();
 
-            float rowH = 30f;
-            float listTop = rect.y + colHeaderH;
-            Rect listRect = new Rect(rect.x, listTop, rect.width, rect.yMax - listTop);
-            float viewH = pool.Count * rowH;
-            Rect viewRect = new Rect(0, 0, listRect.width - 16f, viewH);
-            Widgets.BeginScrollView(listRect, ref scroll, viewRect);
+            if (pool.Count == 0)
+            {
+                Color savedColor = GUI.color;
+                GUI.color = Color.gray;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f,
+                    tableRect.width, 40f), "FCHireSquadsEmpty".Translate());
+                GUI.color = savedColor;
+                Text.Font = fontBefore;
+                Text.Anchor = anchorBefore;
+                return;
+            }
+
+            float innerX = tableRect.x + Pad;
+            float innerW = tableRect.width - Pad * 2f;
+            float listY  = tableRect.y + Pad;
+            float viewH  = tableRect.yMax - listY - Pad;
+            float totalH = pool.Count * (CardH + RowGap);
+
+            Rect viewRect = new Rect(innerX, listY, innerW, viewH);
+            Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref scroll, totalH);
+
             int now = Find.TickManager.TicksGame;
+            float runningY = 0f;
             for (int i = 0; i < pool.Count; i++)
             {
                 MercenarySquadFC squad = pool[i];
                 if (squad is null) continue;
-                Rect rowRect = new Rect(0, i * rowH, viewRect.width, rowH);
-                if (i % 2 == 0) Widgets.DrawHighlight(rowRect);
-
-                string status;
-                if (!squad.IsAssigned) status = "FCSquadStatusUnassigned".Translate();
-                else if (squad.IsBusy)
-                {
-                    MilitaryOperation op = squad.Operation;
-                    int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
-                    string opLabel = op?.kind?.label ?? "?";
-                    status = "FCSquadStatusBusyOp".Translate(opLabel, (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-                }
-                else if (squad.nextAvailableTick > now)
-                {
-                    int ticksLeft = squad.nextAvailableTick - now;
-                    status = "FCSquadStatusCooldown".Translate((ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-                }
-                else status = "FCSquadStatusReady".Translate();
-
-                int upgrade = squad.UpgradeCost;
-                string upgradeText = upgrade > 0 ? "$" + upgrade : "-";
-
-                DrawColumns(rowRect, isHeader: false,
-                    name: squad.name ?? "(?)",
-                    template: squad.outfit?.name ?? "(stripped)",
-                    billet: squad.settlement?.Name ?? "(unassigned)",
-                    status: status,
-                    cost: "$" + squad.hireCostPaid,
-                    upgrade: upgradeText,
-                    actions: "");
-
-                // Action buttons in the rightmost column
-                float actionsX = rect.x + ColumnOffset(6);
-                MercenarySquadFC capturedSquad = squad;
-                if (Widgets.ButtonText(new Rect(actionsX, rowRect.y + 2f, 90f, rowH - 4f), "FCSquadActReassign".Translate()))
-                {
-                    Find.WindowStack.Add(new Dialog_SquadAssignment(capturedSquad));
-                }
-                bool canUpgrade = upgrade > 0 && !squad.IsBusy;
-                Color colorBefore = GUI.color;
-                if (!canUpgrade) GUI.color = Color.gray;
-                if (Widgets.ButtonText(new Rect(actionsX + 95f, rowRect.y + 2f, 90f, rowH - 4f), "FCSquadActUpgrade".Translate(), true, true, canUpgrade))
-                {
-                    capturedSquad.UpgradeToTemplate();
-                }
-                GUI.color = colorBefore;
-
-                bool canDismiss = !squad.IsBusy;
-                Color cb = GUI.color;
-                if (!canDismiss) GUI.color = Color.gray;
-                if (Widgets.ButtonText(new Rect(actionsX + 190f, rowRect.y + 2f, 80f, rowH - 4f), "FCSquadActDismiss".Translate(), true, true, canDismiss))
-                {
-                    int refund = (int)Math.Round(capturedSquad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
-                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "FCSquadActDismissConfirm".Translate(capturedSquad.name, refund),
-                        delegate { util.DismissSquad(capturedSquad); }));
-                }
-                GUI.color = cb;
-
-                // Click on Name to inspect the squad. Renaming moved into the inspection window header.
-                Rect nameClickRect = new Rect(rowRect.x + ColumnOffset(0), rowRect.y, ColumnWidth(0), rowH);
-                if (Widgets.ButtonInvisible(nameClickRect))
-                {
-                    Find.WindowStack.Add(new Dialog_SquadInspection(capturedSquad));
-                }
+                Rect cardRect = new Rect(0f, runningY, scrollRect.width, CardH);
+                DrawSquadCard(cardRect, squad, i, now, util);
+                runningY += CardH + RowGap;
             }
-            Widgets.EndScrollView();
-        }
-
-        private static readonly float[] ColWidths = { 140f, 130f, 130f, 160f, 70f, 70f, 280f };
-
-        private static float ColumnOffset(int idx)
-        {
-            float x = 6f;
-            for (int i = 0; i < idx; i++) x += ColWidths[i];
-            return x;
-        }
-        private static float ColumnWidth(int idx) => ColWidths[idx];
-
-        private static void DrawColumns(Rect rect, bool isHeader,
-            string name, string template, string billet, string status, string cost, string upgrade, string actions)
-        {
-            GameFont fontBefore = Text.Font;
-            TextAnchor anchorBefore = Text.Anchor;
-            Text.Font = isHeader ? GameFont.Tiny : GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleLeft;
-
-            float x = rect.x + 6f;
-            Widgets.Label(new Rect(x, rect.y, ColWidths[0], rect.height), name); x += ColWidths[0];
-            Widgets.Label(new Rect(x, rect.y, ColWidths[1], rect.height), template); x += ColWidths[1];
-            Widgets.Label(new Rect(x, rect.y, ColWidths[2], rect.height), billet); x += ColWidths[2];
-            Widgets.Label(new Rect(x, rect.y, ColWidths[3], rect.height), status); x += ColWidths[3];
-            Widgets.Label(new Rect(x, rect.y, ColWidths[4], rect.height), cost); x += ColWidths[4];
-            Widgets.Label(new Rect(x, rect.y, ColWidths[5], rect.height), upgrade); x += ColWidths[5];
-            // Actions column drawn separately by caller (interactive buttons).
+            ScrollUtil.EndScrollView();
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
+        }
+
+        /* Per-squad card. Header row: accent strip, squad name (clickable), right-aligned
+           status badge. Detail row: Template / Billet / Cost / Upgrade columns followed by
+           four right-aligned action buttons (Inspect, Reassign, Upgrade, Dismiss). */
+        private void DrawSquadCard(Rect cardRect, MercenarySquadFC squad, int index, int now,
+            MilitaryCustomizationUtil util)
+        {
+            // Alternating row background to match settlement-card list style
+            if (index % 2 == 0)
+                Widgets.DrawHighlight(cardRect);
+
+            // Accent strip
+            Color accent = squad.settlement?.MilitaryComp != null
+                ? AccentUtil.GetMilitaryAccent(squad.settlement.MilitaryComp)
+                : AccentUtil.MilInactive;
+            Widgets.DrawBoxSolid(new Rect(cardRect.x, cardRect.y, AccentW, cardRect.height), accent);
+
+            float contentX = cardRect.x + AccentW + 6f;
+            float contentW = cardRect.xMax - contentX - 4f;
+
+            GameFont fontBefore = Text.Font;
+            TextAnchor anchorBefore = Text.Anchor;
+            Color colorBefore = GUI.color;
+
+            /* === HEADER ROW === */
+            float headerY = cardRect.y;
+            string statusText = ComputeStatus(squad, now);
+            Color statusColor = ColorForStatus(squad, now);
+
+            // Status badge — right-aligned
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            float statusW = 180f;
+            GUI.color = statusColor;
+            Widgets.Label(new Rect(cardRect.xMax - statusW - 4f, headerY, statusW, CardHeaderH), statusText);
+            GUI.color = colorBefore;
+
+            // Squad name (clickable to open inspection — kept as a fallback alongside the
+            // explicit Inspect button below).
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = accent;
+            float nameW = contentW - statusW - 6f;
+            Rect nameRect = new Rect(contentX, headerY, nameW, CardHeaderH);
+            Widgets.Label(nameRect, squad.name ?? squad.outfit?.name ?? "(?)");
+            GUI.color = colorBefore;
+            if (Mouse.IsOver(nameRect)) Widgets.DrawHighlight(nameRect);
+            if (Widgets.ButtonInvisible(nameRect))
+                Find.WindowStack.Add(new Dialog_SquadInspection(squad));
+
+            /* === DETAIL ROW === */
+            float detailY = cardRect.y + CardHeaderH;
+            const float btnW = 78f;
+            const float btnGap = 2f;
+            float btnH = CardDetailH - 2f;
+            float btnY = detailY + 1f;
+            const int btnCount = 4;
+            float buttonAreaW = btnW * btnCount + btnGap * (btnCount - 1);
+
+            // Detail labels — fixed-width columns left of the button block
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            float dx = contentX;
+            float labelsW = contentW - buttonAreaW - 6f;
+            if (labelsW < 0f) labelsW = 0f;
+
+            float colTemplate = Math.Min(190f, labelsW * 0.30f);
+            float colBillet   = Math.Min(220f, labelsW * 0.34f);
+            float colCost     = Math.Min(110f, labelsW * 0.18f);
+            float colUpgrade  = Math.Max(0f, labelsW - colTemplate - colBillet - colCost);
+
+            string templateLbl = (string)"FCSquadColTemplate".Translate() + ": " + (squad.outfit?.name ?? "(stripped)");
+            string billetLbl   = (string)"FCSquadColBillet".Translate() + ": " + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
+            string costLbl     = (string)"FCSquadColCost".Translate() + ": $" + squad.hireCostPaid;
+            int upgrade        = squad.UpgradeCost;
+            string upgradeLbl  = (string)"FCSquadColUpgrade".Translate() + ": " + (upgrade > 0 ? "$" + upgrade : "-");
+
+            Widgets.Label(new Rect(dx, detailY, colTemplate, CardDetailH), templateLbl); dx += colTemplate;
+            Widgets.Label(new Rect(dx, detailY, colBillet,   CardDetailH), billetLbl);   dx += colBillet;
+            Widgets.Label(new Rect(dx, detailY, colCost,     CardDetailH), costLbl);     dx += colCost;
+            Widgets.Label(new Rect(dx, detailY, colUpgrade,  CardDetailH), upgradeLbl);
+
+            // Action buttons (right-aligned)
+            MercenarySquadFC capturedSquad = squad;
+            float bx = cardRect.xMax - buttonAreaW - 4f;
+
+            // Inspect
+            Rect inspectRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate()))
+            {
+                Find.WindowStack.Add(new Dialog_SquadInspection(capturedSquad));
+            }
+            TooltipHandler.TipRegion(inspectRect, "FCMilBtnInspectTip".Translate());
+            bx += btnW + btnGap;
+
+            // Reassign
+            Rect reassignRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(reassignRect, "FCSquadActReassign".Translate()))
+            {
+                Find.WindowStack.Add(new Dialog_SquadAssignment(capturedSquad));
+            }
+            bx += btnW + btnGap;
+
+            // Upgrade
+            bool canUpgrade = upgrade > 0 && !squad.IsBusy;
+            Rect upgradeRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(upgradeRect, "FCSquadActUpgrade".Translate(), disabled: !canUpgrade))
+            {
+                capturedSquad.UpgradeToTemplate();
+            }
+            bx += btnW + btnGap;
+
+            // Dismiss
+            bool canDismiss = !squad.IsBusy;
+            Rect dismissRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismiss".Translate(), disabled: !canDismiss))
+            {
+                int refund = (int)Math.Round(capturedSquad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
+                MilitaryCustomizationUtil utilCaptured = util;
+                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                    "FCSquadActDismissConfirm".Translate(capturedSquad.name, refund),
+                    delegate { utilCaptured.DismissSquad(capturedSquad); }));
+            }
+
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
+            GUI.color = colorBefore;
+        }
+
+        /* Status string for one squad. Lifted out of the old DrawTable so the card draw
+           stays readable. */
+        private static string ComputeStatus(MercenarySquadFC squad, int now)
+        {
+            if (!squad.IsAssigned) return "FCSquadStatusUnassigned".Translate();
+            if (squad.IsBusy)
+            {
+                MilitaryOperation op = squad.Operation;
+                int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
+                string opLabel = op?.kind?.label ?? "?";
+                return "FCSquadStatusBusyOp".Translate(opLabel,
+                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
+            }
+            if (squad.nextAvailableTick > now)
+            {
+                int ticksLeft = squad.nextAvailableTick - now;
+                return "FCSquadStatusCooldown".Translate(
+                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
+            }
+            return "FCSquadStatusReady".Translate();
+        }
+
+        /* Status label color: ready = green, cooldown/busy = yellow/orange, unassigned = grey. */
+        private static Color ColorForStatus(MercenarySquadFC squad, int now)
+        {
+            if (!squad.IsAssigned) return AccentUtil.MilInactive;
+            if (squad.IsBusy) return AccentUtil.MilActiveMission;
+            if (squad.nextAvailableTick > now) return AccentUtil.MilCooldown;
+            return AccentUtil.MilReady;
         }
     }
 }

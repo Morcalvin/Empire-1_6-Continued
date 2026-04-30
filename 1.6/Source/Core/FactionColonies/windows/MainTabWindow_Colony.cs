@@ -1544,20 +1544,22 @@ namespace FactionColonies
 
             y += buttonHeight + margin * 2;
 
-            // Subtab switcher
-            float subtabH = 28f;
-            Rect bySettlementBtn = new Rect(x + margin, y, 160f, subtabH);
-            Rect bySquadBtn = new Rect(bySettlementBtn.xMax + 6f, y, 160f, subtabH);
-            if (UIUtil.ButtonFlat(bySettlementBtn, "FCMilitaryTabBySettlement".Translate(), highlighted: militarySubtab == 0))
-                militarySubtab = 0;
-            if (UIUtil.ButtonFlat(bySquadBtn, "FCMilitaryTabBySquad".Translate(), highlighted: militarySubtab == 1))
-                militarySubtab = 1;
+            /* Subtab strip spans full inner width; DrawTabRow returns the content area below. */
+            float subtabAreaH = rect.yMax - y - margin;
+            if (subtabAreaH <= 0f) return;
+            Rect subtabBox = new Rect(x + margin, y, width - (margin * 2), subtabAreaH);
 
-            y += subtabH + margin;
+            List<string> tabLabels = new List<string>
+            {
+                (string)"FCMilitaryTabBySettlement".Translate(),
+                (string)"FCMilitaryTabBySquad".Translate(),
+            };
+            Rect contentRect;
+            militarySubtab = UIUtil.DrawTabRow(subtabBox, tabLabels, militarySubtab,
+                out contentRect, tabHeight: 24f);
 
-            float tableH = rect.yMax - y - margin;
-            if (tableH <= 0f) return;
-            Rect tableRect = new Rect(x + margin, y, width - (margin * 2), tableH);
+            Rect tableRect = contentRect.ContractedBy(2f);
+            if (tableRect.height <= 0f) return;
 
             if (militarySubtab == 0)
             {
@@ -1572,8 +1574,8 @@ namespace FactionColonies
 
         private void DrawMilitarySettlementCards(Rect tableRect)
         {
-            const float headerH = 30f;
-            const float slotH = 26f;
+            const float headerH = 26f;
+            const float slotH = 22f;
             const float accentW = 4f;
             const float rowGap = 2f;
             const float pad = 4f;
@@ -1913,23 +1915,24 @@ namespace FactionColonies
             float btnH = rect.height - 4f;
             float btnY = rect.y + 2f;
 
-            // Slot index column
+            // Slot index column (indented to suggest it's a child of the settlement header)
+            const float slotIndent = 18f;
             float idxW = 50f;
-            Widgets.Label(new Rect(rect.x, rect.y, idxW, rect.height),
+            Widgets.Label(new Rect(rect.x + slotIndent, rect.y, idxW, rect.height),
                 "FCMilitaryTableSlotPrefix".Translate(slotIdx + 1));
 
             // Squad name area
             string squadName = squad?.name ?? squad?.outfit?.name ?? (string)"FCMilitaryTableSlotEmpty".Translate();
             float buttonAreaW = btnW * 4 + btnGap * 3;
-            float nameAreaW = rect.width - idxW - buttonAreaW - 4f;
-            Widgets.Label(new Rect(rect.x + idxW, rect.y, nameAreaW, rect.height), squadName);
+            float nameAreaW = rect.width - slotIndent - idxW - buttonAreaW - 4f;
+            Widgets.Label(new Rect(rect.x + slotIndent + idxW, rect.y, nameAreaW, rect.height), squadName);
 
             // Action buttons (right-aligned)
             float bx = rect.xMax - buttonAreaW;
 
-            // Set / Change squad
-            bool noSquads = (militaryUtil.squads?.Count ?? 0) == 0
-                && (FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads?.Count ?? 0) == 0;
+            // Set / Change squad — disabled when no hired squads exist (templates alone aren't
+            // enough; the menu lists the live pool, not templates).
+            bool noSquads = (militaryUtil.mercenarySquads?.Count ?? 0) == 0;
             Rect setRect = new Rect(bx, btnY, btnW, btnH);
             string setLabel = squad is null
                 ? (string)"FCMilitaryTableSetSquad".Translate()

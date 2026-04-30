@@ -253,7 +253,11 @@ namespace FactionColonies
             }
 
             float rowH = 50f;
-            List<Mercenary> mercs = squad.mercenaries ?? new List<Mercenary>();
+            /* Filter out the blank-loadout placeholder slots created by InitiateSquad
+               when the template has fewer real units than MilSquadFC.MaxSquadSize. */
+            List<Mercenary> mercs = (squad.mercenaries ?? new List<Mercenary>())
+                .Where(m => m != null && m.EffectiveLoadout != null && !m.EffectiveLoadout.isBlank)
+                .ToList();
             float listTop = headerRect.yMax;
             float listH = rect.yMax - listTop;
             Rect listRect = new Rect(rect.x, listTop, rect.width, listH);
