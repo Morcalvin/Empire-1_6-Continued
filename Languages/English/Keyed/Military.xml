@@ -273,8 +273,11 @@
 	<!-- Squad Inspection window -->
 	<FCSquadInspectionTitle>Squad: {0}</FCSquadInspectionTitle>
 	<FCSquadInspectionNoSquad>(no squad selected)</FCSquadInspectionNoSquad>
-	<FCSquadInspectionRename>Rename</FCSquadInspectionRename>
+	<FCSquadInspectionRenameSquadTip>Rename squad</FCSquadInspectionRenameSquadTip>
+	<FCSquadInspectionRenamePawnTip>Rename pawn</FCSquadInspectionRenamePawnTip>
 	<FCSquadInspectionTemplate>Template: {0}</FCSquadInspectionTemplate>
+	<FCSquadInspectionTemplateNone>Template: (none)</FCSquadInspectionTemplateNone>
+	<FCSquadInspectionPickTemplate>Pick template</FCSquadInspectionPickTemplate>
 	<FCSquadInspectionSettlement>Settlement: {0}</FCSquadInspectionSettlement>
 	<FCSquadInspectionClearTemplate>Clear template</FCSquadInspectionClearTemplate>
 	<FCSquadInspectionFillEmptySlots>Fill {0} empty slot(s) (${1})</FCSquadInspectionFillEmptySlots>
@@ -283,18 +286,17 @@
 	<FCSquadInspectionUpgradeAllUpToDate>Upgrade all (up to date)</FCSquadInspectionUpgradeAllUpToDate>
 	<FCSquadInspectionUpgradeAllNoTemplate>Upgrade all (no template)</FCSquadInspectionUpgradeAllNoTemplate>
 	<FCSquadInspectionUpgradeAllTooltip>Upgrade existing mercs: +${0}\nHire fresh: +${1}\nFire mismatched mercs: -${2}\nNet: ${3}</FCSquadInspectionUpgradeAllTooltip>
-	<FCSquadInspectionColSlot>Slot</FCSquadInspectionColSlot>
-	<FCSquadInspectionColPawn>Pawn</FCSquadInspectionColPawn>
-	<FCSquadInspectionColLoadout>Loadout</FCSquadInspectionColLoadout>
-	<FCSquadInspectionColStatus>Status</FCSquadInspectionColStatus>
-	<FCSquadInspectionColActions>Actions</FCSquadInspectionColActions>
 	<FCSquadInspectionEmptyPawn>(empty)</FCSquadInspectionEmptyPawn>
+	<FCSquadInspectionSlotLabel>Slot {0}</FCSquadInspectionSlotLabel>
+	<FCSquadInspectionLoadoutLabel>Loadout: {0}</FCSquadInspectionLoadoutLabel>
+	<FCSquadInspectionStatusLabel>Status: {0}</FCSquadInspectionStatusLabel>
 	<FCSquadInspectionDivergedTip>This pawn has a personal loadout that differs from the pool unit. Reset in the editor to restore inheritance.</FCSquadInspectionDivergedTip>
 	<FCSquadInspectionStatusOk>OK</FCSquadInspectionStatusOk>
 	<FCSquadInspectionStatusInjured>Injured ({0})</FCSquadInspectionStatusInjured>
+	<FCSquadInspectionStatusDowned>Downed</FCSquadInspectionStatusDowned>
 	<FCSquadInspectionStatusEmpty>EMPTY</FCSquadInspectionStatusEmpty>
 	<FCSquadInspectionStatusDead>Dead</FCSquadInspectionStatusDead>
-	<FCSquadInspectionEdit>Edit</FCSquadInspectionEdit>
+	<FCSquadInspectionEditLoadout>Edit Loadout</FCSquadInspectionEditLoadout>
 	<FCSquadInspectionPerSlotUpgrade>Upgrade ${0}</FCSquadInspectionPerSlotUpgrade>
 	<FCSquadInspectionPerSlotFill>Fill (${0})</FCSquadInspectionPerSlotFill>
 	<FCSquadInspectionPersonalLoadoutDefaultName>Custom loadout</FCSquadInspectionPersonalLoadoutDefaultName>

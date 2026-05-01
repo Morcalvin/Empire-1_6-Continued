@@ -742,10 +742,11 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Total silver to refill all empty slots, summed over each empty slot's
+        /// <summary>Total silver to refill all fillable empty slots, summed over each slot's
         /// blueprint cost × <see cref="FCSettings.squadHireCostMultiplier"/>. The blueprint
         /// is the merc's <see cref="Mercenary.BlueprintLoadout"/> (personalization snapshot
-        /// or pool reference). Slots with no blueprint contribute zero.</summary>
+        /// or pool reference). Slots whose blueprint is null or blank contribute zero — they
+        /// are pure placeholders kept around to keep slot indices aligned with the template.</summary>
         public int FillEmptySlotsCost
         {
             get
@@ -756,14 +757,17 @@ namespace FactionColonies
                 {
                     if (m is null || !m.IsEmptySlot) continue;
                     MilUnitFC blueprint = m.BlueprintLoadout;
-                    if (blueprint is null) continue;
+                    if (blueprint is null || blueprint.isBlank) continue;
                     total += (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier);
                 }
                 return total;
             }
         }
 
-        /// <summary>Number of currently empty slots (pawn == null) in this squad.</summary>
+        /// <summary>Number of empty slots that <see cref="FillEmptySlots"/> would actually fill
+        /// — pawn is null AND <see cref="Mercenary.BlueprintLoadout"/> is non-null and not blank.
+        /// Pure placeholder slots (blank blueprint, kept to align indices with the template) are
+        /// excluded so the UI count matches the action's effect.</summary>
         public int EmptySlotCount
         {
             get
@@ -772,7 +776,10 @@ namespace FactionColonies
                 if (mercenaries is null) return 0;
                 foreach (Mercenary m in mercenaries)
                 {
-                    if (m != null && m.IsEmptySlot) n++;
+                    if (m is null || !m.IsEmptySlot) continue;
+                    MilUnitFC blueprint = m.BlueprintLoadout;
+                    if (blueprint is null || blueprint.isBlank) continue;
+                    n++;
                 }
                 return n;
             }
@@ -800,7 +807,7 @@ namespace FactionColonies
                 {
                     if (m is null || !m.IsEmptySlot) continue;
                     MilUnitFC blueprint = m.BlueprintLoadout;
-                    if (blueprint is null) continue;
+                    if (blueprint is null || blueprint.isBlank) continue;
                     Mercenary slot = m;
                     CreateNewPawn(ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
                     if (slot.pawn != null) EquipPawn(slot, blueprint);
