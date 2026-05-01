@@ -8,7 +8,7 @@ namespace FactionColonies
     //Squad Class
     public class MilSquadFC : IExposable, ILoadReferenceable
     {
-        public const int MaxSquadSize = 30;
+        public static int MaxSquadSize => Math.Max(1, FCSettings.maxSquadSize);
 
         public int loadID = -1;
         public string name;

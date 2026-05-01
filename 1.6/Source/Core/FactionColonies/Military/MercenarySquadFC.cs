@@ -414,39 +414,31 @@ namespace FactionColonies
             UsedApparelList = new List<Apparel>();
             UsedWeaponList = new List<ThingWithComps>();
 
-            if (outfit == null)
+            int cap = MilSquadFC.MaxSquadSize;
+            int templateCount = (outfit?.Units != null) ? outfit.Units.Count : 0;
+            int slotCount = (outfit == null) ? cap : Math.Min(cap, templateCount);
+
+            for (int k = 0; k < slotCount; k++)
             {
-                for (int k = 0; k < MilSquadFC.MaxSquadSize; k++)
+                Mercenary placeholder = new Mercenary(true);
+                MilUnitFC slot = (outfit != null && k < templateCount) ? outfit.Units[k] : null;
+
+                // Generate a pawn only for slots that have a real (non-blank) unit assignment.
+                // Blank slots stay as empty placeholders (pawn == null), refillable via
+                // FillEmptySlots / Upgrade when the player assigns a real unit later.
+                if (slot != null && !slot.isBlank)
                 {
-                    Mercenary pawn = new Mercenary(true);
-                    CreateNewPawn(ref pawn, null, null);
-                    // Only add if pawn was successfully created
-                    if (pawn?.pawn != null)
+                    CreateNewPawn(ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName);
+                    if (placeholder.pawn == null)
                     {
-                        mercenaries.Add(pawn);
-                    }
-                    else
-                    {
-                        LogUtil.Warning($"Failed to create mercenary {k + 1}/30 during squad initiation.");
+                        LogUtil.Warning($"Failed to create mercenary {k + 1}/{slotCount} for unit {slot.name ?? "unknown"}; leaving slot empty.");
                     }
                 }
-            }
-            else
-            {
-                for (int k = 0; k < MilSquadFC.MaxSquadSize; k++)
-                {
-                    Mercenary pawn = new Mercenary(true);
-                    CreateNewPawn(ref pawn, outfit.Units[k].pawnKind, outfit.Units[k].xenotype, outfit.Units[k].customXenotypeName);
-                    // Only add if pawn was successfully created
-                    if (pawn?.pawn != null)
-                    {
-                        mercenaries.Add(pawn);
-                    }
-                    else
-                    {
-                        LogUtil.Warning($"Failed to create mercenary {k + 1}/30 for unit {outfit.Units[k]?.name ?? "unknown"}.");
-                    }
-                }
+
+                // Always add the placeholder so list.Count == slotCount and slot indices align with
+                // outfit.Units indices. OutfitSquad / FillEmptySlots will fill empty placeholders
+                // when there's a non-blank loadout to assign.
+                mercenaries.Add(placeholder);
             }
 
             LogUtil.Message($"InitiateSquad mercenary count : {mercenaries.Count()}");

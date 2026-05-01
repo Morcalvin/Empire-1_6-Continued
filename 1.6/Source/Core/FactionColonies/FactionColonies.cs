@@ -152,9 +152,11 @@ namespace FactionColonies
         public const float DEFAULT_SQUAD_HIRE_COST_MULTIPLIER = 1.0f;
         public const float DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION = 0.5f;
         public const float DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER = 1.0f;
+        public const int DEFAULT_MAX_SQUAD_SIZE = 30;
         public static float squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
         public static float squadDismissalRefundFraction = DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION;
         public static float squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
+        public static int maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
 
         /// <summary>Max simultaneous manual battle maps across all settlements. 0 = unlimited.</summary>
         public static int maxConcurrentBattleMaps = 0;
@@ -256,6 +258,12 @@ namespace FactionColonies
             Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
             Scribe_Values.Look(ref squadDismissalRefundFraction, "squadDismissalRefundFraction", DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION);
             Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
+            Scribe_Values.Look(ref maxSquadSize, "maxSquadSize", DEFAULT_MAX_SQUAD_SIZE);
+            if (Scribe.mode == LoadSaveMode.LoadingVars && maxSquadSize < 1)
+            {
+                LogUtil.Warning($"Loaded suspicious maxSquadSize={maxSquadSize}; resetting to {DEFAULT_MAX_SQUAD_SIZE}.");
+                maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+            }
             Scribe_Collections.Look(ref lastSeenVersions, "lastSeenVersions", LookMode.Value, LookMode.Value);
             if (lastSeenVersions is null) lastSeenVersions = new Dictionary<string, string>();
             Scribe_Values.Look(ref patchNoteAutoOpenThreshold, "patchNoteAutoOpenThreshold", DEFAULT_PATCH_NOTE_AUTO_OPEN_THRESHOLD);
@@ -675,6 +683,7 @@ namespace FactionColonies
                 squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
                 squadDismissalRefundFraction = DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION;
                 squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
+                maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
@@ -826,6 +835,9 @@ namespace FactionColonies
             Text.Font = GameFont.Medium;
             ls.Label("FCSettingSquadsHeader".Translate());
             Text.Font = GameFont.Small;
+
+            ls.Label("FCSettingMaxSquadSize".Translate() + ": " + maxSquadSize.ToString(), -1f, "FCSettingMaxSquadSizeTip".Translate());
+            maxSquadSize = (int)ls.Slider(maxSquadSize, 1f, 60f);
 
             ls.Label("FCSettingSquadHireCostMultiplier".Translate() + ": " + squadHireCostMultiplier.ToString("0.00") + "x", -1f, "FCSettingSquadHireCostMultiplierTip".Translate());
             squadHireCostMultiplier = ls.Slider(squadHireCostMultiplier, 0.0f, 5.0f);

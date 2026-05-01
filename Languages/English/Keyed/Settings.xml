@@ -55,6 +55,8 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 
 	<!-- Squad-first economy sliders -->
 	<FCSettingSquadsHeader>Squads</FCSettingSquadsHeader>
+	<FCSettingMaxSquadSize>Max Squad Size</FCSettingMaxSquadSize>
+	<FCSettingMaxSquadSizeTip>Hard cap on mercenaries per squad. Existing templates retain their existing slot count when this is changed; only newly-created templates and new hires use the new value. Per-settlement bonuses (from buildings/policies) still stack on top.</FCSettingMaxSquadSizeTip>
 	<FCSettingSquadHireCostMultiplier>Squad Hire Cost Multiplier</FCSettingSquadHireCostMultiplier>
 	<FCSettingSquadHireCostMultiplierTip>Multiplier applied to a template's full equipment cost when the player hires a fresh squad. 1.0 = sticker price; 0.0 = free; higher values make hiring more expensive.</FCSettingSquadHireCostMultiplierTip>
 	<FCSettingSquadDismissalRefundFraction>Squad Dismissal Refund Fraction</FCSettingSquadDismissalRefundFraction>
