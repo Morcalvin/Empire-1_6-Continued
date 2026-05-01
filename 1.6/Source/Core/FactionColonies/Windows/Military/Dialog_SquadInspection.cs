@@ -9,9 +9,9 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>
-    /// Per-squad inspection window. Title band + settlement row + template row + action bar
-    /// across the top, then a scrolling list of pawn cards (one per slot) accented by pawn
-    /// health, then any submod-registered <see cref="ISquadInspectionSection"/>s below.
+    /// Per-squad inspection window. Title band + two-column context band (settlement / template)
+    /// + action bar across the top, then a scrolling list of pawn cards (one per slot) accented
+    /// by pawn health, then any submod-registered <see cref="ISquadInspectionSection"/>s below.
     ///
     /// Submods can extend the window by registering <see cref="ISquadInspectionSection"/>s
     /// via <see cref="SquadInspectionRegistry"/>; their content renders below the card list
@@ -30,21 +30,24 @@ namespace FactionColonies
 
         /* Layout constants */
         private const float TitleBandHeight = 38f;
-        private const float ContextRowHeight = 28f;
+        private const float ContextBandHeight = 72f;
         private const float ActionBarHeight = 32f;
         private const float BandGap = 6f;
         private const float SmallGap = 4f;
 
-        private const float CardHeight = 96f;
+        private const float CardHeight = 72f;
         private const float CardGap = 4f;
         private const float AccentBarWidth = 3f;
-        private const float PortraitSize = 80f;
-        private const float CardOuterPad = 6f;
+        private const float PortraitSize = 60f;
+        private const float CardOuterPad = 5f;
 
         private const float IconButtonSize = 22f;
         private const float InfoCardSize = 24f;
         private const float ActionButtonWidth = 110f;
-        private const float ActionButtonHeight = 28f;
+        private const float ActionButtonHeight = 26f;
+
+        private static readonly Color CaptionTextColor = new Color(0.7f, 0.7f, 0.7f);
+        private static readonly Color DimValueColor = new Color(0.65f, 0.65f, 0.65f);
 
         public Dialog_SquadInspection(MercenarySquadFC squad)
         {
@@ -74,15 +77,10 @@ namespace FactionColonies
             DrawTitleBand(titleRect);
             y = titleRect.yMax + BandGap;
 
-            /* Settlement row: label + Reassign / Dismiss */
-            Rect settlementRect = new Rect(inRect.x, y, inRect.width, ContextRowHeight);
-            DrawSettlementRow(settlementRect);
-            y = settlementRect.yMax + SmallGap;
-
-            /* Template row: label + Pick Template / Clear Template */
-            Rect templateRect = new Rect(inRect.x, y, inRect.width, ContextRowHeight);
-            DrawTemplateRow(templateRect);
-            y = templateRect.yMax + BandGap;
+            /* Two-column context band: Settlement | Template (caption / value / buttons) */
+            Rect contextRect = new Rect(inRect.x, y, inRect.width, ContextBandHeight);
+            DrawContextBand(contextRect);
+            y = contextRect.yMax + BandGap;
 
             /* Action bar: Fill empty / Upgrade all */
             Rect actionsRect = new Rect(inRect.x, y, inRect.width, ActionBarHeight);
@@ -132,24 +130,59 @@ namespace FactionColonies
             TooltipHandler.TipRegion(pencilRect, "FCSquadInspectionRenameSquadTip".Translate());
         }
 
-        private void DrawSettlementRow(Rect rect)
+        private void DrawContextBand(Rect rect)
         {
+            /* Two columns split 50/50, separated by a vertical gray line.
+               Each column lays out as: caption (Tiny dim) / value (Small) / two ButtonFlat. */
+            float midX = rect.x + rect.width / 2f;
+            UIUtil.DrawColoredVerticalLine(midX, rect.y + 4f, rect.height - 8f, Color.gray);
+
+            Rect leftCol = new Rect(rect.x + 6f, rect.y, rect.width / 2f - 12f, rect.height);
+            Rect rightCol = new Rect(midX + 6f, rect.y, rect.width / 2f - 12f, rect.height);
+
+            DrawSettlementColumn(leftCol);
+            DrawTemplateColumn(rightCol);
+        }
+
+        private void DrawSettlementColumn(Rect rect)
+        {
+            float captionH = 16f;
+            float valueH = 24f;
+            float buttonsH = ActionButtonHeight;
+            float topPad = (rect.height - (captionH + valueH + buttonsH)) / 2f;
+            float y = rect.y + Mathf.Max(4f, topPad);
+
+            /* Caption */
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.LowerLeft;
+            UIUtil.DrawColoredLabel(new Rect(rect.x, y, rect.width, captionH),
+                "FCSquadInspectionContextSettlementCaption".Translate(), CaptionTextColor);
+            y += captionH;
+
+            /* Value — promoted to Small. Dimmed when unassigned. */
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            string settlementLabel = "FCSquadInspectionSettlement".Translate(
-                squad.settlement?.Name ?? (string)"FCSquadStatusUnassigned".Translate());
-            Widgets.Label(new Rect(rect.x + 4f, rect.y, rect.width * 0.6f, rect.height), settlementLabel);
+            bool hasSettlement = squad.settlement != null;
+            string settlementName = hasSettlement
+                ? squad.settlement.Name
+                : (string)"FCSquadInspectionContextSettlementUnassigned".Translate();
+            if (hasSettlement)
+                Widgets.Label(new Rect(rect.x, y, rect.width, valueH), settlementName);
+            else
+                UIUtil.DrawColoredLabel(new Rect(rect.x, y, rect.width, valueH), settlementName, DimValueColor);
+            y += valueH;
 
-            /* Right-aligned: Dismiss, Reassign (drawn right-to-left) */
-            float bx = rect.xMax;
-            float btnY = rect.y + (rect.height - ActionButtonHeight) / 2f;
-
+            /* Buttons: [Reassign] [Dismiss squad] */
+            bool canReassign = !squad.IsBusy;
             bool canDismiss = !squad.IsBusy;
-            bx -= ActionButtonWidth;
-            Color colorBefore = GUI.color;
-            if (!canDismiss) GUI.color = Color.gray;
-            Rect dismissRect = new Rect(bx, btnY, ActionButtonWidth, ActionButtonHeight);
-            if (Widgets.ButtonText(dismissRect, "FCSquadActDismiss".Translate(), true, true, canDismiss))
+            Rect reassignRect = new Rect(rect.x, y, ActionButtonWidth, buttonsH);
+            if (UIUtil.ButtonFlat(reassignRect, "FCSquadActReassign".Translate(), disabled: !canReassign))
+            {
+                Find.WindowStack.Add(new Dialog_SquadAssignment(squad));
+            }
+
+            Rect dismissRect = new Rect(rect.x + ActionButtonWidth + SmallGap, y, ActionButtonWidth, buttonsH);
+            if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismissSquad".Translate(), disabled: !canDismiss))
             {
                 int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
                 MercenarySquadFC captured = squad;
@@ -161,49 +194,47 @@ namespace FactionColonies
                         Close();
                     }));
             }
-            GUI.color = colorBefore;
-            bx -= SmallGap + ActionButtonWidth;
-
-            bool canReassign = !squad.IsBusy;
-            colorBefore = GUI.color;
-            if (!canReassign) GUI.color = Color.gray;
-            Rect reassignRect = new Rect(bx, btnY, ActionButtonWidth, ActionButtonHeight);
-            if (Widgets.ButtonText(reassignRect, "FCSquadActReassign".Translate(), true, true, canReassign))
-            {
-                Find.WindowStack.Add(new Dialog_SquadAssignment(squad));
-            }
-            GUI.color = colorBefore;
         }
 
-        private void DrawTemplateRow(Rect rect)
+        private void DrawTemplateColumn(Rect rect)
         {
+            float captionH = 16f;
+            float valueH = 24f;
+            float buttonsH = ActionButtonHeight;
+            float topPad = (rect.height - (captionH + valueH + buttonsH)) / 2f;
+            float y = rect.y + Mathf.Max(4f, topPad);
+
+            /* Caption */
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.LowerLeft;
+            UIUtil.DrawColoredLabel(new Rect(rect.x, y, rect.width, captionH),
+                "FCSquadInspectionContextTemplateCaption".Translate(), CaptionTextColor);
+            y += captionH;
+
+            /* Value — promoted to Small. Dimmed when no template. */
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            string templateLabel = squad.outfit is null
-                ? (string)"FCSquadInspectionTemplateNone".Translate()
-                : (string)"FCSquadInspectionTemplate".Translate(squad.outfit.name ?? "(?)");
-            Widgets.Label(new Rect(rect.x + 4f, rect.y, rect.width * 0.6f, rect.height), templateLabel);
-
-            /* Right-aligned: Clear template, Pick template (drawn right-to-left) */
-            float bx = rect.xMax;
-            float btnY = rect.y + (rect.height - ActionButtonHeight) / 2f;
-
             bool hasTemplate = squad.outfit != null;
-            bx -= ActionButtonWidth;
-            Color colorBefore = GUI.color;
-            if (!hasTemplate) GUI.color = Color.gray;
-            Rect clearRect = new Rect(bx, btnY, ActionButtonWidth, ActionButtonHeight);
-            if (Widgets.ButtonText(clearRect, "FCSquadInspectionClearTemplate".Translate(), true, true, hasTemplate))
-            {
-                squad.SwapTemplate(null);
-            }
-            GUI.color = colorBefore;
-            bx -= SmallGap + ActionButtonWidth;
+            string templateName = hasTemplate
+                ? (squad.outfit.name ?? "(?)")
+                : (string)"FCSquadInspectionContextTemplateNone".Translate();
+            if (hasTemplate)
+                Widgets.Label(new Rect(rect.x, y, rect.width, valueH), templateName);
+            else
+                UIUtil.DrawColoredLabel(new Rect(rect.x, y, rect.width, valueH), templateName, DimValueColor);
+            y += valueH;
 
-            Rect pickRect = new Rect(bx, btnY, ActionButtonWidth, ActionButtonHeight);
-            if (Widgets.ButtonText(pickRect, "FCSquadInspectionPickTemplate".Translate()))
+            /* Buttons: [Pick template] [Clear template] */
+            Rect pickRect = new Rect(rect.x, y, ActionButtonWidth, buttonsH);
+            if (UIUtil.ButtonFlat(pickRect, "FCSquadInspectionPickTemplate".Translate()))
             {
                 OpenTemplateMenu();
+            }
+
+            Rect clearRect = new Rect(rect.x + ActionButtonWidth + SmallGap, y, ActionButtonWidth, buttonsH);
+            if (UIUtil.ButtonFlat(clearRect, "FCSquadInspectionClearTemplate".Translate(), disabled: !hasTemplate))
+            {
+                squad.SwapTemplate(null);
             }
         }
 
@@ -224,32 +255,26 @@ namespace FactionColonies
             float gap = 8f;
             float bx = rect.x + 4f;
 
-            Color colorBefore = GUI.color;
-            if (!canFill) GUI.color = Color.gray;
             Rect fillRect = new Rect(bx, rect.y, btnW, rect.height);
             string fillLabel = canFill
                 ? (string)"FCSquadInspectionFillEmptySlots".Translate(emptyCount, fillCost)
                 : (string)"FCSquadInspectionFillEmptyNone".Translate();
-            if (Widgets.ButtonText(fillRect, fillLabel, true, true, canFill))
+            if (UIUtil.ButtonFlat(fillRect, fillLabel, disabled: !canFill))
             {
                 squad.FillEmptySlots();
             }
-            GUI.color = colorBefore;
             bx += btnW + gap;
 
-            colorBefore = GUI.color;
-            if (!canUpgradeAll) GUI.color = Color.gray;
             Rect upgradeRect = new Rect(bx, rect.y, btnW, rect.height);
             string upgradeLabel = squad.outfit is null
                 ? (string)"FCSquadInspectionUpgradeAllNoTemplate".Translate()
                 : (hasUpgradeWork
                     ? (string)"FCSquadInspectionUpgradeAll".Translate(upgradeNet)
                     : (string)"FCSquadInspectionUpgradeAllUpToDate".Translate());
-            if (Widgets.ButtonText(upgradeRect, upgradeLabel, true, true, canUpgradeAll))
+            if (UIUtil.ButtonFlat(upgradeRect, upgradeLabel, disabled: !canUpgradeAll))
             {
                 squad.UpgradeToTemplate();
             }
-            GUI.color = colorBefore;
 
             /* Cost breakdown tooltip on Upgrade All — explains where the net total came from. */
             if (squad.outfit != null && hasUpgradeWork)
@@ -307,9 +332,9 @@ namespace FactionColonies
 
             /* Content area to the right of the portrait, leaving room for action buttons */
             float contentX = portraitRect.xMax + CardOuterPad;
-            float actionsW = ActionButtonWidth * 2 + SmallGap + CardOuterPad;
+            float actionsW = ActionButtonWidth * 3 + SmallGap * 2 + CardOuterPad;
             float contentW = cardRect.xMax - contentX - actionsW;
-            Rect contentRect = new Rect(contentX, cardRect.y + 6f, contentW, cardRect.height - 12f);
+            Rect contentRect = new Rect(contentX, cardRect.y + 4f, contentW, cardRect.height - 8f);
             DrawCardContent(contentRect, slotIndex, merc);
 
             /* Action buttons (right-aligned, vertically centered) */
@@ -324,10 +349,10 @@ namespace FactionColonies
 
         private void DrawCardContent(Rect rect, int slotIndex, Mercenary merc)
         {
-            float lineH = 22f;
+            float lineH = 18f;
             float y = rect.y;
 
-            /* Header line: "Slot N — Pawn Name"  + info-card + rename-pencil icons */
+            /* Header line: "Slot N - Pawn Name"  + info-card + rename-pencil icons */
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
             string slotLabel = "FCSquadInspectionSlotLabel".Translate(slotIndex + 1);
@@ -336,16 +361,17 @@ namespace FactionColonies
                 : (string)"FCSquadInspectionEmptyPawn".Translate();
             string headerText = slotLabel + " - " + pawnName;
             float iconAreaW = (merc?.pawn != null) ? (InfoCardSize + IconButtonSize + 8f) : 0f;
-            Rect headerRect = new Rect(rect.x, y, rect.width - iconAreaW, lineH);
+            float headerH = 22f;
+            Rect headerRect = new Rect(rect.x, y, rect.width - iconAreaW, headerH);
             Widgets.Label(headerRect, headerText);
 
             if (merc?.pawn != null)
             {
-                float iconY = y + (lineH - InfoCardSize) / 2f;
+                float iconY = y + (headerH - InfoCardSize) / 2f;
                 float ix = rect.xMax - iconAreaW + 4f;
                 Widgets.InfoCardButton(ix, iconY, merc.pawn);
                 ix += InfoCardSize + 4f;
-                Rect pencilRect = new Rect(ix, y + (lineH - IconButtonSize) / 2f, IconButtonSize, IconButtonSize);
+                Rect pencilRect = new Rect(ix, y + (headerH - IconButtonSize) / 2f, IconButtonSize, IconButtonSize);
                 if (Widgets.ButtonImage(pencilRect, TexButton.Rename))
                 {
                     Find.WindowStack.Add(merc.pawn.NamePawnDialog());
@@ -353,7 +379,7 @@ namespace FactionColonies
                 TooltipHandler.TipRegion(pencilRect, "FCSquadInspectionRenamePawnTip".Translate());
             }
 
-            y += lineH;
+            y += headerH;
 
             /* Loadout line */
             Text.Font = GameFont.Tiny;
@@ -388,22 +414,21 @@ namespace FactionColonies
                 int slotFillCost = canFill
                     ? (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier)
                     : 0;
-                /* For empty slots we use a single wide Fill button taking the full action area. */
-                float fillW = btnW * 2f + SmallGap;
-                Color cb = GUI.color;
-                if (!canFill) GUI.color = Color.gray;
+                /* For empty slots we use a single wide Fill button taking the full action area
+                   (the full width spanned by Edit Loadout + Upgrade + Dismiss when filled). */
+                float fillW = btnW * 3f + SmallGap * 2f;
                 Rect fillRect = new Rect(bx, rect.y, fillW, btnH);
-                if (Widgets.ButtonText(fillRect, "FCSquadInspectionPerSlotFill".Translate(slotFillCost), true, true, canFill))
+                if (UIUtil.ButtonFlat(fillRect,
+                    "FCSquadInspectionPerSlotFill".Translate(slotFillCost), disabled: !canFill))
                 {
                     FillSingleSlot(merc, slotFillCost, blueprint);
                 }
-                GUI.color = cb;
             }
             else if (merc?.pawn != null)
             {
                 /* Edit Loadout */
                 Rect editRect = new Rect(bx, rect.y, btnW, btnH);
-                if (Widgets.ButtonText(editRect, "FCSquadInspectionEditLoadout".Translate()))
+                if (UIUtil.ButtonFlat(editRect, "FCSquadInspectionEditLoadout".Translate()))
                 {
                     Find.WindowStack.Add(new Dialog_PawnLoadout(squad, merc));
                 }
@@ -412,15 +437,28 @@ namespace FactionColonies
                 /* Upgrade — target the template's slot at this merc's own index. */
                 int slotUpgradeCost = ComputePerPawnUpgradeCost(slotIndex, merc);
                 bool canUpgrade = squad.outfit != null && slotUpgradeCost > 0 && !squad.IsBusy;
-                Color cb = GUI.color;
-                if (!canUpgrade) GUI.color = Color.gray;
                 Rect upgRect = new Rect(bx, rect.y, btnW, btnH);
-                if (Widgets.ButtonText(upgRect,
-                    "FCSquadInspectionPerSlotUpgrade".Translate(slotUpgradeCost), true, true, canUpgrade))
+                if (UIUtil.ButtonFlat(upgRect,
+                    "FCSquadInspectionPerSlotUpgrade".Translate(slotUpgradeCost), disabled: !canUpgrade))
                 {
                     PerPawnUpgrade(slotIndex, merc, slotUpgradeCost);
                 }
-                GUI.color = cb;
+                bx += btnW + SmallGap;
+
+                /* Dismiss this merc — refunds proportional silver and clears the slot for refill. */
+                bool canDismiss = !squad.IsBusy;
+                Rect dismissRect = new Rect(bx, rect.y, btnW, btnH);
+                if (UIUtil.ButtonFlat(dismissRect, "FCMercDismiss".Translate(), disabled: !canDismiss))
+                {
+                    Mercenary captured = merc;
+                    double cost = captured.EffectiveLoadout?.getTotalCost ?? 0;
+                    int refund = (int)Math.Round(cost * FCSettings.squadDismissalRefundFraction);
+                    string pawnLabel = captured.pawn?.LabelShortCap ?? "?";
+                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                        "FCMercDismissConfirm".Translate(pawnLabel, refund),
+                        delegate { squad.DismissMercenary(captured); }));
+                }
+                TooltipHandler.TipRegion(dismissRect, "FCMercDismissTip".Translate());
             }
         }
 

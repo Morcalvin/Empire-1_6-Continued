@@ -825,6 +825,45 @@ namespace FactionColonies
             return true;
         }
 
+        /// <summary>Dismisses a single mercenary: refunds silver proportional to the merc's
+        /// equipped loadout cost × <see cref="FCSettings.squadDismissalRefundFraction"/>,
+        /// strips and destroys the pawn (and any animal handler), and clears the slot to an
+        /// empty placeholder so the player can refill it later via <see cref="FillEmptySlots"/>.
+        /// The slot is preserved (not removed from the list) so its blueprint stays available.
+        /// Returns false if the squad is busy or the slot is already empty.</summary>
+        public bool DismissMercenary(Mercenary merc)
+        {
+            if (merc is null || merc.IsEmptySlot) return false;
+            if (IsBusy)
+            {
+                Messages.Message("FCCannotDismissBusyMerc".Translate(merc.pawn?.LabelShortCap ?? "?"),
+                    MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+
+            /* Refund: per-merc, based on the merc's effective (currently equipped) loadout cost. */
+            double cost = merc.EffectiveLoadout?.getTotalCost ?? 0;
+            int refund = (int)Math.Round(cost * FCSettings.squadDismissalRefundFraction);
+            if (refund > 0)
+                PaymentUtil.RefundSilver(refund, PaymentUtil.Reason_SquadDismissalRefund, settlement);
+
+            /* Strip + destroy. Mirrors the UpgradeToTemplate fire-pass cleanup. */
+            StripPawn(merc);
+            if (merc.pawn != null && !merc.pawn.Destroyed) merc.pawn.Destroy();
+            merc.pawn = null;
+            if (merc.animal?.pawn != null && !merc.animal.pawn.Destroyed) merc.animal.pawn.Destroy();
+            merc.animal = null;
+
+            /* Reset transient/personalization state so the empty slot is a clean refill target.
+               Keep `loadout` (pool reference) so Fill can reuse it. */
+            merc.ownedLoadout = null;
+            merc.currentLoadout = null;
+
+            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            Messages.Message("FCMercDismissed".Translate(refund), MessageTypeDefOf.NeutralEvent, false);
+            return true;
+        }
+
         /// <summary>Vestigial. Auto-replacement was removed by the strict-manual outfit
         /// refactor — the player explicitly uses <see cref="FillEmptySlots"/> instead. This
         /// method is kept only so submods that previously called it (typically with

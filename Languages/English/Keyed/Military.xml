@@ -300,6 +300,16 @@
 	<FCSquadInspectionPerSlotUpgrade>Upgrade ${0}</FCSquadInspectionPerSlotUpgrade>
 	<FCSquadInspectionPerSlotFill>Fill (${0})</FCSquadInspectionPerSlotFill>
 	<FCSquadInspectionPersonalLoadoutDefaultName>Custom loadout</FCSquadInspectionPersonalLoadoutDefaultName>
+	<FCSquadInspectionContextSettlementCaption>Settlement</FCSquadInspectionContextSettlementCaption>
+	<FCSquadInspectionContextTemplateCaption>Template</FCSquadInspectionContextTemplateCaption>
+	<FCSquadInspectionContextSettlementUnassigned>Unassigned</FCSquadInspectionContextSettlementUnassigned>
+	<FCSquadInspectionContextTemplateNone>(none)</FCSquadInspectionContextTemplateNone>
+	<FCSquadActDismissSquad>Dismiss squad</FCSquadActDismissSquad>
+	<FCMercDismiss>Dismiss</FCMercDismiss>
+	<FCMercDismissTip>Fire this mercenary. Refunds a fraction of their loadout cost in silver and clears the slot so it can be refilled.</FCMercDismissTip>
+	<FCMercDismissConfirm>Dismiss {0} for ${1}?</FCMercDismissConfirm>
+	<FCMercDismissed>Mercenary dismissed (+${0} refund)</FCMercDismissed>
+	<FCCannotDismissBusyMerc>Cannot dismiss {0}: squad is busy</FCCannotDismissBusyMerc>
 
 	<!-- Per-pawn loadout dialog -->
 	<FCDialogPawnLoadoutTitle>Edit pawn: {0}</FCDialogPawnLoadoutTitle>
