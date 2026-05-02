@@ -311,6 +311,14 @@
 	<FCMercDismissed>Mercenary dismissed (+${0} refund)</FCMercDismissed>
 	<FCCannotDismissBusyMerc>Cannot dismiss {0}: squad is busy</FCCannotDismissBusyMerc>
 
+	<FCSquadInspectionPowerLine>Power: {0} ({1}/{2} slots)</FCSquadInspectionPowerLine>
+	<FCSquadInspectionAddUnit>Add unit</FCSquadInspectionAddUnit>
+	<FCSquadInspectionAddUnitOption>{0} (${1})</FCSquadInspectionAddUnitOption>
+	<FCSquadInspectionAddUnitTip>Hire a new unit from your saved unit blueprints. Clears the squad's template association.</FCSquadInspectionAddUnitTip>
+	<FCSquadInspectionAddUnitBusy>Cannot add a unit while the squad is busy.</FCSquadInspectionAddUnitBusy>
+	<FCSquadInspectionAddUnitNoBlueprints>No saved unit blueprints. Design one in the Manage Units window first.</FCSquadInspectionAddUnitNoBlueprints>
+	<FCSquadInspectionAddUnitFull>Squad has no empty slots. Dismiss a unit first.</FCSquadInspectionAddUnitFull>
+
 	<!-- Per-pawn loadout dialog -->
 	<FCDialogPawnLoadoutTitle>Edit pawn: {0}</FCDialogPawnLoadoutTitle>
 	<FCDialogPawnLoadoutTitleEmpty>Edit empty slot</FCDialogPawnLoadoutTitleEmpty>

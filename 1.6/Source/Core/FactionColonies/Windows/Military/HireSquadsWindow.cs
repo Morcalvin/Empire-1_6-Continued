@@ -172,19 +172,23 @@ namespace FactionColonies
             float labelsW = contentW - buttonAreaW - 6f;
             if (labelsW < 0f) labelsW = 0f;
 
-            float colTemplate = Math.Min(190f, labelsW * 0.30f);
-            float colBillet   = Math.Min(220f, labelsW * 0.34f);
-            float colCost     = Math.Min(110f, labelsW * 0.18f);
-            float colUpgrade  = Math.Max(0f, labelsW - colTemplate - colBillet - colCost);
+            float colTemplate = Math.Min(190f, labelsW * 0.28f);
+            float colBillet   = Math.Min(220f, labelsW * 0.30f);
+            float colPower    = Math.Min(90f,  labelsW * 0.14f);
+            float colCost     = Math.Min(110f, labelsW * 0.16f);
+            float colUpgrade  = Math.Max(0f, labelsW - colTemplate - colBillet - colPower - colCost);
 
+            double powerLevel  = SquadPowerRegistry.Resolve(squad).militaryLevel;
             string templateLbl = (string)"FCSquadColTemplate".Translate() + ": " + (squad.outfit?.name ?? "(stripped)");
             string billetLbl   = (string)"FCSquadColBillet".Translate() + ": " + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
+            string powerLbl    = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
             string costLbl     = (string)"FCSquadColCost".Translate() + ": $" + squad.hireCostPaid;
             int upgrade        = squad.UpgradeCost;
             string upgradeLbl  = (string)"FCSquadColUpgrade".Translate() + ": " + (upgrade > 0 ? "$" + upgrade : "-");
 
             Widgets.Label(new Rect(dx, detailY, colTemplate, CardDetailH), templateLbl); dx += colTemplate;
             Widgets.Label(new Rect(dx, detailY, colBillet,   CardDetailH), billetLbl);   dx += colBillet;
+            Widgets.Label(new Rect(dx, detailY, colPower,    CardDetailH), powerLbl);    dx += colPower;
             Widgets.Label(new Rect(dx, detailY, colCost,     CardDetailH), costLbl);     dx += colCost;
             Widgets.Label(new Rect(dx, detailY, colUpgrade,  CardDetailH), upgradeLbl);
 

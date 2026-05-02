@@ -136,6 +136,17 @@ namespace FactionColonies
                     n => { squad.name = n; }));
             }
             TooltipHandler.TipRegion(pencilRect, "FCSquadInspectionRenameSquadTip".Translate());
+
+            /* Right-aligned power readout: "Power: X.X (filled/max slots)". */
+            int filled = (squad.mercenaries?.Count(m => m?.pawn != null)) ?? 0;
+            int max    = (squad.mercenaries?.Count) ?? MilSquadFC.MaxSquadSize;
+            double power = SquadPowerRegistry.Resolve(squad).militaryLevel;
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleRight;
+            string powerText = "FCSquadInspectionPowerLine".Translate(power.ToString("0.0"), filled, max);
+            float powerStartX = pencilRect.xMax + 12f;
+            Rect powerRect = new Rect(powerStartX, rect.y, rect.xMax - powerStartX - 12f, rect.height);
+            Widgets.Label(powerRect, powerText);
         }
 
         private void DrawContextBand(Rect rect)
@@ -260,7 +271,7 @@ namespace FactionColonies
             bool canUpgradeAll = squad.outfit != null && !squad.IsBusy && hasUpgradeWork;
 
             float gap = 8f;
-            float btnW = (rect.width - gap) / 2;
+            float btnW = (rect.width - gap * 2f) / 3f;
             float bx = rect.x;
 
             Rect fillRect = new Rect(bx, rect.y, btnW, rect.height);
@@ -288,6 +299,26 @@ namespace FactionColonies
                 string tooltip = "FCSquadInspectionUpgradeAllTooltip".Translate(upgrade, hire, refund, upgradeNet);
                 TooltipHandler.TipRegion(upgradeRect, tooltip);
             }
+            bx += btnW + gap;
+
+            /* Add unit: pick from saved blueprints, fill an empty slot, break template association. */
+            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            bool hasBlueprints = util?.units != null && util.units.Any(u => u != null && !u.isBlank);
+            bool hasFreeSlot   = squad.mercenaries != null && squad.mercenaries.Any(m => m != null && m.pawn is null);
+            bool canAddUnit    = !squad.IsBusy && hasBlueprints && hasFreeSlot;
+
+            Rect addRect = new Rect(bx, rect.y, btnW, rect.height);
+            if (UIUtil.ButtonFlat(addRect, "FCSquadInspectionAddUnit".Translate(), disabled: !canAddUnit))
+            {
+                OpenAddUnitMenu();
+            }
+
+            string addTip;
+            if (squad.IsBusy)        addTip = "FCSquadInspectionAddUnitBusy".Translate();
+            else if (!hasBlueprints) addTip = "FCSquadInspectionAddUnitNoBlueprints".Translate();
+            else if (!hasFreeSlot)   addTip = "FCSquadInspectionAddUnitFull".Translate();
+            else                     addTip = "FCSquadInspectionAddUnitTip".Translate();
+            TooltipHandler.TipRegion(addRect, addTip);
         }
 
         /*-*-*-*-* Card list *-*-*-*-*/
@@ -582,6 +613,76 @@ namespace FactionColonies
                 options.Add(new FloatMenuOption(template.name ?? "(?)", delegate { squad.SwapTemplate(captured); }));
             }
             Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        /*-*-*-*-* Add unit *-*-*-*-*/
+
+        private void OpenAddUnitMenu()
+        {
+            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            if (util?.units is null) return;
+            List<FloatMenuOption> options = new List<FloatMenuOption>();
+            foreach (MilUnitFC unit in util.units)
+            {
+                if (unit is null || unit.isBlank) continue;
+                MilUnitFC captured = unit;
+                int cost = (int)Math.Round(unit.getTotalCost * FCSettings.squadHireCostMultiplier);
+                string label = "FCSquadInspectionAddUnitOption".Translate(unit.name ?? "(?)", cost);
+                options.Add(new FloatMenuOption(label, delegate { AddUnitToSquad(captured, cost); }));
+            }
+            if (options.Count == 0)
+            {
+                Messages.Message("FCSquadInspectionAddUnitNoBlueprints".Translate(),
+                    MessageTypeDefOf.RejectInput, false);
+                return;
+            }
+            Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        /// <summary>Pays the hire cost, fills the first available empty slot with a fresh pawn
+        /// equipped from <paramref name="blueprint"/>, and clears the squad's template association
+        /// (since the squad now diverges from any template it had). Prefers blank-placeholder
+        /// slots over refillable-empty slots so existing Fill candidates aren't consumed first.</summary>
+        private void AddUnitToSquad(MilUnitFC blueprint, int cost)
+        {
+            if (blueprint is null || blueprint.isBlank) return;
+            if (squad.IsBusy) return;
+
+            Mercenary target = null;
+            if (squad.mercenaries != null)
+            {
+                target = squad.mercenaries.FirstOrDefault(m =>
+                    m != null && m.pawn is null &&
+                    (m.BlueprintLoadout is null || m.BlueprintLoadout.isBlank));
+                if (target is null)
+                    target = squad.mercenaries.FirstOrDefault(m => m != null && m.pawn is null);
+            }
+            if (target is null)
+            {
+                Messages.Message("FCSquadInspectionAddUnitFull".Translate(),
+                    MessageTypeDefOf.RejectInput, false);
+                return;
+            }
+
+            if (cost > 0 && PaymentUtil.GetSilver() < cost)
+            {
+                Messages.Message("FCSquadFillSlotsInsufficient".Translate(cost),
+                    MessageTypeDefOf.RejectInput, false);
+                return;
+            }
+            if (cost > 0)
+                PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadFillSlot, squad.settlement);
+
+            target.loadout = blueprint;
+            target.ownedLoadout = null;
+            Mercenary slot = target;
+            squad.CreateNewPawn(ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+            if (slot.pawn != null) squad.EquipPawn(slot, blueprint);
+            slot.currentLoadout = blueprint.Clone();
+
+            if (squad.outfit != null) squad.SwapTemplate(null);
+
+            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
         }
 
         /*-*-*-*-* Submod sections *-*-*-*-*/
