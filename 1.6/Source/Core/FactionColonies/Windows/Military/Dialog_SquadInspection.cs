@@ -23,7 +23,7 @@ namespace FactionColonies
     /// </summary>
     public class Dialog_SquadInspection : Window
     {
-        public override Vector2 InitialSize => new Vector2(940f, 680f);
+        public override Vector2 InitialSize => new Vector2(620f, 680f);
 
         private readonly MercenarySquadFC squad;
         private Vector2 scroll;
@@ -146,7 +146,7 @@ namespace FactionColonies
 
         private void DrawSettlementColumn(Rect rect)
         {
-            float captionH = 16f;
+            float captionH = 18f;
             float valueH = 24f;
             float buttonsH = ActionButtonHeight;
             float topPad = (rect.height - (captionH + valueH + buttonsH)) / 2f;
@@ -198,7 +198,7 @@ namespace FactionColonies
 
         private void DrawTemplateColumn(Rect rect)
         {
-            float captionH = 16f;
+            float captionH = 18f;
             float valueH = 24f;
             float buttonsH = ActionButtonHeight;
             float topPad = (rect.height - (captionH + valueH + buttonsH)) / 2f;
@@ -251,14 +251,12 @@ namespace FactionColonies
             bool hasUpgradeWork = upgrade != 0 || hire != 0 || refund != 0;
             bool canUpgradeAll = squad.outfit != null && !squad.IsBusy && hasUpgradeWork;
 
-            float btnW = 220f;
             float gap = 8f;
-            float bx = rect.x + 4f;
+            float btnW = (rect.width + gap) / 2;
+            float bx = rect.x;
 
             Rect fillRect = new Rect(bx, rect.y, btnW, rect.height);
-            string fillLabel = canFill
-                ? (string)"FCSquadInspectionFillEmptySlots".Translate(emptyCount, fillCost)
-                : (string)"FCSquadInspectionFillEmptyNone".Translate();
+            string fillLabel = "FCSquadInspectionFillEmptySlots".Translate(emptyCount, fillCost);
             if (UIUtil.ButtonFlat(fillRect, fillLabel, disabled: !canFill))
             {
                 squad.FillEmptySlots();
@@ -332,16 +330,9 @@ namespace FactionColonies
 
             /* Content area to the right of the portrait, leaving room for action buttons */
             float contentX = portraitRect.xMax + CardOuterPad;
-            float actionsW = ActionButtonWidth * 3 + SmallGap * 2 + CardOuterPad;
-            float contentW = cardRect.xMax - contentX - actionsW;
+            float contentW = cardRect.xMax - contentX;
             Rect contentRect = new Rect(contentX, cardRect.y + 4f, contentW, cardRect.height - 8f);
             DrawCardContent(contentRect, slotIndex, merc);
-
-            /* Action buttons (right-aligned, vertically centered) */
-            Rect actionsRect = new Rect(cardRect.xMax - actionsW + CardOuterPad,
-                cardRect.y + (cardRect.height - ActionButtonHeight) / 2f,
-                actionsW - CardOuterPad, ActionButtonHeight);
-            DrawCardActions(actionsRect, slotIndex, merc);
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
@@ -359,7 +350,8 @@ namespace FactionColonies
             string pawnName = merc?.pawn != null
                 ? merc.pawn.LabelShortCap
                 : (string)"FCSquadInspectionEmptyPawn".Translate();
-            string headerText = slotLabel + " - " + pawnName;
+            // Don't include "Slot #" in the header, not here. The slot number might still be useful to show somewhere, though...
+            string headerText = pawnName; //slotLabel + " - " + pawnName;
             float iconAreaW = (merc?.pawn != null) ? (InfoCardSize + IconButtonSize + 8f) : 0f;
             float headerH = 22f;
             Rect headerRect = new Rect(rect.x, y, rect.width - iconAreaW, headerH);
@@ -398,6 +390,14 @@ namespace FactionColonies
             string statusText = "FCSquadInspectionStatusLabel".Translate(ComputeMercStatus(merc));
             Rect statusRect = new Rect(rect.x, y, rect.width, lineH);
             UIUtil.DrawColoredLabel(statusRect, statusText, GetSlotAccent(merc));
+            
+
+            /* Action buttons (right-aligned, vertically centered) */
+            float actionsW = ActionButtonWidth * 3 + SmallGap * 2 + CardOuterPad;
+            Rect actionsRect = new Rect(rect.xMax - actionsW,
+                rect.yMax - ActionButtonHeight - 5f,
+                actionsW, ActionButtonHeight);
+            DrawCardActions(actionsRect, slotIndex, merc);
         }
 
         private void DrawCardActions(Rect rect, int slotIndex, Mercenary merc)

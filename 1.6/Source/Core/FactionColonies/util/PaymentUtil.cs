@@ -140,24 +140,33 @@ namespace FactionColonies
 
         public static void PlaceThing(Thing thing)
         {
-            Map taxMap = GetActiveTaxDeliveryMap();
-
-            IntVec3 intvec;
-            if (CheckForActiveTaxDeliverySpot(out intvec, out taxMap))
+            /* Active tax delivery spot (a Building_TaxSpot the player toggled on) wins
+               outright -- its position and map override the default tax map. */
+            if (CheckForActiveTaxDeliverySpot(out IntVec3 activeSpot, out Map activeMap))
             {
-                // Found an active tax delivery spot, use it
-                GenPlace.TryPlaceThing(thing, intvec, taxMap, ThingPlaceMode.Near);
+                GenPlace.TryPlaceThing(thing, activeSpot, activeMap, ThingPlaceMode.Near);
+                return;
             }
-            else if (CheckForTaxSpot(taxMap, out intvec))
+
+            /* Otherwise drop onto the canonical tax map (capital -> current -> any home).
+               Distinct out-locals above so the fallback taxMap is never clobbered. */
+            Map taxMap = GetActiveTaxDeliveryMap();
+            if (taxMap is null)
             {
-                // Found regular tax spot on the tax map
-                GenPlace.TryPlaceThing(thing, intvec, taxMap, ThingPlaceMode.Near);
+                LogUtil.Warning("PaymentUtil.PlaceThing: no tax map available; thing not placed: "
+                    + (thing?.LabelCap ?? "<null>"));
+                if (thing is object && !thing.Destroyed) thing.Destroy();
+                return;
+            }
+
+            if (CheckForTaxSpot(taxMap, out IntVec3 taxSpot))
+            {
+                GenPlace.TryPlaceThing(thing, taxSpot, taxMap, ThingPlaceMode.Near);
             }
             else
             {
-                // Fallback to drop spot on tax map
-                intvec = DropCellFinder.TradeDropSpot(taxMap);
-                GenPlace.TryPlaceThing(thing, intvec, taxMap, ThingPlaceMode.Near);
+                IntVec3 dropSpot = DropCellFinder.TradeDropSpot(taxMap);
+                GenPlace.TryPlaceThing(thing, dropSpot, taxMap, ThingPlaceMode.Near);
             }
         }
 

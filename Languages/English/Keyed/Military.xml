@@ -300,7 +300,7 @@
 	<FCSquadInspectionPerSlotUpgrade>Upgrade ${0}</FCSquadInspectionPerSlotUpgrade>
 	<FCSquadInspectionPerSlotFill>Fill (${0})</FCSquadInspectionPerSlotFill>
 	<FCSquadInspectionPersonalLoadoutDefaultName>Custom loadout</FCSquadInspectionPersonalLoadoutDefaultName>
-	<FCSquadInspectionContextSettlementCaption>Settlement</FCSquadInspectionContextSettlementCaption>
+	<FCSquadInspectionContextSettlementCaption>Home Settlement</FCSquadInspectionContextSettlementCaption>
 	<FCSquadInspectionContextTemplateCaption>Template</FCSquadInspectionContextTemplateCaption>
 	<FCSquadInspectionContextSettlementUnassigned>Unassigned</FCSquadInspectionContextSettlementUnassigned>
 	<FCSquadInspectionContextTemplateNone>(none)</FCSquadInspectionContextTemplateNone>
