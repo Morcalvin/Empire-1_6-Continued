@@ -779,4 +779,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_55</defName>
+		<label>Combat Efficiency Hediff Infocard Change</label>
+		<description>Changes the infocard for the combat efficiency hediff to explain that the hediff&apos;s bonuses are derived from the faction&apos;s military efficiency.</description>
+		<releaseDate>2026-05-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Updates infocard for combat efficiency hediff</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
