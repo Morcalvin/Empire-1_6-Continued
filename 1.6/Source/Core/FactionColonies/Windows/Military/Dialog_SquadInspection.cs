@@ -252,7 +252,7 @@ namespace FactionColonies
             bool canUpgradeAll = squad.outfit != null && !squad.IsBusy && hasUpgradeWork;
 
             float gap = 8f;
-            float btnW = (rect.width + gap) / 2;
+            float btnW = (rect.width - gap) / 2;
             float bx = rect.x;
 
             Rect fillRect = new Rect(bx, rect.y, btnW, rect.height);
