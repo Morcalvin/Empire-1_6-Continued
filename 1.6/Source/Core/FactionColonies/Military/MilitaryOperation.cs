@@ -343,6 +343,9 @@ namespace FactionColonies
             // multiple squads at one settlement no longer share a single per-settlement
             // cooldown.
             int wakeTick = Find.TickManager.TicksGame + cooldownTicks;
+            // Mirror onto nextPhaseTick so the busy-status display (which reads
+            // op.nextPhaseTick) shows the cooldown countdown rather than 0.0 d.
+            nextPhaseTick = wakeTick;
             if (aggressor?.squad is object) aggressor.squad.nextAvailableTick = wakeTick;
             if (defender?.squad is object && defender.squad != aggressor?.squad)
                 defender.squad.nextAvailableTick = wakeTick;

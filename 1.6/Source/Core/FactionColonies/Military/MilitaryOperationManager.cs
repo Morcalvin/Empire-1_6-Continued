@@ -385,6 +385,13 @@ namespace FactionColonies
             var op = new MilitaryOperation(newId, MilitaryJobDefOf.Deploy, deployTile, targetObject);
             op.phase = MilitaryOperationPhase.Engaged;
             op.phaseStartedTick = Find.TickManager.TicksGame;
+            // Mirror the LordJob's force-leave horizon onto nextPhaseTick so the busy display
+            // (Math.Max(0, op.nextPhaseTick - now) / TicksPerDay) shows real time remaining
+            // rather than 0.0 d. Deploy has no scheduled phase event, so this value is purely
+            // informational — the actual transition out of Engaged happens via FinalizeDeployment.
+            op.nextPhaseTick = Find.TickManager.TicksGame
+                + LordJob_DeployMilitary.DefaultMaxDeploymentTime
+                + LordJob_DeployMilitary.PostLeaveGraceTicks;
             op.aggressor.faction = FactionCache.PlayerColonyFaction;
             op.aggressor.homeSettlement = source.settlement;
             op.aggressor.squad = source;

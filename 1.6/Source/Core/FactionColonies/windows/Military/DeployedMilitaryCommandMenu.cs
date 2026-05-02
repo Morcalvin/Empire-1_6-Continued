@@ -34,7 +34,9 @@ namespace FactionColonies
             preventCameraMotion = false;
             faction = FactionCache.FactionComp;
 
-            selectedSquad = faction.militaryCustomizationUtil.DeployedSquads.Where(squad => squad.getSettlement != null).RandomElementWithFallback();
+            // Use the op-driven source so the freshly-deployed squad is visible immediately,
+            // even while its pawns are still inside drop pods (pawn.Map is null pre-pod-open).
+            selectedSquad = faction.militaryCustomizationUtil.SquadsInDeployOp.Where(squad => squad.getSettlement != null).RandomElementWithFallback();
         }
 
         public override Vector2 InitialSize => new Vector2(216f, 300f);
@@ -52,7 +54,7 @@ namespace FactionColonies
         private void DoSelectSquadCommand()
         {
             List<FloatMenuOption> list = new List<FloatMenuOption>();
-            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.DeployedSquads)
+            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.SquadsInDeployOp)
             {
                 if (squad.getSettlement != null)
                 {
@@ -122,7 +124,7 @@ namespace FactionColonies
         /// </summary>
         private void DoDebugCommand()
         {
-            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.DeployedSquads)
+            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.SquadsInDeployOp.ToList())
             {
                 DespawnSquad(squad);
             }
@@ -189,15 +191,15 @@ namespace FactionColonies
 
         public override void DoWindowContents(Rect rect)
         {
-            if (!faction.militaryCustomizationUtil.DeployedSquads.Any())
+            if (!faction.militaryCustomizationUtil.SquadsInDeployOp.Any())
             {
                 Close();
                 return;
             }
 
-            if (selectedSquad is null || !selectedSquad.IsPhysicallyDeployed())
+            if (selectedSquad is null || !MilitaryCustomizationUtil.IsInDeployOp(selectedSquad))
             {
-                selectedSquad = faction.militaryCustomizationUtil.DeployedSquads.FirstOrDefault();
+                selectedSquad = faction.militaryCustomizationUtil.SquadsInDeployOp.FirstOrDefault();
             }
 
             GameFont prevFont = Text.Font;

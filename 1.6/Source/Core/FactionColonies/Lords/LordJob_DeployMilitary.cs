@@ -10,6 +10,11 @@ namespace FactionColonies
 {
     public class LordJob_DeployMilitary : LordJob
     {
+        /// <summary>Default ticks the lord stays before force-leaving. Mirrored on
+        /// <see cref="MilitaryOperation.nextPhaseTick"/> by <c>CreateDeployOp</c> so the busy
+        /// timer reflects the actual deploy horizon.</summary>
+        public const int DefaultMaxDeploymentTime = 30000;
+
         public MercenarySquadFC squad;
         private IntVec3 currentOrderPosition;
         private int whenToForceLeave;
@@ -37,7 +42,7 @@ namespace FactionColonies
         /// <param name="currentOrderPosition"></param>
         /// <param name="squad"></param>
         /// <param name="maxDeploymentTime"></param>
-        public LordJob_DeployMilitary(IntVec3 currentOrderPosition, MercenarySquadFC squad, int maxDeploymentTime = 30000)
+        public LordJob_DeployMilitary(IntVec3 currentOrderPosition, MercenarySquadFC squad, int maxDeploymentTime = DefaultMaxDeploymentTime)
         {
             this.currentOrderPosition = currentOrderPosition;
             this.squad = squad;
@@ -88,7 +93,7 @@ namespace FactionColonies
 
         /// <summary>Hard grace period after <c>whenToForceLeave</c> (~4 in-game hours).
         /// If pawns are still in the lord after this, force-finalize.</summary>
-        private const int PostLeaveGraceTicks = 10000;
+        public const int PostLeaveGraceTicks = 10000;
 
         public override void LordJobTick()
         {

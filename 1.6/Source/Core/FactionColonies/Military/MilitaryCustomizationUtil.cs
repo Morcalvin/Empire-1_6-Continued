@@ -291,6 +291,39 @@ namespace FactionColonies
         public IEnumerable<MercenarySquadFC> DeployedSquads =>
             mercenarySquads.Where(squad => squad.IsPhysicallyDeployed());
 
+        /// <summary>Squads currently participating in an Engaged Deploy op. Distinct from
+        /// <see cref="DeployedSquads"/>: that one walks pawn-on-map state (false during the
+        /// drop-pod fall window before pods open). This one walks the manager's op state, so
+        /// the squad is included from the moment <c>CreateDeployOp</c> registers it through
+        /// final lord-cleanup. Use this for UI that should remain coherent across pod fall.</summary>
+        public IEnumerable<MercenarySquadFC> SquadsInDeployOp
+        {
+            get
+            {
+                if (FactionCache.MilitaryManager is null) yield break;
+                foreach (MercenarySquadFC squad in mercenarySquads)
+                {
+                    MilitaryOperation op = squad?.Operation;
+                    if (op is object
+                        && op.kind == MilitaryJobDefOf.Deploy
+                        && op.phase == MilitaryOperationPhase.Engaged)
+                    {
+                        yield return squad;
+                    }
+                }
+            }
+        }
+
+        /// <summary>True if <paramref name="squad"/> is currently in an Engaged Deploy op.</summary>
+        public static bool IsInDeployOp(MercenarySquadFC squad)
+        {
+            if (squad is null) return false;
+            MilitaryOperation op = squad.Operation;
+            return op is object
+                && op.kind == MilitaryJobDefOf.Deploy
+                && op.phase == MilitaryOperationPhase.Engaged;
+        }
+
         public IEnumerable<Pawn> AllMercenaryPawns =>
             AllMercenaries.Select(merc => merc.pawn);
 
