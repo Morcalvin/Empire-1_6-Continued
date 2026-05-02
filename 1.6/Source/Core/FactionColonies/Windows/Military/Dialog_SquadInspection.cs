@@ -80,12 +80,20 @@ namespace FactionColonies
             /* Two-column context band: Settlement | Template (caption / value / buttons) */
             Rect contextRect = new Rect(inRect.x, y, inRect.width, ContextBandHeight);
             DrawContextBand(contextRect);
-            y = contextRect.yMax + BandGap;
+            y = contextRect.yMax + (BandGap / 2f);
+
+            Rect barAboveActions = new Rect(inRect.x + 4f, y, inRect.width - 8f, 1f);
+            TexLoad.DrawHorizontalPeakGradient(barAboveActions, Color.gray);
+            y = barAboveActions.yMax + (BandGap / 2f);
 
             /* Action bar: Fill empty / Upgrade all */
             Rect actionsRect = new Rect(inRect.x, y, inRect.width, ActionBarHeight);
             DrawActionBar(actionsRect);
-            y = actionsRect.yMax + BandGap;
+            y = actionsRect.yMax + (BandGap / 2f);
+            
+            Rect barBelowActions = new Rect(inRect.x + 4f, y, inRect.width - 8f, 1f);
+            TexLoad.DrawHorizontalPeakGradient(barBelowActions, Color.gray);
+            y = barBelowActions.yMax + (BandGap / 2f);
 
             /* Card list (fills remaining height after subtracting submod sections) */
             float sectionsHeight = ComputeSectionsHeight(inRect.width);
@@ -309,14 +317,16 @@ namespace FactionColonies
 
             /* Background — highlight even rows for readability */
             if (slotIndex % 2 == 0) Widgets.DrawHighlight(cardRect);
+            
+            float leftx = cardRect.x;
 
             /* Accent bar (3px on the left edge) — health-driven */
             Color accent = GetSlotAccent(merc);
-            Rect accentRect = new Rect(cardRect.x, cardRect.y, AccentBarWidth, cardRect.height);
+            Rect accentRect = new Rect(leftx, cardRect.y, AccentBarWidth, cardRect.height);
             Widgets.DrawBoxSolid(accentRect, accent);
 
             /* Portrait */
-            float portraitX = cardRect.x + AccentBarWidth + CardOuterPad;
+            float portraitX = leftx + AccentBarWidth + CardOuterPad;
             float portraitY = cardRect.y + (cardRect.height - PortraitSize) / 2f;
             Rect portraitRect = new Rect(portraitX, portraitY, PortraitSize, PortraitSize);
             if (merc?.pawn != null)

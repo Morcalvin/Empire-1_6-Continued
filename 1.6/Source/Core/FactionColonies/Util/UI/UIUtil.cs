@@ -377,52 +377,5 @@ namespace FactionColonies
 
             return curY + 1f - rect.y;
         }
-
-        // Rotated-label helpers. Unity IMGUI honors GUI.matrix for both textures and text,
-        // so Widgets.Label inside a rotated matrix block renders rotated. Use UI.RotateAroundPivot
-        // (not GUIUtility.RotateAroundPivot) so Prefs.UIScale is applied to the pivot.
-        //
-        // Display-only: click hit-testing does NOT rotate. Do not wrap ButtonText with these.
-        // Caller manages Text.Anchor / Text.WordWrap / GUI.color -- these helpers don't touch them.
-
-        public static void LabelRotated90(Rect horizontalRect, string label)
-        {
-            Matrix4x4 saved = GUI.matrix;
-            UI.RotateAroundPivot(90f, horizontalRect.center);
-            Widgets.Label(horizontalRect, label);
-            GUI.matrix = saved;
-        }
-
-        public static void LabelRotated270(Rect horizontalRect, string label)
-        {
-            Matrix4x4 saved = GUI.matrix;
-            UI.RotateAroundPivot(270f, horizontalRect.center);
-            Widgets.Label(horizontalRect, label);
-            GUI.matrix = saved;
-        }
-
-        // Wrappers that accept the target VERTICAL rect (narrow & tall). They build the
-        // horizontal layout rect (width/height swapped, same center) so the rotated draw
-        // lands precisely inside verticalRect. Word-wrap and clipping run against the
-        // horizontal rect's width (= verticalRect.height), which is the natural long-axis behavior.
-        public static void LabelVertical90(Rect verticalRect, string label)
-        {
-            LabelRotated90(HorizontalForVertical(verticalRect), label);
-        }
-
-        public static void LabelVertical270(Rect verticalRect, string label)
-        {
-            LabelRotated270(HorizontalForVertical(verticalRect), label);
-        }
-
-        private static Rect HorizontalForVertical(Rect verticalRect)
-        {
-            Vector2 c = verticalRect.center;
-            return new Rect(
-                c.x - verticalRect.height / 2f,
-                c.y - verticalRect.width / 2f,
-                verticalRect.height,
-                verticalRect.width);
-        }
     }
 }
