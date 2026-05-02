@@ -751,4 +751,46 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_53</defName>
+		<label>Manual Defense Hediff Fix</label>
+		<description>Manual Defense battles will apply &quot;well-trained&quot; or &quot;poorly-trained&quot; hediffs to pawns based on the military efficiency of their home settlement/faction. However, this hediff isn&apos;t always stripped once the battle is over, allowing the player to obtain buffed pawns. This patch corrects that.</description>
+		<releaseDate>2026-05-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Bugfix: strip the combat efficiency hediff whenever a pawn is despawned (e.g. leaves the map or joins a caravan)</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_54</defName>
+		<label>Resource Caravan Update</label>
+		<description>Updates the Empire-specific resource caravans to cap the number of pawns that the caravan can generate. Only relevant for the animals resource today, but should be able to handle any future resource that also would spawn pawns.</description>
+		<releaseDate>2026-05-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Cap animal spawns for animal caravans to 15.</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_55</defName>
+		<label>Combat Efficiency Hediff Infocard Change</label>
+		<description>Changes the infocard for the combat efficiency hediff to explain that the hediff&apos;s bonuses are derived from the faction&apos;s military efficiency.</description>
+		<releaseDate>2026-05-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Updates infocard for combat efficiency hediff</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

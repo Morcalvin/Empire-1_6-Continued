@@ -51,6 +51,7 @@
       <li Class="FactionColonies.EmpireCaravanStockGenerator">
         <resourceDef>RTD_Animals</resourceDef>
         <varietyRange>8~14</varietyRange>
+        <maxPawnCount>15</maxPawnCount>
       </li>
       <li Class="StockGenerator_BuyExpensiveSimple" />
     </stockGenerators>

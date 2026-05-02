@@ -46,7 +46,7 @@ namespace FactionColonies
         /// </summary>
         public static void RemoveCombatEfficiencyHediff(Pawn pawn)
         {
-            if (pawn == null || pawn.health == null || pawn.health.hediffSet == null) return;
+            if (pawn?.health?.hediffSet is null) return;
 
             Hediff existing = pawn.health.hediffSet.GetFirstHediffOfDef(FCHediffDefOf.FC_CombatEfficiency_Buff)
                 ?? pawn.health.hediffSet.GetFirstHediffOfDef(FCHediffDefOf.FC_CombatEfficiency_Debuff);

@@ -7,8 +7,13 @@
     <HediffDef>
         <defName>FC_CombatEfficiency_Buff</defName>
         <label>well-trained</label>
-        <description>This combatant benefits from superior training and coordination provided by their settlement's military infrastructure.</description>
-        <hediffClass>Hediff</hediffClass>
+        <description>This combatant benefits from superior training and coordination provided by their settlement's military infrastructure.
+        
+----------
+        
+The buffs applied by this hediff are scaled by the military efficiency of the defending/home settlement (for player Empire pawns) or by the military efficiency of their faction (for enemy NPC pawns).</description>
+        <overrideTooltip>This combatant benefits from superior training and coordination provided by their settlement's military infrastructure.</overrideTooltip>
+        <hediffClass>FactionColonies.Hediff_CombatEfficiency</hediffClass>
         <isBad>false</isBad>
         <makesAlert>false</makesAlert>
         <scenarioCanAdd>false</scenarioCanAdd>
@@ -36,8 +41,13 @@
     <HediffDef>
         <defName>FC_CombatEfficiency_Debuff</defName>
         <label>poorly trained</label>
-        <description>This combatant suffers from inadequate training and poor coordination due to their settlement's weak military infrastructure.</description>
-        <hediffClass>Hediff</hediffClass>
+        <description>This combatant suffers from inadequate training and poor coordination due to their settlement's weak military infrastructure.
+
+----------
+
+The penalties applied by this hediff are scaled by the military efficiency of the defending/home settlement (for player Empire pawns) or by the military efficiency of their faction (for enemy NPC pawns).</description>
+        <overrideTooltip>This combatant suffers from inadequate training and poor coordination due to their settlement's weak military infrastructure.</overrideTooltip>
+        <hediffClass>FactionColonies.Hediff_CombatEfficiency</hediffClass>
         <isBad>true</isBad>
         <makesAlert>false</makesAlert>
         <scenarioCanAdd>false</scenarioCanAdd>
