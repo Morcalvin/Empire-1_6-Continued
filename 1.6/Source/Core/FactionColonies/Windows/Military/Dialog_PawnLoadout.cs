@@ -1,6 +1,5 @@
 using FactionColonies.util;
 using RimWorld;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -9,15 +8,14 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>
-    /// Per-pawn loadout editor. Mutates <see cref="Mercenary.currentLoadout"/> in place;
-    /// every edit also stamps <see cref="Mercenary.ownedLoadout"/> with a clone as the
-    /// "this pawn diverged" marker. Does NOT clear <see cref="MercenarySquadFC.outfit"/> —
-    /// only this merc has diverged, the squad's other mercs still match the template.
+    /// Per-pawn loadout editor. Mutates <see cref="Mercenary.ownedLoadout"/> only —
+    /// the merc's *target/assigned* loadout. Does NOT touch
+    /// <see cref="Mercenary.currentLoadout"/> (equipped snapshot) or the pawn's
+    /// actual gear. The per-pawn Upgrade button on the inspection window does the
+    /// assigned → equipped transition (paying the silver cost diff).
     ///
     /// Reuses <see cref="FCWindow_ItemStuffPicker"/> for weapon and apparel pickers (same UX
-    /// as the unit designer). Pawn identity (kindDef / xenotype) is preserved — gear changes
-    /// only re-equip; they don't regenerate the pawn. Use the per-pawn Upgrade button on the
-    /// inspection window or "Pick from pool unit" to swap pool references.
+    /// as the unit designer). Pawn identity (kindDef / xenotype) is preserved.
     /// </summary>
     public class Dialog_PawnLoadout : Window
     {
@@ -37,15 +35,14 @@ namespace FactionColonies
             draggable = true;
         }
 
-        /* Returns the merc's currentLoadout, creating one as a clone of the best
-         * available source on first access. Edits mutate this in place. After mutating,
-         * call MarkDiverged to stamp ownedLoadout as the divergence flag. */
-        private MilUnitFC EnsureCurrentLoadout()
+        /* Returns the merc's ownedLoadout (the target/assigned loadout), creating
+         * it as a clone of the squad template on first edit. */
+        private MilUnitFC EnsureOwnedLoadout()
         {
             if (merc is null) return null;
-            if (merc.currentLoadout != null) return merc.currentLoadout;
+            if (merc.ownedLoadout != null) return merc.ownedLoadout;
 
-            MilUnitFC source = merc.ownedLoadout ?? merc.loadout;
+            MilUnitFC source = merc.loadout ?? merc.currentLoadout;
             MilUnitFC clone;
             if (source != null)
             {
@@ -56,25 +53,8 @@ namespace FactionColonies
                 clone = MilTemplateFactory.CreateUnit(false);
                 clone.name = (string)"FCSquadInspectionPersonalLoadoutDefaultName".Translate();
             }
-            merc.currentLoadout = clone;
-            return merc.currentLoadout;
-        }
-
-        /* Stamp ownedLoadout from the (already-mutated) currentLoadout. Called after every
-         * direct edit. squad.outfit is preserved — only this merc has diverged. */
-        private void MarkDiverged()
-        {
-            if (merc?.currentLoadout != null)
-                merc.ownedLoadout = merc.currentLoadout.Clone();
-        }
-
-        private void RefreshPawnEquipment()
-        {
-            if (merc?.pawn is null) return;
-            MilUnitFC current = merc.currentLoadout;
-            if (current is null) return;
-            squad.StripPawn(merc);
-            squad.EquipPawn(merc, current);
+            merc.ownedLoadout = clone;
+            return merc.ownedLoadout;
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -123,16 +103,15 @@ namespace FactionColonies
             }
             bx += wideW + gap;
 
-            // Reset (snaps currentLoadout to merc.loadout's current pool state, clears ownedLoadout)
-            bool canReset = merc.loadout != null;
+            // Reset: clear ownedLoadout so BlueprintLoadout falls back to the squad
+            // template (loadout). Pawn equipment is untouched — Upgrade does the sync.
+            bool canReset = merc.ownedLoadout != null && merc.loadout != null;
             Color colorBefore = GUI.color;
             if (!canReset) GUI.color = Color.gray;
             Rect resetRect = new Rect(bx, bottomRect.y, wideW, bottomRect.height);
             if (Widgets.ButtonText(resetRect, "FCDialogPawnLoadoutResetToPool".Translate(), true, true, canReset))
             {
-                merc.currentLoadout = merc.loadout.Clone();
                 merc.ownedLoadout = null;
-                RefreshPawnEquipment();
             }
             GUI.color = colorBefore;
 
@@ -168,25 +147,26 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.UpperCenter;
-            Widgets.Label(new Rect(animalSlot.x, animalSlot.y - 14f, animalSlot.width, 14f), "fcLabelAnimal".Translate());
-            Widgets.Label(new Rect(weaponSlot.x, weaponSlot.y - 14f, weaponSlot.width, 14f), "fcLabelWeapon".Translate());
+            const float labelW = 80f;
+            Widgets.Label(new Rect(animalSlot.center.x - labelW / 2f, animalSlot.y - 14f, labelW, 14f), "fcLabelAnimal".Translate());
+            Widgets.Label(new Rect(weaponSlot.center.x - labelW / 2f, weaponSlot.y - 14f, labelW, 14f), "fcLabelWeapon".Translate());
             Widgets.DrawMenuSection(animalSlot);
             Widgets.DrawMenuSection(weaponSlot);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
-            MilUnitFC current = merc.currentLoadout;
+            // Display the target (assigned) loadout — what the player is editing.
+            MilUnitFC current = merc.BlueprintLoadout;
+            // Use non-interactive draws so ButtonInvisible below handles all clicks.
             if (current?.HasWeapon == true)
-                Widgets.ButtonImage(weaponSlot, current.weapons[0].thing.uiIcon);
+                Widgets.DrawTextureFitted(weaponSlot, current.weapons[0].thing.uiIcon, 1f);
             if (current?.animal != null)
-                Widgets.ButtonImage(animalSlot, current.animal.race.uiIcon);
+                Widgets.DrawTextureFitted(animalSlot, current.animal.race.uiIcon, 1f);
 
-            // Click weapon slot to open picker (mutates currentLoadout)
             if (Widgets.ButtonInvisible(weaponSlot))
             {
                 OpenWeaponPicker();
             }
-            // Click animal slot to open animal picker
             if (Widgets.ButtonInvisible(animalSlot))
             {
                 OpenAnimalPicker();
@@ -214,7 +194,8 @@ namespace FactionColonies
                 OpenApparelPicker();
             }
 
-            MilUnitFC current = merc.currentLoadout;
+            // Display the target (assigned) loadout — what the player is editing.
+            MilUnitFC current = merc.BlueprintLoadout;
             List<SavedThing> apparel = current?.apparel?.Where(a => a.thing != null).ToList() ?? new List<SavedThing>();
 
             Rect listRect = new Rect(rect.x, rect.y + headerH + 4f, rect.width, rect.height - headerH - 4f);
@@ -237,12 +218,10 @@ namespace FactionColonies
                 if (Widgets.ButtonText(removeRect, "X"))
                 {
                     SavedThing captured = item;
-                    MilUnitFC target = EnsureCurrentLoadout();
+                    MilUnitFC target = EnsureOwnedLoadout();
                     if (target != null)
                     {
                         target.RemoveApparel(captured.thing);
-                        MarkDiverged();
-                        RefreshPawnEquipment();
                     }
                 }
             }
@@ -256,7 +235,7 @@ namespace FactionColonies
 
         private void OpenWeaponPicker()
         {
-            MilUnitFC target = EnsureCurrentLoadout();
+            MilUnitFC target = EnsureOwnedLoadout();
             if (target is null) return;
             List<ThingDef> weaponDefs = DefDatabase<ThingDef>.AllDefs
                 .Where(t => t.IsWeapon && t.BaseMarketValue != 0
@@ -273,14 +252,10 @@ namespace FactionColonies
                 onConfirm: (item, stuff) =>
                 {
                     target.SetWeapon(item, stuff);
-                    MarkDiverged();
-                    RefreshPawnEquipment();
                 },
                 onUnequip: () =>
                 {
                     target.ClearWeapon();
-                    MarkDiverged();
-                    RefreshPawnEquipment();
                 },
                 titleKey: "fcPickWeapon",
                 initialItem: currentWeapon?.thing,
@@ -290,7 +265,7 @@ namespace FactionColonies
 
         private void OpenApparelPicker()
         {
-            MilUnitFC target = EnsureCurrentLoadout();
+            MilUnitFC target = EnsureOwnedLoadout();
             if (target is null) return;
             BodyDef body = target.pawnKind?.race?.race?.body ?? BodyDefOf.Human;
             List<ThingDef> apparelDefs = DefDatabase<ThingDef>.AllDefs
@@ -306,8 +281,6 @@ namespace FactionColonies
                 onConfirm: (item, stuff) =>
                 {
                     target.SetApparel(item, stuff);
-                    MarkDiverged();
-                    RefreshPawnEquipment();
                 },
                 titleKey: "fcPickApparel"
             ));
@@ -315,11 +288,10 @@ namespace FactionColonies
 
         private void OpenAnimalPicker()
         {
-            MilUnitFC target = EnsureCurrentLoadout();
+            MilUnitFC target = EnsureOwnedLoadout();
             if (target is null) return;
-            // The animal picker mutates the unit immediately on confirm. We can't directly
-            // hook into that to re-stamp ownedLoadout, but the animal data is informational
-            // for the per-pawn editor — the actual animal companion attachment to a pawn is
+            // The animal picker mutates the target unit directly. Animal data is
+            // informational here — the actual animal companion attachment to a pawn is
             // rebuilt only on full outfit changes (Upgrade All / Fill).
             Find.WindowStack.Add(new FCWindow_AnimalPicker(target));
         }
@@ -330,35 +302,16 @@ namespace FactionColonies
         {
             MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
             if (util?.units is null) return;
-            double currentCost = merc.EffectiveLoadout?.getTotalCost ?? 0;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             foreach (MilUnitFC unit in util.units)
             {
                 MilUnitFC captured = unit;
-                double newCost = captured.getTotalCost;
-                int diff = newCost > currentCost
-                    ? (int)Math.Round((newCost - currentCost) * FCSettings.squadUpgradeCostMultiplier)
-                    : 0;
-                string label = diff > 0
-                    ? captured.name + " (+$" + diff + ")"
-                    : captured.name;
-                options.Add(new FloatMenuOption(label, delegate
+                options.Add(new FloatMenuOption(captured.name, delegate
                 {
-                    // Pool-unit swap: not a divergence, so template association is preserved.
-                    if (diff > 0)
-                    {
-                        if (PaymentUtil.GetSilver() < diff)
-                        {
-                            Messages.Message("FCSquadUpgradeInsufficientSilver".Translate(diff),
-                                MessageTypeDefOf.RejectInput, false);
-                            return;
-                        }
-                        PaymentUtil.PaySilver(diff, PaymentUtil.Reason_SquadUpgrade, squad?.settlement);
-                    }
-                    merc.loadout = captured;
-                    merc.ownedLoadout = null;
-                    merc.currentLoadout = captured.Clone();
-                    RefreshPawnEquipment();
+                    // Personalize this merc to use the picked pool unit's gear as their
+                    // assigned loadout. Squad ref (loadout) and equipped state
+                    // (currentLoadout) are untouched — Upgrade does the equipment sync.
+                    merc.ownedLoadout = captured.Clone();
                 }));
             }
             if (options.Count == 0)

@@ -475,14 +475,15 @@ namespace FactionColonies
                 }
                 bx += btnW + SmallGap;
 
-                /* Upgrade — target the template's slot at this merc's own index. */
-                int slotUpgradeCost = ComputePerPawnUpgradeCost(slotIndex, merc);
-                bool canUpgrade = squad.outfit != null && slotUpgradeCost > 0 && !squad.IsBusy;
+                /* Upgrade — apply the merc's assigned loadout (BlueprintLoadout) to
+                   the pawn's equipped gear, paying the cost diff. */
+                int slotUpgradeCost = ComputePerPawnUpgradeCost(merc);
+                bool canUpgrade = slotUpgradeCost > 0 && !squad.IsBusy && merc.pawn != null;
                 Rect upgRect = new Rect(bx, rect.y, btnW, btnH);
                 if (UIUtil.ButtonFlat(upgRect,
                     "FCSquadInspectionPerSlotUpgrade".Translate(slotUpgradeCost), disabled: !canUpgrade))
                 {
-                    PerPawnUpgrade(slotIndex, merc, slotUpgradeCost);
+                    PerPawnUpgrade(merc, slotUpgradeCost);
                 }
                 bx += btnW + SmallGap;
 
@@ -543,30 +544,37 @@ namespace FactionColonies
 
         /*-*-*-*-* Per-pawn upgrade *-*-*-*-*/
 
-        /// <summary>Cost to upgrade the merc at <paramref name="slotIndex"/> to the template's
-        /// slot at the same index. Reads <see cref="Mercenary.EffectiveLoadout"/> for the
-        /// "what's equipped now" baseline. Returns 0 when no template, slot is null/missing,
-        /// or there's no positive diff.</summary>
-        private int ComputePerPawnUpgradeCost(int slotIndex, Mercenary merc)
+        /// <summary>Equipment-only market value for a loadout (apparel + weapons). Race
+        /// base cost is excluded so a pawnKind mismatch between assigned and equipped
+        /// snapshots doesn't leak a phantom race-cost diff (the pawn doesn't change race
+        /// on per-pawn Upgrade).</summary>
+        private static double SumEquipmentCost(MilUnitFC unit)
         {
-            MilUnitFC target = GetTemplateSlot(slotIndex);
-            if (target is null || merc is null) return 0;
-            double oldCost = merc.EffectiveLoadout?.getTotalCost ?? 0;
-            double newCost = target.getTotalCost;
-            if (newCost <= oldCost) return 0;
-            return (int)Math.Round((newCost - oldCost) * FCSettings.squadUpgradeCostMultiplier);
+            if (unit is null) return 0;
+            double total = 0;
+            if (unit.apparel != null)
+                foreach (SavedThing a in unit.apparel) total += a.MarketValue;
+            if (unit.weapons != null)
+                foreach (SavedThing w in unit.weapons) total += w.MarketValue;
+            return total;
         }
 
-        private MilUnitFC GetTemplateSlot(int slotIndex)
+        /// <summary>Cost to bring the pawn's currently-equipped gear in line with the
+        /// merc's assigned loadout (<see cref="Mercenary.BlueprintLoadout"/> = ownedLoadout
+        /// ?? loadout). Returns 0 when there's no positive diff.</summary>
+        private int ComputePerPawnUpgradeCost(Mercenary merc)
         {
-            if (squad.outfit?.Units is null) return null;
-            if (slotIndex < 0 || slotIndex >= squad.outfit.Units.Count) return null;
-            return squad.outfit.Units[slotIndex];
+            if (merc is null) return 0;
+            double targetCost = SumEquipmentCost(merc.BlueprintLoadout);
+            double equippedCost = SumEquipmentCost(merc.currentLoadout);
+            if (targetCost <= equippedCost) return 0;
+            return (int)Math.Round((targetCost - equippedCost) * FCSettings.squadUpgradeCostMultiplier);
         }
 
-        private void PerPawnUpgrade(int slotIndex, Mercenary merc, int cost)
+        private void PerPawnUpgrade(Mercenary merc, int cost)
         {
-            MilUnitFC target = GetTemplateSlot(slotIndex);
+            if (merc?.pawn is null) return;
+            MilUnitFC target = merc.BlueprintLoadout;
             if (target is null) return;
             if (cost > 0 && PaymentUtil.GetSilver() < cost)
             {
@@ -575,11 +583,11 @@ namespace FactionColonies
                 return;
             }
             if (cost > 0) PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadUpgrade, squad.settlement);
-            merc.loadout = target;
-            merc.ownedLoadout = null;
+            // ownedLoadout and loadout are preserved — assigned loadout is unchanged,
+            // only the pawn's equipped state is being synced to it.
             merc.currentLoadout = target.Clone();
             squad.StripPawn(merc);
-            squad.EquipPawn(merc, target);
+            squad.EquipPawn(merc, merc.currentLoadout);
         }
 
         private void FillSingleSlot(Mercenary merc, int cost, MilUnitFC blueprint)
