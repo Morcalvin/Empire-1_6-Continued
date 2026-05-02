@@ -765,4 +765,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_54</defName>
+		<label>Resource Caravan Update</label>
+		<description>Updates the Empire-specific resource caravans to cap the number of pawns that the caravan can generate. Only relevant for the animals resource today, but should be able to handle any future resource that also would spawn pawns.</description>
+		<releaseDate>2026-05-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Cap animal spawns for animal caravans to 15.</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

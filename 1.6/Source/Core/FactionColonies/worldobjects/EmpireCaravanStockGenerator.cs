@@ -26,6 +26,17 @@ namespace FactionColonies
         /// </summary>
         public IntRange varietyRange = new IntRange(15, 25);
 
+        /// <summary>
+        /// Hard cap on total pawns spawned per generator run. Applies to any race-bearing
+        /// ThingDef in the candidate pool — animals today, but also humanlikes, mechanoids,
+        /// or any other race a future resource might surface. Orthogonal to
+        /// <see cref="varietyRange"/> (which caps distinct ThingDef *kinds*); this caps
+        /// individual *pawns*. Budget that would have produced extra pawns is redirected
+        /// to non-pawn items in the same candidate pool, falling back to silver if the
+        /// pool has none. Default to 15; a sane (if high) fallback.
+        /// </summary>
+        public int maxPawnCount = 15;
+
         /// <summary>Randomness range for per-item budget (multiplier).</summary>
         private const float BudgetRandomMin = 0.5f;
         private const float BudgetRandomMax = 1.5f;
@@ -90,31 +101,94 @@ namespace FactionColonies
 
             float perItemBudget = (float)totalBudget / variety;
 
+            /* Split candidates: any race-bearing ThingDef yields Pawns and is subject to
+               maxPawnCount; everything else is an item. Order within each bucket is
+               preserved from the already-shuffled candidates. */
+            List<ThingDef> pawnCandidates = new List<ThingDef>();
+            List<ThingDef> itemCandidates = new List<ThingDef>();
             foreach (ThingDef td in candidates)
+            {
+                if (td.race is object)
+                    pawnCandidates.Add(td);
+                else
+                    itemCandidates.Add(td);
+            }
+
+            /* Plan pawn yields up to maxPawnCount. Surplus per-item budget is captured
+               as divertedBudget for redistribution to items below. */
+            List<KeyValuePair<PawnKindDef, int>> plannedPawns = new List<KeyValuePair<PawnKindDef, int>>();
+            int runningPawnTotal = 0;
+            float divertedBudget = 0f;
+
+            foreach (ThingDef td in pawnCandidates)
             {
                 float randomizedBudget = perItemBudget * Rand.Range(BudgetRandomMin, BudgetRandomMax);
                 float marketValue = td.BaseMarketValue;
                 if (marketValue <= 0f)
                     marketValue = 1f;
 
-                int stackCount = Mathf.Max(1, Mathf.RoundToInt(randomizedBudget / marketValue));
+                int desiredCount = Mathf.Max(1, Mathf.RoundToInt(randomizedBudget / marketValue));
+                int remainingCap = Mathf.Max(0, maxPawnCount - runningPawnTotal);
+                int allowedCount = Mathf.Min(desiredCount, remainingCap);
 
-                if (td.race is object && td.race.Animal)
+                if (allowedCount > 0)
                 {
-                    for (int i = 0; i < stackCount; i++)
+                    PawnKindDef pawnKind = td.race.AnyPawnKind;
+                    if (pawnKind is object)
                     {
-                        PawnKindDef pawnKind = td.race.AnyPawnKind;
-                        if (pawnKind is null) continue;
-                        PawnGenerationRequest request = new PawnGenerationRequest(pawnKind, null, PawnGenerationContext.NonPlayer);
-                        Pawn pawn = PawnGenerator.GeneratePawn(request);
-                        if (pawn is object) yield return pawn;
+                        plannedPawns.Add(new KeyValuePair<PawnKindDef, int>(pawnKind, allowedCount));
+                        runningPawnTotal += allowedCount;
+                    }
+                    else
+                    {
+                        // No valid PawnKindDef — divert this slot's full budget too
+                        allowedCount = 0;
                     }
                 }
-                else
+
+                divertedBudget += (desiredCount - allowedCount) * marketValue;
+            }
+
+            // Emit planned pawns
+            foreach (KeyValuePair<PawnKindDef, int> entry in plannedPawns)
+            {
+                for (int i = 0; i < entry.Value; i++)
                 {
-                    foreach (Thing thing in StockGeneratorUtility.TryMakeForStock(td, stackCount, faction))
+                    PawnGenerationRequest request = new PawnGenerationRequest(entry.Key, null, PawnGenerationContext.NonPlayer);
+                    Pawn pawn = PawnGenerator.GeneratePawn(request);
+                    if (pawn is object) yield return pawn;
+                }
+            }
+
+            /* Emit non-pawn items. Diverted budget (from capped pawns) is split evenly
+               across item candidates as a per-item bonus on top of the normal randomized
+               share. If no item candidates exist, fall through to the silver fallback. */
+            float bonusPerItem = (itemCandidates.Count > 0) ? divertedBudget / itemCandidates.Count : 0f;
+
+            foreach (ThingDef td in itemCandidates)
+            {
+                float randomizedBudget = perItemBudget * Rand.Range(BudgetRandomMin, BudgetRandomMax) + bonusPerItem;
+                float marketValue = td.BaseMarketValue;
+                if (marketValue <= 0f)
+                    marketValue = 1f;
+
+                int stackCount = Mathf.Max(1, Mathf.RoundToInt(randomizedBudget / marketValue));
+
+                foreach (Thing thing in StockGeneratorUtility.TryMakeForStock(td, stackCount, faction))
+                {
+                    yield return thing;
+                }
+            }
+
+            // Fallback: no items to absorb the diverted budget — emit it as extra silver
+            if (itemCandidates.Count == 0 && divertedBudget > 0f)
+            {
+                int bonusSilver = Mathf.RoundToInt(divertedBudget);
+                if (bonusSilver > 0)
+                {
+                    foreach (Thing silver in StockGeneratorUtility.TryMakeForStock(ThingDefOf.Silver, bonusSilver, faction))
                     {
-                        yield return thing;
+                        yield return silver;
                     }
                 }
             }
