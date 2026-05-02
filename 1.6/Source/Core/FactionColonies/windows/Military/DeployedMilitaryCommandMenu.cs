@@ -58,7 +58,7 @@ namespace FactionColonies
             {
                 if (squad.getSettlement != null)
                 {
-                    list.Add(new FloatMenuOption("FCSelectedDeployedSquad".Translate(squad.getSettlement.Name, squad.outfit.name), () => selectedSquad = squad));
+                    list.Add(new FloatMenuOption("FCSelectedDeployedSquad".Translate(squad.getSettlement.Name, squad.DisplayName), () => selectedSquad = squad));
                 }
             }
             if (!list.Any())
@@ -80,7 +80,7 @@ namespace FactionColonies
             if (selectedSquad != null)
             {
                 selectedSquad.militaryOrder = MilitaryOrder.Hunt;
-                Messages.Message("FCAttackSuccess".Translate(selectedSquad.outfit.name), MessageTypeDefOf.NeutralEvent);
+                Messages.Message("FCAttackSuccess".Translate(selectedSquad.DisplayName), MessageTypeDefOf.NeutralEvent);
             }
         }
 
@@ -99,7 +99,7 @@ namespace FactionColonies
 
                     selectedSquad.orderLocation = Position;
                     selectedSquad.militaryOrder = MilitaryOrder.DefendPoint;
-                    Messages.Message("FCMoveSuccess".Translate(selectedSquad.outfit.name), MessageTypeDefOf.NeutralEvent);
+                    Messages.Message("FCMoveSuccess".Translate(selectedSquad.DisplayName), MessageTypeDefOf.NeutralEvent);
 
                     DebugTools.curTool = null;
                 });
@@ -115,7 +115,7 @@ namespace FactionColonies
             if (selectedSquad != null)
             {
                 selectedSquad.militaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
-                Messages.Message("FCCommandLeave".Translate(selectedSquad.outfit.name, selectedSquad.dead), MessageTypeDefOf.NeutralEvent);
+                Messages.Message("FCCommandLeave".Translate(selectedSquad.DisplayName, selectedSquad.dead), MessageTypeDefOf.NeutralEvent);
             }
         }
 
@@ -274,7 +274,7 @@ namespace FactionColonies
                 Widgets.DrawHighlight(squadNameRect);
                 if (squadHovered) Widgets.DrawHighlight(squadNameRect);
 
-                string squadFullName = selectedSquad.outfit.name;
+                string squadFullName = selectedSquad.DisplayName;
                 string squadTruncated = squadFullName.Truncate(contentWidth - 10f, truncateCache);
                 Widgets.Label(squadNameRect, squadTruncated);
 

@@ -1785,7 +1785,7 @@ namespace FactionColonies
 
                 // Card-level tooltip on the header strip
                 string squadName = stationed.Count > 0
-                    ? (stationed[0]?.name ?? stationed[0]?.outfit?.name ?? "FCNone".Translate())
+                    ? (stationed[0]?.DisplayName ?? "FCNone".Translate())
                     : (string)"FCNone".Translate();
                 string tooltip = settlement.Name + "\n\n"
                     + "FCSettlementTableMilLevel".Translate() + ": " + settlement.settlementMilitaryLevel + "\n"
@@ -1930,7 +1930,7 @@ namespace FactionColonies
                 "FCMilitaryTableSlotPrefix".Translate(slotIdx + 1));
 
             // Squad name area
-            string squadName = squad?.name ?? squad?.outfit?.name ?? (string)"FCMilitaryTableSlotEmpty".Translate();
+            string squadName = squad?.DisplayName ?? (string)"FCMilitaryTableSlotEmpty".Translate();
             float buttonAreaW = btnW * 4 + btnGap * 3;
             float nameAreaW = rect.width - slotIndent - idxW - buttonAreaW - 4f;
             Widgets.Label(new Rect(rect.x + slotIndent + idxW, rect.y, nameAreaW, rect.height), squadName);
@@ -2167,7 +2167,7 @@ namespace FactionColonies
                         double lvl = SquadPowerRegistry.Resolve(s).militaryLevel;
                         if (lvl > bestLevel) { strongest = s; bestLevel = lvl; }
                     }
-                    return "FCMilPowerTipSquad".Translate(strongest?.name ?? "?");
+                    return "FCMilPowerTipSquad".Translate(strongest?.DisplayName ?? "?");
                 case SettlementPowerStatus.AllBusy:
                     return "FCMilPowerTipAllBusy".Translate();
                 case SettlementPowerStatus.Ghost:

@@ -13,7 +13,7 @@ namespace FactionColonies
     public class MercenarySquadFC : IExposable, ILoadReferenceable
     {
         public int loadID = -1;
-        public string name;
+        private string name;
         public List<Mercenary> mercenaries = new List<Mercenary>();
         public List<Mercenary> animals = new List<Mercenary>();
         public WorldSettlementFC settlement;
@@ -47,6 +47,18 @@ namespace FactionColonies
         public int hireCostPaid;
         public int hiredAtTick;
         public bool autoDefend;
+
+        /* Raw squad name, or null if unset. Use DisplayName for UI; only use Name when
+           the caller explicitly needs the raw value (e.g., seeding a rename text box). */
+        public string Name => name;
+
+        /* User-facing name. Falls back to the source template's name when this squad's
+           Name wasn't set, and finally to FCUnnamedSquad. Use this for any UI/message
+           that identifies a specific deployed squad — never outfit.name directly, since
+           outfit is a Scribe_References link and can resolve to null after load. */
+        public string DisplayName => name ?? outfit?.name ?? "FCUnnamedSquad".Translate();
+
+        public void SetName(string newName) => name = newName;
 
         public virtual void ExposeData()
         {

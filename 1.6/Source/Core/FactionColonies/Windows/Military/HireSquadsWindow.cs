@@ -150,7 +150,7 @@ namespace FactionColonies
             GUI.color = accent;
             float nameW = contentW - statusW - 6f;
             Rect nameRect = new Rect(contentX, headerY, nameW, CardHeaderH);
-            Widgets.Label(nameRect, squad.name ?? squad.outfit?.name ?? "(?)");
+            Widgets.Label(nameRect, squad.DisplayName);
             GUI.color = colorBefore;
             if (Mouse.IsOver(nameRect)) Widgets.DrawHighlight(nameRect);
             if (Widgets.ButtonInvisible(nameRect))
@@ -230,7 +230,7 @@ namespace FactionColonies
                 int refund = (int)Math.Round(capturedSquad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
                 MilitaryCustomizationUtil utilCaptured = util;
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    "FCSquadActDismissConfirm".Translate(capturedSquad.name, refund),
+                    "FCSquadActDismissConfirm".Translate(capturedSquad.DisplayName, refund),
                     delegate { utilCaptured.DismissSquad(capturedSquad); }));
             }
 

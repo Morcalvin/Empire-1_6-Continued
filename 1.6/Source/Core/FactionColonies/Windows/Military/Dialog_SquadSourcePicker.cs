@@ -177,7 +177,7 @@ namespace FactionColonies
                     ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
                     : "-";
                 DrawColumns(rowRect, isHeader: false,
-                    squadName: row.squad.name ?? "(?)",
+                    squadName: row.squad.DisplayName,
                     billet: row.squad.settlement?.Name ?? "(unassigned)",
                     travel: travelText,
                     winChance: winChanceText,
@@ -297,7 +297,7 @@ namespace FactionColonies
                 case SortMode.WinChance: rows = rows.OrderByDescending(r => r.winChance).ToList(); break;
                 case SortMode.Travel: rows = rows.OrderBy(r => r.travelTicks).ToList(); break;
                 case SortMode.Power: rows = rows.OrderByDescending(r => r.squad.outfit?.UpdateEquipmentTotalCost() ?? 0).ToList(); break;
-                case SortMode.Name: rows = rows.OrderBy(r => r.squad.name ?? "").ToList(); break;
+                case SortMode.Name: rows = rows.OrderBy(r => r.squad.DisplayName).ToList(); break;
             }
             rowsDirty = false;
         }

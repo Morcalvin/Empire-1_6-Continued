@@ -122,7 +122,7 @@ namespace FactionColonies
 
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
-            string label = "FCSquadInspectionTitle".Translate(squad.name ?? "(?)");
+            string label = "FCSquadInspectionTitle".Translate(squad.DisplayName);
             float labelW = Text.CalcSize(label).x;
             float labelX = rect.x + 12f;
             Widgets.Label(new Rect(labelX, rect.y, labelW + 4f, rect.height), label);
@@ -132,8 +132,8 @@ namespace FactionColonies
             Rect pencilRect = new Rect(labelX + labelW + 8f, iconY, IconButtonSize, IconButtonSize);
             if (Widgets.ButtonImage(pencilRect, TexButton.Rename))
             {
-                Find.WindowStack.Add(new FCWindow_Rename(squad.name ?? "", "FCRenameSquad",
-                    n => { squad.name = n; }));
+                Find.WindowStack.Add(new FCWindow_Rename(squad.Name ?? "", "FCRenameSquad",
+                    n => { squad.SetName(n); }));
             }
             TooltipHandler.TipRegion(pencilRect, "FCSquadInspectionRenameSquadTip".Translate());
 
@@ -206,7 +206,7 @@ namespace FactionColonies
                 int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
                 MercenarySquadFC captured = squad;
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    "FCSquadActDismissConfirm".Translate(captured.name, refund),
+                    "FCSquadActDismissConfirm".Translate(captured.DisplayName, refund),
                     delegate
                     {
                         FactionCache.FactionComp?.militaryCustomizationUtil?.DismissSquad(captured);

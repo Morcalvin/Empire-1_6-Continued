@@ -422,7 +422,7 @@ namespace FactionColonies
                 else if (elsewhere) suffix = "  - " + squad.settlement.Name;
                 else suffix = "";
 
-                string label = (squad.name ?? squad.outfit?.name ?? "(?)") + suffix;
+                string label = squad.DisplayName + suffix;
 
                 Action onPick;
                 if (alreadyHere) onPick = delegate { /* no-op: squad already billeted here */ };
@@ -470,13 +470,13 @@ namespace FactionColonies
             squad.hireCostPaid = cost;
             squad.hiredAtTick = Find.TickManager.TicksGame;
             template.hiresEverMade++;
-            squad.name = template.name + " #" + template.hiresEverMade;
+            squad.SetName(template.name + " #" + template.hiresEverMade);
             squad.InitiateSquad();
             mercenarySquads.Add(squad);
 
             RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadHired(squad);
-            Messages.Message("FCSquadHired".Translate(squad.name, cost), MessageTypeDefOf.PositiveEvent);
+            Messages.Message("FCSquadHired".Translate(squad.DisplayName, cost), MessageTypeDefOf.PositiveEvent);
             return squad;
         }
 
@@ -488,7 +488,7 @@ namespace FactionColonies
             if (squad is null) return false;
             if (squad.IsBusy)
             {
-                Messages.Message("FCCannotDismissBusySquad".Translate(squad.name), MessageTypeDefOf.RejectInput, false);
+                Messages.Message("FCCannotDismissBusySquad".Translate(squad.DisplayName), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
             int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
@@ -502,7 +502,7 @@ namespace FactionColonies
             mercenarySquads.Remove(squad);
             RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadDismissed(squad);
-            Messages.Message("FCSquadDismissed".Translate(squad.name, refund), MessageTypeDefOf.NeutralEvent);
+            Messages.Message("FCSquadDismissed".Translate(squad.DisplayName, refund), MessageTypeDefOf.NeutralEvent);
             return true;
         }
 
@@ -519,7 +519,7 @@ namespace FactionColonies
             }
             if (squad.IsBusy)
             {
-                Messages.Message("FCCannotReassignBusySquad".Translate(squad.name), MessageTypeDefOf.RejectInput, false);
+                Messages.Message("FCCannotReassignBusySquad".Translate(squad.DisplayName), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
             if (!SquadAssignmentRegistry.CanAssign(settlement, squad, out string reason))
@@ -529,7 +529,7 @@ namespace FactionColonies
             }
 
             squad.settlement = settlement;
-            Messages.Message("FCSquadAssigned".Translate(squad.name, settlement.Name), MessageTypeDefOf.PositiveEvent);
+            Messages.Message("FCSquadAssigned".Translate(squad.DisplayName, settlement.Name), MessageTypeDefOf.PositiveEvent);
             return true;
         }
 
@@ -540,7 +540,7 @@ namespace FactionColonies
             if (squad is null) return false;
             if (squad.IsBusy)
             {
-                Messages.Message("FCCannotUnassignBusySquad".Translate(squad.name), MessageTypeDefOf.RejectInput, false);
+                Messages.Message("FCCannotUnassignBusySquad".Translate(squad.DisplayName), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
             squad.settlement = null;

@@ -197,6 +197,7 @@
 	<FCSquadUpgradeInsufficientSilver>You do not have enough silver ({0} required) to upgrade that squad.</FCSquadUpgradeInsufficientSilver>
 	<FCSquadCapReached>{0} is already at squad capacity ({1}/{2}).</FCSquadCapReached>
 	<FCSquadSizeExceeded>This squad has more mercenaries ({1}) than {0}'s allowed maximum squad size ({2}).</FCSquadSizeExceeded>
+	<FCUnnamedSquad>Unnamed squad</FCUnnamedSquad>
 
 	<FCRenameSquad>Rename squad</FCRenameSquad>
 	<FCHireSquadButton>Hire (${0})</FCHireSquadButton>

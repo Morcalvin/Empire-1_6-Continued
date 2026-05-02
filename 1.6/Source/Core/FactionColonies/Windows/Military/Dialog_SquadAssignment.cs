@@ -29,7 +29,7 @@ namespace FactionColonies
         {
             Text.Font = GameFont.Medium;
             Widgets.Label(new Rect(0, 0, inRect.width, 30f),
-                "FCDialogSquadAssignmentHeader".Translate(squad?.name ?? "(?)"));
+                "FCDialogSquadAssignmentHeader".Translate(squad?.DisplayName ?? "(?)"));
             Text.Font = GameFont.Small;
 
             float listTop = 36f;

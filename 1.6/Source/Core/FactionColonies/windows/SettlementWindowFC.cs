@@ -1173,7 +1173,7 @@ namespace FactionColonies
             {
                 MercenarySquadFC capturedSquad = mercSquad;
                 list.Add(new FloatMenuOption(
-                    "FCSettlementMilSquadEntry".Translate(capturedSquad.name ?? "(?)",
+                    "FCSettlementMilSquadEntry".Translate(capturedSquad.DisplayName,
                         capturedSquad.autoDefend ? (string)"FCYes".Translate() : (string)"FCNo".Translate()),
                     delegate
                     {
@@ -1295,7 +1295,7 @@ namespace FactionColonies
                 squad.IsBusy ? (Action)null : (Action)delegate
                 {
                     Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "FCSquadActDismissConfirm".Translate(squad.name, refund),
+                        "FCSquadActDismissConfirm".Translate(squad.DisplayName, refund),
                         delegate { util?.DismissSquad(squad); }));
                 }));
 
@@ -1304,7 +1304,7 @@ namespace FactionColonies
                 list.Add(new FloatMenuOption("fcResetSquadPawns".Translate(), delegate
                 {
                     Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "fcResetSquadPawnsConfirm".Translate((NamedArgument)(squad.outfit?.name ?? squad.name ?? "?")),
+                        "fcResetSquadPawnsConfirm".Translate((NamedArgument)squad.DisplayName),
                         delegate
                         {
                             // Bypass InitiateSquad's empty-slot guard — explicit player reset.
