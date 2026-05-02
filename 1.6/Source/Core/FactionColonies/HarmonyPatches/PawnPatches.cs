@@ -87,4 +87,16 @@ namespace FactionColonies
         }
     }
 
+    // Strip FC_CombatEfficiency hediffs whenever a pawn leaves the map. Catches every exit path
+    // (caravan reformation with captured enemies, fleeing off-map, external defender return,
+    // map removal via MapDeiniter.DespawnAll) without enumerating them by hand.
+    [HarmonyPatch(typeof(Pawn), nameof(Pawn.DeSpawn))]
+    class StripCombatEfficiencyOnDeSpawn
+    {
+        static void Prefix(Pawn __instance)
+        {
+            MilitaryEfficiencyUtil.RemoveCombatEfficiencyHediff(__instance);
+        }
+    }
+
 }
