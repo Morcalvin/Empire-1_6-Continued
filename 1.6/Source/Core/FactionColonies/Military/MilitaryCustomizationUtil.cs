@@ -139,36 +139,33 @@ namespace FactionColonies
 
         // --- Mercenary Healing ---
 
-        private HashSet<Mercenary> injuredMercs;
+        // Pawn -> Mercenary index of off-map mercs with active injuries. Single source of truth;
+        // keyed by pawn so StatPart_EmpireMercHealRate can resolve in O(1) during stat queries.
+        private Dictionary<Pawn, Mercenary> injuredMercsByPawn;
 
         /// <summary>
-        /// Gradually heal injuries on undeployed mercenary pawns.
-        /// Only iterates the tracked injured set for performance.
-        /// Per-settlement heal rate is determined by the mercHealRateMultiplier stat.
+        /// Gradually heal injuries on undeployed mercenary pawns by delegating to vanilla
+        /// <see cref="Pawn_HealthTracker.HealthTickInterval"/>. Heal rate is multiplied via
+        /// <see cref="StatPart_EmpireMercHealRate"/> on the InjuryHealingFactor stat, which
+        /// composes the user slider and per-settlement mercHealRateMultiplier into the boost.
+        /// Auto-tending runs first so wounds heal at the tended rate when applicable.
         /// </summary>
         public void TickMercenaryHealing(int interval)
         {
-            FactionFC faction = FactionCache.FactionComp;
-            if (faction is null) return;
-            
-            if (injuredMercs is null) RebuildInjuredMercs();
-            if ((injuredMercs?.Count ?? 0) == 0) return;
+            if (injuredMercsByPawn is null) RebuildInjuredMercs();
+            if (injuredMercsByPawn.Count == 0) return;
 
-            float baseHealAmount = FCSettings.mercenaryHealRatePerHour * ((float)interval / (float)GenDate.TicksPerHour);
-            if (baseHealAmount <= 0f) return;
-
-            Dictionary<WorldSettlementFC, float> healCache = null;
-
-            List<Mercenary> toRemove = null;
-            foreach (Mercenary merc in injuredMercs)
+            List<Pawn> toRemove = null;
+            foreach (KeyValuePair<Pawn, Mercenary> kvp in injuredMercsByPawn)
             {
-                Pawn pawn = merc.pawn;
+                Pawn pawn = kvp.Key;
+                Mercenary merc = kvp.Value;
 
-                // Permanent removal; pawn is gone.
-                if (pawn is null || pawn.Destroyed || pawn.Dead)
+                // Permanent removal — pawn is gone, or merc no longer holds this pawn (was reassigned).
+                if (pawn is null || pawn.Destroyed || pawn.Dead || merc?.pawn != pawn)
                 {
-                    if (toRemove is null) toRemove = new List<Mercenary>();
-                    toRemove.Add(merc);
+                    if (toRemove is null) toRemove = new List<Pawn>();
+                    toRemove.Add(pawn);
                     continue;
                 }
 
@@ -176,42 +173,46 @@ namespace FactionColonies
                 // resumes automatically once the pawn returns to base.
                 if (pawn.Map != null) continue;
 
-                float healAmount = GetSettlementHealAmount(merc, baseHealAmount, faction, ref healCache);
-                HealMercenaryTick(pawn, healAmount);
-                if (!HasInjuries(pawn))
+                WorldSettlementFC settlement = merc.settlement ?? merc.squad?.getSettlement;
+                try
                 {
-                    if (toRemove is null) toRemove = new List<Mercenary>();
-                    toRemove.Add(merc);
+                    // Vanilla HealthTickInterval gates its heal branch on !food.Starving. Off-map
+                    // mercs don't tick their needs, so the food need is frozen at whatever value
+                    // it had at despawn — possibly Starving. Top it up; mercs at base are
+                    // abstracted as eating in the mess hall.
+                    Need_Food food = pawn.needs?.food;
+                    if (food != null) food.CurLevel = food.MaxLevel;
+
+                    if (pawn.health.HasHediffsNeedingTend())
+                        MercTendingUtil.TendOnce(merc, settlement);
+
+                    pawn.health.HealthTickInterval(interval);
+                }
+                catch (Exception e)
+                {
+                    LogUtil.Error($"Exception in mercenary heal tick for {pawn.LabelShortCap}: {e}");
+                }
+
+                // Vanilla cleanup pruned dead hediffs during the tick; if no injuries remain, drop tracking.
+                if (pawn.Dead || pawn.Destroyed || !HasInjuries(pawn))
+                {
+                    if (toRemove is null) toRemove = new List<Pawn>();
+                    toRemove.Add(pawn);
                 }
             }
             if (toRemove != null)
             {
-                foreach (Mercenary m in toRemove) injuredMercs.Remove(m);
+                foreach (Pawn p in toRemove) injuredMercsByPawn.Remove(p);
             }
         }
 
-        private float GetSettlementHealAmount(Mercenary merc, float baseHealAmount, FactionFC faction,
-            ref Dictionary<WorldSettlementFC, float> cache)
-        {
-            WorldSettlementFC settlement = merc.settlement ?? merc.squad?.getSettlement;
-            if (faction is null || settlement is null) return baseHealAmount;
-
-            if (cache is null) cache = new Dictionary<WorldSettlementFC, float>();
-            if (cache.TryGetValue(settlement, out float cached)) return cached;
-
-            double multiplier = faction.GetStatValue(FCStatDefOf.mercHealRateMultiplier, settlement);
-            float result = baseHealAmount * (float)multiplier;
-            cache[settlement] = result;
-            return result;
-        }
-
         /// <summary>
-        /// Full scan of all undeployed squads to populate the injured mercs set.
+        /// Full scan of all undeployed squads to populate the injured mercs index.
         /// Called lazily on first tick or after load.
         /// </summary>
         private void RebuildInjuredMercs()
         {
-            injuredMercs = new HashSet<Mercenary>();
+            injuredMercsByPawn = new Dictionary<Pawn, Mercenary>();
             foreach (MercenarySquadFC squad in mercenarySquads)
             {
                 if (squad.IsPhysicallyDeployed()) continue;
@@ -224,7 +225,7 @@ namespace FactionColonies
         /// </summary>
         public void RegisterSquadInjuries(MercenarySquadFC squad)
         {
-            if (injuredMercs is null) injuredMercs = new HashSet<Mercenary>();
+            if (injuredMercsByPawn is null) injuredMercsByPawn = new Dictionary<Pawn, Mercenary>();
             if (squad.mercenaries is null) return;
             // Register regardless of current spawn state. TickMercenaryHealing decides whether
             // to actually heal each tick, so on-map pawns stay tracked and resume healing on
@@ -233,8 +234,19 @@ namespace FactionColonies
             {
                 if (merc?.pawn is null || merc.pawn.Dead || merc.pawn.Destroyed) continue;
                 if (HasInjuries(merc.pawn))
-                    injuredMercs.Add(merc);
+                    injuredMercsByPawn[merc.pawn] = merc;
             }
+        }
+
+        /// <summary>
+        /// Returns the registered <see cref="Mercenary"/> for <paramref name="pawn"/>, or null
+        /// if the pawn isn't currently tracked for healing. Used by
+        /// <see cref="StatPart_EmpireMercHealRate"/> to decide whether to apply the boost.
+        /// </summary>
+        public Mercenary GetRegisteredInjuredMerc(Pawn pawn)
+        {
+            if (pawn is null || injuredMercsByPawn is null) return null;
+            return injuredMercsByPawn.TryGetValue(pawn, out Mercenary merc) ? merc : null;
         }
 
         private static bool HasInjuries(Pawn pawn)
@@ -246,35 +258,6 @@ namespace FactionColonies
                 if (hediffs[i] is Hediff_Injury injury && !injury.IsPermanent()) return true;
             }
             return false;
-        }
-
-        private static void HealMercenaryTick(Pawn pawn, float healAmount)
-        {
-            Pawn_HealthTracker health = pawn.health;
-            List<Hediff> hediffs = health?.hediffSet?.hediffs;
-            if (hediffs == null) return;
-
-            // Off-map pawns don't run HealthTickInterval, so vanilla's ShouldRemove pruning never
-            // fires for them. Clean up any zero-severity injuries left over from prior heals first;
-            // otherwise, repeated ticks just re-target the same dead wound (the loop below picks
-            // the last non-permanent injury) while live wounds sit untouched.
-            for (int i = hediffs.Count - 1; i >= 0; i--)
-            {
-                if (hediffs[i] is Hediff_Injury old && !old.IsPermanent() && old.ShouldRemove)
-                    health.RemoveHediff(old);
-            }
-
-            // Heal one live injury per tick.
-            for (int i = hediffs.Count - 1; i >= 0; i--)
-            {
-                if (hediffs[i] is Hediff_Injury injury && !injury.IsPermanent())
-                {
-                    injury.Heal(healAmount);
-                    if (injury.ShouldRemove)
-                        health.RemoveHediff(injury);
-                    break;
-                }
-            }
         }
 
         public MercenarySquadFC ReturnSquadFromUnit(Pawn unit)

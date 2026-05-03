@@ -51,7 +51,8 @@ At 1, military efficiency fully affects each round of auto combat. Military forc
 
 Values in between dampen the effect of military efficiency on the auto combat.</FCSettingEfficiencyDampingTooltip>
 	<FCSettingMercHealRate>Mercenary Heal Rate</FCSettingMercHealRate>
-	<FCSettingMercHealRateTip>How fast undeployed mercenary pawns heal their injuries, in hit points per in-game hour. Only one injury heals at a time.</FCSettingMercHealRateTip>
+	<FCSettingMercHealRateTip>Approximate hit points per in-game hour an undeployed mercenary recovers from an untreated wound.</FCSettingMercHealRateTip>
+	<FCEmpireMercHealRateStatExplanation>Empire mercenary at base recovering</FCEmpireMercHealRateStatExplanation>
 
 	<!-- Squad-first economy sliders -->
 	<FCSettingSquadsHeader>Squads</FCSettingSquadsHeader>
