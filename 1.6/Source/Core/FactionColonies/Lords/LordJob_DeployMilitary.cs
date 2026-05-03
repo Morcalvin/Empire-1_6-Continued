@@ -146,6 +146,12 @@ namespace FactionColonies
             ((LordToilData_HuntEnemies)lordToil_HuntEnemies.data).fallbackLocation = newPos;
 
             lord.CurLordToil.UpdateAllDuties();
+
+            // Force pawns to drop their current job so the new duty takes effect this tick instead of after the current job finishes.
+            foreach (Pawn p in lord.ownedPawns)
+            {
+                if (p?.jobs?.curJob is object) p.jobs.EndCurrentJob(JobCondition.InterruptForced);
+            }
         }
 
         /// <summary>

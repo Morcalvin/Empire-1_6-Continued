@@ -58,7 +58,15 @@ namespace FactionColonies
             else
             {
                 PawnsArrivalModeWorker_EdgeWalkIn worker = new PawnsArrivalModeWorker_EdgeWalkIn();
-                worker.TryResolveRaidSpawnCenter(parms);
+                if (RCellFinder.TryFindClosestEdgeCellTo(dropPosition, currentMap, out parms.spawnCenter))
+                {
+                    parms.spawnRotation = Rot4.FromAngleFlat((currentMap.Center - parms.spawnCenter).AngleFlat);
+                }
+                else
+                {
+                    // dropPosition is unreachable from any map edge (e.g. fully sealed off) — fall back to vanilla random edge cell.
+                    worker.TryResolveRaidSpawnCenter(parms);
+                }
                 worker.Arrive(equippedPawns, parms);
             }
 
