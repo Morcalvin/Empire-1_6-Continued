@@ -250,14 +250,28 @@ namespace FactionColonies
 
         private static void HealMercenaryTick(Pawn pawn, float healAmount)
         {
-            List<Hediff> hediffs = pawn.health?.hediffSet?.hediffs;
+            Pawn_HealthTracker health = pawn.health;
+            List<Hediff> hediffs = health?.hediffSet?.hediffs;
             if (hediffs == null) return;
+
+            // Off-map pawns don't run HealthTickInterval, so vanilla's ShouldRemove pruning never
+            // fires for them. Clean up any zero-severity injuries left over from prior heals first;
+            // otherwise, repeated ticks just re-target the same dead wound (the loop below picks
+            // the last non-permanent injury) while live wounds sit untouched.
+            for (int i = hediffs.Count - 1; i >= 0; i--)
+            {
+                if (hediffs[i] is Hediff_Injury old && !old.IsPermanent() && old.ShouldRemove)
+                    health.RemoveHediff(old);
+            }
+
+            // Heal one live injury per tick.
             for (int i = hediffs.Count - 1; i >= 0; i--)
             {
                 if (hediffs[i] is Hediff_Injury injury && !injury.IsPermanent())
                 {
                     injury.Heal(healAmount);
-                    // Only heal one injury at a time
+                    if (injury.ShouldRemove)
+                        health.RemoveHediff(injury);
                     break;
                 }
             }
