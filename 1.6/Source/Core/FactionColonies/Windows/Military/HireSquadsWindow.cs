@@ -250,11 +250,11 @@ namespace FactionColonies
         private static string ComputeStatus(MercenarySquadFC squad, int now)
         {
             if (!squad.IsAssigned) return "FCSquadStatusUnassigned".Translate();
-            if (squad.IsBusy)
+            MilitaryOperation op = squad.Operation;
+            if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
             {
-                MilitaryOperation op = squad.Operation;
                 int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
-                string opLabel = op?.kind?.label ?? "?";
+                string opLabel = op.kind?.label ?? "?";
                 return "FCSquadStatusBusyOp".Translate(opLabel,
                     (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
             }
@@ -271,7 +271,9 @@ namespace FactionColonies
         private static Color ColorForStatus(MercenarySquadFC squad, int now)
         {
             if (!squad.IsAssigned) return AccentUtil.MilInactive;
-            if (squad.IsBusy) return AccentUtil.MilActiveMission;
+            MilitaryOperation op = squad.Operation;
+            if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
+                return AccentUtil.MilActiveMission;
             if (squad.nextAvailableTick > now) return AccentUtil.MilCooldown;
             return AccentUtil.MilReady;
         }

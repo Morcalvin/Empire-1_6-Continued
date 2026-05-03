@@ -163,12 +163,18 @@ namespace FactionColonies
             foreach (Mercenary merc in injuredMercs)
             {
                 Pawn pawn = merc.pawn;
-                if (pawn is null || pawn.Destroyed || pawn.Dead || pawn.Map != null)
+
+                // Permanent removal; pawn is gone.
+                if (pawn is null || pawn.Destroyed || pawn.Dead)
                 {
                     if (toRemove is null) toRemove = new List<Mercenary>();
                     toRemove.Add(merc);
                     continue;
                 }
+
+                // On-map (currently deployed) — skip this tick but stay tracked so healing
+                // resumes automatically once the pawn returns to base.
+                if (pawn.Map != null) continue;
 
                 float healAmount = GetSettlementHealAmount(merc, baseHealAmount, faction, ref healCache);
                 HealMercenaryTick(pawn, healAmount);
@@ -220,9 +226,12 @@ namespace FactionColonies
         {
             if (injuredMercs is null) injuredMercs = new HashSet<Mercenary>();
             if (squad.mercenaries is null) return;
+            // Register regardless of current spawn state. TickMercenaryHealing decides whether
+            // to actually heal each tick, so on-map pawns stay tracked and resume healing on
+            // next despawn without needing a manual re-register.
             foreach (Mercenary merc in squad.mercenaries)
             {
-                if (merc?.pawn is null || merc.pawn.Dead || merc.pawn.Map != null) continue;
+                if (merc?.pawn is null || merc.pawn.Dead || merc.pawn.Destroyed) continue;
                 if (HasInjuries(merc.pawn))
                     injuredMercs.Add(merc);
             }
