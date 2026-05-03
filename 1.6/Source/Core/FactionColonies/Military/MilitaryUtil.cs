@@ -144,38 +144,50 @@ namespace FactionColonies
         }
         public static void FireSupport(WorldSettlementFC settlement, MilitaryFireSupport support)
         {
-            DebugTool tool = null;
-            IntVec3 DropPosition;
-            tool = new DebugTool("FCFireSupportSelectPosition".Translate(), delegate
+            TargetingParameters targetParams = new TargetingParameters
             {
-                float cost = support.ReturnTotalCost();
-                if (DebugSettings.godMode || PaymentUtil.GetSilver() > cost)
+                canTargetLocations = true,
+                canTargetSelf = false,
+                canTargetPawns = false,
+                canTargetFires = false,
+                canTargetBuildings = false,
+                canTargetItems = false
+            };
+
+            Find.Targeter.BeginTargeting(targetParams,
+                delegate (LocalTargetInfo target)
                 {
-                    if (!DebugSettings.godMode)
-                        PaymentUtil.PaySilver((int)Math.Round(cost), PaymentUtil.Reason_FireSupport, settlement);
-                    DropPosition = UI.MouseCell();
-                    IntVec3 spawnCenter = DropPosition;
-                    Map map = Find.CurrentMap;
-                    //Make new list
-                    List<ThingDef> projectiles = new List<ThingDef>();
-                    projectiles.AddRange(support.projectiles);
-                    MilitaryFireSupport fireSupport = new MilitaryFireSupport("fireSupport", map, spawnCenter,
-                        projectiles.Count() * 15, 600, support.accuracy, projectiles, settlement.Tile);
-                    FactionCache.FactionComp.militaryCustomizationUtil.fireSupport.Add(fireSupport);
+                    float cost = support.ReturnTotalCost();
+                    if (DebugSettings.godMode || PaymentUtil.GetSilver() > cost)
+                    {
+                        if (!DebugSettings.godMode)
+                            PaymentUtil.PaySilver((int)Math.Round(cost), PaymentUtil.Reason_FireSupport, settlement);
 
-                    Messages.Message("FCFireSupportNameWillBeFiredOnPosition".Translate(support.name), MessageTypeDefOf.ThreatSmall);
-                    if (settlement.MilitaryComp != null)
-                        settlement.MilitaryComp.artilleryTimer = Find.TickManager.TicksGame + (DebugSettings.godMode ? 1 : 60000);
-                }
-                else
+                        Map map = Find.CurrentMap;
+                        List<ThingDef> projectiles = new List<ThingDef>(support.projectiles);
+                        MilitaryFireSupport fireSupport = new MilitaryFireSupport("fireSupport", map, target.Cell,
+                            projectiles.Count() * 15, 600, support.accuracy, projectiles, settlement.Tile);
+                        FactionCache.FactionComp.militaryCustomizationUtil.fireSupport.Add(fireSupport);
+
+                        Messages.Message("FCFireSupportNameWillBeFiredOnPosition".Translate(support.name), MessageTypeDefOf.ThreatSmall);
+                        if (settlement.MilitaryComp != null)
+                            settlement.MilitaryComp.artilleryTimer = Find.TickManager.TicksGame + (DebugSettings.godMode ? 1 : 60000);
+                    }
+                    else
+                    {
+                        Messages.Message("FCFireSupportNoSilver".Translate(), MessageTypeDefOf.RejectInput);
+                    }
+                },
+                highlightAction: delegate (LocalTargetInfo target)
                 {
-                    Messages.Message("FCFireSupportNoSilver".Translate(), MessageTypeDefOf.RejectInput);
-                }
-
-
-                DebugTools.curTool = null;
-            }, delegate { GenDraw.DrawRadiusRing(UI.MouseCell(), support.accuracy, Color.red); });
-            DebugTools.curTool = tool;
+                    if (target.Cell.IsValid)
+                        GenDraw.DrawRadiusRing(target.Cell, support.accuracy, Color.red);
+                },
+                targetValidator: null,
+                onGuiAction: delegate (LocalTargetInfo target)
+                {
+                    Widgets.MouseAttachedLabel("FCFireSupportSelectPosition".Translate());
+                });
         }
 
         private static float plusOrMinusRandomAttackValue = 2;
