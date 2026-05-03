@@ -13,13 +13,13 @@ namespace FactionColonies
     /// actions: Inspect, Reassign, Upgrade, Dismiss. Reused as the "By Squad" subtab body of
     /// the main military tab.
     /// </summary>
-    public class HireSquadsWindow : Window
+    public class MainTabWindow_Squads : Window
     {
         public override Vector2 InitialSize => new Vector2(900f, 640f);
 
         private Vector2 scroll;
 
-        public HireSquadsWindow()
+        public MainTabWindow_Squads()
         {
             doCloseX = true;
             forcePause = false;
@@ -138,7 +138,7 @@ namespace FactionColonies
             // Status badge — right-aligned
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
-            float statusW = 180f;
+            float statusW = 240f;
             GUI.color = statusColor;
             Widgets.Label(new Rect(cardRect.xMax - statusW - 4f, headerY, statusW, CardHeaderH), statusText);
             GUI.color = colorBefore;

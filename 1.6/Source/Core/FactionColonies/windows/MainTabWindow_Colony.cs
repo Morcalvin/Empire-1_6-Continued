@@ -1504,7 +1504,7 @@ namespace FactionColonies
         // Squad-first refactor: military tab gains two subtabs (By Settlement / By Squad).
         // 0 = By Settlement, 1 = By Squad. Persists across this MainTabWindow_Colony instance.
         private int militarySubtab = 0;
-        private HireSquadsWindow _bySquadRenderer;
+        private MainTabWindow_Squads _bySquadRenderer;
 
         private void DrawMilitaryTab(Rect rect)
         {
@@ -1575,7 +1575,7 @@ namespace FactionColonies
             }
             else
             {
-                if (_bySquadRenderer is null) _bySquadRenderer = new HireSquadsWindow();
+                if (_bySquadRenderer is null) _bySquadRenderer = new MainTabWindow_Squads();
                 _bySquadRenderer.Draw(tableRect);
             }
         }
