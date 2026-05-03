@@ -793,4 +793,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_56</defName>
+		<label>Fire Support Targeting Fix</label>
+		<description>Fixes the targeting circle for Fire Support to draw persistently, instead of just when the camera is moving.</description>
+		<releaseDate>2026-05-03</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Bugfix: targeting circle for fire support would only render while the camera is moving</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
