@@ -213,7 +213,8 @@
 	<FCDialogSquadAssignmentHeader>Reassign "{0}"</FCDialogSquadAssignmentHeader>
 	<FCDialogSquadAssignmentUnassign>Unassign (return to pool)</FCDialogSquadAssignmentUnassign>
 
-	<FCSquadPickerHeader>Choose a squad for: {0} (target: {1}, {2})</FCSquadPickerHeader>
+	<FCSquadPickerHeader>{0}</FCSquadPickerHeader>
+	<FCSquadPickerTarget>Target: {0}</FCSquadPickerTarget>
 	<FCSquadPickerEstimatedDefender>Estimated defender power: {0} (Efficiency x{1})</FCSquadPickerEstimatedDefender>
 	<FCSquadPickerAvailableOnly>Available only</FCSquadPickerAvailableOnly>
 	<FCSquadPickerSort>Sort</FCSquadPickerSort>
@@ -224,7 +225,7 @@
 	<FCSquadColTravel>Travel</FCSquadColTravel>
 	<FCSquadColWinChance>Win chance</FCSquadColWinChance>
 	<FCSquadColPower>Power</FCSquadColPower>
-	<FCSquadColStatus>Status</FCSquadColStatus>
+	<FCSquadColEfficiency>Eff</FCSquadColEfficiency>
 	<FCSquadColCost>Cost</FCSquadColCost>
 	<FCSquadColUpgrade>Upgrade</FCSquadColUpgrade>
 	<FCSquadColActions>Actions</FCSquadColActions>

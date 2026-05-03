@@ -10,15 +10,16 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>
-    /// Replaces the per-job float menu of "settlements with usable military" with a richer table:
-    /// every squad in the faction listed with its billet, travel time, predicted win chance, and
-    /// status. Confirm dispatches the chosen squad through <see cref="MilitaryOperationManager.CreateOffensiveOp"/>.
+    /// Replaces the per-job float menu of "settlements with usable military" with a richer picker:
+    /// every squad in the faction listed as a card with its billet, power, efficiency, travel time,
+    /// predicted win chance, and status. Confirm dispatches the chosen squad through
+    /// <see cref="MilitaryOperationManager.CreateOffensiveOp"/>.
     /// <para>The same dialog is reused for any "pick a squad" flow (caravan defense routing, etc.)
-    /// — instantiate with a custom <c>onConfirm</c> callback.</para>
+    /// — instantiate with a custom <c>onConfirm</c> callback and a <c>headerOverride</c>.</para>
     /// </summary>
     public class Dialog_SquadSourcePicker : Window
     {
-        public override Vector2 InitialSize => new Vector2(720f, 540f);
+        public override Vector2 InitialSize => new Vector2(820f, 560f);
 
         private readonly WorldObject target;
         private readonly MilitaryJobDef job;
@@ -34,6 +35,14 @@ namespace FactionColonies
         private List<RowData> rows = new List<RowData>();
         private bool rowsDirty = true;
 
+        /* Card layout constants — mirror HireSquadsWindow so the two squad-listing surfaces share rhythm. */
+        private const float Pad         = 4f;
+        private const float RowGap      = 2f;
+        private const float CardHeaderH = 24f;
+        private const float CardDetailH = 22f;
+        private const float CardH       = CardHeaderH + CardDetailH;
+        private const float AccentW     = 4f;
+
         private enum SortMode
         {
             WinChance,
@@ -47,7 +56,11 @@ namespace FactionColonies
             public MercenarySquadFC squad;
             public int travelTicks;
             public double winChance;
+            public double attackerPower;
+            public double attackerEfficiency;
+            public bool hasAttackerForce;
             public string status;
+            public Color statusColor;
             public bool available;
         }
 
@@ -83,43 +96,35 @@ namespace FactionColonies
 
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
+            Color colorBefore = GUI.color;
 
-            // Header
-            Text.Font = GameFont.Medium;
-            Text.Anchor = TextAnchor.UpperLeft;
-            string header = headerOverride.NullOrEmpty()
-                ? "FCSquadPickerHeader".Translate(job?.LabelCap ?? "?", target?.LabelCap ?? "?", enemy?.Name ?? "").ToString()
-                : headerOverride;
-            Widgets.Label(new Rect(0, 0, inRect.width, 30f), header);
-
-            Text.Font = GameFont.Small;
-            string defenderLine = "FCSquadPickerEstimatedDefender".Translate(
-                estimatedDefenderForce?.forceRemaining ?? 0,
-                (estimatedDefenderForce?.militaryEfficiency ?? 0).ToString("0.##")).ToString();
-            Widgets.Label(new Rect(0, 32f, inRect.width, 22f), defenderLine);
+            float headerBottom = DrawHeader(inRect);
 
             // Filter / sort row
-            float toolbarY = 60f;
-            Widgets.CheckboxLabeled(new Rect(0, toolbarY, 160f, 24f), "FCSquadPickerAvailableOnly".Translate(),
-                ref availableOnly);
-            if (Widgets.ButtonText(new Rect(180f, toolbarY, 200f, 24f), "FCSquadPickerSort".Translate() + ": " + SortLabel(sort)))
+            float toolbarY = headerBottom + 4f;
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.UpperLeft;
+            Widgets.CheckboxLabeled(new Rect(0, toolbarY, 160f, 24f),
+                "FCSquadPickerAvailableOnly".Translate(), ref availableOnly);
+            if (Widgets.ButtonText(new Rect(180f, toolbarY, 200f, 24f),
+                "FCSquadPickerSort".Translate() + ": " + SortLabel(sort)))
             {
                 List<FloatMenuOption> opts = new List<FloatMenuOption>
                 {
                     new FloatMenuOption(SortLabel(SortMode.WinChance), () => { sort = SortMode.WinChance; rowsDirty = true; }),
-                    new FloatMenuOption(SortLabel(SortMode.Travel), () => { sort = SortMode.Travel; rowsDirty = true; }),
-                    new FloatMenuOption(SortLabel(SortMode.Power), () => { sort = SortMode.Power; rowsDirty = true; }),
-                    new FloatMenuOption(SortLabel(SortMode.Name), () => { sort = SortMode.Name; rowsDirty = true; })
+                    new FloatMenuOption(SortLabel(SortMode.Travel),    () => { sort = SortMode.Travel;    rowsDirty = true; }),
+                    new FloatMenuOption(SortLabel(SortMode.Power),     () => { sort = SortMode.Power;     rowsDirty = true; }),
+                    new FloatMenuOption(SortLabel(SortMode.Name),      () => { sort = SortMode.Name;      rowsDirty = true; })
                 };
                 Find.WindowStack.Add(new FloatMenu(opts));
             }
 
-            // Table
-            float tableTop = toolbarY + 32f;
+            // Card list
+            float listTop = toolbarY + 32f;
             float buttonsHeight = 36f;
-            float tableHeight = inRect.height - tableTop - buttonsHeight - 6f;
-            Rect tableRect = new Rect(0, tableTop, inRect.width, tableHeight);
-            DrawTable(tableRect);
+            float listHeight = inRect.height - listTop - buttonsHeight - 6f;
+            Rect listRect = new Rect(0, listTop, inRect.width, listHeight);
+            DrawCardList(listRect);
 
             // Buttons
             float btnY = inRect.height - buttonsHeight + 2f;
@@ -128,7 +133,6 @@ namespace FactionColonies
                 Close();
             }
             bool canConfirm = selected is object && selected.IsAvailable;
-            Color colorBefore = GUI.color;
             if (!canConfirm) GUI.color = Color.gray;
             if (Widgets.ButtonText(new Rect(inRect.width - 160f, btnY, 150f, 32f), "Confirm".Translate(), true, true, canConfirm))
             {
@@ -140,75 +144,185 @@ namespace FactionColonies
             Text.Anchor = anchorBefore;
         }
 
-        private void DrawTable(Rect outRect)
+        /* Header: banner title, divider, target subhead with faction icon + relations color, defender power line.
+           When headerOverride is set (caravan-defense reuse), only the override title is shown — followed by the
+           defender power line if an enemy faction was supplied. Returns the y-coordinate just below the header block. */
+        private float DrawHeader(Rect inRect)
         {
-            // Header row
-            float headerH = 24f;
-            Rect headerRect = new Rect(outRect.x, outRect.y, outRect.width, headerH);
-            Widgets.DrawHighlight(headerRect);
-            DrawColumns(headerRect, isHeader: true,
-                squadName: "FCSquadColName".Translate(),
-                billet: "FCSquadColBillet".Translate(),
-                travel: "FCSquadColTravel".Translate(),
-                winChance: "FCSquadColWinChance".Translate(),
-                status: "FCSquadColStatus".Translate());
+            // Title banner
+            float titleH = 32f;
+            Rect titleRect = new Rect(0, 0, inRect.width, titleH);
+            Widgets.DrawHighlight(titleRect);
 
-            // Rows
-            Rect listRect = new Rect(outRect.x, outRect.y + headerH, outRect.width, outRect.height - headerH);
-            float rowH = 28f;
-            float viewHeight = rows.Count * rowH;
-            Rect viewRect = new Rect(0, 0, listRect.width - 16f, viewHeight);
-            Widgets.BeginScrollView(listRect, ref scrollPos, viewRect);
-            for (int i = 0; i < rows.Count; i++)
-            {
-                RowData row = rows[i];
-                Rect rowRect = new Rect(0, i * rowH, viewRect.width, rowH);
-                if (selected == row.squad) Widgets.DrawHighlightSelected(rowRect);
-                else if (i % 2 == 0) Widgets.DrawHighlight(rowRect);
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            string titleText = headerOverride.NullOrEmpty()
+                ? "FCSquadPickerHeader".Translate(job?.LabelCap ?? "?").ToString()
+                : headerOverride;
+            Widgets.Label(new Rect(8f, 0, inRect.width - 16f, titleH), titleText);
 
-                Color rowColor = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
-                Color colorBefore = GUI.color;
-                GUI.color = rowColor;
+            // Divider
+            float dividerY = titleH;
+            UIUtil.DrawColoredHorizontalLine(0, dividerY, inRect.width, new Color(0.5f, 0.5f, 0.5f));
 
-                string winChanceText = row.available
-                    ? (row.winChance * 100).ToString("0") + "%"
-                    : "-";
-                string travelText = row.squad.IsAssigned
-                    ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
-                    : "-";
-                DrawColumns(rowRect, isHeader: false,
-                    squadName: row.squad.DisplayName,
-                    billet: row.squad.settlement?.Name ?? "(unassigned)",
-                    travel: travelText,
-                    winChance: winChanceText,
-                    status: row.status);
-
-                GUI.color = colorBefore;
-
-                if (Widgets.ButtonInvisible(rowRect))
-                {
-                    selected = row.squad;
-                }
-            }
-            Widgets.EndScrollView();
-        }
-
-        private static void DrawColumns(Rect rect, bool isHeader, string squadName, string billet, string travel, string winChance, string status)
-        {
-            GameFont fontBefore = Text.Font;
-            TextAnchor anchorBefore = Text.Anchor;
-            Text.Font = isHeader ? GameFont.Tiny : GameFont.Small;
+            float y = dividerY + 6f;
+            Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
 
-            float x = rect.x + 6f;
-            Widgets.Label(new Rect(x, rect.y, 160f, rect.height), squadName); x += 160f;
-            Widgets.Label(new Rect(x, rect.y, 140f, rect.height), billet); x += 140f;
-            Widgets.Label(new Rect(x, rect.y, 80f, rect.height), travel); x += 80f;
-            Widgets.Label(new Rect(x, rect.y, 90f, rect.height), winChance); x += 90f;
-            Widgets.Label(new Rect(x, rect.y, rect.xMax - x - 6f, rect.height), status);
+            // Target subhead — only in default (non-override) mode
+            if (headerOverride.NullOrEmpty())
+            {
+                float subRowH = 24f;
+                float iconSize = 22f;
+                float iconX = 8f;
+                if (enemy?.def?.FactionIcon != null)
+                {
+                    GUI.DrawTexture(new Rect(iconX, y + (subRowH - iconSize) / 2f, iconSize, iconSize),
+                        enemy.def.FactionIcon);
+                }
+                float labelX = iconX + iconSize + 6f;
+                Color targetColor = enemy is object ? enemy.PlayerRelationKind.GetColor() : Color.white;
+                string targetName = target?.LabelCap ?? "?";
+                if (enemy is object && enemy.HasName)
+                    targetName = targetName + ", " + enemy.Name;
+                UIUtil.DrawColoredLabel(new Rect(labelX, y, inRect.width - labelX - 8f, subRowH),
+                    "FCSquadPickerTarget".Translate(targetName), targetColor);
+                y += subRowH;
+            }
+
+            // Defender power line — shown whenever we have a defender force (i.e. enemy faction supplied)
+            if (estimatedDefenderForce is object)
+            {
+                float defRowH = 22f;
+                string defenderLine = "FCSquadPickerEstimatedDefender".Translate(
+                    estimatedDefenderForce.forceRemaining,
+                    estimatedDefenderForce.militaryEfficiency.ToString("0.##")).ToString();
+                Widgets.Label(new Rect(8f, y, inRect.width - 16f, defRowH), defenderLine);
+                y += defRowH;
+            }
+
+            return y;
+        }
+
+        private void DrawCardList(Rect listRect)
+        {
+            if (rows.Count == 0)
+            {
+                Color colorBefore = GUI.color;
+                TextAnchor anchorBefore = Text.Anchor;
+                GUI.color = Color.gray;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(new Rect(listRect.x, listRect.y + listRect.height * 0.35f,
+                    listRect.width, 40f), "FCHireSquadsEmpty".Translate());
+                GUI.color = colorBefore;
+                Text.Anchor = anchorBefore;
+                return;
+            }
+
+            float innerX = listRect.x + Pad;
+            float innerW = listRect.width - Pad * 2f;
+            Rect viewRect = new Rect(innerX, listRect.y + Pad, innerW, listRect.height - Pad * 2f);
+            float totalH = rows.Count * (CardH + RowGap);
+            Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref scrollPos, totalH);
+
+            int now = Find.TickManager.TicksGame;
+            float runningY = 0f;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                Rect cardRect = new Rect(0f, runningY, scrollRect.width, CardH);
+                DrawSquadCard(cardRect, rows[i], now);
+                runningY += CardH + RowGap;
+            }
+            ScrollUtil.EndScrollView();
+        }
+
+        /* Per-squad card. Header row: accent strip, squad name, right-aligned status badge.
+           Detail row: Settlement / Power / Eff / Travel / Win-chance cells. The whole card is the
+           click target for selection — selected card uses the brighter selected highlight, hovered
+           non-selected card uses the standard hover highlight. */
+        private void DrawSquadCard(Rect cardRect, RowData row, int now)
+        {
+            MercenarySquadFC squad = row.squad;
+
+            // Hover / selected highlight (whole card)
+            bool isSelected = selected == squad;
+            if (isSelected) Widgets.DrawHighlightSelected(cardRect);
+            else if (Mouse.IsOver(cardRect)) Widgets.DrawHighlight(cardRect);
+
+            // Accent strip
+            Color accent = squad.settlement?.MilitaryComp != null
+                ? AccentUtil.GetMilitaryAccent(squad.settlement.MilitaryComp)
+                : AccentUtil.MilInactive;
+            Widgets.DrawBoxSolid(new Rect(cardRect.x, cardRect.y, AccentW, cardRect.height), accent);
+
+            float contentX = cardRect.x + AccentW + 6f;
+            float contentW = cardRect.xMax - contentX - 4f;
+
+            GameFont fontBefore = Text.Font;
+            TextAnchor anchorBefore = Text.Anchor;
+            Color colorBefore = GUI.color;
+
+            // Dim the whole card content when squad is unavailable (busy / cooldown / unassigned)
+            Color baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
+
+            /* === HEADER ROW === */
+            float headerY = cardRect.y;
+            float statusW = 180f;
+
+            // Status badge (right)
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            GUI.color = row.statusColor;
+            Widgets.Label(new Rect(cardRect.xMax - statusW - 4f, headerY, statusW, CardHeaderH), row.status);
+
+            // Squad name (left, accent-colored)
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = row.available ? accent : new Color(accent.r * 0.7f, accent.g * 0.7f, accent.b * 0.7f);
+            float nameW = contentW - statusW - 6f;
+            Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), squad.DisplayName);
+
+            /* === DETAIL ROW === */
+            float detailY = cardRect.y + CardHeaderH;
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = baseTint;
+
+            float dx = contentX;
+            float colSettlement = 220f;
+            float colPower      = 95f;
+            float colEff        = 90f;
+            float colTravel     = 110f;
+            float colWin        = Math.Max(0f, contentW - colSettlement - colPower - colEff - colTravel);
+
+            string settlementLbl = (string)"FCSquadColBillet".Translate() + ": "
+                + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
+            string powerLbl = (string)"FCSquadColPower".Translate() + ": " + row.attackerPower.ToString("0.0");
+            string effLbl = row.hasAttackerForce
+                ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.attackerEfficiency.ToString("0.##")
+                : (string)"FCSquadColEfficiency".Translate() + ": -";
+            string travelLbl = (string)"FCSquadColTravel".Translate() + ": "
+                + (squad.IsAssigned && target is object
+                    ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
+                    : "-");
+            string winLbl = (string)"FCSquadColWinChance".Translate() + ": "
+                + (row.available ? (row.winChance * 100).ToString("0") + "%" : "-");
+
+            Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
+            Widgets.Label(new Rect(dx, detailY, colPower,      CardDetailH), powerLbl);      dx += colPower;
+            Widgets.Label(new Rect(dx, detailY, colEff,        CardDetailH), effLbl);        dx += colEff;
+            Widgets.Label(new Rect(dx, detailY, colTravel,     CardDetailH), travelLbl);     dx += colTravel;
+            Widgets.Label(new Rect(dx, detailY, colWin,        CardDetailH), winLbl);
+
+            // Whole-card click → select
+            if (Widgets.ButtonInvisible(cardRect))
+            {
+                selected = squad;
+            }
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
+            GUI.color = colorBefore;
         }
 
         private void Confirm()
@@ -258,36 +372,31 @@ namespace FactionColonies
                 if (squad.settlement is object && target is object)
                     travelTicks = TravelUtil.ReturnTicksToArrive(squad.settlement.Tile, target.Tile);
 
+                // Attacker force is computed once per row so we can show power+efficiency on busy/cooldown
+                // squads too (they're still informative to compare). Win chance only meaningful when ready.
+                MilitaryForce attackerForce = MilitaryForce.CreateMilitaryForceFromSquad(squad, isAttacking: true);
+                double attackerPower = SquadPowerRegistry.Resolve(squad).militaryLevel;
+                double attackerEfficiency = attackerForce?.militaryEfficiency ?? 0;
+                bool hasAttackerForce = attackerForce is object;
+
                 double winChance = 0;
-                if (available && estimatedDefenderForce is object)
-                {
-                    MilitaryForce attackerForce = MilitaryForce.CreateMilitaryForceFromSquad(squad, isAttacking: true);
-                    if (attackerForce is object)
-                        winChance = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, estimatedDefenderForce);
-                }
+                if (available && hasAttackerForce && estimatedDefenderForce is object)
+                    winChance = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, estimatedDefenderForce);
 
                 string status;
-                MilitaryOperation op = squad.Operation;
-                if (!squad.IsAssigned) status = "FCSquadStatusUnassigned".Translate();
-                else if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
-                {
-                    int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
-                    string opLabel = op.kind?.label ?? "?";
-                    status = "FCSquadStatusBusyOp".Translate(opLabel, (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-                }
-                else if (squad.nextAvailableTick > now)
-                {
-                    int ticksLeft = squad.nextAvailableTick - now;
-                    status = "FCSquadStatusCooldown".Translate((ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-                }
-                else status = "FCSquadStatusReady".Translate();
+                Color statusColor;
+                ComputeStatus(squad, now, out status, out statusColor);
 
                 rows.Add(new RowData
                 {
                     squad = squad,
                     travelTicks = travelTicks,
                     winChance = winChance,
+                    attackerPower = attackerPower,
+                    attackerEfficiency = attackerEfficiency,
+                    hasAttackerForce = hasAttackerForce,
                     status = status,
+                    statusColor = statusColor,
                     available = available
                 });
             }
@@ -295,11 +404,43 @@ namespace FactionColonies
             switch (sort)
             {
                 case SortMode.WinChance: rows = rows.OrderByDescending(r => r.winChance).ToList(); break;
-                case SortMode.Travel: rows = rows.OrderBy(r => r.travelTicks).ToList(); break;
-                case SortMode.Power: rows = rows.OrderByDescending(r => r.squad.outfit?.UpdateEquipmentTotalCost() ?? 0).ToList(); break;
-                case SortMode.Name: rows = rows.OrderBy(r => r.squad.DisplayName).ToList(); break;
+                case SortMode.Travel:    rows = rows.OrderBy(r => r.travelTicks).ToList(); break;
+                case SortMode.Power:     rows = rows.OrderByDescending(r => r.attackerPower).ToList(); break;
+                case SortMode.Name:      rows = rows.OrderBy(r => r.squad.DisplayName).ToList(); break;
             }
             rowsDirty = false;
+        }
+
+        /* Mirrors HireSquadsWindow.ComputeStatus / ColorForStatus — kept local to avoid promoting a
+           9-line helper to public surface for one caller. */
+        private static void ComputeStatus(MercenarySquadFC squad, int now, out string status, out Color color)
+        {
+            if (!squad.IsAssigned)
+            {
+                status = "FCSquadStatusUnassigned".Translate();
+                color = AccentUtil.MilInactive;
+                return;
+            }
+            MilitaryOperation op = squad.Operation;
+            if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
+            {
+                int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
+                string opLabel = op.kind?.label ?? "?";
+                status = "FCSquadStatusBusyOp".Translate(opLabel,
+                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
+                color = AccentUtil.MilActiveMission;
+                return;
+            }
+            if (squad.nextAvailableTick > now)
+            {
+                int ticksLeft = squad.nextAvailableTick - now;
+                status = "FCSquadStatusCooldown".Translate(
+                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
+                color = AccentUtil.MilCooldown;
+                return;
+            }
+            status = "FCSquadStatusReady".Translate();
+            color = AccentUtil.MilReady;
         }
 
         private static string SortLabel(SortMode mode)
@@ -307,9 +448,9 @@ namespace FactionColonies
             switch (mode)
             {
                 case SortMode.WinChance: return "FCSquadColWinChance".Translate();
-                case SortMode.Travel: return "FCSquadColTravel".Translate();
-                case SortMode.Power: return "FCSquadColPower".Translate();
-                case SortMode.Name: return "FCSquadColName".Translate();
+                case SortMode.Travel:    return "FCSquadColTravel".Translate();
+                case SortMode.Power:     return "FCSquadColPower".Translate();
+                case SortMode.Name:      return "FCSquadColName".Translate();
             }
             return "?";
         }
