@@ -148,9 +148,14 @@ namespace FactionColonies
             lord.CurLordToil.UpdateAllDuties();
 
             // Force pawns to drop their current job so the new duty takes effect this tick instead of after the current job finishes.
+            // Defend's think tree ends in JobGiver_WanderNearDutyLocation, which alternates GotoWander/Wait_Wander via this flag.
+            // Without resetting it, ~50% of interrupts land on the "wait" half of the toggle and queue a 125-200 tick Wait_Wander
+            // before any movement — visible as a 1-2s freeze before the squad heads to the new point.
             foreach (Pawn p in lord.ownedPawns)
             {
-                if (p?.jobs?.curJob is object) p.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                if (p is null) continue;
+                if (p.mindState is object) p.mindState.nextMoveOrderIsWait = false;
+                if (p.jobs?.curJob is object) p.jobs.EndCurrentJob(JobCondition.InterruptForced);
             }
         }
 
