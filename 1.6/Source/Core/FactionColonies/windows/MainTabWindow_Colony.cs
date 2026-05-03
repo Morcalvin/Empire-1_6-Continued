@@ -1939,21 +1939,25 @@ namespace FactionColonies
             float bx = rect.xMax - buttonAreaW;
 
             // Set / Change squad — disabled when no hired squads exist (templates alone aren't
-            // enough; the menu lists the live pool, not templates).
+            // enough; the menu lists the live pool, not templates), or when the slot's squad is busy.
             bool noSquads = (militaryUtil.mercenarySquads?.Count ?? 0) == 0;
+            bool slotBusy = squad != null && squad.IsBusy;
             Rect setRect = new Rect(bx, btnY, btnW, btnH);
             string setLabel = squad is null
                 ? (string)"FCMilitaryTableSetSquad".Translate()
                 : (string)"FCMilitaryTableChangeSquad".Translate();
-            if (UIUtil.ButtonFlat(setRect, setLabel, disabled: noSquads, highlighted: isHighlighted))
+            if (UIUtil.ButtonFlat(setRect, setLabel, disabled: noSquads || slotBusy, highlighted: isHighlighted))
             {
                 List<FloatMenuOption> opts = militaryUtil.BuildSquadAssignmentOptions(settlement);
                 Find.WindowStack.Add(new Searchable_FloatMenu(opts));
             }
-            TooltipHandler.TipRegion(setRect, "FCMilBtnSetSquadTip".Translate());
+            TooltipHandler.TipRegion(setRect, slotBusy
+                ? "FCSquadCannotModifyBusyTip".Translate()
+                : "FCMilBtnSetSquadTip".Translate());
             bx += btnW + btnGap;
 
-            // Inspect (per-squad) — opens Dialog_SquadInspection on this slot's squad
+            // Inspect (per-squad) — opens Dialog_SquadInspection on this slot's squad.
+            // Always available even when busy so the player can read pawn state.
             bool canInspect = squad != null;
             Rect inspectRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate(), disabled: !canInspect, highlighted: isHighlighted))
@@ -1974,11 +1978,13 @@ namespace FactionColonies
                     Find.WindowStack.Add(new FloatMenu(SquadDeploymentOptions(settlement, squad)));
                 }
             }
-            TooltipHandler.TipRegion(deployRect, "FCMilBtnDeployTip".Translate());
+            TooltipHandler.TipRegion(deployRect, slotBusy
+                ? "FCSquadCannotModifyBusyTip".Translate()
+                : "FCMilBtnDeployTip".Translate());
             bx += btnW + btnGap;
 
             // Auto-Defend toggle (per-squad)
-            bool canToggle = squad != null;
+            bool canToggle = squad != null && !slotBusy;
             bool autoDefendOn = squad?.autoDefend ?? false;
             Rect autoDefRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(autoDefRect, "FCMilAutoDefend".Translate(),
@@ -1988,7 +1994,9 @@ namespace FactionColonies
             {
                 if (squad != null) squad.autoDefend = !squad.autoDefend;
             }
-            TooltipHandler.TipRegion(autoDefRect, "FCMilBtnAutoDefendTip".Translate());
+            TooltipHandler.TipRegion(autoDefRect, slotBusy
+                ? "FCSquadCannotModifyBusyTip".Translate()
+                : "FCMilBtnAutoDefendTip".Translate());
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;

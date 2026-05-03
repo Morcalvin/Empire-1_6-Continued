@@ -130,12 +130,18 @@ namespace FactionColonies
             /* Pencil rename icon to the right of the squad name */
             float iconY = rect.y + (rect.height - IconButtonSize) / 2f;
             Rect pencilRect = new Rect(labelX + labelW + 8f, iconY, IconButtonSize, IconButtonSize);
-            if (Widgets.ButtonImage(pencilRect, TexButton.Rename))
+            Color prevPencilColor = GUI.color;
+            GUI.color = squad.IsBusy ? Color.gray : Color.white;
+            bool renameClicked = Widgets.ButtonImage(pencilRect, TexButton.Rename) && !squad.IsBusy;
+            GUI.color = prevPencilColor;
+            if (renameClicked)
             {
                 Find.WindowStack.Add(new FCWindow_Rename(squad.Name ?? "", "FCRenameSquad",
                     n => { squad.SetName(n); }));
             }
-            TooltipHandler.TipRegion(pencilRect, "FCSquadInspectionRenameSquadTip".Translate());
+            TooltipHandler.TipRegion(pencilRect, squad.IsBusy
+                ? "FCSquadCannotModifyBusyTip".Translate()
+                : "FCSquadInspectionRenameSquadTip".Translate());
 
             /* Right-aligned power readout: "Power: X.X (filled/max slots)". */
             int filled = (squad.mercenaries?.Count(m => m?.pawn != null)) ?? 0;
@@ -199,6 +205,8 @@ namespace FactionColonies
             {
                 Find.WindowStack.Add(new Dialog_SquadAssignment(squad));
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(reassignRect, "FCSquadCannotModifyBusyTip".Translate());
 
             Rect dismissRect = new Rect(rect.x + ActionButtonWidth + SmallGap, y, ActionButtonWidth, buttonsH);
             if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismissSquad".Translate(), disabled: !canDismiss))
@@ -213,6 +221,8 @@ namespace FactionColonies
                         Close();
                     }));
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(dismissRect, "FCSquadCannotModifyBusyTip".Translate());
         }
 
         private void DrawTemplateColumn(Rect rect)
@@ -245,16 +255,20 @@ namespace FactionColonies
 
             /* Buttons: [Pick template] [Clear template] */
             Rect pickRect = new Rect(rect.x, y, ActionButtonWidth, buttonsH);
-            if (UIUtil.ButtonFlat(pickRect, "FCSquadInspectionPickTemplate".Translate()))
+            if (UIUtil.ButtonFlat(pickRect, "FCSquadInspectionPickTemplate".Translate(), disabled: squad.IsBusy))
             {
                 OpenTemplateMenu();
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(pickRect, "FCSquadCannotModifyBusyTip".Translate());
 
             Rect clearRect = new Rect(rect.x + ActionButtonWidth + SmallGap, y, ActionButtonWidth, buttonsH);
-            if (UIUtil.ButtonFlat(clearRect, "FCSquadInspectionClearTemplate".Translate(), disabled: !hasTemplate))
+            if (UIUtil.ButtonFlat(clearRect, "FCSquadInspectionClearTemplate".Translate(), disabled: !hasTemplate || squad.IsBusy))
             {
                 squad.SwapTemplate(null);
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(clearRect, "FCSquadCannotModifyBusyTip".Translate());
         }
 
         private void DrawActionBar(Rect rect)
@@ -276,10 +290,12 @@ namespace FactionColonies
 
             Rect fillRect = new Rect(bx, rect.y, btnW, rect.height);
             string fillLabel = "FCSquadInspectionFillEmptySlots".Translate(emptyCount, fillCost);
-            if (UIUtil.ButtonFlat(fillRect, fillLabel, disabled: !canFill))
+            if (UIUtil.ButtonFlat(fillRect, fillLabel, disabled: !canFill || squad.IsBusy))
             {
                 squad.FillEmptySlots();
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(fillRect, "FCSquadCannotModifyBusyTip".Translate());
             bx += btnW + gap;
 
             Rect upgradeRect = new Rect(bx, rect.y, btnW, rect.height);
@@ -293,8 +309,12 @@ namespace FactionColonies
                 squad.UpgradeToTemplate();
             }
 
-            /* Cost breakdown tooltip on Upgrade All — explains where the net total came from. */
-            if (squad.outfit != null && hasUpgradeWork)
+            /* Tooltip: busy takes precedence; otherwise show the cost breakdown when there's work. */
+            if (squad.IsBusy)
+            {
+                TooltipHandler.TipRegion(upgradeRect, "FCSquadCannotModifyBusyTip".Translate());
+            }
+            else if (squad.outfit != null && hasUpgradeWork)
             {
                 string tooltip = "FCSquadInspectionUpgradeAllTooltip".Translate(upgrade, hire, refund, upgradeNet);
                 TooltipHandler.TipRegion(upgradeRect, tooltip);
@@ -405,11 +425,17 @@ namespace FactionColonies
                 Widgets.InfoCardButton(ix, iconY, merc.pawn);
                 ix += InfoCardSize + 4f;
                 Rect pencilRect = new Rect(ix, y + (headerH - IconButtonSize) / 2f, IconButtonSize, IconButtonSize);
-                if (Widgets.ButtonImage(pencilRect, TexButton.Rename))
+                Color prevPawnPencilColor = GUI.color;
+                GUI.color = squad.IsBusy ? Color.gray : Color.white;
+                bool pawnRenameClicked = Widgets.ButtonImage(pencilRect, TexButton.Rename) && !squad.IsBusy;
+                GUI.color = prevPawnPencilColor;
+                if (pawnRenameClicked)
                 {
                     Find.WindowStack.Add(merc.pawn.NamePawnDialog());
                 }
-                TooltipHandler.TipRegion(pencilRect, "FCSquadInspectionRenamePawnTip".Translate());
+                TooltipHandler.TipRegion(pencilRect, squad.IsBusy
+                    ? "FCSquadCannotModifyBusyTip".Translate()
+                    : "FCSquadInspectionRenamePawnTip".Translate());
             }
 
             y += headerH;
@@ -460,19 +486,23 @@ namespace FactionColonies
                 float fillW = btnW * 3f + SmallGap * 2f;
                 Rect fillRect = new Rect(bx, rect.y, fillW, btnH);
                 if (UIUtil.ButtonFlat(fillRect,
-                    "FCSquadInspectionPerSlotFill".Translate(slotFillCost), disabled: !canFill))
+                    "FCSquadInspectionPerSlotFill".Translate(slotFillCost), disabled: !canFill || squad.IsBusy))
                 {
                     FillSingleSlot(merc, slotFillCost, blueprint);
                 }
+                if (squad.IsBusy)
+                    TooltipHandler.TipRegion(fillRect, "FCSquadCannotModifyBusyTip".Translate());
             }
             else if (merc?.pawn != null)
             {
                 /* Edit Loadout */
                 Rect editRect = new Rect(bx, rect.y, btnW, btnH);
-                if (UIUtil.ButtonFlat(editRect, "FCSquadInspectionEditLoadout".Translate()))
+                if (UIUtil.ButtonFlat(editRect, "FCSquadInspectionEditLoadout".Translate(), disabled: squad.IsBusy))
                 {
                     Find.WindowStack.Add(new Dialog_PawnLoadout(squad, merc));
                 }
+                if (squad.IsBusy)
+                    TooltipHandler.TipRegion(editRect, "FCSquadCannotModifyBusyTip".Translate());
                 bx += btnW + SmallGap;
 
                 /* Upgrade — apply the merc's assigned loadout (BlueprintLoadout) to
@@ -485,6 +515,8 @@ namespace FactionColonies
                 {
                     PerPawnUpgrade(merc, slotUpgradeCost);
                 }
+                if (squad.IsBusy)
+                    TooltipHandler.TipRegion(upgRect, "FCSquadCannotModifyBusyTip".Translate());
                 bx += btnW + SmallGap;
 
                 /* Dismiss this merc — refunds proportional silver and clears the slot for refill. */
@@ -500,7 +532,9 @@ namespace FactionColonies
                         "FCMercDismissConfirm".Translate(pawnLabel, refund),
                         delegate { squad.DismissMercenary(captured); }));
                 }
-                TooltipHandler.TipRegion(dismissRect, "FCMercDismissTip".Translate());
+                TooltipHandler.TipRegion(dismissRect, squad.IsBusy
+                    ? "FCSquadCannotModifyBusyTip".Translate()
+                    : "FCMercDismissTip".Translate());
             }
         }
 

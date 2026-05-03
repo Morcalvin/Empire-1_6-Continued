@@ -24,8 +24,20 @@ namespace FactionColonies
         public Mercenary handler;
         public Mercenary animal;
         public Pawn pawn;
-        public bool deployable = false;
         public int loadID;
+
+        /// <summary>True when this merc has a real (non-blank) loadout assigned and is
+        /// therefore eligible to be sent on a deployment. Derived — there is no field to
+        /// scribe and no setter to forget. Returns false during early init when
+        /// <c>blankUnit</c> isn't available yet (matches the legacy default).</summary>
+        public bool deployable
+        {
+            get
+            {
+                MilUnitFC blank = FactionCache.FactionComp?.militaryCustomizationUtil?.blankUnit;
+                return blank != null && loadout != null && loadout != blank;
+            }
+        }
 
         /// <summary>Equipped truth — the gear actually on the pawn right now.
         /// Falls back to <see cref="BlueprintLoadout"/> if <see cref="currentLoadout"/>

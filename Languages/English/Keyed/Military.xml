@@ -194,6 +194,7 @@
 	<FCCannotUnassignBusySquad>"{0}" is busy and cannot be unassigned right now.</FCCannotUnassignBusySquad>
 	<FCCannotDismissBusySquad>"{0}" is busy and cannot be dismissed right now.</FCCannotDismissBusySquad>
 	<FCSquadCannotUpgradeBusy>The squad is busy and cannot be upgraded right now.</FCSquadCannotUpgradeBusy>
+	<FCSquadCannotModifyBusyTip>Squad cannot be modified while it is busy.</FCSquadCannotModifyBusyTip>
 	<FCSquadUpgradeInsufficientSilver>You do not have enough silver ({0} required) to upgrade that squad.</FCSquadUpgradeInsufficientSilver>
 	<FCSquadCapReached>{0} is already at squad capacity ({1}/{2}).</FCSquadCapReached>
 	<FCSquadSizeExceeded>This squad has more mercenaries ({1}) than {0}'s allowed maximum squad size ({2}).</FCSquadSizeExceeded>

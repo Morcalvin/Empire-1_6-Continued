@@ -325,8 +325,6 @@ namespace FactionColonies
                 PaymentUtil.RefundSilver(-net, PaymentUtil.Reason_SquadUpgradeRefund, settlement);
             }
 
-            FactionFC faction = FactionCache.FactionComp;
-            MilUnitFC blankUnit = faction?.militaryCustomizationUtil?.blankUnit;
             UsedWeaponList = new List<ThingWithComps>();
             UsedApparelList = new List<Apparel>();
 
@@ -334,11 +332,12 @@ namespace FactionColonies
             // from the rebuilt mercenaries list below.
             foreach (Mercenary m in plan.Fires)
             {
+                if (m is null) continue;
                 StripPawn(m);
-                if (m?.pawn != null && !m.pawn.Destroyed) m.pawn.Destroy();
+                if (m.pawn != null && !m.pawn.Destroyed) m.pawn.Destroy();
                 m.pawn = null;
-                if (m?.animal?.pawn != null && !m.animal.pawn.Destroyed) m.animal.pawn.Destroy();
-                if (m != null) m.animal = null;
+                if (m.animal?.pawn != null && !m.animal.pawn.Destroyed) m.animal.pawn.Destroy();
+                m.animal = null;
             }
 
             // Slot pass: re-equip claims, fresh-hire fresh slots. The slot order in
@@ -387,8 +386,6 @@ namespace FactionColonies
                 {
                     merc.animal = null;
                 }
-
-                merc.deployable = blankUnit != null && merc.loadout != blankUnit;
 
                 if (merc.pawn?.equipment?.AllEquipmentListForReading != null)
                     UsedWeaponList.AddRange(merc.pawn.equipment.AllEquipmentListForReading);
@@ -916,7 +913,6 @@ namespace FactionColonies
         /// External submods may call it during their own player-driven flows.</summary>
         public virtual void OutfitSquad(MilSquadFC outfit)
         {
-            FactionFC faction = FactionCache.FactionComp;
             int count = 0;
             this.outfit = outfit;
             UsedWeaponList = new List<ThingWithComps>();
@@ -999,8 +995,6 @@ namespace FactionColonies
                         // divergence since this is a fresh outfit pass.
                         mercenaries[count].ownedLoadout = null;
                         mercenaries[count].currentLoadout = loadout.Clone();
-                        mercenaries[count].deployable = faction?.militaryCustomizationUtil != null
-                            && mercenaries[count].loadout != faction.militaryCustomizationUtil.blankUnit;
                     }
 
                     if (mercenaries[count]?.pawn?.equipment?.AllEquipmentListForReading != null)

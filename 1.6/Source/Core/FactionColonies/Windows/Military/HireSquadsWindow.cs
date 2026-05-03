@@ -207,10 +207,12 @@ namespace FactionColonies
 
             // Reassign
             Rect reassignRect = new Rect(bx, btnY, btnW, btnH);
-            if (UIUtil.ButtonFlat(reassignRect, "FCSquadActReassign".Translate()))
+            if (UIUtil.ButtonFlat(reassignRect, "FCSquadActReassign".Translate(), disabled: squad.IsBusy))
             {
                 Find.WindowStack.Add(new Dialog_SquadAssignment(capturedSquad));
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(reassignRect, "FCSquadCannotModifyBusyTip".Translate());
             bx += btnW + btnGap;
 
             // Upgrade
@@ -220,6 +222,8 @@ namespace FactionColonies
             {
                 capturedSquad.UpgradeToTemplate();
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(upgradeRect, "FCSquadCannotModifyBusyTip".Translate());
             bx += btnW + btnGap;
 
             // Dismiss
@@ -233,6 +237,8 @@ namespace FactionColonies
                     "FCSquadActDismissConfirm".Translate(capturedSquad.DisplayName, refund),
                     delegate { utilCaptured.DismissSquad(capturedSquad); }));
             }
+            if (squad.IsBusy)
+                TooltipHandler.TipRegion(dismissRect, "FCSquadCannotModifyBusyTip".Translate());
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
