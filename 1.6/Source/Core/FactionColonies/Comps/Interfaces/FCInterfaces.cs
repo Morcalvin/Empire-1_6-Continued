@@ -1,4 +1,5 @@
-﻿using RimWorld.Planet;
+﻿using RimWorld;
+using RimWorld.Planet;
 using System.Collections.Generic;
 using UnityEngine;
 using Verse;
@@ -187,7 +188,38 @@ namespace FactionColonies
     }
 
     /// <summary>
-    /// Defines an interface to let classes modify military forces before a battle is resolved.
+    /// Cache-time, faction-level modifier. Mutates the cached <see cref="EnemyPower"/> baseline
+    /// after <see cref="WorldComponent_EnemyPower"/> derives it from tech level + ETL +
+    /// threat adaptation, and BEFORE any settlement entry mirrors it. Use for faction-wide
+    /// effects (e.g. a Diplomacy submod that weakens a faction whose leader is sick).
+    /// <para>Pure transformation: read <paramref name="faction"/>, mutate <paramref name="power"/>.
+    /// No side effects.</para>
+    /// </summary>
+    public interface IFactionPowerModifier
+    {
+        void ModifyFactionPower(Faction faction, EnemyPower power);
+    }
+
+    /// <summary>
+    /// Cache-time, settlement-level modifier. Runs after a settlement entry is mirrored from
+    /// its faction's baseline. Use for settlement-attribute-derived effects — e.g. reading
+    /// a settlement's <c>CompViralSpread</c> or <c>RimWarSettlementComp</c> to write a
+    /// settlement-specific level. Cached, so the squad-attack window's displayed range and
+    /// the actual battle agree.
+    /// <para>Pure transformation: read <paramref name="settlement"/>, mutate
+    /// <paramref name="power"/>. No side effects.</para>
+    /// </summary>
+    public interface ISettlementPowerModifier
+    {
+        void ModifySettlementPower(Settlement settlement, EnemyPower power);
+    }
+
+    /// <summary>
+    /// Attack-time modifier. Mutates a force snapshot at engagement / display. Use for
+    /// battle-context effects that depend on the attacker as well as the defender — terrain,
+    /// fortification at the battle tile, traveling fatigue, weather, defensive artillery.
+    /// Effects that are properties of the settlement alone belong in
+    /// <see cref="ISettlementPowerModifier"/> instead so they cache.
     /// </summary>
     public interface IBattleModifier
     {

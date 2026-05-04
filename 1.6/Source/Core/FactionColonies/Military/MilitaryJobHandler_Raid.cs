@@ -36,7 +36,8 @@ namespace FactionColonies
             MilitaryForce attacker = op.aggressor?.force
                 ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
                 ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
-            MilitaryForce defender = op.defender?.force ?? MilitaryUtil.SampleDefenderForceForOp(op);
+            MilitaryForce defender = op.defender?.force
+                ?? FactionCache.EnemyPower?.ResolveDefenderForceForOp(op, op.BuildBattleContext());
             return SimulateBattleFc.FightBattle(attacker, defender);
         }
 

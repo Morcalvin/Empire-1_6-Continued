@@ -319,7 +319,7 @@ namespace FactionColonies
             try
             {
                 var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-                BattleModifierRegistry.InvokeModifyForce(null, force, true);
+                BattleModifierRegistry.InvokeBattleModifiers(null, force, true);
                 TestAssert.AreEqual(7.0, force.militaryLevel, message: "Level should increase by 2");
             }
             finally { BattleModifierRegistry.Unregister(c); }
@@ -332,7 +332,7 @@ namespace FactionColonies
             BattleModifierRegistry.Register(c);
             BattleModifierRegistry.Unregister(c);
             var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-            BattleModifierRegistry.InvokeModifyForce(null, force, true);
+            BattleModifierRegistry.InvokeBattleModifiers(null, force, true);
             TestAssert.AreEqual(5.0, force.militaryLevel, message: "Level should be unchanged");
         }
 
@@ -345,7 +345,7 @@ namespace FactionColonies
             try
             {
                 var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-                BattleModifierRegistry.InvokeModifyForce(null, force, true);
+                BattleModifierRegistry.InvokeBattleModifiers(null, force, true);
                 TestAssert.AreEqual(7.0, force.militaryLevel, message: "Should only apply once");
             }
             finally { BattleModifierRegistry.Unregister(c); }
@@ -359,7 +359,7 @@ namespace FactionColonies
             try
             {
                 var force = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
-                TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeModifyForce(null, force, true));
+                TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeBattleModifiers(null, force, true));
             }
             finally { BattleModifierRegistry.Unregister(bad); }
         }

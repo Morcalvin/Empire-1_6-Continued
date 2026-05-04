@@ -37,7 +37,7 @@ namespace FactionColonies
          * window opens, stable within a session. The bounds frame the actual battle force
          * the player will face: the engagement-time roll in MilitaryOperation.BeginEngagement
          * lands somewhere in [defenderForceMin, defenderForceMax]. */
-        private EnemySettlementPower defenderPower;
+        private EnemyPower defenderPower;
         private MilitaryForce defenderForceMin;
         private MilitaryForce defenderForceMax;
 
@@ -97,35 +97,32 @@ namespace FactionColonies
             BuildDefenderRange();
         }
 
-        /* Pulls the cached EnemySettlementPower for the target settlement, builds min/max
-         * MilitaryForce instances at the variance bounds, and runs BattleModifierRegistry
-         * on each so the displayed range matches what the engagement-time roll will hit
-         * (modulo same-tick cache state). The context's aggressor is left null because
-         * defender-side modifiers in the current codebase don't read aggressor info; a
-         * future modifier that needs it would also need a per-row recompute path. */
+        /* Resolves the cached defender entry, builds min/max MilitaryForce instances at the
+         * variance bounds, and lets the worldcomp run battle modifiers against each so the
+         * displayed range matches what the engagement-time roll will hit (modulo same-tick
+         * cache state). Probe context's aggressor is left null because settlement-/faction-
+         * level modifiers run at cache time; battle modifiers that read aggressor are rare
+         * and would need a per-row recompute path. */
         private void BuildDefenderRange()
         {
             Settlement targetSettlement = target as Settlement;
-            if (targetSettlement is null) return;
-            defenderPower = FactionCache.EnemyPowerRegistry?.GetOrCompute(targetSettlement);
-            if (defenderPower is null || enemy is null) return;
+            if (targetSettlement is null || enemy is null) return;
 
-            defenderForceMin = defenderPower.BuildBoundForce(enemy, max: false);
-            defenderForceMax = defenderPower.BuildBoundForce(enemy, max: true);
+            WorldComponent_EnemyPower registry = FactionCache.EnemyPower;
+            if (registry is null) return;
 
-            BattleForceContext ctx = new BattleForceContext
+            defenderPower = registry.GetOrCompute(targetSettlement);
+
+            BattleForceContext probeCtx = new BattleForceContext
             {
                 kind = job,
                 targetTile = targetSettlement.Tile,
                 targetObject = targetSettlement,
-                aggressor = null,
-                defender = new MilitaryOperationParticipant { faction = enemy }
+                aggressor = null
             };
-
-            ctx.defender.force = defenderForceMin;
-            BattleModifierRegistry.InvokeModifyForce(ctx, defenderForceMin, isAttacker: false);
-            ctx.defender.force = defenderForceMax;
-            BattleModifierRegistry.InvokeModifyForce(ctx, defenderForceMax, isAttacker: false);
+            var bounds = registry.ResolveDefenderBounds(probeCtx);
+            defenderForceMin = bounds.min;
+            defenderForceMax = bounds.max;
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -448,7 +445,7 @@ namespace FactionColonies
                         },
                         defender = new MilitaryOperationParticipant { faction = enemy }
                     };
-                    BattleModifierRegistry.InvokeModifyForce(rowCtx, attackerForce, isAttacker: true);
+                    FactionCache.EnemyPower?.ApplyBattleModifiers(rowCtx, attackerForce, isAttacker: true);
                     attackerEfficiency = attackerForce.militaryEfficiency;
                 }
 

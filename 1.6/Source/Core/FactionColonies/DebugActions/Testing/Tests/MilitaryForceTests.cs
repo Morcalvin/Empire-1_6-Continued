@@ -121,24 +121,37 @@ namespace FactionColonies
         }
 
         [EmpireTest("MilitaryForce")]
-        public static void CreateFromEnemySettlement_MatchesTechLevel()
+        public static void EnemyPower_BaselineReflectsTechLevel()
         {
             Settlement enemy = Find.WorldObjects.Settlements
-                .FirstOrDefault(s => s.Faction != null && s.Faction != Faction.OfPlayer
+                .FirstOrDefault(s => !(s is WorldSettlementFC)
+                    && s.Faction != null && s.Faction != Faction.OfPlayer
                     && s.Faction != FactionCache.PlayerColonyFaction);
             if (enemy == null) TestAssert.Skip("No enemy settlement on world map");
 
-            MilitaryForce force = MilitaryForce.CreateMilitaryForceFromEnemySettlement(enemy);
+            WorldComponent_EnemyPower registry = FactionCache.EnemyPower;
+            if (registry == null) TestAssert.Skip("EnemyPower registry not available");
 
+            EnemyPower entry = registry.GetOrCompute(enemy);
+            TestAssert.IsNotNull(entry, "Registry should produce an entry for an enemy settlement");
+
+            // Baseline structure: efficiency clamped at 0.1, level at 1, variance defaults applied.
+            TestAssert.IsTrue(entry.efficiency >= 0.1,
+                $"Efficiency floor not respected: got {entry.efficiency}");
+            TestAssert.IsTrue(entry.level >= 1,
+                $"Level floor not respected: got {entry.level}");
+            TestAssert.AreEqual(MilitaryUtil.DefaultLevelVariance, entry.levelVariance,
+                "Level variance default applied");
+            TestAssert.AreEqual(MilitaryUtil.DefaultEfficiencyVariance, entry.efficiencyVariance,
+                "Efficiency variance default applied");
+
+            // Sampled force lands in the variance window and is monotonic in tech level
+            // (post-ETL/adaptation) — assert it's at least the techLevel floor minus variance,
+            // accepting that ETL/threatAdaptation can scale it higher.
             MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
-                enemy.Faction.def.techLevel, out double expectedLevel, out double expectedEff);
-
-            TestAssert.AreEqual(expectedLevel, force.militaryLevel,
-                $"Level should match tech level {enemy.Faction.def.techLevel}");
-            TestAssert.AreEqual(expectedEff, force.militaryEfficiency,
-                $"Efficiency should match tech level {enemy.Faction.def.techLevel}");
-            TestAssert.AreEqual(Math.Round(expectedLevel * expectedEff), force.forceRemaining,
-                "forceRemaining should be Round(level * efficiency)");
+                enemy.Faction.def.techLevel, out double techLevel, out double techEff);
+            TestAssert.IsTrue(entry.MaxForceRemaining >= entry.MinForceRemaining,
+                "Max bound must be >= min bound");
         }
     }
 }

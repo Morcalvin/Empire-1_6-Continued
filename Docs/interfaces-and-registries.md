@@ -79,12 +79,32 @@ public interface ITaxTickParticipant
 
 ---
 
-### IBattleModifier
+### IFactionPowerModifier / ISettlementPowerModifier / IBattleModifier
 
 **Registry**: `BattleModifierRegistry`
-**Purpose**: Pure transformation that mutates a military force based on context. Used both at battle engagement (`MilitaryOperation.BeginEngagement`) and from the squad-attack picker for the displayed-power estimate, so implementations must be side-effect free.
+**Owner of invocation**: `WorldComponent_EnemyPower` (accessed via `FactionCache.EnemyPower`). No code outside the worldcomp invokes the registry.
+**Purpose**: Three modifier sites covering the lifecycle of an enemy power value.
 
 ```csharp
+// (1) Cache-time, faction-level. Mutates the EnemyPower baseline derived from
+//     tech + ETL + threatAdaptation. Use for faction-wide effects.
+public interface IFactionPowerModifier
+{
+    void ModifyFactionPower(Faction faction, EnemyPower power);
+}
+
+// (2) Cache-time, per-settlement. Mutates a settlement's mirrored entry. Use
+//     for settlement-attribute-derived effects (e.g. read CompViralSpread,
+//     RimWarSettlementComp). The WD/WDExp/RW patches live here.
+public interface ISettlementPowerModifier
+{
+    void ModifySettlementPower(Settlement settlement, EnemyPower power);
+}
+
+// (3) Attack-time. Mutates a force snapshot at engagement or display. Use for
+//     battle-context effects: terrain, fortification at the battle tile,
+//     traveling fatigue, weather, defensive artillery. Per-settlement static
+//     properties belong in (2) so they cache.
 public interface IBattleModifier
 {
     void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker);
@@ -100,7 +120,7 @@ public class BattleForceContext
 }
 ```
 
-Called twice per battle/estimate — once for the attacker force, once for the defender force. Mutate `force.militaryLevel`, `force.militaryEfficiency`, or `force.forceRemaining`. Do not write to anything outside the `force` argument; persistence and logging belong in lifecycle hooks (`ILifecycleParticipant`).
+All three are pure transformations: read the input, mutate the value argument, no side effects. The same modifier may be invoked from a real engagement OR from the squad-attack picker's estimate display, so persistence/logging/notify work belongs in `ILifecycleParticipant` op hooks instead. A modifier may implement multiple of these interfaces if its effect spans phases; register each instance via the matching `BattleModifierRegistry.Register(...)` overload.
 
 ---
 

@@ -26,7 +26,7 @@ namespace FactionColonies.WD
         static WorldDominationCompatInit()
         {
             new Harmony("com.Matathias.Empire.WD").PatchAll(Assembly.GetExecutingAssembly());
-            BattleModifierRegistry.Register(new WDStrengthBattleModifier());
+            BattleModifierRegistry.Register(new WDStrengthSettlementModifier());
             LogUtil.MessageForce("World Domination compatibility module loaded.");
         }
     }
@@ -68,38 +68,25 @@ namespace FactionColonies.WD
     }
 
     // ================================================================
-    // Patch 3: Scale enemy force based on WD settlement strength
-    // Uses IBattleModifier so it integrates with Empire's existing
-    // battle modifier pipeline. When Empire attacks a settlement that
-    // has CompViralSpread, the defender's force is scaled from WD
-    // strength instead of just tech level.
-    //
-    // BattleModifierRegistry calls modifiers in order:
-    //   InvokeModifyForce(MFA, isAttacker=true)  <- attacker first
-    //   InvokeModifyForce(MFB, isAttacker=false) <- defender second
-    // We capture the attacker on the first call to find the target.
+    // Patch 3: Scale enemy settlement power based on WD CompViralSpread.
+    // Implements ISettlementPowerModifier so the override is baked into
+    // the cached EnemyPower entry at recompute time — squad-attack window
+    // and actual battle agree without per-engagement work.
     // ================================================================
-    public class WDStrengthBattleModifier : IBattleModifier
+    public class WDStrengthSettlementModifier : ISettlementPowerModifier
     {
         public const double SCALE_FACTOR = 100.0;
 
-        public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
+        public void ModifySettlementPower(Settlement settlement, EnemyPower power)
         {
-            if (isAttacker || ctx is null) return;
-
-            // The context gives us the target tile directly.
-            if (!ctx.targetTile.Valid) return;
-            Settlement target = Find.WorldObjects.SettlementAt(ctx.targetTile);
-            if (target == null) return;
-
-            CompViralSpread comp = target.GetComponent<CompViralSpread>();
+            if (settlement is null || power is null) return;
+            CompViralSpread comp = settlement.GetComponent<CompViralSpread>();
             if (comp == null || comp.strength <= 0f) return;
 
-            double wdForce = comp.strength / SCALE_FACTOR;
-            force.militaryLevel = wdForce;
-            force.forceRemaining = Math.Round(wdForce * force.militaryEfficiency);
+            double wdLevel = comp.strength / SCALE_FACTOR;
+            power.level = wdLevel;
 
-            LogUtil.Message("WD strength " + comp.strength.ToString("F0") + " (tier " + comp.tier + ") -> Empire defender force " + force.forceRemaining);
+            LogUtil.Message("WD strength " + comp.strength.ToString("F0") + " (tier " + comp.tier + ") -> EnemyPower level " + wdLevel.ToString("0.0") + " for " + settlement.Name);
         }
     }
 

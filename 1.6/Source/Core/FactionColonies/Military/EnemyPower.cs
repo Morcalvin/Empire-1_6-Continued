@@ -5,16 +5,17 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>
-    /// Cached, deterministic baseline of an enemy settlement's military power. Stored in
-    /// <see cref="WorldComponent_EnemySettlementPower"/> and refreshed periodically so that
-    /// Empire Threat Level scaling and storyteller threat adaptation propagate over time.
+    /// Cached, deterministic baseline of an enemy faction's or settlement's military power.
+    /// Stored in <see cref="WorldComponent_EnemyPower"/> and refreshed periodically so that
+    /// Empire Threat Level scaling, storyteller threat adaptation, and registered power
+    /// modifiers (faction-level / settlement-level) propagate over time.
     ///
     /// <para>The squad-attack picker reads <see cref="MinForceRemaining"/>/<see cref="MaxForceRemaining"/>
     /// to display a stable range. Battle resolution calls <see cref="SampleBattleForce"/>,
     /// which performs a single RNG roll within the variance bounds — the actual force the
     /// player fights is guaranteed to fall inside the displayed range.</para>
     /// </summary>
-    public class EnemySettlementPower : IExposable
+    public class EnemyPower : IExposable
     {
         public double level;
         public double efficiency;
@@ -52,13 +53,20 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Single RNG roll within the variance bounds. Called once at battle engagement to
-        /// produce the defender force the simulation actually fights.
+        /// Single RNG roll within the variance bounds. Called at battle engagement to produce
+        /// the force the simulation actually fights. Pass <paramref name="handicap"/> = true
+        /// for AI-attacker contexts so the roll is capped by
+        /// <see cref="ThreatScalingUtil.ComputeHandicapCap"/>.
         /// </summary>
-        public MilitaryForce SampleBattleForce(Faction faction)
+        public MilitaryForce SampleBattleForce(Faction faction, bool handicap = false)
         {
             double rolledLevel = Math.Max(1, level + MilitaryUtil.RollVarianceOffset(levelVariance));
             double rolledEfficiency = Math.Max(0.1, efficiency + MilitaryUtil.RollVarianceOffset(efficiencyVariance));
+            if (handicap)
+            {
+                rolledLevel = Math.Min(rolledLevel,
+                    ThreatScalingUtil.ComputeHandicapCap(FactionCache.FactionComp));
+            }
             return new MilitaryForce(rolledLevel, rolledEfficiency, null, faction);
         }
     }

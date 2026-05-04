@@ -765,18 +765,24 @@ namespace FactionColonies
                                     t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
                                 float totalWeight = settlementTotalWeight + externalTotalWeight;
 
-                                if (Rand.Value * totalWeight < settlementTotalWeight && raidableSettlements.Any())
+                                EnemyPower attackerEntry = FactionCache.EnemyPower?.GetOrCompute(enemy);
+                                MilitaryForce attackingForce = attackerEntry?.SampleBattleForce(enemy, handicap: true);
+                                if (attackingForce is null)
+                                {
+                                    LogUtil.Warning($"AI attack from {enemy?.Name} aborted: no power entry resolvable.");
+                                }
+                                else if (Rand.Value * totalWeight < settlementTotalWeight && raidableSettlements.Any())
                                 {
                                     WorldSettlementFC target = raidableSettlements.RandomElementByWeight(
                                         s => (float)GetMilitaryTargetWeight(s.settlementMilitaryLevel) * s.settlementDef.raidTargetingWeight
                                              * RaidWeightRegistry.GetCombinedWeight(s, enemy));
-                                    MilitaryUtilFC.AttackPlayerSettlement(MilitaryForce.CreateMilitaryForceFromFaction(enemy, true), target, enemy);
+                                    MilitaryUtilFC.AttackPlayerSettlement(attackingForce, target, enemy);
                                 }
                                 else if (validExternalTargets.Any())
                                 {
                                     IRaidTarget target = validExternalTargets.RandomElementByWeight(
                                         t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
-                                    MilitaryUtilFC.AttackRaidTarget(MilitaryForce.CreateMilitaryForceFromFaction(enemy, true), target, enemy);
+                                    MilitaryUtilFC.AttackRaidTarget(attackingForce, target, enemy);
                                 }
                             }
                         }

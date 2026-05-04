@@ -156,8 +156,8 @@ namespace FactionColonies
                 // Attacker starts weak but modifier adds +100 forceRemaining. Modifiers are
                 // applied by op.BeginEngagement at runtime, not inside FightBattle. Tests that
                 // bypass the op flow apply them manually to mirror runtime behavior.
-                BattleModifierRegistry.InvokeModifyForce(null, mfa, true);
-                BattleModifierRegistry.InvokeModifyForce(null, mfb, false);
+                BattleModifierRegistry.InvokeBattleModifiers(null, mfa, true);
+                BattleModifierRegistry.InvokeBattleModifiers(null, mfb, false);
                 var rand = new AlternatingRandProvider(15, 2);
                 BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
                 TestAssert.IsTrue(result.AttackerVictory,

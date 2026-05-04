@@ -169,42 +169,5 @@ namespace FactionColonies
             }
         }
 
-        public static MilitaryForce CreateMilitaryForceFromEnemySettlement(Settlement settlement)
-        {
-            double militaryLevel = 1;
-            double efficiency = 1;
-
-            if (settlement?.Faction?.def != null)
-            {
-                GetMilitaryLevelAndEfficiencyFromTechLevel(settlement.Faction.def.techLevel, out militaryLevel, out efficiency);
-            }
-
-            MilitaryForce returnForce = new MilitaryForce(militaryLevel, efficiency, null, settlement?.Faction);
-            return returnForce;
-        }
-
-        /// <summary>
-        /// Build a synthetic faction-derived <see cref="MilitaryForce"/>. Used as a fallback
-        /// (e.g. AI attacks against the player, or when no enemy <see cref="Settlement"/> is
-        /// associated with the operation). Settlement-aware paths should go through
-        /// <see cref="WorldComponent_EnemySettlementPower"/> instead so the displayed estimate
-        /// and the actual battle force agree.
-        /// </summary>
-        public static MilitaryForce CreateMilitaryForceFromFaction(Faction faction, bool handicap)
-        {
-            double level, efficiency;
-            MilitaryUtil.ComputeFactionBaselinePower(faction, FactionCache.FactionComp,
-                out level, out efficiency);
-
-            double value = Math.Max(1, level
-                + MilitaryUtil.RollVarianceOffset(MilitaryUtil.DefaultLevelVariance));
-
-            if (handicap)
-            {
-                value = Math.Min(value, ThreatScalingUtil.ComputeHandicapCap(FactionCache.FactionComp));
-            }
-
-            return new MilitaryForce(value, efficiency, null, faction);
-        }
     }
 }

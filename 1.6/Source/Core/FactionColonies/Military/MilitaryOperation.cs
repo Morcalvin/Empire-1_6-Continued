@@ -148,19 +148,14 @@ namespace FactionColonies
         /// <see cref="IAutoDefender.OnDefenseStarted"/> if an external auto-defender supplied the
         /// defending force.
         /// </summary>
-        public void BeginEngagement()
+        /// <summary>
+        /// Builds a <see cref="BattleForceContext"/> snapshot from this op's current state.
+        /// Used by <see cref="BeginEngagement"/> and by job-handler fallbacks that need to
+        /// invoke worldcomp battle helpers.
+        /// </summary>
+        public BattleForceContext BuildBattleContext()
         {
-            phase = MilitaryOperationPhase.Engaged;
-            phaseStartedTick = Find.TickManager.TicksGame;
-
-            // Lazily create defender force when an offensive op fights a non-Empire faction:
-            // CreateOffensiveOp leaves it unset because the enemy is faction-level, not settlement-level.
-            if (defender.force is null && defender.faction is object && !IsDefensive)
-            {
-                defender.force = MilitaryUtil.SampleDefenderForceForOp(this);
-            }
-
-            BattleForceContext ctx = new BattleForceContext
+            return new BattleForceContext
             {
                 kind = this.kind,
                 targetTile = this.targetTile,
@@ -168,11 +163,37 @@ namespace FactionColonies
                 aggressor = this.aggressor,
                 defender = this.defender
             };
+        }
+
+        public void BeginEngagement()
+        {
+            phase = MilitaryOperationPhase.Engaged;
+            phaseStartedTick = Find.TickManager.TicksGame;
+
+            BattleForceContext ctx = BuildBattleContext();
+
+            WorldComponent_EnemyPower enemyPower = FactionCache.EnemyPower;
+
+            // Lazily create defender force when an offensive op fights a non-Empire faction:
+            // CreateOffensiveOp leaves it unset because the enemy is faction-level, not settlement-level.
+            // ResolveDefenderForceForOp samples + applies battle modifiers in one shot.
+            if (defender.force is null && defender.faction is object && !IsDefensive)
+            {
+                defender.force = enemyPower?.ResolveDefenderForceForOp(this, ctx);
+                if (defender.force is null)
+                    LogUtil.Warning($"BeginEngagement: defender force could not be resolved for op id={id} (faction={defender.faction?.Name}). Battle will run with a null defender force.");
+            }
+            else if (defender.force is object)
+            {
+                // Defender force was set out-of-band (defensive op with a pre-set squad force);
+                // just apply battle modifiers, don't re-sample.
+                enemyPower?.ApplyBattleModifiers(ctx, defender.force, isAttacker: false);
+            }
 
             if (aggressor.force is object)
-                BattleModifierRegistry.InvokeModifyForce(ctx, aggressor.force, isAttacker: true);
-            if (defender.force is object)
-                BattleModifierRegistry.InvokeModifyForce(ctx, defender.force, isAttacker: false);
+            {
+                enemyPower?.ApplyBattleModifiers(ctx, aggressor.force, isAttacker: true);
+            }
 
             if (externalDefenderSource is object)
             {

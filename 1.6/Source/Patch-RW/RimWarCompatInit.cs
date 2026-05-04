@@ -25,44 +25,35 @@ namespace FactionColonies.RW
         static RimWarCompatInit()
         {
             new Harmony("com.Matathias.Empire.RW").PatchAll(Assembly.GetExecutingAssembly());
-            BattleModifierRegistry.Register(new RWStrengthBattleModifier());
+            BattleModifierRegistry.Register(new RWStrengthSettlementModifier());
             LogUtil.MessageForce("RimWar compatibility module loaded.");
         }
     }
 
     /// <summary>
-    /// When Empire sends a military squad to raid an NPC settlement, the defender
-    /// force is normally derived from tech level alone. This modifier overrides the
-    /// defender's military level using the target's RimWar points, so settlements
-    /// that have grown powerful through RimWar's warfare system are harder to raid.
+    /// Overrides the cached settlement power baseline using the target's RimWar points,
+    /// so settlements that have grown powerful through RimWar's warfare system are harder
+    /// to raid. Implemented as <see cref="ISettlementPowerModifier"/> so the override is
+    /// baked into the cached <see cref="EnemyPower"/> at recompute time, ensuring the
+    /// squad-attack window's displayed range matches the battle.
     ///
     /// Uses sqrt(points) / 20 scaling:
     ///   400 pts -> level 1, 3600 -> 3, 10000 -> 5, 19600 -> 7, 32400 -> 9
     /// </summary>
-    public class RWStrengthBattleModifier : IBattleModifier
+    public class RWStrengthSettlementModifier : ISettlementPowerModifier
     {
-        public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
+        public void ModifySettlementPower(Settlement settlement, EnemyPower power)
         {
-            if (isAttacker || ctx is null) return;
-
-            // The context gives us the target tile directly — no need for stateful tracking.
-            PlanetTile targetTile = ctx.targetTile;
-            if (!targetTile.Valid) return;
-
-            Settlement target = Find.WorldObjects.SettlementAt(targetTile);
-            if (target is null) return;
-
-            RimWarSettlementComp rwsc = target.GetComponent<RimWarSettlementComp>();
+            if (settlement is null || power is null) return;
+            RimWarSettlementComp rwsc = settlement.GetComponent<RimWarSettlementComp>();
             if (rwsc is null || rwsc.RimWarPoints <= 0) return;
 
-            // Convert RimWar points to Empire military level via sqrt scaling
             double rwLevel = Math.Sqrt(rwsc.RimWarPoints) / 20.0;
             rwLevel = Math.Max(rwLevel, 1.0);
 
-            force.militaryLevel = rwLevel;
-            force.forceRemaining = Math.Round(rwLevel * force.militaryEfficiency);
+            power.level = rwLevel;
 
-            LogUtil.Message("RW strength " + rwsc.RimWarPoints + " -> Empire defender force " + force.forceRemaining);
+            LogUtil.Message("RW strength " + rwsc.RimWarPoints + " -> EnemyPower level " + rwLevel.ToString("0.0") + " for " + settlement.Name);
         }
     }
 }
