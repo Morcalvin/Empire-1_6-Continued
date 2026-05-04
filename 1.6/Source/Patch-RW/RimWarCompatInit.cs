@@ -41,12 +41,12 @@ namespace FactionColonies.RW
     /// </summary>
     public class RWStrengthBattleModifier : IBattleModifier
     {
-        public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
+        public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
         {
-            if (isAttacker || op is null) return;
+            if (isAttacker || ctx is null) return;
 
-            // The op gives us the target tile directly — no need for stateful tracking.
-            PlanetTile targetTile = op.targetTile;
+            // The context gives us the target tile directly — no need for stateful tracking.
+            PlanetTile targetTile = ctx.targetTile;
             if (!targetTile.Valid) return;
 
             Settlement target = Find.WorldObjects.SettlementAt(targetTile);

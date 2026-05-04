@@ -133,7 +133,7 @@ namespace FactionColonies
                               ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(source.settlement, isAttacking: true);
 
             op.defender.faction = enemy;
-            // op.defender.force is computed lazily in BeginEngagement via CreateMilitaryForceFromFaction.
+            // op.defender.force is computed lazily in BeginEngagement via FactionCache.EnemyPowerRegistry.
 
             Register(op);
 

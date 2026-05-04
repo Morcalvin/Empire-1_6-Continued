@@ -82,16 +82,25 @@ public interface ITaxTickParticipant
 ### IBattleModifier
 
 **Registry**: `BattleModifierRegistry`
-**Purpose**: Modify military forces before battle simulation.
+**Purpose**: Pure transformation that mutates a military force based on context. Used both at battle engagement (`MilitaryOperation.BeginEngagement`) and from the squad-attack picker for the displayed-power estimate, so implementations must be side-effect free.
 
 ```csharp
 public interface IBattleModifier
 {
-    void ModifyForce(militaryForce force, bool isAttacker);
+    void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker);
+}
+
+public class BattleForceContext
+{
+    public MilitaryJobDef kind;            // raid / capture / enslave / etc.
+    public PlanetTile targetTile;
+    public WorldObject targetObject;
+    public MilitaryOperationParticipant aggressor;
+    public MilitaryOperationParticipant defender;
 }
 ```
 
-Called twice per battle — once for the attacker force, once for the defender force. You can modify `force.militaryLevel`, `force.militaryEfficiency`, or `force.forceRemaining`.
+Called twice per battle/estimate — once for the attacker force, once for the defender force. Mutate `force.militaryLevel`, `force.militaryEfficiency`, or `force.forceRemaining`. Do not write to anything outside the `force` argument; persistence and logging belong in lifecycle hooks (`ILifecycleParticipant`).
 
 ---
 

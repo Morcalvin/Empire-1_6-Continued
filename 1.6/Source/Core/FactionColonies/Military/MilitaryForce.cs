@@ -183,42 +183,28 @@ namespace FactionColonies
             return returnForce;
         }
 
+        /// <summary>
+        /// Build a synthetic faction-derived <see cref="MilitaryForce"/>. Used as a fallback
+        /// (e.g. AI attacks against the player, or when no enemy <see cref="Settlement"/> is
+        /// associated with the operation). Settlement-aware paths should go through
+        /// <see cref="WorldComponent_EnemySettlementPower"/> instead so the displayed estimate
+        /// and the actual battle force agree.
+        /// </summary>
         public static MilitaryForce CreateMilitaryForceFromFaction(Faction faction, bool handicap)
         {
-            double militaryLevel = 1;
-            double efficiency = 1;
-            if (faction != null && faction.def != null)
-            {
-                GetMilitaryLevelAndEfficiencyFromTechLevel(faction.def.techLevel, out militaryLevel, out efficiency);
+            double level, efficiency;
+            MilitaryUtil.ComputeFactionBaselinePower(faction, FactionCache.FactionComp,
+                out level, out efficiency);
 
-                if (faction.def.defName == "Insect")
-                {
-                    militaryLevel = 4;
-                    efficiency = 1.2;
-                }
-            }
-
-            double value = militaryLevel + MilitaryUtil.RandomAttackModifier();
-            value = Math.Max(value, 1);
-
-            FactionFC factionComp = FactionCache.FactionComp;
-
-            // Apply Empire Threat Level scaling
-            value *= ThreatScalingUtil.ComputeEmpireThreatLevel(factionComp);
-
-            // Apply storyteller-curve adaptation
-            if (factionComp.threatAdaptation != null)
-            {
-                value *= factionComp.threatAdaptation.ThreatFactor;
-            }
+            double value = Math.Max(1, level
+                + MilitaryUtil.RollVarianceOffset(MilitaryUtil.DefaultLevelVariance));
 
             if (handicap)
             {
-                value = Math.Min(value, ThreatScalingUtil.ComputeHandicapCap(factionComp));
+                value = Math.Min(value, ThreatScalingUtil.ComputeHandicapCap(FactionCache.FactionComp));
             }
 
-            MilitaryForce returnForce = new MilitaryForce(value, efficiency, null, faction);
-            return returnForce;
+            return new MilitaryForce(value, efficiency, null, faction);
         }
     }
 }

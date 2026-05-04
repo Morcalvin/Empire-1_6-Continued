@@ -129,12 +129,12 @@ namespace FactionColonies.WDExp
     {
         public const double SCALE_FACTOR = 100.0;
 
-        public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
+        public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
         {
-            if (isAttacker || op is null) return;
+            if (isAttacker || ctx is null) return;
 
-            if (!op.targetTile.Valid) return;
-            Settlement target = Find.WorldObjects.SettlementAt(op.targetTile);
+            if (!ctx.targetTile.Valid) return;
+            Settlement target = Find.WorldObjects.SettlementAt(ctx.targetTile);
             if (target == null) return;
 
             CompViralSpread comp = target.GetComponent<CompViralSpread>();

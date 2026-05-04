@@ -166,16 +166,41 @@ namespace FactionColonies
         void OnSquadUpgraded(MercenarySquadFC squad);
     }
     /// <summary>
+    /// Snapshot of the data a force modifier needs about a pending or simulated battle.
+    /// Built either from a real <see cref="MilitaryOperation"/> at engagement time, or
+    /// constructed directly by the squad-attack window for the displayed-power estimate.
+    /// Both code paths run modifiers through the same registry; modifiers therefore see the
+    /// same shape of input regardless of whether the battle is real.
+    /// </summary>
+    public class BattleForceContext
+    {
+        /// <summary>The military job (raid, capture, enslave, ...). May be null in synthetic contexts.</summary>
+        public MilitaryJobDef kind;
+        /// <summary>The world tile the battle resolves on.</summary>
+        public PlanetTile targetTile;
+        /// <summary>The world object being attacked (typically a Settlement).</summary>
+        public WorldObject targetObject;
+        /// <summary>Attacker side: faction, force, squad, homeSettlement.</summary>
+        public MilitaryOperationParticipant aggressor;
+        /// <summary>Defender side: faction, force, squad, homeSettlement.</summary>
+        public MilitaryOperationParticipant defender;
+    }
+
+    /// <summary>
     /// Defines an interface to let classes modify military forces before a battle is resolved.
     /// </summary>
     public interface IBattleModifier
     {
         /// <summary>
-        /// Called before the battle loop begins. Modify the force's militaryLevel, militaryEfficiency,
-        /// or forceRemaining to affect the outcome. Receives the operation context so modifiers can
-        /// read participants, target, and phase rather than just the force snapshot.
+        /// Pure transformation: read <paramref name="ctx"/> (participants, target, kind) and
+        /// mutate <paramref name="force"/>'s <see cref="MilitaryForce.militaryLevel"/>,
+        /// <see cref="MilitaryForce.militaryEfficiency"/>, or
+        /// <see cref="MilitaryForce.forceRemaining"/>. Must NOT touch any state outside
+        /// <paramref name="force"/> — the same modifier may be invoked from the squad-picker UI
+        /// for an estimate display, where side effects (logging, history, persistence) would
+        /// be incorrect. Op lifecycle hooks are the place for those.
         /// </summary>
-        void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker);
+        void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker);
     }
     /// <summary>
     /// Lets submods adjust how long a defensive auto-resolve battle stays in the Engaged

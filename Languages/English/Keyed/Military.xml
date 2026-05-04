@@ -215,7 +215,7 @@
 
 	<FCSquadPickerHeader>{0}</FCSquadPickerHeader>
 	<FCSquadPickerTarget>Target: {0}</FCSquadPickerTarget>
-	<FCSquadPickerEstimatedDefender>Estimated defender power: {0} (Efficiency x{1})</FCSquadPickerEstimatedDefender>
+	<FCSquadPickerEstimatedDefender>Estimated defender power: {0}-{1} (Efficiency x{2}-{3})</FCSquadPickerEstimatedDefender>
 	<FCSquadPickerAvailableOnly>Available only</FCSquadPickerAvailableOnly>
 	<FCSquadPickerSort>Sort</FCSquadPickerSort>
 

@@ -157,13 +157,22 @@ namespace FactionColonies
             // CreateOffensiveOp leaves it unset because the enemy is faction-level, not settlement-level.
             if (defender.force is null && defender.faction is object && !IsDefensive)
             {
-                defender.force = MilitaryForce.CreateMilitaryForceFromFaction(defender.faction, false);
+                defender.force = MilitaryUtil.SampleDefenderForceForOp(this);
             }
 
+            BattleForceContext ctx = new BattleForceContext
+            {
+                kind = this.kind,
+                targetTile = this.targetTile,
+                targetObject = this.targetObject,
+                aggressor = this.aggressor,
+                defender = this.defender
+            };
+
             if (aggressor.force is object)
-                BattleModifierRegistry.InvokeModifyForce(this, aggressor.force, isAttacker: true);
+                BattleModifierRegistry.InvokeModifyForce(ctx, aggressor.force, isAttacker: true);
             if (defender.force is object)
-                BattleModifierRegistry.InvokeModifyForce(this, defender.force, isAttacker: false);
+                BattleModifierRegistry.InvokeModifyForce(ctx, defender.force, isAttacker: false);
 
             if (externalDefenderSource is object)
             {

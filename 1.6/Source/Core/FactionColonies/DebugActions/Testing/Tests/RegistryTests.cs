@@ -48,12 +48,12 @@ namespace FactionColonies
         private class TestBattleModifier : IBattleModifier
         {
             public double LevelBonus;
-            public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker) => force.militaryLevel += LevelBonus;
+            public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker) => force.militaryLevel += LevelBonus;
         }
 
         private class ThrowingBattleModifier : IBattleModifier
         {
-            public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker) => throw new InvalidOperationException("test");
+            public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker) => throw new InvalidOperationException("test");
         }
 
         private class TestPaymentModifier : ISilverPaymentModifier

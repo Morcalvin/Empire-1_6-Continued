@@ -88,7 +88,7 @@ namespace FactionColonies
         /// <returns>Defender win probability in [0, 1].</returns>
         /// <summary>Mirror of <see cref="CalculateDefenderWinChance"/> from the attacker's side.
         /// Returns the probability that the attacker depletes the defender's HP before being
-        /// depleted itself. Stable across calls (does not apply <see cref="MilitaryUtil.RandomAttackModifier"/>).</summary>
+        /// depleted itself. Stable across calls (deterministic given the two force snapshots).</summary>
         public static double CalculateAttackerWinChance(MilitaryForce attacker, MilitaryForce defender)
         {
             if (attacker is null || defender is null) return 0.0;

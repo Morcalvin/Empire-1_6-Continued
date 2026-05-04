@@ -31,7 +31,16 @@ namespace FactionColonies
         private Vector2 scrollPos;
         private bool availableOnly = true;
         private SortMode sort = SortMode.WinChance;
-        private MilitaryForce estimatedDefenderForce;
+
+        /* Defender power: the registry entry plus pre-built min/max bounds with
+         * BattleModifierRegistry already applied. Computed once at ctor — stable across
+         * window opens, stable within a session. The bounds frame the actual battle force
+         * the player will face: the engagement-time roll in MilitaryOperation.BeginEngagement
+         * lands somewhere in [defenderForceMin, defenderForceMax]. */
+        private EnemySettlementPower defenderPower;
+        private MilitaryForce defenderForceMin;
+        private MilitaryForce defenderForceMax;
+
         private List<RowData> rows = new List<RowData>();
         private bool rowsDirty = true;
 
@@ -55,7 +64,8 @@ namespace FactionColonies
         {
             public MercenarySquadFC squad;
             public int travelTicks;
-            public double winChance;
+            public double winChanceMin;
+            public double winChanceMax;
             public double attackerPower;
             public double attackerEfficiency;
             public bool hasAttackerForce;
@@ -84,10 +94,38 @@ namespace FactionColonies
             absorbInputAroundWindow = true;
             closeOnClickedOutside = false;
 
-            if (enemy is object)
+            BuildDefenderRange();
+        }
+
+        /* Pulls the cached EnemySettlementPower for the target settlement, builds min/max
+         * MilitaryForce instances at the variance bounds, and runs BattleModifierRegistry
+         * on each so the displayed range matches what the engagement-time roll will hit
+         * (modulo same-tick cache state). The context's aggressor is left null because
+         * defender-side modifiers in the current codebase don't read aggressor info; a
+         * future modifier that needs it would also need a per-row recompute path. */
+        private void BuildDefenderRange()
+        {
+            Settlement targetSettlement = target as Settlement;
+            if (targetSettlement is null) return;
+            defenderPower = FactionCache.EnemyPowerRegistry?.GetOrCompute(targetSettlement);
+            if (defenderPower is null || enemy is null) return;
+
+            defenderForceMin = defenderPower.BuildBoundForce(enemy, max: false);
+            defenderForceMax = defenderPower.BuildBoundForce(enemy, max: true);
+
+            BattleForceContext ctx = new BattleForceContext
             {
-                estimatedDefenderForce = MilitaryForce.CreateMilitaryForceFromFaction(enemy, false);
-            }
+                kind = job,
+                targetTile = targetSettlement.Tile,
+                targetObject = targetSettlement,
+                aggressor = null,
+                defender = new MilitaryOperationParticipant { faction = enemy }
+            };
+
+            ctx.defender.force = defenderForceMin;
+            BattleModifierRegistry.InvokeModifyForce(ctx, defenderForceMin, isAttacker: false);
+            ctx.defender.force = defenderForceMax;
+            BattleModifierRegistry.InvokeModifyForce(ctx, defenderForceMax, isAttacker: false);
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -190,13 +228,15 @@ namespace FactionColonies
                 y += subRowH;
             }
 
-            // Defender power line — shown whenever we have a defender force (i.e. enemy faction supplied)
-            if (estimatedDefenderForce is object)
+            // Defender power line — shown whenever we have defender bounds (i.e. enemy settlement supplied)
+            if (defenderForceMin is object && defenderForceMax is object)
             {
                 float defRowH = 22f;
                 string defenderLine = "FCSquadPickerEstimatedDefender".Translate(
-                    estimatedDefenderForce.forceRemaining,
-                    estimatedDefenderForce.militaryEfficiency.ToString("0.##")).ToString();
+                    defenderForceMin.forceRemaining,
+                    defenderForceMax.forceRemaining,
+                    defenderForceMin.militaryEfficiency.ToString("0.##"),
+                    defenderForceMax.militaryEfficiency.ToString("0.##")).ToString();
                 Widgets.Label(new Rect(8f, y, inRect.width - 16f, defRowH), defenderLine);
                 y += defRowH;
             }
@@ -305,8 +345,18 @@ namespace FactionColonies
                 + (squad.IsAssigned && target is object
                     ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
                     : "-");
-            string winLbl = (string)"FCSquadColWinChance".Translate() + ": "
-                + (row.available ? (row.winChance * 100).ToString("0") + "%" : "-");
+            string winLbl;
+            if (!row.available)
+            {
+                winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
+            }
+            else
+            {
+                int minPct = (int)System.Math.Round(row.winChanceMin * 100);
+                int maxPct = (int)System.Math.Round(row.winChanceMax * 100);
+                winLbl = (string)"FCSquadColWinChance".Translate() + ": "
+                    + (minPct == maxPct ? minPct + "%" : minPct + "-" + maxPct + "%");
+            }
 
             Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
             Widgets.Label(new Rect(dx, detailY, colPower,      CardDetailH), powerLbl);      dx += colPower;
@@ -379,9 +429,38 @@ namespace FactionColonies
                 double attackerEfficiency = attackerForce?.militaryEfficiency ?? 0;
                 bool hasAttackerForce = attackerForce is object;
 
-                double winChance = 0;
-                if (available && hasAttackerForce && estimatedDefenderForce is object)
-                    winChance = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, estimatedDefenderForce);
+                /* Apply attacker-side modifiers per-row so the win chance reflects how the
+                 * specific squad would actually perform after BattleModifierRegistry runs at
+                 * engagement. Defender-side bounds were already pre-modified once at ctor. */
+                if (hasAttackerForce && target is object)
+                {
+                    BattleForceContext rowCtx = new BattleForceContext
+                    {
+                        kind = job,
+                        targetTile = target.Tile,
+                        targetObject = target,
+                        aggressor = new MilitaryOperationParticipant
+                        {
+                            faction = FactionCache.PlayerColonyFaction,
+                            squad = squad,
+                            force = attackerForce,
+                            homeSettlement = squad.settlement
+                        },
+                        defender = new MilitaryOperationParticipant { faction = enemy }
+                    };
+                    BattleModifierRegistry.InvokeModifyForce(rowCtx, attackerForce, isAttacker: true);
+                    attackerEfficiency = attackerForce.militaryEfficiency;
+                }
+
+                /* Win chance against MAX defender = lower bound; against MIN defender = upper bound.
+                 * (Stronger defender => lower attacker win chance, and vice versa.) */
+                double winChanceMin = 0;
+                double winChanceMax = 0;
+                if (available && hasAttackerForce && defenderForceMin is object && defenderForceMax is object)
+                {
+                    winChanceMin = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, defenderForceMax);
+                    winChanceMax = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, defenderForceMin);
+                }
 
                 string status;
                 Color statusColor;
@@ -391,7 +470,8 @@ namespace FactionColonies
                 {
                     squad = squad,
                     travelTicks = travelTicks,
-                    winChance = winChance,
+                    winChanceMin = winChanceMin,
+                    winChanceMax = winChanceMax,
                     attackerPower = attackerPower,
                     attackerEfficiency = attackerEfficiency,
                     hasAttackerForce = hasAttackerForce,
@@ -403,7 +483,9 @@ namespace FactionColonies
 
             switch (sort)
             {
-                case SortMode.WinChance: rows = rows.OrderByDescending(r => r.winChance).ToList(); break;
+                /* Sort by midpoint so a row with a wider but higher-on-average range still
+                 * outranks a narrower lower-average row. */
+                case SortMode.WinChance: rows = rows.OrderByDescending(r => (r.winChanceMin + r.winChanceMax) * 0.5).ToList(); break;
                 case SortMode.Travel:    rows = rows.OrderBy(r => r.travelTicks).ToList(); break;
                 case SortMode.Power:     rows = rows.OrderByDescending(r => r.attackerPower).ToList(); break;
                 case SortMode.Name:      rows = rows.OrderBy(r => r.squad.DisplayName).ToList(); break;

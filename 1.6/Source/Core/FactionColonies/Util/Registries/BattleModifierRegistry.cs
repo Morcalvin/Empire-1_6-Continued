@@ -17,15 +17,15 @@ namespace FactionColonies
 
         /// <summary>
         /// Invokes every registered <see cref="IBattleModifier"/> against <paramref name="force"/>
-        /// in the context of <paramref name="op"/>. Modifiers that throw are logged and skipped.
+        /// in the context of <paramref name="ctx"/>. Modifiers that throw are logged and skipped.
         /// </summary>
-        public static void InvokeModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
+        public static void InvokeModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
         {
             foreach (IBattleModifier modifier in _modifiers)
             {
                 try
                 {
-                    modifier.ModifyForce(op, force, isAttacker);
+                    modifier.ModifyForce(ctx, force, isAttacker);
                 }
                 catch (Exception e)
                 {

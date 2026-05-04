@@ -1,6 +1,7 @@
 ﻿using FactionColonies.util;
 using LudeonTK;
 using RimWorld;
+using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -187,28 +188,76 @@ namespace FactionColonies
             DebugTools.curTool = tool;
         }
 
-        private static float plusOrMinusRandomAttackValue = 2;
-        private static List<float> GetAttackPoints()
-        {
-            List<float> list = new List<float>();
-            for (int i = -Convert.ToInt32(plusOrMinusRandomAttackValue * 10);
-                i < plusOrMinusRandomAttackValue * 10;
-                i++)
-            {
-                list.Add((i / 10f));
-            }
+        /* Default variance bounds used by EnemySettlementPower for per-battle RNG.
+         * DefaultLevelVariance preserves today's +/-2 spread. EfficiencyVariance is 0
+         * because legacy code didn't randomize efficiency at all. */
+        public const double DefaultLevelVariance = 2.0;
+        public const double DefaultEfficiencyVariance = 0.0;
 
-            return list;
+        /// <summary>
+        /// Rolls a single offset within +/-<paramref name="variance"/> for use when sampling a
+        /// battle force from a cached <see cref="EnemySettlementPower"/> baseline. Uniform
+        /// distribution; replaces the prior curve-weighted <c>RandomAttackModifier</c> whose
+        /// weighting was a no-op once the input clamped to the curve's first point.
+        /// </summary>
+        public static double RollVarianceOffset(double variance)
+        {
+            if (variance <= 0) return 0;
+            return Rand.Range((float)-variance, (float)variance);
         }
 
-        public static float RandomAttackModifier()
+        /// <summary>
+        /// Resolves a defender <see cref="MilitaryForce"/> for an offensive operation by
+        /// consulting <see cref="WorldComponent_EnemySettlementPower"/> for the cached
+        /// per-settlement baseline and rolling within its variance. Falls back to
+        /// <see cref="MilitaryForce.CreateMilitaryForceFromFaction"/> when no settlement is
+        /// associated with the op. Used by <see cref="MilitaryOperation.BeginEngagement"/>
+        /// and by job-handler auto-resolve fallbacks so the same path produces the defender
+        /// in every scenario.
+        /// </summary>
+        public static MilitaryForce SampleDefenderForceForOp(MilitaryOperation op)
         {
-            float y = (from x in GetAttackPoints()
-                       select x).RandomElementByWeight(x =>
-                       new SimpleCurve
-                               {new CurvePoint(0f, 1f), new CurvePoint(plusOrMinusRandomAttackValue, .1f)}
-                           .Evaluate(Math.Abs(x) - 2));
-            return y;
+            if (op is null || op.defender?.faction is null) return null;
+
+            Settlement target = op.targetObject as Settlement;
+            if (target is null && op.targetTile.Valid)
+                target = Find.WorldObjects.SettlementAt(op.targetTile);
+
+            EnemySettlementPower power = FactionCache.EnemyPowerRegistry?.GetOrCompute(target);
+            return power?.SampleBattleForce(op.defender.faction)
+                ?? MilitaryForce.CreateMilitaryForceFromFaction(op.defender.faction, false);
+        }
+
+        /// <summary>
+        /// Computes a faction's deterministic baseline military level and efficiency.
+        /// Mirrors the non-random part of <see cref="MilitaryForce.CreateMilitaryForceFromFaction"/>:
+        /// tech-level lookup, Insect override, Empire Threat Level scaling, and storyteller
+        /// threat adaptation. The +/-variance roll is intentionally omitted so this can be cached
+        /// and surfaced as a stable display value.
+        /// </summary>
+        public static void ComputeFactionBaselinePower(Faction faction, FactionFC factionComp,
+                                                      out double level, out double efficiency)
+        {
+            level = 1;
+            efficiency = 1;
+            if (faction is null || faction.def is null) return;
+
+            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(faction.def.techLevel, out level, out efficiency);
+
+            if (faction.def.defName == "Insect")
+            {
+                level = 4;
+                efficiency = 1.2;
+            }
+
+            if (factionComp is object)
+            {
+                level *= ThreatScalingUtil.ComputeEmpireThreatLevel(factionComp);
+                if (factionComp.threatAdaptation is object)
+                {
+                    level *= factionComp.threatAdaptation.ThreatFactor;
+                }
+            }
         }
     }
 }

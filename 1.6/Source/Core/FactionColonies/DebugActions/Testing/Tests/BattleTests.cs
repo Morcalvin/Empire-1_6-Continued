@@ -8,7 +8,7 @@ namespace FactionColonies
         {
             private readonly double _boost;
             public BoostAttackerModifier(double boost) => _boost = boost;
-            public void ModifyForce(MilitaryOperation op, MilitaryForce force, bool isAttacker)
+            public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
             {
                 if (isAttacker) force.forceRemaining += _boost;
             }
