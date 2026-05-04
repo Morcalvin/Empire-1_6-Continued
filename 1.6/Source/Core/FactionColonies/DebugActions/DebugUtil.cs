@@ -230,7 +230,7 @@ namespace FactionColonies
                         int chosenLevel = level;
                         levelList.Add(new DebugMenuOption($"Level {chosenLevel}", DebugMenuOptionMode.Action, delegate
                         {
-                            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(enemyFaction.def.techLevel, out double _, out double efficiency);
+                            MilitaryUtil.GetTechLevelBaseline(enemyFaction.def.techLevel, out double _, out double efficiency);
                             MilitaryForce attackingForce = new MilitaryForce(chosenLevel, efficiency, null, enemyFaction);
                             LogUtil.MessageForce($"Debug - Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
                             if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
@@ -268,7 +268,7 @@ namespace FactionColonies
                         int chosenLevel = level;
                         levelList.Add(new DebugMenuOption($"Level {chosenLevel}", DebugMenuOptionMode.Action, delegate
                         {
-                            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(enemyFaction.def.techLevel, out double _, out double efficiency);
+                            MilitaryUtil.GetTechLevelBaseline(enemyFaction.def.techLevel, out double _, out double efficiency);
                             MilitaryForce attackingForce = new MilitaryForce(chosenLevel, efficiency, null, enemyFaction);
                             LogUtil.MessageForce($"Debug - Instant Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
                             if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))

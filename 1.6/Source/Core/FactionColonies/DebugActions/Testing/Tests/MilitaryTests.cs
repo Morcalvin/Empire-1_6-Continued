@@ -4,11 +4,11 @@ namespace FactionColonies
 {
     public static class MilitaryTests
     {
-        // --- GetMilitaryLevelAndEfficiencyFromTechLevel ---
+        // --- MilitaryUtil.GetTechLevelBaseline (XML-driven via EnemyPowerTechDef) ---
 
         private static void AssertTechLevel(TechLevel techLevel, double expectedLevel, double expectedEfficiency)
         {
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(techLevel, out double level, out double efficiency);
+            MilitaryUtil.GetTechLevelBaseline(techLevel, out double level, out double efficiency);
             TestAssert.AreEqual(expectedLevel, level, message: $"Military level for {techLevel}");
             TestAssert.AreEqual(expectedEfficiency, efficiency, message: $"Efficiency for {techLevel}");
         }

@@ -188,12 +188,6 @@ namespace FactionColonies
             DebugTools.curTool = tool;
         }
 
-        /* Default variance bounds used by EnemyPower for per-battle RNG. DefaultLevelVariance
-         * preserves the legacy +/-2 spread. EfficiencyVariance is 0 because legacy code didn't
-         * randomize efficiency at all. */
-        public const double DefaultLevelVariance = 2.0;
-        public const double DefaultEfficiencyVariance = 0.0;
-
         /// <summary>
         /// Rolls a single offset within +/-<paramref name="variance"/> for use when sampling a
         /// battle force from a cached <see cref="EnemyPower"/> baseline. Uniform distribution;
@@ -207,34 +201,39 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Computes a faction's deterministic baseline military level and efficiency:
-        /// tech-level lookup, Insect override, Empire Threat Level scaling, and storyteller
-        /// threat adaptation. The +/-variance roll is intentionally omitted so this can be
-        /// cached and surfaced as a stable display value.
+        /// Returns the bare tech-level baseline (level, efficiency, variances) from
+        /// <see cref="EnemyPowerTechDef"/>.
         /// </summary>
-        public static void ComputeFactionBaselinePower(Faction faction, FactionFC factionComp,
-                                                      out double level, out double efficiency)
+        public static void GetTechLevelBaseline(TechLevel tl,
+            out double level, out double efficiency,
+            out double levelVariance, out double efficiencyVariance)
         {
-            level = 1;
-            efficiency = 1;
-            if (faction is null || faction.def is null) return;
-
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(faction.def.techLevel, out level, out efficiency);
-
-            if (faction.def.defName == "Insect")
+            EnemyPowerTechDef d = FactionCache.EnemyPower?.GetTechDef(tl);
+            if (d is null)
             {
-                level = 4;
-                efficiency = 1.2;
-            }
-
-            if (factionComp is object)
-            {
-                level *= ThreatScalingUtil.ComputeEmpireThreatLevel(factionComp);
-                if (factionComp.threatAdaptation is object)
+                /* Pre-world / test path: no WorldComponent yet. Read DefDatabase directly. */
+                foreach (EnemyPowerTechDef candidate in DefDatabase<EnemyPowerTechDef>.AllDefsListForReading)
                 {
-                    level *= factionComp.threatAdaptation.ThreatFactor;
+                    if (candidate.techLevel == tl) { d = candidate; break; }
                 }
             }
+            if (d is object)
+            {
+                level = d.level;
+                efficiency = d.efficiency;
+                levelVariance = d.levelVariance;
+                efficiencyVariance = d.efficiencyVariance;
+                return;
+            }
+            level = 1; efficiency = 1; levelVariance = 2; efficiencyVariance = 0;
+        }
+
+        /// <summary>
+        /// Convenience overload returning only level and efficiency from the tech-level baseline.
+        /// </summary>
+        public static void GetTechLevelBaseline(TechLevel tl, out double level, out double efficiency)
+        {
+            GetTechLevelBaseline(tl, out level, out efficiency, out _, out _);
         }
     }
 }

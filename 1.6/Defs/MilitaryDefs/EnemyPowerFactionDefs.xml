@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+    <!-- *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
+         EnemyPowerFactionDef - per-FactionDef overrides of enemy
+         power baseline. Each numeric field is optional; missing
+         fields fall through to the matching EnemyPowerTechDef.
+         *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=* -->
+
+    <!-- Insectoid hives are tribal-tier (Animal) but punch above their weight.
+         Replaces the legacy `defName == "Insect"` hardcoded branch in MilitaryUtil. -->
+    <FactionColonies.EnemyPowerFactionDef>
+        <defName>EPF_Insect</defName>
+        <factionDef>Insect</factionDef>
+        <level>4</level>
+        <efficiency>1.2</efficiency>
+        <!-- variances inherited from EPT_Animal (2.0 / 0.0) -->
+    </FactionColonies.EnemyPowerFactionDef>
+
+</Defs>

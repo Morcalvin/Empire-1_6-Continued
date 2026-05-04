@@ -42,7 +42,7 @@ namespace FactionColonies.RW
             double efficiency = 1.0;
             if (attacker.Faction.def is object)
             {
-                MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
+                MilitaryUtil.GetTechLevelBaseline(
                     attacker.Faction.def.techLevel, out double _, out efficiency);
             }
 

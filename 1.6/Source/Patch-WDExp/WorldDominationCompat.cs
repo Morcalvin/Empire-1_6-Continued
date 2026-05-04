@@ -70,7 +70,7 @@ namespace FactionColonies.WDExp
             // Convert WD traveler strength to Empire military force
             double techLevel;
             double efficiency;
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
+            MilitaryUtil.GetTechLevelBaseline(
                 traveler.Faction.def.techLevel, out techLevel, out efficiency);
 
             double wdMilitaryLevel = traveler.travelerStrength / WDStrengthSettlementModifier.SCALE_FACTOR;

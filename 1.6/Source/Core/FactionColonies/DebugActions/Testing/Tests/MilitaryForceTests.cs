@@ -44,7 +44,7 @@ namespace FactionColonies
         [EmpireTest("MilitaryForce")]
         public static void TechLevelMapping_Neolithic_Level2_Eff1()
         {
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
+            MilitaryUtil.GetTechLevelBaseline(
                 TechLevel.Neolithic, out double level, out double eff);
             TestAssert.AreEqual(2.0, level, message: "Neolithic level");
             TestAssert.AreEqual(0.9, eff, message: "Neolithic efficiency");
@@ -53,7 +53,7 @@ namespace FactionColonies
         [EmpireTest("MilitaryForce")]
         public static void TechLevelMapping_Spacer_Level6_Eff1Point3()
         {
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
+            MilitaryUtil.GetTechLevelBaseline(
                 TechLevel.Spacer, out double level, out double eff);
             TestAssert.AreEqual(6.0, level, message: "Spacer level");
             TestAssert.AreEqual(1.2, eff, message: "Spacer efficiency");
@@ -62,7 +62,7 @@ namespace FactionColonies
         [EmpireTest("MilitaryForce")]
         public static void TechLevelMapping_Archotech_HighestValues()
         {
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
+            MilitaryUtil.GetTechLevelBaseline(
                 TechLevel.Archotech, out double level, out double eff);
             TestAssert.AreEqual(9.0, level, message: "Archotech level");
             TestAssert.AreEqual(1.5, eff, message: "Archotech efficiency");
@@ -73,7 +73,7 @@ namespace FactionColonies
         {
             foreach (TechLevel tech in Enum.GetValues(typeof(TechLevel)))
             {
-                MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
+                MilitaryUtil.GetTechLevelBaseline(
                     tech, out double level, out double eff);
                 TestAssert.GreaterThan(level, 0, $"TechLevel {tech}: level should be > 0");
                 TestAssert.GreaterThan(eff, 0, $"TechLevel {tech}: efficiency should be > 0");
@@ -135,21 +135,26 @@ namespace FactionColonies
             EnemyPower entry = registry.GetOrCompute(enemy);
             TestAssert.IsNotNull(entry, "Registry should produce an entry for an enemy settlement");
 
-            // Baseline structure: efficiency clamped at 0.1, level at 1, variance defaults applied.
+            // Baseline structure: efficiency clamped at 0.1, level at 1, variance default applied.
             TestAssert.IsTrue(entry.efficiency >= 0.1,
                 $"Efficiency floor not respected: got {entry.efficiency}");
             TestAssert.IsTrue(entry.level >= 1,
                 $"Level floor not respected: got {entry.level}");
-            TestAssert.AreEqual(MilitaryUtil.DefaultLevelVariance, entry.levelVariance,
-                "Level variance default applied");
-            TestAssert.AreEqual(MilitaryUtil.DefaultEfficiencyVariance, entry.efficiencyVariance,
-                "Efficiency variance default applied");
 
-            // Sampled force lands in the variance window and is monotonic in tech level
-            // (post-ETL/adaptation) — assert it's at least the techLevel floor minus variance,
-            // accepting that ETL/threatAdaptation can scale it higher.
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
-                enemy.Faction.def.techLevel, out double techLevel, out double techEff);
+            // Variances now sourced from EnemyPowerTechDef + (optional) EnemyPowerFactionDef.
+            // Pull the resolved tech-def variances and compare; faction overrides may shift them.
+            MilitaryUtil.GetTechLevelBaseline(enemy.Faction.def.techLevel,
+                out double _, out double _, out double techLvlVar, out double techEffVar);
+            EnemyPowerFactionDef factionDef = registry.GetFactionDef(enemy.Faction.def);
+            double expectedLvlVar = (factionDef is object && factionDef.levelVariance.HasValue)
+                ? factionDef.levelVariance.Value : techLvlVar;
+            double expectedEffVar = (factionDef is object && factionDef.efficiencyVariance.HasValue)
+                ? factionDef.efficiencyVariance.Value : techEffVar;
+            TestAssert.AreEqual(expectedLvlVar, entry.levelVariance,
+                "Level variance from def applied");
+            TestAssert.AreEqual(expectedEffVar, entry.efficiencyVariance,
+                "Efficiency variance from def applied");
+
             TestAssert.IsTrue(entry.MaxForceRemaining >= entry.MinForceRemaining,
                 "Max bound must be >= min bound");
         }

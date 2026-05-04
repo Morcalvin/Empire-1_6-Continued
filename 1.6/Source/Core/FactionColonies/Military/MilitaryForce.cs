@@ -125,49 +125,5 @@ namespace FactionColonies
             return new MilitaryForce(combinedLevel, blendedEff, anchorSettlement, FactionCache.PlayerColonyFaction);
         }
 
-        public static void GetMilitaryLevelAndEfficiencyFromTechLevel(TechLevel techlevel, out double militaryLevel, out double efficiency)
-        {
-            switch (techlevel)
-            {
-                case TechLevel.Undefined:
-                    militaryLevel = 1;
-                    efficiency = .5;
-                    break;
-                case TechLevel.Animal:
-                    militaryLevel = 1;
-                    efficiency = .5;
-                    break;
-                case TechLevel.Neolithic:
-                    militaryLevel = 2;
-                    efficiency = .9;
-                    break;
-                case TechLevel.Medieval:
-                    militaryLevel = 3;
-                    efficiency = 1;
-                    break;
-                case TechLevel.Industrial:
-                    militaryLevel = 5;
-                    efficiency = 1.1;
-                    break;
-                case TechLevel.Spacer:
-                    militaryLevel = 6;
-                    efficiency = 1.2;
-                    break;
-                case TechLevel.Ultra:
-                    militaryLevel = 7;
-                    efficiency = 1.3;
-                    break;
-                case TechLevel.Archotech:
-                    militaryLevel = 9;
-                    efficiency = 1.5;
-                    break;
-                default:
-                    militaryLevel = 1;
-                    efficiency = 1;
-                    LogUtil.Message("Defaulted GetMilitaryLevelAndEfficiencyFromTechLevel switch case");
-                    break;
-            }
-        }
-
     }
 }

@@ -37,6 +37,10 @@ namespace FactionColonies
         private List<Faction> _scribeFactionKeys;
         private List<EnemyPower> _scribeFactionValues;
 
+        /* Def caches built lazily from DefDatabase. */
+        private Dictionary<TechLevel, EnemyPowerTechDef> techDefCache;
+        private Dictionary<FactionDef, EnemyPowerFactionDef> factionDefCache;
+
         private int nextRecomputeTick = -1;
 
         public IReadOnlyDictionary<Settlement, EnemyPower> SettlementPowers => settlementPowers;
@@ -248,18 +252,98 @@ namespace FactionColonies
             BattleModifierRegistry.InvokeBattleModifiers(ctx, force, isAttacker);
         }
 
+        /* === Def cache lookup === */
+
+        private void BuildDefCachesIfNeeded()
+        {
+            if (techDefCache is object) return;
+            techDefCache = new Dictionary<TechLevel, EnemyPowerTechDef>();
+            foreach (EnemyPowerTechDef d in DefDatabase<EnemyPowerTechDef>.AllDefsListForReading)
+            {
+                if (techDefCache.ContainsKey(d.techLevel))
+                    LogUtil.Warning($"Duplicate EnemyPowerTechDef for {d.techLevel}: {d.defName} overrides previous");
+                techDefCache[d.techLevel] = d;
+            }
+            factionDefCache = new Dictionary<FactionDef, EnemyPowerFactionDef>();
+            foreach (EnemyPowerFactionDef d in DefDatabase<EnemyPowerFactionDef>.AllDefsListForReading)
+            {
+                if (d.factionDef is null) continue;
+                if (factionDefCache.ContainsKey(d.factionDef))
+                    LogUtil.Warning($"Duplicate EnemyPowerFactionDef for {d.factionDef.defName}: {d.defName} overrides previous");
+                factionDefCache[d.factionDef] = d;
+            }
+        }
+
+        /// <summary>
+        /// Returns the EnemyPowerTechDef for <paramref name="tl"/>, or null if no XML defines one.
+        /// </summary>
+        public EnemyPowerTechDef GetTechDef(TechLevel tl)
+        {
+            BuildDefCachesIfNeeded();
+            EnemyPowerTechDef d;
+            return techDefCache.TryGetValue(tl, out d) ? d : null;
+        }
+
+        /// <summary>
+        /// Returns the EnemyPowerFactionDef for <paramref name="fd"/>, or null if no XML defines one.
+        /// Sparse lookup: most factions have no override.
+        /// </summary>
+        public EnemyPowerFactionDef GetFactionDef(FactionDef fd)
+        {
+            BuildDefCachesIfNeeded();
+            if (fd is null) return null;
+            EnemyPowerFactionDef d;
+            return factionDefCache.TryGetValue(fd, out d) ? d : null;
+        }
+
         /* === Internals === */
 
-        private static void ComputeFactionBaseline(Faction faction, EnemyPower power)
+        /// <summary>
+        /// Resolves the deterministic baseline for <paramref name="faction"/>: tech-level def
+        /// supplies all four values, then any matching faction def overrides per-field, then
+        /// Empire Threat Level + storyteller adaptation scale <c>level</c> on top.
+        /// </summary>
+        private void ComputeFactionBaseline(Faction faction, EnemyPower power)
         {
-            double level, efficiency;
-            MilitaryUtil.ComputeFactionBaselinePower(faction, FactionCache.FactionComp,
-                out level, out efficiency);
+            double level = 1.0, efficiency = 1.0, levelVariance = 2.0, efficiencyVariance = 0.0;
+
+            if (faction is object && faction.def is object)
+            {
+                EnemyPowerTechDef techDef = GetTechDef(faction.def.techLevel);
+                if (techDef is null)
+                {
+                    LogUtil.Warning($"No EnemyPowerTechDef for {faction.def.techLevel}; using fallback (1, 1, 2, 0)");
+                }
+                else
+                {
+                    level = techDef.level;
+                    efficiency = techDef.efficiency;
+                    levelVariance = techDef.levelVariance;
+                    efficiencyVariance = techDef.efficiencyVariance;
+                }
+
+                EnemyPowerFactionDef factionDef = GetFactionDef(faction.def);
+                if (factionDef is object)
+                {
+                    if (factionDef.level.HasValue)              level              = factionDef.level.Value;
+                    if (factionDef.efficiency.HasValue)         efficiency         = factionDef.efficiency.Value;
+                    if (factionDef.levelVariance.HasValue)      levelVariance      = factionDef.levelVariance.Value;
+                    if (factionDef.efficiencyVariance.HasValue) efficiencyVariance = factionDef.efficiencyVariance.Value;
+                }
+
+                FactionFC factionComp = FactionCache.FactionComp;
+                if (factionComp is object)
+                {
+                    level *= ThreatScalingUtil.ComputeEmpireThreatLevel(factionComp);
+                    if (factionComp.threatAdaptation is object)
+                        level *= factionComp.threatAdaptation.ThreatFactor;
+                }
+            }
 
             power.level = level;
             power.efficiency = efficiency;
-            power.levelVariance = MilitaryUtil.DefaultLevelVariance;
-            power.efficiencyVariance = MilitaryUtil.DefaultEfficiencyVariance;
+            power.levelVariance = levelVariance;
+            power.efficiencyVariance = efficiencyVariance;
             power.lastComputedTick = Find.TickManager.TicksGame;
         }
 
