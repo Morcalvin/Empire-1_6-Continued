@@ -48,12 +48,8 @@ namespace FactionColonies
 
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref settlementPowers, "settlementPowers",
-                LookMode.Reference, LookMode.Deep,
-                ref _scribeSettlementKeys, ref _scribeSettlementValues);
-            Scribe_Collections.Look(ref factionPowers, "factionPowers",
-                LookMode.Reference, LookMode.Deep,
-                ref _scribeFactionKeys, ref _scribeFactionValues);
+            Scribe_Collections.Look(ref settlementPowers, "settlementPowers", LookMode.Reference, LookMode.Deep, ref _scribeSettlementKeys, ref _scribeSettlementValues);
+            Scribe_Collections.Look(ref factionPowers, "factionPowers", LookMode.Reference, LookMode.Deep, ref _scribeFactionKeys, ref _scribeFactionValues);
             Scribe_Values.Look(ref nextRecomputeTick, "nextRecomputeTick", -1);
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
@@ -63,14 +59,10 @@ namespace FactionColonies
 
                 /* LookMode.Reference silently leaves entries with null keys for unresolved /
                  * destroyed targets — drop them. */
-                List<Settlement> staleSettlements = settlementPowers
-                    .Where(kv => kv.Key is null || kv.Key.Destroyed)
-                    .Select(kv => kv.Key).ToList();
+                List<Settlement> staleSettlements = settlementPowers.Where(kv => kv.Key is null || kv.Key.Destroyed).Select(kv => kv.Key).ToList();
                 foreach (Settlement k in staleSettlements) settlementPowers.Remove(k);
 
-                List<Faction> staleFactions = factionPowers
-                    .Where(kv => kv.Key is null)
-                    .Select(kv => kv.Key).ToList();
+                List<Faction> staleFactions = factionPowers.Where(kv => kv.Key is null).Select(kv => kv.Key).ToList();
                 foreach (Faction k in staleFactions) factionPowers.Remove(k);
             }
         }

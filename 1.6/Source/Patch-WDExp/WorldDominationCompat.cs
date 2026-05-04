@@ -63,18 +63,22 @@ namespace FactionColonies.WDExp
         private static bool Prefix(WorldObject_Traveler traveler, WorldComponent_SpreadManager manager)
         {
             WorldSettlementFC empireSettlement = traveler.targetObject as WorldSettlementFC;
-            if (empireSettlement == null) return true;
+            if (empireSettlement is null) return true;
+            if (traveler.Faction is null) return true;
 
-            if (traveler.Faction == null) return true;
-
-            // Convert WD traveler strength to Empire military force
-            double techLevel;
-            double efficiency;
-            MilitaryUtil.GetTechLevelBaseline(
-                traveler.Faction.def.techLevel, out techLevel, out efficiency);
+            // Sample the baseline through the worldcomp so faction-level efficiency modifiers apply.
+            // WD's traveler strength dictates militaryLevel, so we override the sampled level with it.
+            EnemyPower entry = FactionCache.EnemyPower?.GetOrCompute(traveler.Faction);
+            MilitaryForce attackingForce = entry?.SampleBattleForce(traveler.Faction);
+            if (attackingForce is null)
+            {
+                MilitaryUtil.GetTechLevelBaseline(traveler.Faction.def.techLevel, out double _, out double efficiency);
+                attackingForce = new MilitaryForce(1, efficiency, null, traveler.Faction);
+            }
 
             double wdMilitaryLevel = traveler.travelerStrength / WDStrengthSettlementModifier.SCALE_FACTOR;
-            MilitaryForce attackingForce = new MilitaryForce(wdMilitaryLevel, efficiency, null, traveler.Faction);
+            attackingForce.militaryLevel = wdMilitaryLevel;
+            attackingForce.forceRemaining = Math.Max(1, Math.Round(attackingForce.militaryLevel * attackingForce.militaryEfficiency));
 
             // Route through Empire's defense system (1-day warning + auto-battle/manual)
             bool queued = MilitaryUtilFC.AttackPlayerSettlement(attackingForce, empireSettlement, traveler.Faction);
