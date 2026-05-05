@@ -13,6 +13,7 @@ namespace FactionColonies
         public bool deadPawnCooldown;
         public string floatMenuLabelKey;
         public string floatMenuDescKey;
+        public string rewardsDesc;
         public bool defaultEnabled = true;
 
         [Unsaved] private MilitaryJobHandler cachedHandler;

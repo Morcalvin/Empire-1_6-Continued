@@ -12,20 +12,27 @@ namespace FactionColonies
     /// <summary>
     /// Replaces the per-job float menu of "settlements with usable military" with a richer picker:
     /// every squad in the faction listed as a card with its billet, power, efficiency, travel time,
-    /// predicted win chance, and status. Confirm dispatches the chosen squad through
+    /// predicted win chance, and status. The raid type itself is selectable inside the dialog (no
+    /// second-level FloatMenu in the gizmo flow). Confirm dispatches the chosen squad through
     /// <see cref="MilitaryOperationManager.CreateOffensiveOp"/>.
-    /// <para>The same dialog is reused for any "pick a squad" flow (caravan defense routing, etc.)
-    /// — instantiate with a custom <c>onConfirm</c> callback and a <c>headerOverride</c>.</para>
+    /// <para>The dialog is also reused for "pick a squad" flows that don't need raid-type switching
+    /// (caravan defense routing, etc.) — instantiate via the override constructor with a single job,
+    /// a custom <c>onConfirm</c> callback, and a <c>headerOverride</c>.</para>
     /// </summary>
-    public class Dialog_SquadSourcePicker : Window
+    public class Dialog_AttackSettlement : Window
     {
-        public override Vector2 InitialSize => new Vector2(820f, 560f);
+        public override Vector2 InitialSize => new Vector2(820f, 600f);
 
         private readonly WorldObject target;
-        private readonly MilitaryJobDef job;
         private readonly Faction enemy;
+        private readonly List<MilitaryJobDef> validJobs; // null in override mode
         private readonly Action<MercenarySquadFC> onConfirm;
         private readonly string headerOverride;
+
+        /* Drives the picker: dropdown selection in default mode, pinned job in override mode.
+           Defender bounds and per-row attacker modifiers all depend on this through
+           BattleForceContext.kind, so any change must rebuild both. */
+        private MilitaryJobDef currentJob;
 
         private MercenarySquadFC selected;
         private Vector2 scrollPos;
@@ -33,10 +40,11 @@ namespace FactionColonies
         private SortMode sort = SortMode.WinChance;
 
         /* Defender power: the registry entry plus pre-built min/max bounds with
-         * BattleModifierRegistry already applied. Computed once at ctor — stable across
-         * window opens, stable within a session. The bounds frame the actual battle force
-         * the player will face: the engagement-time roll in MilitaryOperation.BeginEngagement
-         * lands somewhere in [defenderForceMin, defenderForceMax]. */
+         * BattleModifierRegistry already applied. Computed at ctor and rebuilt whenever the
+         * dropdown picks a new job — stable across redraws within a single job selection.
+         * The bounds frame the actual battle force the player will face: the engagement-time
+         * roll in MilitaryOperation.BeginEngagement lands somewhere in
+         * [defenderForceMin, defenderForceMax]. */
         private EnemyPower defenderPower;
         private MilitaryForce defenderForceMin;
         private MilitaryForce defenderForceMax;
@@ -51,6 +59,11 @@ namespace FactionColonies
         private const float CardDetailH = 22f;
         private const float CardH       = CardHeaderH + CardDetailH;
         private const float AccentW     = 4f;
+
+        /* Header layout constants */
+        private const float TitleH        = 32f;
+        private const float HeaderColGap  = 12f;
+        private const float OperationRowH = 28f;
 
         private enum SortMode
         {
@@ -74,21 +87,44 @@ namespace FactionColonies
             public bool available;
         }
 
-        /// <summary>Standard constructor for offensive-op picking.</summary>
-        public Dialog_SquadSourcePicker(WorldObject target, MilitaryJobDef job, Faction enemy)
-            : this(target, job, enemy, null, null) { }
+        /// <summary>Default mode: the dialog presents a switcher across the supplied job list.</summary>
+        public Dialog_AttackSettlement(WorldObject target, Faction enemy, List<MilitaryJobDef> jobs)
+            : this(target, enemy, jobs, jobs?.FirstOrDefault()) { }
 
-        /// <summary>Override constructor: caller supplies their own <paramref name="onConfirm"/>
-        /// (e.g. caravan defense). When non-null, the dialog calls it instead of creating an
-        /// offensive op via the manager.</summary>
-        public Dialog_SquadSourcePicker(WorldObject target, MilitaryJobDef job, Faction enemy,
+        /// <summary>Default mode with an explicit initial job (must be present in <paramref name="jobs"/>;
+        /// falls back to the first entry otherwise).</summary>
+        public Dialog_AttackSettlement(WorldObject target, Faction enemy, List<MilitaryJobDef> jobs, MilitaryJobDef initialJob)
+        {
+            this.target = target;
+            this.enemy = enemy;
+            this.validJobs = jobs;
+            this.onConfirm = null;
+            this.headerOverride = null;
+            this.currentJob = (initialJob is object && jobs is object && jobs.Contains(initialJob))
+                ? initialJob
+                : jobs?.FirstOrDefault();
+
+            doCloseX = true;
+            forcePause = false;
+            absorbInputAroundWindow = true;
+            closeOnClickedOutside = false;
+
+            BuildDefenderRange();
+        }
+
+        /// <summary>Override mode (caravan defense and similar): caller pins a single
+        /// <paramref name="job"/>, supplies their own <paramref name="onConfirm"/>, and an explicit
+        /// header title. The raid-type switcher is suppressed.</summary>
+        public Dialog_AttackSettlement(WorldObject target, MilitaryJobDef job, Faction enemy,
             Action<MercenarySquadFC> onConfirm, string headerOverride)
         {
             this.target = target;
-            this.job = job;
             this.enemy = enemy;
+            this.validJobs = null;
             this.onConfirm = onConfirm;
             this.headerOverride = headerOverride;
+            this.currentJob = job;
+
             doCloseX = true;
             forcePause = false;
             absorbInputAroundWindow = true;
@@ -105,6 +141,10 @@ namespace FactionColonies
          * and would need a per-row recompute path. */
         private void BuildDefenderRange()
         {
+            defenderPower = null;
+            defenderForceMin = null;
+            defenderForceMax = null;
+
             Settlement targetSettlement = target as Settlement;
             if (targetSettlement is null || enemy is null) return;
 
@@ -115,7 +155,7 @@ namespace FactionColonies
 
             BattleForceContext probeCtx = new BattleForceContext
             {
-                kind = job,
+                kind = currentJob,
                 targetTile = targetSettlement.Tile,
                 targetObject = targetSettlement,
                 aggressor = null
@@ -154,11 +194,12 @@ namespace FactionColonies
                 Find.WindowStack.Add(new FloatMenu(opts));
             }
 
-            // Card list
+            // Card list (framed)
             float listTop = toolbarY + 32f;
             float buttonsHeight = 36f;
             float listHeight = inRect.height - listTop - buttonsHeight - 6f;
             Rect listRect = new Rect(0, listTop, inRect.width, listHeight);
+            Widgets.DrawMenuSection(listRect);
             DrawCardList(listRect);
 
             // Buttons
@@ -167,7 +208,7 @@ namespace FactionColonies
             {
                 Close();
             }
-            bool canConfirm = selected is object && selected.IsAvailable;
+            bool canConfirm = selected is object && selected.IsAvailable && currentJob is object;
             if (!canConfirm) GUI.color = Color.gray;
             if (Widgets.ButtonText(new Rect(inRect.width - 160f, btnY, 150f, 32f), "Confirm".Translate(), true, true, canConfirm))
             {
@@ -179,66 +220,173 @@ namespace FactionColonies
             Text.Anchor = anchorBefore;
         }
 
-        /* Header: banner title, divider, target subhead with faction icon + relations color, defender power line.
-           When headerOverride is set (caravan-defense reuse), only the override title is shown — followed by the
-           defender power line if an enemy faction was supplied. Returns the y-coordinate just below the header block. */
+        /* Header: full-width title banner, then a two-column body — left = target row + defender
+           power line; right = "Operation:" dropdown + description + rewards. In override mode the
+           dialog has a pinned job, so the right column is suppressed and the body reverts to the
+           single-column layout from before this change. Returns the y just below the body. */
         private float DrawHeader(Rect inRect)
         {
-            // Title banner
-            float titleH = 32f;
-            Rect titleRect = new Rect(0, 0, inRect.width, titleH);
+            // Title banner (full width)
+            Rect titleRect = new Rect(0, 0, inRect.width, TitleH);
             Widgets.DrawHighlight(titleRect);
 
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
             string titleText = headerOverride.NullOrEmpty()
-                ? "FCSquadPickerHeader".Translate(job?.LabelCap ?? "?").ToString()
+                ? "FCSquadPickerTitle".Translate().ToString()
                 : headerOverride;
-            Widgets.Label(new Rect(8f, 0, inRect.width - 16f, titleH), titleText);
+            Widgets.Label(new Rect(8f, 0, inRect.width - 16f, TitleH), titleText);
 
-            // Divider
-            float dividerY = titleH;
-            UIUtil.DrawColoredHorizontalLine(0, dividerY, inRect.width, new Color(0.5f, 0.5f, 0.5f));
+            // Divider under title
+            UIUtil.DrawColoredHorizontalLine(0, TitleH, inRect.width, new Color(0.5f, 0.5f, 0.5f));
 
-            float y = dividerY + 6f;
+            float bodyTop = TitleH + 6f;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
 
-            // Target subhead — only in default (non-override) mode
-            if (headerOverride.NullOrEmpty())
+            bool twoColumn = headerOverride.NullOrEmpty() && validJobs is object && validJobs.Count > 0;
+
+            if (!twoColumn)
             {
-                float subRowH = 24f;
-                float iconSize = 22f;
-                float iconX = 8f;
-                if (enemy?.def?.FactionIcon != null)
+                // Single-column override mode: defender power line only, target row suppressed
+                // (the override title already names the engagement context).
+                float y = bodyTop;
+                if (defenderForceMin is object && defenderForceMax is object)
                 {
-                    GUI.DrawTexture(new Rect(iconX, y + (subRowH - iconSize) / 2f, iconSize, iconSize),
-                        enemy.def.FactionIcon);
+                    float defRowH = 22f;
+                    Widgets.Label(new Rect(8f, y, inRect.width - 16f, defRowH), DefenderLineText());
+                    y += defRowH;
                 }
-                float labelX = iconX + iconSize + 6f;
-                Color targetColor = enemy is object ? enemy.PlayerRelationKind.GetColor() : Color.white;
-                string targetName = target?.LabelCap ?? "?";
-                if (enemy is object && enemy.HasName)
-                    targetName = targetName + ", " + enemy.Name;
-                UIUtil.DrawColoredLabel(new Rect(labelX, y, inRect.width - labelX - 8f, subRowH),
-                    "FCSquadPickerTarget".Translate(targetName), targetColor);
-                y += subRowH;
+                return y;
             }
 
-            // Defender power line — shown whenever we have defender bounds (i.e. enemy settlement supplied)
+            // Two-column body
+            float colW = (inRect.width - HeaderColGap) * 0.5f;
+            Rect leftCol  = new Rect(0,                   bodyTop, colW, 0);
+            Rect rightCol = new Rect(colW + HeaderColGap, bodyTop, colW, 0);
+
+            float leftBottom  = DrawHeaderLeftColumn(leftCol);
+            float rightBottom = DrawHeaderRightColumn(rightCol);
+
+            // Vertical divider between columns, sized to the taller column
+            float bodyBottom = Math.Max(leftBottom, rightBottom);
+            Widgets.DrawBoxSolid(
+                new Rect(colW + HeaderColGap * 0.5f - 0.5f, bodyTop, 1f, bodyBottom - bodyTop),
+                new Color(0.5f, 0.5f, 0.5f));
+
+            return bodyBottom;
+        }
+
+        /* Left column: target row (faction icon + colored label) and defender power line. */
+        private float DrawHeaderLeftColumn(Rect col)
+        {
+            float y = col.y;
+            float subRowH = 24f;
+            float iconSize = 22f;
+            float iconX = col.x + 8f;
+
+            if (enemy?.def?.FactionIcon != null)
+            {
+                GUI.DrawTexture(new Rect(iconX, y + (subRowH - iconSize) / 2f, iconSize, iconSize),
+                    enemy.def.FactionIcon);
+            }
+            float labelX = iconX + iconSize + 6f;
+            Color targetColor = enemy is object ? enemy.PlayerRelationKind.GetColor() : Color.white;
+            string targetName = target?.LabelCap ?? "?";
+            if (enemy is object && enemy.HasName)
+                targetName = targetName + ", " + enemy.Name;
+            UIUtil.DrawColoredLabel(new Rect(labelX, y, col.xMax - labelX - 8f, subRowH),
+                "FCSquadPickerTarget".Translate(targetName), targetColor);
+            y += subRowH;
+
             if (defenderForceMin is object && defenderForceMax is object)
             {
                 float defRowH = 22f;
-                string defenderLine = "FCSquadPickerEstimatedDefender".Translate(
-                    defenderForceMin.forceRemaining,
-                    defenderForceMax.forceRemaining,
-                    defenderForceMin.militaryEfficiency.ToString("0.##"),
-                    defenderForceMax.militaryEfficiency.ToString("0.##")).ToString();
-                Widgets.Label(new Rect(8f, y, inRect.width - 16f, defRowH), defenderLine);
+                Widgets.Label(new Rect(col.x + 8f, y, col.width - 16f, defRowH), DefenderLineText());
                 y += defRowH;
             }
 
             return y;
+        }
+
+        /* Right column: "Operation:" label + dropdown button, then the wrapped description and
+           rewards lines. Description comes from Verse Def.description (auto-translated via
+           DefInjections); rewards comes from the optional rewardsDescKey. */
+        private float DrawHeaderRightColumn(Rect col)
+        {
+            float y = col.y;
+            float innerX = col.x + 8f;
+            float innerW = col.width - 16f;
+
+            // Operation dropdown row
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            float labelW = Mathf.Min(110f, innerW * 0.4f);
+            Widgets.Label(new Rect(innerX, y, labelW, OperationRowH),
+                (string)"FCSquadPickerOperation".Translate() + ":");
+            float btnX = innerX + labelW;
+            float btnW = innerW - labelW;
+            string btnLabel = currentJob is null ? "?" : currentJob.LabelCap.ToString();
+            if (Widgets.ButtonText(new Rect(btnX, y + 2f, btnW, OperationRowH - 4f), btnLabel))
+            {
+                List<FloatMenuOption> opts = new List<FloatMenuOption>();
+                foreach (MilitaryJobDef job in validJobs)
+                {
+                    MilitaryJobDef captured = job;
+                    opts.Add(new FloatMenuOption(captured.LabelCap, () => SetCurrentJob(captured)));
+                }
+                Find.WindowStack.Add(new FloatMenu(opts));
+            }
+            y += OperationRowH + 4f;
+
+            // Description (Def.description, auto-translated)
+            Text.Anchor = TextAnchor.UpperLeft;
+            string description = currentJob?.description;
+            if (!description.NullOrEmpty())
+            {
+                float h = Text.CalcHeight(description, innerW);
+                Widgets.Label(new Rect(innerX, y, innerW, h), description);
+                y += h + 4f;
+            }
+
+            // Rewards line (rewardsDesc is raw prose, translated via DefInjections)
+            string rewards = currentJob?.rewardsDesc;
+            if (!rewards.NullOrEmpty())
+            {
+                string rewardsLine = (string)"FCSquadPickerRewards".Translate() + ": " + rewards;
+                float h = Text.CalcHeight(rewardsLine, innerW);
+                Widgets.Label(new Rect(innerX, y, innerW, h), rewardsLine);
+                y += h;
+            }
+
+            Text.Anchor = TextAnchor.MiddleLeft;
+            return y;
+        }
+
+        /* Switching jobs invalidates defender bounds (BattleForceContext.kind drives them) and
+           per-row attacker modifiers (same), so we rebuild both. */
+        private void SetCurrentJob(MilitaryJobDef job)
+        {
+            if (job == currentJob) return;
+            currentJob = job;
+            BuildDefenderRange();
+            rowsDirty = true;
+        }
+
+        /* Builds the defender-power summary line, collapsing min/max ranges to a single value
+           when min == max (e.g. when defender variance is zero). */
+        private string DefenderLineText()
+        {
+            string forceText = FormatRange(defenderForceMin.forceRemaining, defenderForceMax.forceRemaining, "0");
+            string effText = FormatRange(defenderForceMin.militaryEfficiency, defenderForceMax.militaryEfficiency, "0.##");
+            return "FCSquadPickerEstimatedDefender".Translate(forceText, effText).ToString();
+        }
+
+        private static string FormatRange(double min, double max, string fmt)
+        {
+            return min == max
+                ? min.ToString(fmt)
+                : min.ToString(fmt) + "-" + max.ToString(fmt);
         }
 
         private void DrawCardList(Rect listRect)
@@ -349,10 +497,9 @@ namespace FactionColonies
             }
             else
             {
-                int minPct = (int)System.Math.Round(row.winChanceMin * 100);
-                int maxPct = (int)System.Math.Round(row.winChanceMax * 100);
-                winLbl = (string)"FCSquadColWinChance".Translate() + ": "
-                    + (minPct == maxPct ? minPct + "%" : minPct + "-" + maxPct + "%");
+                double minPct = Math.Round(row.winChanceMin * 100);
+                double maxPct = Math.Round(row.winChanceMax * 100);
+                winLbl = (string)"FCSquadColWinChance".Translate() + ": " + FormatRange(minPct, maxPct, "0") + "%";
             }
 
             Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
@@ -376,6 +523,7 @@ namespace FactionColonies
         {
             if (selected is null) return;
             if (!selected.IsAvailable) return;
+            if (currentJob is null) return;
 
             if (onConfirm is object)
             {
@@ -397,7 +545,7 @@ namespace FactionColonies
                 return;
             }
             RelationsUtilFC.AttackFaction(enemy);
-            manager.CreateOffensiveOp(selected, target, job, enemy, travel);
+            manager.CreateOffensiveOp(selected, target, currentJob, enemy, travel);
             Close();
         }
 
@@ -433,7 +581,7 @@ namespace FactionColonies
                 {
                     BattleForceContext rowCtx = new BattleForceContext
                     {
-                        kind = job,
+                        kind = currentJob,
                         targetTile = target.Tile,
                         targetObject = target,
                         aggressor = new MilitaryOperationParticipant

@@ -213,11 +213,13 @@
 	<FCDialogSquadAssignmentHeader>Reassign "{0}"</FCDialogSquadAssignmentHeader>
 	<FCDialogSquadAssignmentUnassign>Unassign (return to pool)</FCDialogSquadAssignmentUnassign>
 
-	<FCSquadPickerHeader>{0}</FCSquadPickerHeader>
+	<FCSquadPickerTitle>Attack settlement</FCSquadPickerTitle>
 	<FCSquadPickerTarget>Target: {0}</FCSquadPickerTarget>
-	<FCSquadPickerEstimatedDefender>Estimated defender power: {0}-{1} (Efficiency x{2}-{3})</FCSquadPickerEstimatedDefender>
+	<FCSquadPickerEstimatedDefender>Estimated defender power: {0} (Efficiency x{1})</FCSquadPickerEstimatedDefender>
 	<FCSquadPickerAvailableOnly>Available only</FCSquadPickerAvailableOnly>
 	<FCSquadPickerSort>Sort</FCSquadPickerSort>
+	<FCSquadPickerOperation>Operation</FCSquadPickerOperation>
+	<FCSquadPickerRewards>Rewards</FCSquadPickerRewards>
 
 	<FCSquadColName>Squad</FCSquadColName>
 	<FCSquadColTemplate>Template</FCSquadColTemplate>
