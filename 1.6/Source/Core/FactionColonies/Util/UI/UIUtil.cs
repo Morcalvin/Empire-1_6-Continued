@@ -16,6 +16,8 @@ namespace FactionColonies
         private static readonly Color TableHeaderBgColor = new Color(1f, 1f, 1f, 0.1f);
         private static readonly Color TableHeaderTextColor = new Color(0.85f, 0.85f, 0.85f);
 
+        public static Color Dim(Color c, float mag = 0.7f) => new Color(c.r * mag, c.g * mag, c.b * mag, c.a);
+
         public static void DrawProgressBar(Rect rect, float progress)
         {
             DrawProgressBarColors(rect, progress, Color.black, Color.cyan);

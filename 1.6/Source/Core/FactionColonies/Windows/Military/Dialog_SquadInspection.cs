@@ -545,21 +545,9 @@ namespace FactionColonies
             if (merc is null || merc.IsEmptySlot) return "FCSquadInspectionStatusEmpty".Translate();
             if (merc.pawn.Dead) return "FCSquadInspectionStatusDead".Translate();
             if (merc.pawn.Downed) return "FCSquadInspectionStatusDowned".Translate();
-            int injuries = CountActiveInjuries(merc.pawn);
+            int injuries = MercenarySquadFC.CountActiveInjuries(merc.pawn);
             if (injuries > 0) return "FCSquadInspectionStatusInjured".Translate(injuries);
             return "FCSquadInspectionStatusOk".Translate();
-        }
-
-        private static int CountActiveInjuries(Pawn pawn)
-        {
-            int n = 0;
-            List<Hediff> hediffs = pawn?.health?.hediffSet?.hediffs;
-            if (hediffs is null) return 0;
-            for (int i = 0; i < hediffs.Count; i++)
-            {
-                if (hediffs[i] is Hediff_Injury inj && !inj.IsPermanent()) n++;
-            }
-            return n;
         }
 
         /// <summary>Health-driven accent for the left edge of a card.
@@ -570,7 +558,7 @@ namespace FactionColonies
             if (merc is null || merc.IsEmptySlot) return AccentUtil.MilInactive;
             if (merc.pawn.Dead) return AccentUtil.MilInactive;
             if (merc.pawn.Downed) return AccentUtil.MilUnderAttack;
-            int injuries = CountActiveInjuries(merc.pawn);
+            int injuries = MercenarySquadFC.CountActiveInjuries(merc.pawn);
             if (injuries >= 3) return AccentUtil.MilActiveMission;
             if (injuries >= 1) return AccentUtil.MilCooldown;
             return AccentUtil.MilReady;

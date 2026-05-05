@@ -89,6 +89,7 @@ namespace FactionColonies
             public Color statusColor;
             public bool available;
             public int deploymentCost;
+            public int injuredCount;
         }
 
         /// <summary>Default mode: the dialog presents a switcher across the supplied job list.</summary>
@@ -200,7 +201,9 @@ namespace FactionColonies
             Rect sortButton = new Rect(inRect.xMax - sortButtonW - (margin * 2), toolbarY, sortButtonW, toolbarHeight);
             Rect checkbox = new Rect(sortButton.x - checkboxW - margin, toolbarY, checkboxW, toolbarHeight);
             Text.Anchor = TextAnchor.MiddleLeft;
+            bool prevAvailableOnly = availableOnly;
             Widgets.CheckboxLabeled(checkbox, "FCSquadPickerAvailableOnly".Translate(), ref availableOnly);
+            if (prevAvailableOnly != availableOnly) rowsDirty = true;
             if (Widgets.ButtonText(sortButton, "FCSquadPickerSort".Translate(SortLabel(sort))))
             {
                 List<FloatMenuOption> opts = new List<FloatMenuOption>
@@ -471,98 +474,156 @@ namespace FactionColonies
             ScrollUtil.EndScrollView();
         }
 
-        /* Per-squad card. Header row: accent strip, squad name, right-aligned status badge.
-           Detail row: Settlement / Power / Eff / Travel / Win-chance cells. The whole card is the
-           click target for selection — selected card uses the brighter selected highlight, hovered
-           non-selected card uses the standard hover highlight. */
+        /* Win-chance-derived color: drives the accent strip, name, win-chance box, and selected
+           highlight overlay. Midpoint matches the WinChance sort key so visual gradient and
+           sort order stay aligned. Falls back to MilInactive when the row has no attacker force. */
+        private static Color WinChanceColor(RowData row)
+        {
+            if (!row.hasAttackerForce) return AccentUtil.MilInactive;
+            double midPct = (row.winChanceMin + row.winChanceMax) * 50.0; // *0.5 then *100
+            return AccentUtil.GetStatColor((float)midPct, inverted: false);
+        }
+
+        /* Per-squad card. Header row: accent strip, squad name, win-chance box (Pow/Eff top,
+           WinChance bottom), and right-side column with status badge over Inspect button.
+           Detail row: Settlement / Travel / Cost cells. The whole card (minus the Inspect
+           button) is the click target for selection — selected card uses the brighter selected
+           highlight tinted by win-chance color, hovered non-selected card uses the standard
+           hover highlight. Card height stays at CardH (46 px). */
         private void DrawSquadCard(Rect cardRect, RowData row, int now)
         {
             MercenarySquadFC squad = row.squad;
+            Color winColor = WinChanceColor(row);
 
-            // Hover / selected highlight (whole card)
+            // Hover / selected highlight (whole card). Selected gets a faint win-chance tint
+            // overlay so the selection visual reinforces the box color.
             bool isSelected = selected == squad;
-            if (isSelected) Widgets.DrawHighlightSelected(cardRect);
-            else if (Mouse.IsOver(cardRect)) Widgets.DrawHighlight(cardRect);
+            if (isSelected)
+            {
+                Widgets.DrawHighlightSelected(cardRect);
+                Widgets.DrawBoxSolid(cardRect, new Color(winColor.r, winColor.g, winColor.b, 0.10f));
+            }
+            else if (Mouse.IsOver(cardRect))
+            {
+                Widgets.DrawHighlight(cardRect);
+            }
 
-            // Accent strip
-            Color accent = squad.settlement?.MilitaryComp != null
-                ? AccentUtil.GetMilitaryAccent(squad.settlement.MilitaryComp)
-                : AccentUtil.MilInactive;
-            Widgets.DrawBoxSolid(new Rect(cardRect.x, cardRect.y, AccentW, cardRect.height), accent);
+            // Accent strip — driven by win chance, not settlement military state.
+            Widgets.DrawBoxSolid(new Rect(cardRect.x, cardRect.y, AccentW, cardRect.height), winColor);
 
             float contentX = cardRect.x + AccentW + 6f;
-            float contentW = cardRect.xMax - contentX - 4f;
 
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
             Color colorBefore = GUI.color;
 
-            // Dim the whole card content when squad is unavailable (busy / cooldown / unassigned)
+            // Dim card content when squad is unavailable (busy / cooldown / unassigned).
             Color baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
 
-            /* === HEADER ROW === */
+            /* Right-side column: status badge (top) + Inspect button (bottom), same width. */
+            const float btnH = 20f;
+            const float rightColW = 110f;
+            const float boxW = 150f;
+            const float boxGap = 15f;
+
+            float rightColX = cardRect.xMax - rightColW - 4f;
             float headerY = cardRect.y;
-            float statusW = 180f;
-
-            // Status badge (right)
-            Text.Font = GameFont.Tiny;
-            Text.Anchor = TextAnchor.MiddleRight;
-            GUI.color = row.statusColor;
-            Widgets.Label(new Rect(cardRect.xMax - statusW - 4f, headerY, statusW, CardHeaderH), row.status);
-
-            // Squad name (left, accent-colored)
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = row.available ? accent : new Color(accent.r * 0.7f, accent.g * 0.7f, accent.b * 0.7f);
-            float nameW = contentW - statusW - 6f;
-            Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), squad.DisplayName);
-
-            /* === DETAIL ROW === */
             float detailY = cardRect.y + CardHeaderH;
+
+            // Status badge — top of right column, centered.
             Text.Font = GameFont.Tiny;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = baseTint;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            GUI.color = row.statusColor;
+            Widgets.Label(new Rect(rightColX, headerY, rightColW, CardHeaderH), row.status);
 
-            float dx = contentX;
-            float colSettlement = 220f;
-            float colPower      = 95f;
-            float colEff        = 90f;
-            float colTravel     = 110f;
-            float colCost       = 90f;
-            float colWin        = Math.Max(0f, contentW - colSettlement - colPower - colEff - colTravel - colCost);
+            // Inspect button — bottom of right column, same width as the status badge above.
+            // Drawn *before* the whole-card invisible button so its click is consumed first.
+            GUI.color = colorBefore;
+            MercenarySquadFC capturedSquad = squad;
+            Rect inspectRect = new Rect(rightColX, detailY + 1f, rightColW, btnH);
+            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate()))
+            {
+                Find.WindowStack.Add(new Dialog_SquadInspection(capturedSquad));
+            }
+            TooltipHandler.TipRegion(inspectRect, "FCMilBtnInspectTip".Translate());
 
-            string settlementLbl = "FCSquadColBillet".Translate() + ": "
-                + (squad.settlement?.Name ?? "FCMilitaryTableSlotEmpty".Translate());
-            string powerLbl = "FCSquadColPower".Translate() + ": " + row.attackerPower.ToString("0.0");
+            /* Win-chance box — Pow + Eff stacked vertically on the left, Win chance on the right
+               with a horizontal peak-gradient band (dimmed win-chance color) behind it. No
+               full-box highlight — the gradient is the only color cue inside the box. */
+            float boxX = rightColX - boxGap - boxW;
+            Rect boxRect = new Rect(boxX, cardRect.y + 4f, boxW, cardRect.height - 8f);
+
+            string powLbl = (string)"FCSquadColPower".Translate() + ": " + row.attackerPower.ToString("0.0");
             string effLbl = row.hasAttackerForce
                 ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.attackerEfficiency.ToString("0.##")
                 : (string)"FCSquadColEfficiency".Translate() + ": -";
-            string travelLbl = "FCSquadColTravel".Translate() + ": "
-                + (squad.IsAssigned && target is object
-                    ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
-                    : "-");
             string winLbl;
-            if (!row.available)
-            {
-                winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
-            }
-            else
+            if (row.hasAttackerForce && (row.winChanceMin > 0 || row.winChanceMax > 0))
             {
                 double minPct = Math.Round(row.winChanceMin * 100);
                 double maxPct = Math.Round(row.winChanceMax * 100);
                 winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
             }
+            else
+            {
+                winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
+            }
 
+            float halfBoxW = boxW * 0.5f;
+            float halfBoxH = boxRect.height * 0.5f;
+
+            // Pow / Eff stacked vertically on the left half. White text (dimmed when unavailable).
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = baseTint;
+            Widgets.Label(new Rect(boxX, boxRect.y,             halfBoxW, halfBoxH), powLbl);
+            Widgets.Label(new Rect(boxX, boxRect.y + halfBoxH,  halfBoxW, halfBoxH), effLbl);
+
+            // Win chance on the right half, vertically centered, with a peak-gradient band
+            // behind it tinted by a dimmed win-chance color so the (full-saturation) label
+            // remains legible even when the color is red.
+            Rect winRect = new Rect(boxX + halfBoxW, boxRect.y, halfBoxW, boxRect.height);
+            const float gradH = 28f;
+            Rect gradRect = new Rect(winRect.x-10f, winRect.center.y - gradH * 0.5f, winRect.width+20f, gradH);
+            Color gradColor = UIUtil.Dim(winColor, 0.3f);
+            TexLoad.DrawHorizontalPeakGradient(gradRect, gradColor);
+
+            GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Widgets.Label(winRect, winLbl);
+
+            /* Squad name (left, win-chance colored) — header row, left of the box. */
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
+            float nameW = boxX - contentX - boxGap;
+            if (nameW < 0f) nameW = 0f;
+            Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), squad.DisplayName);
+
+            /* Detail row — Settlement | Travel | Cost, left of the box. */
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = baseTint;
+
+            float labelsW = boxX - contentX - boxGap;
+            if (labelsW < 0f) labelsW = 0f;
+            float colSettlement = Math.Min(220f, labelsW * 0.5f);
+            float colTravel     = Math.Min(120f, Math.Max(0f, (labelsW - colSettlement) * 0.5f));
+            float colCost       = Math.Max(0f, labelsW - colSettlement - colTravel);
+
+            string settlementLbl = "FCSquadColBillet".Translate() + ": "
+                + (squad.settlement?.Name ?? "FCMilitaryTableSlotEmpty".Translate());
+            string travelLbl = "FCSquadColTravel".Translate() + ": "
+                + (squad.IsAssigned && target is object
+                    ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
+                    : "-");
             string costLbl = (string)"FCSquadColDeploymentCost".Translate() + ": $" + row.deploymentCost;
 
+            float dx = contentX;
             Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
-            Widgets.Label(new Rect(dx, detailY, colPower,      CardDetailH), powerLbl);      dx += colPower;
-            Widgets.Label(new Rect(dx, detailY, colEff,        CardDetailH), effLbl);        dx += colEff;
             Widgets.Label(new Rect(dx, detailY, colTravel,     CardDetailH), travelLbl);     dx += colTravel;
-            Widgets.Label(new Rect(dx, detailY, colCost,       CardDetailH), costLbl);       dx += colCost;
-            Widgets.Label(new Rect(dx, detailY, colWin,        CardDetailH), winLbl);
+            Widgets.Label(new Rect(dx, detailY, colCost,       CardDetailH), costLbl);
 
-            // Whole-card click → select
+            // Whole-card click → select. Drawn last so the Inspect button consumes its click first.
             if (Widgets.ButtonInvisible(cardRect))
             {
                 selected = squad;
@@ -653,10 +714,12 @@ namespace FactionColonies
                 }
 
                 /* Win chance against MAX defender = lower bound; against MIN defender = upper bound.
-                 * (Stronger defender => lower attacker win chance, and vice versa.) */
+                 * (Stronger defender => lower attacker win chance, and vice versa.) Computed for
+                 * unavailable squads too — the value still reads as "if this squad were ready,
+                 * here's how it would do" and drives the win-chance-tinted card highlights. */
                 double winChanceMin = 0;
                 double winChanceMax = 0;
-                if (available && hasAttackerForce && defenderForceMin is object && defenderForceMax is object)
+                if (hasAttackerForce && defenderForceMin is object && defenderForceMax is object)
                 {
                     winChanceMin = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, defenderForceMax);
                     winChanceMax = SimulateBattleFc.CalculateAttackerWinChance(attackerForce, defenderForceMin);
@@ -664,7 +727,15 @@ namespace FactionColonies
 
                 string status;
                 Color statusColor;
-                ComputeStatus(squad, now, out status, out statusColor);
+                bool isReady;
+                ComputeStatus(squad, now, out status, out statusColor, out isReady);
+
+                int injuredCount = squad.CountInjuredMercs();
+                if (isReady && injuredCount > 0)
+                {
+                    status = "FCSquadStatusInjured".Translate(injuredCount);
+                    statusColor = AccentUtil.MilActiveMission;
+                }
 
                 rows.Add(new RowData
                 {
@@ -678,7 +749,8 @@ namespace FactionColonies
                     status = status,
                     statusColor = statusColor,
                     available = available,
-                    deploymentCost = squad.DeploymentCost
+                    deploymentCost = squad.DeploymentCost,
+                    injuredCount = injuredCount
                 });
             }
 
@@ -695,9 +767,12 @@ namespace FactionColonies
         }
 
         /* Mirrors HireSquadsWindow.ComputeStatus / ColorForStatus — kept local to avoid promoting a
-           9-line helper to public surface for one caller. */
-        private static void ComputeStatus(MercenarySquadFC squad, int now, out string status, out Color color)
+           9-line helper to public surface for one caller. The isReady out lets callers layer
+           additional ready-state badges (e.g. "n Injured") without re-deriving the state. */
+        private static void ComputeStatus(MercenarySquadFC squad, int now,
+            out string status, out Color color, out bool isReady)
         {
+            isReady = false;
             if (!squad.IsAssigned)
             {
                 status = "FCSquadStatusUnassigned".Translate();
@@ -724,6 +799,7 @@ namespace FactionColonies
             }
             status = "FCSquadStatusReady".Translate();
             color = AccentUtil.MilReady;
+            isReady = true;
         }
 
         private static string SortLabel(SortMode mode)

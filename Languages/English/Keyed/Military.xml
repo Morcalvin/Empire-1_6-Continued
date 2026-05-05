@@ -239,6 +239,7 @@
 	<FCSquadStatusUnassigned>Unassigned</FCSquadStatusUnassigned>
 	<FCSquadStatusCooldown>Cooldown {0} d</FCSquadStatusCooldown>
 	<FCSquadStatusBusyOp>Busy: {0} ({1} d)</FCSquadStatusBusyOp>
+	<FCSquadStatusInjured>{0} Injured</FCSquadStatusInjured>
 
 	<FCSquadActReassign>Reassign</FCSquadActReassign>
 	<FCSquadActUpgrade>Upgrade</FCSquadActUpgrade>

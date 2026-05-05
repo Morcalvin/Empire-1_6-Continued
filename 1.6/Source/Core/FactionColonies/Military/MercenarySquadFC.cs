@@ -138,6 +138,49 @@ namespace FactionColonies
         /// post-op cooldown. Canonical "can launch a new op" gate.</summary>
         public bool IsAvailable => IsAssigned && !IsBusy && nextAvailableTick <= Find.TickManager.TicksGame;
 
+        /* Injury counts. The per-pawn primitive is shared with squad-level aggregates so a
+         * single change to the "what counts as injured" rule (e.g. excluding scratches) lands
+         * everywhere at once. */
+
+        /// <summary>Number of active (non-permanent) injuries on a single pawn. Returns 0 for null.</summary>
+        public static int CountActiveInjuries(Pawn pawn)
+        {
+            int n = 0;
+            List<Hediff> hediffs = pawn?.health?.hediffSet?.hediffs;
+            if (hediffs is null) return 0;
+            for (int i = 0; i < hediffs.Count; i++)
+            {
+                if (hediffs[i] is Hediff_Injury inj && !inj.IsPermanent()) n++;
+            }
+            return n;
+        }
+
+        /// <summary>Total number of active (non-permanent) injuries summed across all mercs in the squad.</summary>
+        public int CountActiveInjuries()
+        {
+            int total = 0;
+            if (mercenaries is null) return 0;
+            foreach (Mercenary m in mercenaries)
+            {
+                if (m is null || m.IsEmptySlot) continue;
+                total += CountActiveInjuries(m.pawn);
+            }
+            return total;
+        }
+
+        /// <summary>Number of mercs with at least one active (non-permanent) injury — head count, not wound count.</summary>
+        public int CountInjuredMercs()
+        {
+            int count = 0;
+            if (mercenaries is null) return 0;
+            foreach (Mercenary m in mercenaries)
+            {
+                if (m is null || m.IsEmptySlot) continue;
+                if (CountActiveInjuries(m.pawn) > 0) count++;
+            }
+            return count;
+        }
+
         /// <summary>Sum of equipment market values across all currently-equipped mercenaries,
         /// read from each merc's <see cref="Mercenary.EffectiveLoadout"/> (the source of truth
         /// for what's actually equipped, falling back to the blueprint when no equip snapshot
