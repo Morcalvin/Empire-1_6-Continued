@@ -114,6 +114,10 @@ namespace FactionColonies
             GUI.DrawTexture(rect, gradientHorizontal, ScaleMode.StretchToFill, true);
             GUI.color = prev;
         }
+        public static void DrawHorizontalGradientLine(float x, float y, float width, Color color)
+        {
+            DrawHorizontalGradient(new Rect(x, y, width, 1f), color);
+        }
 
         private static Texture2D CreateVerticalGradient()
         {
@@ -144,6 +148,10 @@ namespace FactionColonies
             GUI.DrawTexture(rect, gradientVertical, ScaleMode.StretchToFill, true);
             GUI.color = prev;
         }
+        public static void DrawVerticalGradientLine(float x, float y, float height, Color color)
+        {
+            DrawVerticalGradient(new Rect(x, y, 1f, height), color);
+        }
 
         /// <summary>
         /// Draws a horizontal gradient that fades in from transparent, peaks in the middle, and fades back out.
@@ -151,6 +159,10 @@ namespace FactionColonies
         public static void DrawHorizontalPeakGradient(Rect rect, Color color)
         {
             DrawHorizontalPeakGradient(rect, color, 0.5f, 0.5f);
+        }
+        public static void DrawHorizontalPeakGradientLine(float x, float y, float width, Color color)
+        {
+            DrawHorizontalPeakGradient(new Rect(x, y, width, 1f), color);
         }
 
         /// <summary>
@@ -201,6 +213,10 @@ namespace FactionColonies
         public static void DrawVerticalPeakGradient(Rect rect, Color color)
         {
             DrawVerticalPeakGradient(rect, color, 0.5f, 0.5f);
+        }
+        public static void DrawVerticalPeakGradientLine(float x, float y, float height, Color color)
+        {
+            DrawVerticalPeakGradient(new Rect(x, y, 1f, height), color);
         }
 
         /// <summary>

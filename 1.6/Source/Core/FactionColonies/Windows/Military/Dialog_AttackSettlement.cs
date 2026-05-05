@@ -52,6 +52,9 @@ namespace FactionColonies
         private List<RowData> rows = new List<RowData>();
         private bool rowsDirty = true;
 
+        private const float margin = 5f;
+        private const float smallMargin = 3f;
+
         /* Card layout constants — mirror HireSquadsWindow so the two squad-listing surfaces share rhythm. */
         private const float Pad         = 4f;
         private const float RowGap      = 2f;
@@ -61,9 +64,9 @@ namespace FactionColonies
         private const float AccentW     = 4f;
 
         /* Header layout constants */
-        private const float TitleH        = 32f;
-        private const float HeaderColGap  = 12f;
-        private const float OperationRowH = 28f;
+        private const float TitleH       = 32f;
+        private const float HeaderColGap = 12f;
+        private const float SubHeaderH   = 28f;
 
         private enum SortMode
         {
@@ -105,9 +108,10 @@ namespace FactionColonies
                 : jobs?.FirstOrDefault();
 
             doCloseX = true;
-            forcePause = false;
-            absorbInputAroundWindow = true;
+            forcePause = true;
+            absorbInputAroundWindow = false;
             closeOnClickedOutside = false;
+            draggable = true;
 
             BuildDefenderRange();
         }
@@ -173,16 +177,30 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Color colorBefore = GUI.color;
 
+            const float SquadHeaderH = 22f;
+
             float headerBottom = DrawHeader(inRect);
 
-            // Filter / sort row
-            float toolbarY = headerBottom + 4f;
+            // "Select Squad" sub-header
+            float subHeaderY = headerBottom + 4f;
+            TexLoad.DrawHorizontalPeakGradientLine(0, subHeaderY, inRect.width, Color.gray);
+            subHeaderY += 4f;
             Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.UpperLeft;
-            Widgets.CheckboxLabeled(new Rect(0, toolbarY, 160f, 24f),
-                "FCSquadPickerAvailableOnly".Translate(), ref availableOnly);
-            if (Widgets.ButtonText(new Rect(180f, toolbarY, 200f, 24f),
-                "FCSquadPickerSort".Translate() + ": " + SortLabel(sort)))
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Rect squadHeader = new Rect(0, subHeaderY, inRect.width, SquadHeaderH);
+            Widgets.DrawHighlight(squadHeader);
+            Widgets.Label(squadHeader, "FCSquadPickerSelectSquad".Translate());
+
+            // Filter / sort row
+            float toolbarY = subHeaderY + SquadHeaderH + 2f;
+            float toolbarHeight = 24f;
+            float sortButtonW = 200f;
+            float checkboxW = 160f;
+            Rect sortButton = new Rect(inRect.xMax - sortButtonW - (margin * 2), toolbarY, sortButtonW, toolbarHeight);
+            Rect checkbox = new Rect(sortButton.x - checkboxW - margin, toolbarY, checkboxW, toolbarHeight);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.CheckboxLabeled(checkbox, "FCSquadPickerAvailableOnly".Translate(), ref availableOnly);
+            if (Widgets.ButtonText(sortButton, "FCSquadPickerSort".Translate(SortLabel(sort))))
             {
                 List<FloatMenuOption> opts = new List<FloatMenuOption>
                 {
@@ -233,12 +251,12 @@ namespace FactionColonies
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
             string titleText = headerOverride.NullOrEmpty()
-                ? "FCSquadPickerTitle".Translate().ToString()
+                ? (string)"FCSquadPickerTitle".Translate()
                 : headerOverride;
             Widgets.Label(new Rect(8f, 0, inRect.width - 16f, TitleH), titleText);
 
             // Divider under title
-            UIUtil.DrawColoredHorizontalLine(0, TitleH, inRect.width, new Color(0.5f, 0.5f, 0.5f));
+            UIUtil.DrawColoredHorizontalLine(0, TitleH, inRect.width, Color.gray);
 
             float bodyTop = TitleH + 6f;
             Text.Font = GameFont.Small;
@@ -277,31 +295,61 @@ namespace FactionColonies
             return bodyBottom;
         }
 
-        /* Left column: target row (faction icon + colored label) and defender power line. */
+        /* Left column: a centered, highlighted target box (Target / faction icon + name /
+           settlement name) followed by the defender power line. */
         private float DrawHeaderLeftColumn(Rect col)
         {
             float y = col.y;
-            float subRowH = 24f;
-            float iconSize = 22f;
-            float iconX = col.x + 8f;
+
+            const float TargetFactionRowH = 24f;
+            const float TargetSettlementH = 28f;
+            const float TargetIconSize = 22f;
+            const float TargetIconGap = 6f;
+
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleCenter;
+
+            // Target header row
+            Rect targetHeader = new Rect(col.x + margin, y, col.width - (margin * 2), SubHeaderH);
+            Rect targetHeaderLabel = new Rect(targetHeader.x + smallMargin, targetHeader.y, targetHeader.width - (smallMargin * 2), targetHeader.height);
+            Widgets.Label(targetHeaderLabel, "FCSquadPickerTarget".Translate());
+            TexLoad.DrawHorizontalPeakGradientLine(targetHeader.x, targetHeader.yMax, targetHeader.width, Color.gray);
+            y += targetHeader.height + margin;
+
+            Color relationsColor = enemy?.PlayerRelationKind.GetColor() ?? Color.white;
+
+            // faction icon (faction color) + faction name (relations color), centered as a unit
+            Text.Anchor = TextAnchor.MiddleCenter;
+            string factionName = enemy?.Name ?? "?";
+            Vector2 nameSize = Text.CalcSize(factionName);
+            float groupW = (enemy?.def?.FactionIcon != null ? TargetIconSize + TargetIconGap : 0f) + nameSize.x;
+            float groupX = col.x + (col.width - groupW) * 0.5f;
 
             if (enemy?.def?.FactionIcon != null)
             {
-                GUI.DrawTexture(new Rect(iconX, y + (subRowH - iconSize) / 2f, iconSize, iconSize),
-                    enemy.def.FactionIcon);
+                Color colorBefore = GUI.color;
+                GUI.color = enemy.Color;
+                GUI.DrawTexture(new Rect(groupX, y + (TargetFactionRowH - TargetIconSize) / 2f,
+                    TargetIconSize, TargetIconSize), enemy.def.FactionIcon);
+                GUI.color = colorBefore;
+                groupX += TargetIconSize + TargetIconGap;
             }
-            float labelX = iconX + iconSize + 6f;
-            Color targetColor = enemy is object ? enemy.PlayerRelationKind.GetColor() : Color.white;
-            string targetName = target?.LabelCap ?? "?";
-            if (enemy is object && enemy.HasName)
-                targetName = targetName + ", " + enemy.Name;
-            UIUtil.DrawColoredLabel(new Rect(labelX, y, col.xMax - labelX - 8f, subRowH),
-                "FCSquadPickerTarget".Translate(targetName), targetColor);
-            y += subRowH;
 
+            UIUtil.DrawColoredLabel(new Rect(groupX, y, nameSize.x + 4f, TargetFactionRowH), factionName, relationsColor);
+            y += TargetFactionRowH;
+
+            // settlement name, Medium font, centered, relations color
+            Text.Font = GameFont.Medium;
+            UIUtil.DrawColoredLabel(new Rect(col.x, y, col.width, TargetSettlementH), target?.LabelCap ?? "?", relationsColor);
+
+            Text.Font = GameFont.Small;
+            y += TargetSettlementH;
+
+            // Defender power line — sits below the target box
             if (defenderForceMin is object && defenderForceMax is object)
             {
                 float defRowH = 22f;
+                y += 4f;
                 Widgets.Label(new Rect(col.x + 8f, y, col.width - 16f, defRowH), DefenderLineText());
                 y += defRowH;
             }
@@ -318,16 +366,21 @@ namespace FactionColonies
             float innerX = col.x + 8f;
             float innerW = col.width - 16f;
 
-            // Operation dropdown row
             Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            float labelW = Mathf.Min(110f, innerW * 0.4f);
-            Widgets.Label(new Rect(innerX, y, labelW, OperationRowH),
-                (string)"FCSquadPickerOperation".Translate() + ":");
-            float btnX = innerX + labelW;
-            float btnW = innerW - labelW;
+            Text.Anchor = TextAnchor.MiddleCenter;
+
+            // Operation header row
+            Rect opHeader = new Rect(col.x + margin, y, col.width - (margin * 2), SubHeaderH);
+            Rect opHeaderLabel = new Rect(opHeader.x + smallMargin, opHeader.y, opHeader.width - (smallMargin * 2), opHeader.height);
+            Widgets.Label(opHeaderLabel, "FCSquadPickerOperation".Translate());
+            TexLoad.DrawHorizontalPeakGradientLine(opHeader.x, opHeader.yMax, opHeader.width, Color.gray);
+            y += opHeader.height + margin;
+
+            // Operation dropdown row
+            float buttonMargin = margin * 3;
+            Rect opButton = new Rect(col.x + buttonMargin, y, col.width - (buttonMargin * 2), SubHeaderH - 4f);
             string btnLabel = currentJob is null ? "?" : currentJob.LabelCap.ToString();
-            if (Widgets.ButtonText(new Rect(btnX, y + 2f, btnW, OperationRowH - 4f), btnLabel))
+            if (Widgets.ButtonText(opButton, btnLabel))
             {
                 List<FloatMenuOption> opts = new List<FloatMenuOption>();
                 foreach (MilitaryJobDef job in validJobs)
@@ -337,9 +390,9 @@ namespace FactionColonies
                 }
                 Find.WindowStack.Add(new FloatMenu(opts));
             }
-            y += OperationRowH + 4f;
+            y += opButton.height + margin;
 
-            // Description (Def.description, auto-translated)
+            // Description
             Text.Anchor = TextAnchor.UpperLeft;
             string description = currentJob?.description;
             if (!description.NullOrEmpty())
@@ -349,7 +402,7 @@ namespace FactionColonies
                 y += h + 4f;
             }
 
-            // Rewards line (rewardsDesc is raw prose, translated via DefInjections)
+            // Rewards line
             string rewards = currentJob?.rewardsDesc;
             if (!rewards.NullOrEmpty())
             {
@@ -405,11 +458,14 @@ namespace FactionColonies
 
             int now = Find.TickManager.TicksGame;
             float runningY = 0f;
+            bool alternate = false;
             for (int i = 0; i < rows.Count; i++)
             {
                 Rect cardRect = new Rect(0f, runningY, scrollRect.width, CardH);
+                if (alternate) Widgets.DrawAltRect(cardRect);
                 DrawSquadCard(cardRect, rows[i], now);
                 runningY += CardH + RowGap;
+                alternate = !alternate;
             }
             ScrollUtil.EndScrollView();
         }
@@ -473,13 +529,13 @@ namespace FactionColonies
             float colTravel     = 110f;
             float colWin        = Math.Max(0f, contentW - colSettlement - colPower - colEff - colTravel);
 
-            string settlementLbl = (string)"FCSquadColBillet".Translate() + ": "
-                + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
-            string powerLbl = (string)"FCSquadColPower".Translate() + ": " + row.attackerPower.ToString("0.0");
+            string settlementLbl = "FCSquadColBillet".Translate() + ": "
+                + (squad.settlement?.Name ?? "FCMilitaryTableSlotEmpty".Translate());
+            string powerLbl = "FCSquadColPower".Translate() + ": " + row.attackerPower.ToString("0.0");
             string effLbl = row.hasAttackerForce
                 ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.attackerEfficiency.ToString("0.##")
                 : (string)"FCSquadColEfficiency".Translate() + ": -";
-            string travelLbl = (string)"FCSquadColTravel".Translate() + ": "
+            string travelLbl = "FCSquadColTravel".Translate() + ": "
                 + (squad.IsAssigned && target is object
                     ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
                     : "-");
@@ -521,7 +577,7 @@ namespace FactionColonies
             if (onConfirm is object)
             {
                 try { onConfirm(selected); }
-                catch (Exception e) { LogUtil.Error($"Dialog_SquadSourcePicker.onConfirm threw: {e}"); }
+                catch (Exception e) { LogUtil.Error($"Dialog_AttackSettlement.onConfirm threw: {e}"); }
                 Close();
                 return;
             }
@@ -529,11 +585,11 @@ namespace FactionColonies
             // Default behavior: create offensive op via manager.
             int travel = selected.settlement is object && target is object
                 ? TravelUtil.ReturnTicksToArrive(selected.settlement.Tile, target.Tile)
-                : 60000;
+                : GenDate.TicksPerDay;
             MilitaryOperationManager manager = FactionCache.MilitaryManager;
             if (manager is null)
             {
-                LogUtil.Error("Dialog_SquadSourcePicker.Confirm: MilitaryManager unavailable.");
+                LogUtil.Error("Dialog_AttackSettlement.Confirm: MilitaryManager unavailable.");
                 Close();
                 return;
             }
