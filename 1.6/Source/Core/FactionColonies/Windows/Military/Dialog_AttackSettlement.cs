@@ -377,16 +377,9 @@ namespace FactionColonies
            when min == max (e.g. when defender variance is zero). */
         private string DefenderLineText()
         {
-            string forceText = FormatRange(defenderForceMin.forceRemaining, defenderForceMax.forceRemaining, "0");
-            string effText = FormatRange(defenderForceMin.militaryEfficiency, defenderForceMax.militaryEfficiency, "0.##");
+            string forceText = TextUtil.FormatRange(defenderForceMin.forceRemaining, defenderForceMax.forceRemaining, "0");
+            string effText = TextUtil.FormatRange(defenderForceMin.militaryEfficiency, defenderForceMax.militaryEfficiency, "0.##");
             return "FCSquadPickerEstimatedDefender".Translate(forceText, effText).ToString();
-        }
-
-        private static string FormatRange(double min, double max, string fmt)
-        {
-            return min == max
-                ? min.ToString(fmt)
-                : min.ToString(fmt) + "-" + max.ToString(fmt);
         }
 
         private void DrawCardList(Rect listRect)
@@ -499,7 +492,7 @@ namespace FactionColonies
             {
                 double minPct = Math.Round(row.winChanceMin * 100);
                 double maxPct = Math.Round(row.winChanceMax * 100);
-                winLbl = (string)"FCSquadColWinChance".Translate() + ": " + FormatRange(minPct, maxPct, "0") + "%";
+                winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
             }
 
             Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
