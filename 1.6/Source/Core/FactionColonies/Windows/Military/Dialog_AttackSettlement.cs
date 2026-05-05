@@ -88,6 +88,7 @@ namespace FactionColonies
             public string status;
             public Color statusColor;
             public bool available;
+            public int deploymentCost;
         }
 
         /// <summary>Default mode: the dialog presents a switcher across the supplied job list.</summary>
@@ -527,7 +528,8 @@ namespace FactionColonies
             float colPower      = 95f;
             float colEff        = 90f;
             float colTravel     = 110f;
-            float colWin        = Math.Max(0f, contentW - colSettlement - colPower - colEff - colTravel);
+            float colCost       = 90f;
+            float colWin        = Math.Max(0f, contentW - colSettlement - colPower - colEff - colTravel - colCost);
 
             string settlementLbl = "FCSquadColBillet".Translate() + ": "
                 + (squad.settlement?.Name ?? "FCMilitaryTableSlotEmpty".Translate());
@@ -551,10 +553,13 @@ namespace FactionColonies
                 winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
             }
 
+            string costLbl = (string)"FCSquadColDeploymentCost".Translate() + ": $" + row.deploymentCost;
+
             Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
             Widgets.Label(new Rect(dx, detailY, colPower,      CardDetailH), powerLbl);      dx += colPower;
             Widgets.Label(new Rect(dx, detailY, colEff,        CardDetailH), effLbl);        dx += colEff;
             Widgets.Label(new Rect(dx, detailY, colTravel,     CardDetailH), travelLbl);     dx += colTravel;
+            Widgets.Label(new Rect(dx, detailY, colCost,       CardDetailH), costLbl);       dx += colCost;
             Widgets.Label(new Rect(dx, detailY, colWin,        CardDetailH), winLbl);
 
             // Whole-card click → select
@@ -594,6 +599,7 @@ namespace FactionColonies
                 return;
             }
             RelationsUtilFC.AttackFaction(enemy);
+            PaymentUtil.CreateDeploymentCostBill(selected);
             manager.CreateOffensiveOp(selected, target, currentJob, enemy, travel);
             Close();
         }
@@ -671,7 +677,8 @@ namespace FactionColonies
                     hasAttackerForce = hasAttackerForce,
                     status = status,
                     statusColor = statusColor,
-                    available = available
+                    available = available,
+                    deploymentCost = squad.DeploymentCost
                 });
             }
 

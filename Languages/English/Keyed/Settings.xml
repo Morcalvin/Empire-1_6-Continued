@@ -64,6 +64,19 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingSquadDismissalRefundFractionTip>Fraction of the recorded hire cost returned when a squad is dismissed. 0.5 = 50% refund; 1.0 = full refund; 0.0 = no refund.</FCSettingSquadDismissalRefundFractionTip>
 	<FCSettingSquadUpgradeCostMultiplier>Squad Upgrade Cost Multiplier</FCSettingSquadUpgradeCostMultiplier>
 	<FCSettingSquadUpgradeCostMultiplierTip>Multiplier applied to the diff between a hired squad's current loadout and its source template when the player upgrades the squad to match.</FCSettingSquadUpgradeCostMultiplierTip>
+	<FCSettingSquadDeploymentCostPercentage>Squad Deployment Cost</FCSettingSquadDeploymentCostPercentage>
+	<FCSettingSquadDeploymentCostPercentageTip>Percentage of a squad's current equipment value billed in silver each time it is deployed (sent to a player map or on an offensive operation). Defensive operations are free. The cost becomes a bill against the squad's home settlement, due after the lifespan setting expires. 0% disables the cost.</FCSettingSquadDeploymentCostPercentageTip>
+	<FCSettingDeploymentBillLifespan>Deployment Bill Lifespan</FCSettingDeploymentBillLifespan>
+	<FCSettingDeploymentBillLifespanTip>Number of days a deployment-cost bill remains payable before it expires and the settlement takes the late- or unpaid-bill penalty. Independent of the tax cycle.</FCSettingDeploymentBillLifespanTip>
+	<FCSettingBillPenaltiesHeader>Bill Penalties</FCSettingBillPenaltiesHeader>
+	<FCSettingBillUnpaidUnrestPenalty>Unpaid Bill Unrest Penalty</FCSettingBillUnpaidUnrestPenalty>
+	<FCSettingBillUnpaidUnrestPenaltyTip>Unrest gained by a settlement when one of its bills (tax or deployment) expires unpaid. Default 10.</FCSettingBillUnpaidUnrestPenaltyTip>
+	<FCSettingBillUnpaidHappinessPenalty>Unpaid Bill Happiness Penalty</FCSettingBillUnpaidHappinessPenalty>
+	<FCSettingBillUnpaidHappinessPenaltyTip>Happiness lost by a settlement when one of its bills expires unpaid. Default 10.</FCSettingBillUnpaidHappinessPenaltyTip>
+	<FCSettingBillLatePaidUnrestPenalty>Late-Paid Bill Unrest Penalty</FCSettingBillLatePaidUnrestPenalty>
+	<FCSettingBillLatePaidUnrestPenaltyTip>Unrest applied when an overdue bill is auto-resolved after its due date. Default 4.</FCSettingBillLatePaidUnrestPenaltyTip>
+	<FCSettingBillLatePaidHappinessPenalty>Late-Paid Bill Happiness Penalty</FCSettingBillLatePaidHappinessPenalty>
+	<FCSettingBillLatePaidHappinessPenaltyTip>Happiness lost when an overdue bill is auto-resolved after its due date. Default 4.</FCSettingBillLatePaidHappinessPenaltyTip>
 	<FCSettingMinMaxRandomEvent>Min/Max Days Until Random Event</FCSettingMinMaxRandomEvent>
 	<FCSettingShowSettleConfirm>Show confirmation when founding settlements</FCSettingShowSettleConfirm>
 	<FCSettingUseThreadedRoadComputation>Use threaded road computation</FCSettingUseThreadedRoadComputation>

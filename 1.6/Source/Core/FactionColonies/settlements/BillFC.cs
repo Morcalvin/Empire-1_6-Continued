@@ -1,13 +1,24 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
 
 namespace FactionColonies
 {
+    public enum BillKindFC
+    {
+        Tax = 0,
+        SquadDeployment = 1,
+    }
+
     public class BillFC : ILoadReferenceable, IExposable
     {
+        /* Default lifespan for tax bills (5 in-game days). Surfaced as a const so the
+         * SquadDeployment kind can override it via FCSettings.deploymentBillLifespan_days. */
+        public const int DefaultLifespanTicks = GenDate.TicksPerDay * 5;
+
         //internal variables
         public int loadID;
         public int dueTick;
+        public BillKindFC kind = BillKindFC.Tax;
 
 
         //ref
@@ -20,6 +31,7 @@ namespace FactionColonies
         {
             Scribe_Values.Look(ref loadID, "loadID", -1);
             Scribe_Values.Look(ref dueTick, "dueTick", -1);
+            Scribe_Values.Look(ref kind, "kind", BillKindFC.Tax);
 
 
             Scribe_References.Look(ref settlement, "settlement");
@@ -38,10 +50,14 @@ namespace FactionColonies
         }
 
         public BillFC(WorldSettlementFC settlement)
+            : this(settlement, BillKindFC.Tax, DefaultLifespanTicks) { }
+
+        public BillFC(WorldSettlementFC settlement, BillKindFC kind, int lifespanTicks)
         {
             SetUniqueLoadID();
             this.settlement = settlement;
-            dueTick = Find.TickManager.TicksGame + 300000;
+            this.kind = kind;
+            dueTick = Find.TickManager.TicksGame + lifespanTicks;
             taxes = new TaxesFC(this);
         }
 
@@ -70,8 +86,8 @@ namespace FactionColonies
             if (settlement != null)
             {
                 string messageString = "FCNotEnoughSilverForBill".Translate() + " " + settlement.Name + ". " + "FCConfiscatedTithes".Translate() + "." + " " + "FCUnpaidTitheEffect".Translate();
-                settlement.GainUnrestWithReason(new Message(messageString, MessageTypeDefOf.NegativeEvent), 10d);
-                settlement.GainHappiness(-10d);
+                settlement.GainUnrestWithReason(new Message(messageString, MessageTypeDefOf.NegativeEvent), FCSettings.billUnpaidUnrestPenalty);
+                settlement.GainHappiness(-FCSettings.billUnpaidHappinessPenalty);
             }
             else
             {

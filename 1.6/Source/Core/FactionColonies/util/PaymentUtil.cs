@@ -1,6 +1,7 @@
 ﻿using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
@@ -235,6 +236,33 @@ namespace FactionColonies
             Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
             silver.stackCount = finalAmount;
             PlaceThing(silver);
+        }
+
+        /// <summary>Create a deployment-cost bill against <paramref name="squad"/>'s home
+        /// settlement. The bill is appended to <c>FactionFC.Bills</c> and obligates the
+        /// player for <c>squad.DeploymentCost</c> silver, due in
+        /// <c>FCSettings.deploymentBillLifespan_days</c> days. No-op when cost is zero
+        /// (slider at 0%) or godMode is on.</summary>
+        public static void CreateDeploymentCostBill(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            int cost = squad.DeploymentCost;
+            if (cost <= 0 || DebugSettings.godMode) return;
+
+            WorldSettlementFC home = squad.settlement;
+            if (home is null)
+            {
+                LogUtil.Warning($"CreateDeploymentCostBill: squad {squad.GetUniqueLoadID()} has no home settlement; skipping bill.");
+                return;
+            }
+
+            FactionFC fc = FactionCache.FactionComp;
+            if (fc is null) return;
+
+            int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
+            BillFC bill = new BillFC(home, BillKindFC.SquadDeployment, lifespanTicks);
+            bill.taxes.silverAmount = -cost;
+            fc.Bills.Add(bill);
         }
 
         public static int GetSilver()

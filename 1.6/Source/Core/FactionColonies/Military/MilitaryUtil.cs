@@ -128,7 +128,7 @@ namespace FactionColonies
                     return;
                 }
 
-                if (overrideSquad != null) PaymentUtil.PaySilver((int)Math.Round((squad?.outfit?.UpdateEquipmentTotalCost() ?? 0) * .2), PaymentUtil.Reason_SquadDeployment, settlement);
+                PaymentUtil.CreateDeploymentCostBill(squad);
                 SpawnSquad(settlement, squad, dropPosition, DropPod);
                 DebugTools.curTool = null;
             });

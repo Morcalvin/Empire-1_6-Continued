@@ -794,6 +794,7 @@ namespace FactionColonies
                     LogUtil.Warning($"SendMilitary: no world object found at tile {location}; aborting.");
                     return;
                 }
+                PaymentUtil.CreateDeploymentCostBill(squad);
                 manager.CreateOffensiveOp(squad, target, job, enemy, timeToFinish);
                 return;
             }

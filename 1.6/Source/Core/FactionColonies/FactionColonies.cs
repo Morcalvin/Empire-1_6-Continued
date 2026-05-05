@@ -158,6 +158,28 @@ namespace FactionColonies
         public static float squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
         public static int maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
 
+        /* Squad deployment economy. squadDeploymentCostPercentage is the fraction of a
+         * squad's current equipment value billed in silver each time it is deployed
+         * (offensive op or call-in to a player map). Defensive ops are free. The charge
+         * is created as a BillFC against the squad's home settlement, due after
+         * deploymentBillLifespan_days days; an unpaid bill incurs the standard bill
+         * penalties below. */
+        public const float DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE = 0.20f;
+        public const int DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS = 5;
+        public static float squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
+        public static int deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+
+        /* Bill expiration / late-payment penalties. Apply to all bill kinds (taxes,
+         * deployment costs). Defaults match the prior hardcoded values. */
+        public const float DEFAULT_BILL_UNPAID_UNREST_PENALTY = 10f;
+        public const float DEFAULT_BILL_UNPAID_HAPPINESS_PENALTY = 10f;
+        public const float DEFAULT_BILL_LATE_PAID_UNREST_PENALTY = 4f;
+        public const float DEFAULT_BILL_LATE_PAID_HAPPINESS_PENALTY = 4f;
+        public static float billUnpaidUnrestPenalty = DEFAULT_BILL_UNPAID_UNREST_PENALTY;
+        public static float billUnpaidHappinessPenalty = DEFAULT_BILL_UNPAID_HAPPINESS_PENALTY;
+        public static float billLatePaidUnrestPenalty = DEFAULT_BILL_LATE_PAID_UNREST_PENALTY;
+        public static float billLatePaidHappinessPenalty = DEFAULT_BILL_LATE_PAID_HAPPINESS_PENALTY;
+
         /// <summary>Max simultaneous manual battle maps across all settlements. 0 = unlimited.</summary>
         public static int maxConcurrentBattleMaps = 0;
 
@@ -259,6 +281,12 @@ namespace FactionColonies
             Scribe_Values.Look(ref squadDismissalRefundFraction, "squadDismissalRefundFraction", DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION);
             Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
             Scribe_Values.Look(ref maxSquadSize, "maxSquadSize", DEFAULT_MAX_SQUAD_SIZE);
+            Scribe_Values.Look(ref squadDeploymentCostPercentage, "squadDeploymentCostPercentage", DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE);
+            Scribe_Values.Look(ref deploymentBillLifespan_days, "deploymentBillLifespan_days", DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS);
+            Scribe_Values.Look(ref billUnpaidUnrestPenalty, "billUnpaidUnrestPenalty", DEFAULT_BILL_UNPAID_UNREST_PENALTY);
+            Scribe_Values.Look(ref billUnpaidHappinessPenalty, "billUnpaidHappinessPenalty", DEFAULT_BILL_UNPAID_HAPPINESS_PENALTY);
+            Scribe_Values.Look(ref billLatePaidUnrestPenalty, "billLatePaidUnrestPenalty", DEFAULT_BILL_LATE_PAID_UNREST_PENALTY);
+            Scribe_Values.Look(ref billLatePaidHappinessPenalty, "billLatePaidHappinessPenalty", DEFAULT_BILL_LATE_PAID_HAPPINESS_PENALTY);
             if (Scribe.mode == LoadSaveMode.LoadingVars && maxSquadSize < 1)
             {
                 LogUtil.Warning($"Loaded suspicious maxSquadSize={maxSquadSize}; resetting to {DEFAULT_MAX_SQUAD_SIZE}.");
@@ -684,6 +712,12 @@ namespace FactionColonies
                 squadDismissalRefundFraction = DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION;
                 squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
                 maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+                squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
+                deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+                billUnpaidUnrestPenalty = DEFAULT_BILL_UNPAID_UNREST_PENALTY;
+                billUnpaidHappinessPenalty = DEFAULT_BILL_UNPAID_HAPPINESS_PENALTY;
+                billLatePaidUnrestPenalty = DEFAULT_BILL_LATE_PAID_UNREST_PENALTY;
+                billLatePaidHappinessPenalty = DEFAULT_BILL_LATE_PAID_HAPPINESS_PENALTY;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
@@ -847,6 +881,30 @@ namespace FactionColonies
 
             ls.Label("FCSettingSquadUpgradeCostMultiplier".Translate() + ": " + squadUpgradeCostMultiplier.ToString("0.00") + "x", -1f, "FCSettingSquadUpgradeCostMultiplierTip".Translate());
             squadUpgradeCostMultiplier = ls.Slider(squadUpgradeCostMultiplier, 0.0f, 5.0f);
+
+            ls.Label("FCSettingSquadDeploymentCostPercentage".Translate() + ": " + (squadDeploymentCostPercentage * 100f).ToString("0") + "%", -1f, "FCSettingSquadDeploymentCostPercentageTip".Translate());
+            squadDeploymentCostPercentage = ls.Slider(squadDeploymentCostPercentage, 0.0f, 1.0f);
+
+            ls.Label("FCSettingDeploymentBillLifespan".Translate() + ": " + deploymentBillLifespan_days.ToString() + " d", -1f, "FCSettingDeploymentBillLifespanTip".Translate());
+            deploymentBillLifespan_days = (int)ls.Slider(deploymentBillLifespan_days, 1f, 60f);
+
+            ls.Gap(12f);
+            ls.GapLine();
+            Text.Font = GameFont.Medium;
+            ls.Label("FCSettingBillPenaltiesHeader".Translate());
+            Text.Font = GameFont.Small;
+
+            ls.Label("FCSettingBillUnpaidUnrestPenalty".Translate() + ": " + billUnpaidUnrestPenalty.ToString("0"), -1f, "FCSettingBillUnpaidUnrestPenaltyTip".Translate());
+            billUnpaidUnrestPenalty = ls.Slider(billUnpaidUnrestPenalty, 0f, 50f);
+
+            ls.Label("FCSettingBillUnpaidHappinessPenalty".Translate() + ": " + billUnpaidHappinessPenalty.ToString("0"), -1f, "FCSettingBillUnpaidHappinessPenaltyTip".Translate());
+            billUnpaidHappinessPenalty = ls.Slider(billUnpaidHappinessPenalty, 0f, 50f);
+
+            ls.Label("FCSettingBillLatePaidUnrestPenalty".Translate() + ": " + billLatePaidUnrestPenalty.ToString("0"), -1f, "FCSettingBillLatePaidUnrestPenaltyTip".Translate());
+            billLatePaidUnrestPenalty = ls.Slider(billLatePaidUnrestPenalty, 0f, 50f);
+
+            ls.Label("FCSettingBillLatePaidHappinessPenalty".Translate() + ": " + billLatePaidHappinessPenalty.ToString("0"), -1f, "FCSettingBillLatePaidHappinessPenaltyTip".Translate());
+            billLatePaidHappinessPenalty = ls.Slider(billLatePaidHappinessPenalty, 0f, 50f);
 
             ls.End();
 

@@ -156,6 +156,15 @@ namespace FactionColonies
             return total;
         }
 
+        /// <summary>Silver cost to deploy this squad on an offensive op or to a player map.
+        /// Computed as <c>FCSettings.squadDeploymentCostPercentage * GetCurrentLoadoutCost()</c>,
+        /// rounded to int. Defensive ops do not charge this cost. The cost is collected via
+        /// a <see cref="BillFC"/> created at deploy time, due after
+        /// <c>FCSettings.deploymentBillLifespan_days</c> days. Surfaced in deploy UI so the
+        /// player sees what they're committing to.</summary>
+        public int DeploymentCost =>
+            (int)Math.Round(GetCurrentLoadoutCost() * FCSettings.squadDeploymentCostPercentage);
+
         /* Race + xenotype identity tuple comparison. With Biotech off, race alone is
          * enough; with Biotech on, xenotype (or custom xenotype name) must match too.
          * Returns true if the merc's pawn can stand in for a slot of the given unit. */

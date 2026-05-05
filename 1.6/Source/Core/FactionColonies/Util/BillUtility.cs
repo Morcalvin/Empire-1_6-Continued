@@ -35,8 +35,8 @@ namespace FactionColonies
                                 + settlement.Name + ". "
                                 + "FCConfiscatedTithes".Translate() + "."
                                 + " " + "FCUnpaidTitheEffect".Translate();
-                            settlement.GainUnrestWithReason(new Message(messageString, MessageTypeDefOf.NegativeEvent), 10d);
-                            settlement.GainHappiness(-10d);
+                            settlement.GainUnrestWithReason(new Message(messageString, MessageTypeDefOf.NegativeEvent), FCSettings.billUnpaidUnrestPenalty);
+                            settlement.GainHappiness(-FCSettings.billUnpaidHappinessPenalty);
                         }
                         else
                         {
@@ -51,8 +51,8 @@ namespace FactionColonies
             {
                 foreach (WorldSettlementFC settlement in latePaidSettlements)
                 {
-                    settlement.GainUnrest(4d);
-                    settlement.GainHappiness(-4d);
+                    settlement.GainUnrest(FCSettings.billLatePaidUnrestPenalty);
+                    settlement.GainHappiness(-FCSettings.billLatePaidHappinessPenalty);
                 }
 
                 string settlementList = string.Join("\n", latePaidSettlements.Select(s => "  - " + s.Name));

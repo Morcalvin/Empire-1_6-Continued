@@ -170,6 +170,7 @@
 	<FCMilAutoDefend>Auto-Defend</FCMilAutoDefend>
 	<FCMilBtnSetSquadTip>Assign a military squad to this settlement</FCMilBtnSetSquadTip>
 	<FCMilBtnDeployTip>Deploy the assigned squad to a map location</FCMilBtnDeployTip>
+	<FCMilBtnDeployTipWithCost>Deploy the assigned squad to a map location. Will create a {0} silver bill, due in {1} days.</FCMilBtnDeployTipWithCost>
 	<FCMilBtnResetTip>Reset and regenerate squad members</FCMilBtnResetTip>
 	<FCMilBtnFireSupportTip>Call in artillery fire support</FCMilBtnFireSupportTip>
 	<FCMilBtnAutoDefendTip>Automatically send this settlement's forces to defend other settlements under attack</FCMilBtnAutoDefendTip>
@@ -230,6 +231,7 @@
 	<FCSquadColPower>Power</FCSquadColPower>
 	<FCSquadColEfficiency>Eff</FCSquadColEfficiency>
 	<FCSquadColCost>Cost</FCSquadColCost>
+	<FCSquadColDeploymentCost>Deploy</FCSquadColDeploymentCost>
 	<FCSquadColUpgrade>Upgrade</FCSquadColUpgrade>
 	<FCSquadColActions>Actions</FCSquadColActions>
 
