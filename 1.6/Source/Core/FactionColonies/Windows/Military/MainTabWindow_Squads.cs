@@ -114,8 +114,12 @@ namespace FactionColonies
             MilitaryCustomizationUtil util)
         {
             // Alternating row background to match settlement-card list style
+            bool isHighlighted = false;
             if (index % 2 == 0)
+            {
+                isHighlighted = true;
                 Widgets.DrawHighlight(cardRect);
+            }
 
             // Accent strip
             Color accent = squad.settlement?.MilitaryComp != null
@@ -174,15 +178,15 @@ namespace FactionColonies
 
             float colTemplate = Math.Min(190f, labelsW * 0.28f);
             float colBillet   = Math.Min(220f, labelsW * 0.30f);
-            float colPower    = Math.Min(90f,  labelsW * 0.14f);
-            float colCost     = Math.Min(110f, labelsW * 0.16f);
+            float colPower    = Math.Min(80f,  labelsW * 0.14f);
+            float colCost     = Math.Min(130f, labelsW * 0.16f);
             float colUpgrade  = Math.Max(0f, labelsW - colTemplate - colBillet - colPower - colCost);
 
             double powerLevel  = SquadPowerRegistry.Resolve(squad).militaryLevel;
-            string templateLbl = (string)"FCSquadColTemplate".Translate() + ": " + (squad.outfit?.name ?? "(stripped)");
+            string templateLbl = (string)"FCSquadColTemplate".Translate() + ": " + (squad.outfit?.name ?? "-");
             string billetLbl   = (string)"FCSquadColBillet".Translate() + ": " + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
             string powerLbl    = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
-            string costLbl     = (string)"FCSquadColCost".Translate() + ": $" + squad.hireCostPaid;
+            string costLbl     = "FCDeployCost".Translate(squad.DeploymentCost);
             int upgrade        = squad.UpgradeCost;
             string upgradeLbl  = (string)"FCSquadColUpgrade".Translate() + ": " + (upgrade > 0 ? "$" + upgrade : "-");
 
@@ -198,7 +202,7 @@ namespace FactionColonies
 
             // Inspect
             Rect inspectRect = new Rect(bx, btnY, btnW, btnH);
-            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate()))
+            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate(), highlighted: isHighlighted))
             {
                 Find.WindowStack.Add(new Dialog_SquadInspection(capturedSquad));
             }
@@ -207,7 +211,7 @@ namespace FactionColonies
 
             // Reassign
             Rect reassignRect = new Rect(bx, btnY, btnW, btnH);
-            if (UIUtil.ButtonFlat(reassignRect, "FCSquadActReassign".Translate(), disabled: squad.IsBusy))
+            if (UIUtil.ButtonFlat(reassignRect, "FCSquadActReassign".Translate(), highlighted: isHighlighted, disabled: squad.IsBusy))
             {
                 Find.WindowStack.Add(new Dialog_SquadAssignment(capturedSquad));
             }
@@ -218,7 +222,7 @@ namespace FactionColonies
             // Upgrade
             bool canUpgrade = upgrade > 0 && !squad.IsBusy;
             Rect upgradeRect = new Rect(bx, btnY, btnW, btnH);
-            if (UIUtil.ButtonFlat(upgradeRect, "FCSquadActUpgrade".Translate(), disabled: !canUpgrade))
+            if (UIUtil.ButtonFlat(upgradeRect, "FCSquadActUpgrade".Translate(), highlighted: isHighlighted, disabled: !canUpgrade))
             {
                 capturedSquad.UpgradeToTemplate();
             }
@@ -229,7 +233,7 @@ namespace FactionColonies
             // Dismiss
             bool canDismiss = !squad.IsBusy;
             Rect dismissRect = new Rect(bx, btnY, btnW, btnH);
-            if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismiss".Translate(), disabled: !canDismiss))
+            if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismiss".Translate(), highlighted: isHighlighted, disabled: !canDismiss))
             {
                 int refund = (int)Math.Round(capturedSquad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
                 MilitaryCustomizationUtil utilCaptured = util;

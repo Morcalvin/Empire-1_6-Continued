@@ -91,9 +91,8 @@
 	<FCEndingAttack>Ending attack...</FCEndingAttack>
 	<FCErrorEndingAttack>Error ending attack</FCErrorEndingAttack>
 	<FCErrorEndingAttackDescription>There was a problem ending the attack. Most likely, the map didn't delete correctly.
-		Please report this if you don't get your colonists sent to defend back, or your military never comes off
-		cooldown.
-	</FCErrorEndingAttackDescription>
+		
+Please report this if you don't get your colonists sent to defend back, or your military never comes off cooldown.</FCErrorEndingAttackDescription>
 
 	<!-- Deployment -->
 	<FCSendToSettlement>Send To Settlement</FCSendToSettlement>
@@ -113,6 +112,7 @@
 	<FCDeploymentSuccessLabel>Military deployed</FCDeploymentSuccessLabel>
 	<FCDeploymentSuccessDesc>The military forces of {0} have been deployed to {1}</FCDeploymentSuccessDesc>
 	<FCMilitaryPawnsLeavingTimeOut>A squad is leaving, because it's available time ran out!</FCMilitaryPawnsLeavingTimeOut>
+	<FCDeployCost>Deploy Cost: ${0}</FCDeployCost>
 
 	<!-- Battle Commands -->
 	<FCCommandAttack>Attack</FCCommandAttack>
@@ -175,7 +175,7 @@
 	<FCMilBtnFireSupportTip>Call in artillery fire support</FCMilBtnFireSupportTip>
 	<FCMilBtnAutoDefendTip>Automatically send this settlement's forces to defend other settlements under attack</FCMilBtnAutoDefendTip>
 	<FCMilAutoDefendDisabled>This settlement's military level is too low to auto-defend. Upgrade the settlement to increase its military level.</FCMilAutoDefendDisabled>
-	<FCMilBadge>Atk {0} / Def {1}  &#x2022;  ${2}</FCMilBadge>
+	<FCMilBadge>Def {0}  &#x2022;  Max Squad Value: ${1}</FCMilBadge>
 	<FCMilPowerTipSquad>Power from {0}</FCMilPowerTipSquad>
 	<FCMilPowerTipSquadShort>Power source: stationed squad</FCMilPowerTipSquadShort>
 	<FCMilPowerTipAllBusy>All stationed squads are currently busy. Power shown is potential when recalled.</FCMilPowerTipAllBusy>

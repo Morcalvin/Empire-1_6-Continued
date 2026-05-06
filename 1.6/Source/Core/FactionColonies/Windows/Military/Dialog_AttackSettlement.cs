@@ -466,8 +466,8 @@ namespace FactionColonies
             for (int i = 0; i < rows.Count; i++)
             {
                 Rect cardRect = new Rect(0f, runningY, scrollRect.width, CardH);
-                if (alternate) Widgets.DrawAltRect(cardRect);
-                DrawSquadCard(cardRect, rows[i], now);
+                if (alternate) Widgets.DrawHighlight(cardRect);
+                DrawSquadCard(cardRect, rows[i], now, alternate);
                 runningY += CardH + RowGap;
                 alternate = !alternate;
             }
@@ -490,7 +490,7 @@ namespace FactionColonies
            button) is the click target for selection — selected card uses the brighter selected
            highlight tinted by win-chance color, hovered non-selected card uses the standard
            hover highlight. Card height stays at CardH (46 px). */
-        private void DrawSquadCard(Rect cardRect, RowData row, int now)
+        private void DrawSquadCard(Rect cardRect, RowData row, int now, bool isHighlighted)
         {
             MercenarySquadFC squad = row.squad;
             Color winColor = WinChanceColor(row);
@@ -541,7 +541,7 @@ namespace FactionColonies
             GUI.color = colorBefore;
             MercenarySquadFC capturedSquad = squad;
             Rect inspectRect = new Rect(rightColX, detailY + 1f, rightColW, btnH);
-            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate()))
+            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate(), highlighted: isHighlighted))
             {
                 Find.WindowStack.Add(new Dialog_SquadInspection(capturedSquad));
             }

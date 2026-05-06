@@ -1709,7 +1709,7 @@ namespace FactionColonies
 
                 float fsBtnW = 110f;
                 float counterW = 96f;
-                float badgeW = 150f;
+                float badgeW = 180f;
                 float nameW = contentW - fsBtnW - counterW - badgeW - 12f;
 
                 // Header-left: Settlement name (clickable, accent-colored)
@@ -1741,14 +1741,11 @@ namespace FactionColonies
                 double budget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
                 FactionFC fcBadge = FactionCache.FactionComp;
                 (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
-                double atkPower = Math.Round(
-                    (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking))
-                    * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking));
                 double defPower = Math.Round(
                     (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))
                     * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
                     * FCSettings.defenderAdvantage);
-                string badgeStr = "FCMilBadge".Translate(atkPower, defPower, budget);
+                string badgeStr = "FCMilBadge".Translate(defPower, budget);
                 Color badgeColorBefore = GUI.color;
                 GUI.color = ColorForPowerStatus(powStatus);
                 Widgets.Label(new Rect(contentX + nameW, topY, badgeW, lineH), badgeStr);
@@ -1951,17 +1948,35 @@ namespace FactionColonies
             float btnH = rect.height - 4f;
             float btnY = rect.y + 2f;
 
+            float powW = 90f;
+            float depCostW = 150f;
+
             // Slot index column (indented to suggest it's a child of the settlement header)
             const float slotIndent = 18f;
-            float idxW = 50f;
-            Widgets.Label(new Rect(rect.x + slotIndent, rect.y, idxW, rect.height),
-                "FCMilitaryTableSlotPrefix".Translate(slotIdx + 1));
+            float idxW = 40f;
+            Rect slotLabel = new Rect(rect.x + slotIndent, rect.y, idxW, rect.height);
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(slotLabel, "FCMilitaryTableSlotPrefix".Translate(slotIdx + 1));
 
             // Squad name area
             string squadName = squad?.DisplayName ?? (string)"FCMilitaryTableSlotEmpty".Translate();
             float buttonAreaW = btnW * 4 + btnGap * 3;
-            float nameAreaW = rect.width - slotIndent - idxW - buttonAreaW - 4f;
-            Widgets.Label(new Rect(rect.x + slotIndent + idxW, rect.y, nameAreaW, rect.height), squadName);
+            float nameAreaW = rect.xMax - slotLabel.xMax - buttonAreaW - 4f - powW - depCostW - (margin * 2);
+            Rect squadNameLabel = new Rect(slotLabel.xMax + 5f, rect.y, nameAreaW, rect.height);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(squadNameLabel, squadName);
+
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Rect powerLabel = new Rect(squadNameLabel.xMax + margin, rect.y, powW, rect.height);
+            Rect depCostLabel = new Rect(powerLabel.xMax + margin, rect.y, depCostW, rect.height);
+            if (squad is object)
+            {
+                double powerLevel = SquadPowerRegistry.Resolve(squad).militaryLevel;
+                string powerLbl = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
+                string costLbl = "FCDeployCost".Translate(squad.DeploymentCost);
+                Widgets.Label(powerLabel, powerLbl);
+                Widgets.Label(depCostLabel, costLbl);
+            }
 
             // Action buttons (right-aligned)
             float bx = rect.xMax - buttonAreaW;
