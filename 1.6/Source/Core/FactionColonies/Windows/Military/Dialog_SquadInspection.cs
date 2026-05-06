@@ -31,6 +31,7 @@ namespace FactionColonies
         /* Layout constants */
         private const float TitleBandHeight = 38f;
         private const float ContextBandHeight = 72f;
+        private const float StatsBandHeight = 50f;
         private const float ActionBarHeight = 32f;
         private const float BandGap = 6f;
         private const float SmallGap = 4f;
@@ -81,6 +82,11 @@ namespace FactionColonies
             Rect contextRect = new Rect(inRect.x, y, inRect.width, ContextBandHeight);
             DrawContextBand(contextRect);
             y = contextRect.yMax + (BandGap / 2f);
+
+            /* Stats band: Current value | Deployment cost | Power | Slots */
+            Rect statsRect = new Rect(inRect.x, y, inRect.width, StatsBandHeight);
+            DrawStatsBand(statsRect);
+            y = statsRect.yMax + (BandGap / 2f);
 
             Rect barAboveActions = new Rect(inRect.x + 4f, y, inRect.width - 8f, 1f);
             TexLoad.DrawHorizontalPeakGradient(barAboveActions, Color.gray);
@@ -142,17 +148,56 @@ namespace FactionColonies
             TooltipHandler.TipRegion(pencilRect, squad.IsBusy
                 ? "FCSquadCannotModifyBusyTip".Translate()
                 : "FCSquadInspectionRenameSquadTip".Translate());
+        }
 
-            /* Right-aligned power readout: "Power: X.X (filled/max slots)". */
-            int filled = (squad.mercenaries?.Count(m => m?.pawn != null)) ?? 0;
-            int max    = (squad.mercenaries?.Count) ?? MilSquadFC.MaxSquadSize;
+        /* Four-column readout: Current value | Deployment cost | Power | Slots.
+           Mirrors the context band's caption-over-value style but without buttons. */
+        private void DrawStatsBand(Rect rect)
+        {
+            float colW = rect.width / 4f;
+
+            /* Vertical separators between the four columns */
+            for (int i = 1; i < 4; i++)
+            {
+                float x = rect.x + colW * i;
+                UIUtil.DrawColoredVerticalLine(x, rect.y + 4f, rect.height - 8f, Color.gray);
+            }
+
+            int currentValue = (int)Math.Round(squad.GetCurrentLoadoutCost());
+            int deployCost = squad.DeploymentCost;
             double power = SquadPowerRegistry.Resolve(squad).militaryLevel;
+            int filled = (squad.mercenaries?.Count(m => m?.pawn != null)) ?? 0;
+            int max = (squad.mercenaries?.Count) ?? 0;
+
+            DrawStatsCell(new Rect(rect.x + colW * 0, rect.y, colW, rect.height),
+                "FCSquadInspectionStatsValueCaption".Translate(),
+                "FCSquadInspectionStatsValueLine".Translate(currentValue));
+            DrawStatsCell(new Rect(rect.x + colW * 1, rect.y, colW, rect.height),
+                "FCSquadInspectionStatsDeployCaption".Translate(),
+                "FCSquadInspectionStatsDeployLine".Translate(deployCost));
+            DrawStatsCell(new Rect(rect.x + colW * 2, rect.y, colW, rect.height),
+                "FCSquadInspectionStatsPowerCaption".Translate(),
+                "FCSquadInspectionStatsPowerLine".Translate(power.ToString("0.0")));
+            DrawStatsCell(new Rect(rect.x + colW * 3, rect.y, colW, rect.height),
+                "FCSquadInspectionStatsSlotsCaption".Translate(),
+                "FCSquadInspectionStatsSlotsLine".Translate(filled, max));
+        }
+
+        private static void DrawStatsCell(Rect rect, string caption, string value)
+        {
+            float captionH = 18f;
+            float valueH = 24f;
+            float topPad = (rect.height - (captionH + valueH)) / 2f;
+            float y = rect.y + Mathf.Max(2f, topPad);
+            Rect inner = new Rect(rect.x + 6f, y, rect.width - 12f, captionH);
+
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.LowerLeft;
+            UIUtil.DrawColoredLabel(inner, caption, CaptionTextColor);
+
             Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleRight;
-            string powerText = "FCSquadInspectionPowerLine".Translate(power.ToString("0.0"), filled, max);
-            float powerStartX = pencilRect.xMax + 12f;
-            Rect powerRect = new Rect(powerStartX, rect.y, rect.xMax - powerStartX - 12f, rect.height);
-            Widgets.Label(powerRect, powerText);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(new Rect(inner.x, inner.yMax, inner.width, valueH), value);
         }
 
         private void DrawContextBand(Rect rect)
@@ -480,9 +525,9 @@ namespace FactionColonies
                 int slotFillCost = canFill
                     ? (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier)
                     : 0;
-                /* For empty slots we use a single wide Fill button taking the full action area
-                   (the full width spanned by Edit Loadout + Upgrade + Dismiss when filled). */
-                float fillW = btnW * 3f + SmallGap * 2f;
+                /* Two buttons sharing the same column grid as Edit/Upgrade/Dismiss on filled slots:
+                   Fill spans the first two button-widths, Remove fills the third. */
+                float fillW = btnW * 2f + SmallGap;
                 Rect fillRect = new Rect(bx, rect.y, fillW, btnH);
                 if (UIUtil.ButtonFlat(fillRect,
                     "FCSquadInspectionPerSlotFill".Translate(slotFillCost), disabled: !canFill || squad.IsBusy))
@@ -491,6 +536,16 @@ namespace FactionColonies
                 }
                 if (squad.IsBusy)
                     TooltipHandler.TipRegion(fillRect, "FCSquadCannotModifyBusyTip".Translate());
+
+                Rect removeRect = new Rect(fillRect.xMax + SmallGap, rect.y, btnW, btnH);
+                if (UIUtil.ButtonFlat(removeRect, "FCSquadInspectionPerSlotRemove".Translate(), disabled: squad.IsBusy))
+                {
+                    Mercenary captured = merc;
+                    squad.RemoveEmptySlot(captured);
+                }
+                TooltipHandler.TipRegion(removeRect, squad.IsBusy
+                    ? "FCSquadCannotModifyBusyTip".Translate()
+                    : "FCSquadInspectionPerSlotRemoveTip".Translate());
             }
             else if (merc?.pawn != null)
             {

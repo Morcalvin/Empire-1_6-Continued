@@ -308,6 +308,8 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadInspectionEditLoadout>Edit Loadout</FCSquadInspectionEditLoadout>
 	<FCSquadInspectionPerSlotUpgrade>Upgrade ${0}</FCSquadInspectionPerSlotUpgrade>
 	<FCSquadInspectionPerSlotFill>Fill (${0})</FCSquadInspectionPerSlotFill>
+	<FCSquadInspectionPerSlotRemove>Remove</FCSquadInspectionPerSlotRemove>
+	<FCSquadInspectionPerSlotRemoveTip>Remove this empty slot from the squad.</FCSquadInspectionPerSlotRemoveTip>
 	<FCSquadInspectionPersonalLoadoutDefaultName>Custom loadout</FCSquadInspectionPersonalLoadoutDefaultName>
 	<FCSquadInspectionContextSettlementCaption>Home Settlement</FCSquadInspectionContextSettlementCaption>
 	<FCSquadInspectionContextTemplateCaption>Template</FCSquadInspectionContextTemplateCaption>
@@ -321,6 +323,14 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCCannotDismissBusyMerc>Cannot dismiss {0}: squad is busy</FCCannotDismissBusyMerc>
 
 	<FCSquadInspectionPowerLine>Power: {0} ({1}/{2} slots)</FCSquadInspectionPowerLine>
+	<FCSquadInspectionStatsValueCaption>Current value</FCSquadInspectionStatsValueCaption>
+	<FCSquadInspectionStatsValueLine>{0}s</FCSquadInspectionStatsValueLine>
+	<FCSquadInspectionStatsDeployCaption>Deployment cost</FCSquadInspectionStatsDeployCaption>
+	<FCSquadInspectionStatsDeployLine>{0}s</FCSquadInspectionStatsDeployLine>
+	<FCSquadInspectionStatsPowerCaption>Power</FCSquadInspectionStatsPowerCaption>
+	<FCSquadInspectionStatsPowerLine>{0}</FCSquadInspectionStatsPowerLine>
+	<FCSquadInspectionStatsSlotsCaption>Slots</FCSquadInspectionStatsSlotsCaption>
+	<FCSquadInspectionStatsSlotsLine>{0} / {1}</FCSquadInspectionStatsSlotsLine>
 	<FCSquadInspectionAddUnit>Add unit</FCSquadInspectionAddUnit>
 	<FCSquadInspectionAddUnitOption>{0} (${1})</FCSquadInspectionAddUnitOption>
 	<FCSquadInspectionAddUnitTip>Hire a new unit from your saved unit blueprints. Clears the squad's template association.</FCSquadInspectionAddUnitTip>

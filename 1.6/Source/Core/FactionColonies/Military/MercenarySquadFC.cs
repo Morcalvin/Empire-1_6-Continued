@@ -267,7 +267,7 @@ namespace FactionColonies
             for (int i = 0; i < slotCount; i++)
             {
                 MilUnitFC slotUnit = templateUnits[i];
-                if (slotUnit is null) continue;
+                if (slotUnit is null || slotUnit.isBlank) continue;
 
                 int idx = claimable.FindIndex(m => IsRaceXenoMatch(m, slotUnit));
                 if (idx >= 0)
@@ -323,12 +323,40 @@ namespace FactionColonies
         }
 
         /// <summary>Sets the squad's template reference to <paramref name="newTemplate"/> without
-        /// touching mercenaries or gear — pure metadata change. The player can then run
-        /// <see cref="UpgradeToTemplate"/> to conform mercs to the new template (kindDef-aware).
-        /// Pass null to clear the template association.</summary>
+        /// touching gear on existing mercenaries.
+        /// Empty slots whose blueprint came from the prior template (i.e. <see cref="Mercenary.loadout"/>
+        /// is not present in <paramref name="newTemplate"/>'s <see cref="MilSquadFC.Units"/>) are pruned
+        /// from the mercenary list so the player isn't offered a Fill that would inject gear from a
+        /// template the squad no longer follows. Pass null to clear the template association — all
+        /// orphan empty slots are pruned in that case. The player can then run
+        /// <see cref="UpgradeToTemplate"/> to conform filled mercs to the new template.</summary>
         public void SwapTemplate(MilSquadFC newTemplate)
         {
             outfit = newTemplate;
+            if (mercenaries is null) return;
+
+            HashSet<MilUnitFC> retainable = null;
+            if (newTemplate?.Units != null)
+            {
+                retainable = new HashSet<MilUnitFC>();
+                foreach (MilUnitFC u in newTemplate.Units)
+                {
+                    if (u is object && !u.isBlank) retainable.Add(u);
+                }
+            }
+
+            for (int i = mercenaries.Count - 1; i >= 0; i--)
+            {
+                Mercenary m = mercenaries[i];
+                if (m is null) continue;
+                if (m.pawn is object) continue;                  // only prune empty slots
+                MilUnitFC bp = m.loadout;
+                if (bp is null || bp.isBlank) continue;          // already a blank placeholder
+                if (retainable != null && retainable.Contains(bp)) continue; // template still owns this slot
+                mercenaries.RemoveAt(i);
+            }
+
+            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
         }
 
         /// <summary>Race + xenotype-aware re-template. For each template slot:
@@ -896,6 +924,21 @@ namespace FactionColonies
 
             FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
             Messages.Message("FCMercDismissed".Translate(), MessageTypeDefOf.NeutralEvent, false);
+            return true;
+        }
+
+        /// <summary>Drops an empty slot from <see cref="mercenaries"/>, shrinking the squad's
+        /// max slot count by one. Returns false if the slot is missing, filled, or the squad is busy.
+        /// </summary>
+        public bool RemoveEmptySlot(Mercenary merc)
+        {
+            if (merc is null) return false;
+            if (merc.pawn is object) return false;
+            if (mercenaries is null) return false;
+            if (IsBusy) return false;
+            if (!mercenaries.Remove(merc)) return false;
+
+            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
             return true;
         }
 
