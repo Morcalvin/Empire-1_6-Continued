@@ -146,15 +146,12 @@ namespace FactionColonies
 
         /* Squad hiring economy. squadHireCostMultiplier scales the up-front silver paid when
          * hiring a squad from a template (1.0 = template's full equipment cost; 0.0 = free).
-         * squadDismissalRefundFraction is how much of the recorded hire cost is returned when
-         * a squad is dismissed (0.5 = 50%). squadUpgradeCostMultiplier scales the diff paid
-         * to bring an existing hired squad's loadout up to its template's current cost. */
+         * squadUpgradeCostMultiplier scales the diff paid to bring an existing hired squad's
+         * loadout up to its template's current cost. */
         public const float DEFAULT_SQUAD_HIRE_COST_MULTIPLIER = 1.0f;
-        public const float DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION = 0.5f;
         public const float DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER = 1.0f;
         public const int DEFAULT_MAX_SQUAD_SIZE = 30;
         public static float squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
-        public static float squadDismissalRefundFraction = DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION;
         public static float squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
         public static int maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
 
@@ -267,7 +264,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref autoResolveMaxTicks, "autoResolveMaxTicks", DEFAULT_AUTO_RESOLVE_MAX_TICKS);
             Scribe_Values.Look(ref mercenaryHealRatePerHour, "mercenaryHealRatePerHour", 1f);
             Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
-            Scribe_Values.Look(ref squadDismissalRefundFraction, "squadDismissalRefundFraction", DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION);
             Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
             Scribe_Values.Look(ref maxSquadSize, "maxSquadSize", DEFAULT_MAX_SQUAD_SIZE);
             Scribe_Values.Look(ref squadDeploymentCostPercentage, "squadDeploymentCostPercentage", DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE);
@@ -694,7 +690,6 @@ namespace FactionColonies
                 autoResolveMaxTicks = DEFAULT_AUTO_RESOLVE_MAX_TICKS;
                 mercenaryHealRatePerHour = 1f;
                 squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
-                squadDismissalRefundFraction = DEFAULT_SQUAD_DISMISSAL_REFUND_FRACTION;
                 squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
                 maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
                 squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
@@ -856,9 +851,6 @@ namespace FactionColonies
 
             ls.Label("FCSettingSquadHireCostMultiplier".Translate() + ": " + squadHireCostMultiplier.ToString("0.00") + "x", -1f, "FCSettingSquadHireCostMultiplierTip".Translate());
             squadHireCostMultiplier = ls.Slider(squadHireCostMultiplier, 0.0f, 5.0f);
-
-            ls.Label("FCSettingSquadDismissalRefundFraction".Translate() + ": " + (squadDismissalRefundFraction * 100f).ToString("0") + "%", -1f, "FCSettingSquadDismissalRefundFractionTip".Translate());
-            squadDismissalRefundFraction = ls.Slider(squadDismissalRefundFraction, 0.0f, 1.0f);
 
             ls.Label("FCSettingSquadUpgradeCostMultiplier".Translate() + ": " + squadUpgradeCostMultiplier.ToString("0.00") + "x", -1f, "FCSettingSquadUpgradeCostMultiplierTip".Translate());
             squadUpgradeCostMultiplier = ls.Slider(squadUpgradeCostMultiplier, 0.0f, 5.0f);

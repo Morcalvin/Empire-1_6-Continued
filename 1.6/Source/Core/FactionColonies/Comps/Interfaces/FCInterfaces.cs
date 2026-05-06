@@ -157,7 +157,7 @@ namespace FactionColonies
         void OnSquadHired(MercenarySquadFC squad);
         /// <summary>
         /// Called when a squad is dismissed by the player. The squad has been removed from
-        /// <c>mercenarySquads</c> and any partial refund has already been applied.
+        /// <c>mercenarySquads</c>.
         /// </summary>
         void OnSquadDismissed(MercenarySquadFC squad);
         /// <summary>

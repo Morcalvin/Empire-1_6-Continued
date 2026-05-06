@@ -189,7 +189,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 
 	<FCSquadHired>Squad "{0}" has been hired for ${1} silver.</FCSquadHired>
 	<FCSquadHireInsufficientSilver>You do not have enough silver ({0} required) to hire that squad.</FCSquadHireInsufficientSilver>
-	<FCSquadDismissed>Squad "{0}" has been dismissed. Refunded ${1} silver.</FCSquadDismissed>
+	<FCSquadDismissed>Squad "{0}" has been dismissed.</FCSquadDismissed>
 	<FCSquadAssigned>Squad "{0}" assigned to {1}.</FCSquadAssigned>
 	<FCCannotReassignBusySquad>"{0}" is busy and cannot be reassigned right now.</FCCannotReassignBusySquad>
 	<FCCannotUnassignBusySquad>"{0}" is busy and cannot be unassigned right now.</FCCannotUnassignBusySquad>
@@ -244,7 +244,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadActReassign>Reassign</FCSquadActReassign>
 	<FCSquadActUpgrade>Upgrade</FCSquadActUpgrade>
 	<FCSquadActDismiss>Dismiss</FCSquadActDismiss>
-	<FCSquadActDismissConfirm>Dismiss "{0}"? You will be refunded ${1} silver.</FCSquadActDismissConfirm>
+	<FCSquadActDismissConfirm>Dismiss "{0}"?</FCSquadActDismissConfirm>
 
 	<FCHireSquadsHeader>Squad pool</FCHireSquadsHeader>
 	<FCHireSquadsEmpty>No squads hired.</FCHireSquadsEmpty>
@@ -258,7 +258,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadMenuToggleAutoDefend>Auto-defend: {0}</FCSquadMenuToggleAutoDefend>
 	<FCSquadMenuReassign>Reassign...</FCSquadMenuReassign>
 	<FCSquadMenuUpgrade>Upgrade (${0} silver)</FCSquadMenuUpgrade>
-	<FCSquadMenuDismiss>Dismiss (${0} refund)</FCSquadMenuDismiss>
+	<FCSquadMenuDismiss>Dismiss</FCSquadMenuDismiss>
 	<FCSquadMenuInspect>Inspect...</FCSquadMenuInspect>
 
 	<FCOn>On</FCOn>
@@ -294,7 +294,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadInspectionUpgradeAll>Upgrade all (${0})</FCSquadInspectionUpgradeAll>
 	<FCSquadInspectionUpgradeAllUpToDate>Upgrade all (up to date)</FCSquadInspectionUpgradeAllUpToDate>
 	<FCSquadInspectionUpgradeAllNoTemplate>Upgrade all (no template)</FCSquadInspectionUpgradeAllNoTemplate>
-	<FCSquadInspectionUpgradeAllTooltip>Upgrade existing mercs: +${0}\nHire fresh: +${1}\nFire mismatched mercs: -${2}\nNet: ${3}</FCSquadInspectionUpgradeAllTooltip>
+	<FCSquadInspectionUpgradeAllTooltip>Upgrade existing mercs: +${0}\nHire fresh: +${1}\nNet: ${2}</FCSquadInspectionUpgradeAllTooltip>
 	<FCSquadInspectionEmptyPawn>(empty)</FCSquadInspectionEmptyPawn>
 	<FCSquadInspectionSlotLabel>Slot {0}</FCSquadInspectionSlotLabel>
 	<FCSquadInspectionLoadoutLabel>Loadout: {0}</FCSquadInspectionLoadoutLabel>
@@ -315,9 +315,9 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadInspectionContextTemplateNone>(none)</FCSquadInspectionContextTemplateNone>
 	<FCSquadActDismissSquad>Dismiss squad</FCSquadActDismissSquad>
 	<FCMercDismiss>Dismiss</FCMercDismiss>
-	<FCMercDismissTip>Fire this mercenary. Refunds a fraction of their loadout cost in silver and clears the slot so it can be refilled.</FCMercDismissTip>
-	<FCMercDismissConfirm>Dismiss {0} for ${1}?</FCMercDismissConfirm>
-	<FCMercDismissed>Mercenary dismissed (+${0} refund)</FCMercDismissed>
+	<FCMercDismissTip>Fire this mercenary and clear the slot so it can be refilled.</FCMercDismissTip>
+	<FCMercDismissConfirm>Dismiss {0}?</FCMercDismissConfirm>
+	<FCMercDismissed>Mercenary dismissed.</FCMercDismissed>
 	<FCCannotDismissBusyMerc>Cannot dismiss {0}: squad is busy</FCCannotDismissBusyMerc>
 
 	<FCSquadInspectionPowerLine>Power: {0} ({1}/{2} slots)</FCSquadInspectionPowerLine>
@@ -325,7 +325,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadInspectionAddUnitOption>{0} (${1})</FCSquadInspectionAddUnitOption>
 	<FCSquadInspectionAddUnitTip>Hire a new unit from your saved unit blueprints. Clears the squad's template association.</FCSquadInspectionAddUnitTip>
 	<FCSquadInspectionAddUnitBusy>Cannot add a unit while the squad is busy.</FCSquadInspectionAddUnitBusy>
-	<FCSquadInspectionAddUnitNoBlueprints>No saved unit blueprints. Design one in the Manage Units window first.</FCSquadInspectionAddUnitNoBlueprints>
+	<FCSquadInspectionAddUnitNoBlueprints>No saved unit blueprints. Design one in the Unit Templates window first.</FCSquadInspectionAddUnitNoBlueprints>
 	<FCSquadInspectionAddUnitFull>Squad has no empty slots. Dismiss a unit first.</FCSquadInspectionAddUnitFull>
 
 	<!-- Per-pawn loadout dialog -->

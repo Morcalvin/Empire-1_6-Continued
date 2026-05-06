@@ -211,10 +211,9 @@ namespace FactionColonies
             Rect dismissRect = new Rect(rect.x + ActionButtonWidth + SmallGap, y, ActionButtonWidth, buttonsH);
             if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismissSquad".Translate(), disabled: !canDismiss))
             {
-                int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
                 MercenarySquadFC captured = squad;
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    "FCSquadActDismissConfirm".Translate(captured.DisplayName, refund),
+                    "FCSquadActDismissConfirm".Translate(captured.DisplayName),
                     delegate
                     {
                         FactionCache.FactionComp?.militaryCustomizationUtil?.DismissSquad(captured);
@@ -278,10 +277,10 @@ namespace FactionColonies
             bool canFill = emptyCount > 0;
 
             int upgradeNet = squad.UpgradeCost;
-            (int upgrade, int hire, int refund) = squad.UpgradeCostBreakdown;
+            (int upgrade, int hire) = squad.UpgradeCostBreakdown;
             /* Allow Upgrade All any time the breakdown has nonzero components — there might
-               be reassignments to apply even if the net is zero or negative. */
-            bool hasUpgradeWork = upgrade != 0 || hire != 0 || refund != 0;
+               be reassignments to apply even if the net is zero. */
+            bool hasUpgradeWork = upgrade != 0 || hire != 0;
             bool canUpgradeAll = squad.outfit != null && !squad.IsBusy && hasUpgradeWork;
 
             float gap = 8f;
@@ -316,7 +315,7 @@ namespace FactionColonies
             }
             else if (squad.outfit != null && hasUpgradeWork)
             {
-                string tooltip = "FCSquadInspectionUpgradeAllTooltip".Translate(upgrade, hire, refund, upgradeNet);
+                string tooltip = "FCSquadInspectionUpgradeAllTooltip".Translate(upgrade, hire, upgradeNet);
                 TooltipHandler.TipRegion(upgradeRect, tooltip);
             }
             bx += btnW + gap;
@@ -519,17 +518,15 @@ namespace FactionColonies
                     TooltipHandler.TipRegion(upgRect, "FCSquadCannotModifyBusyTip".Translate());
                 bx += btnW + SmallGap;
 
-                /* Dismiss this merc — refunds proportional silver and clears the slot for refill. */
+                /* Dismiss this merc — clears the slot for refill. No silver returned. */
                 bool canDismiss = !squad.IsBusy;
                 Rect dismissRect = new Rect(bx, rect.y, btnW, btnH);
                 if (UIUtil.ButtonFlat(dismissRect, "FCMercDismiss".Translate(), disabled: !canDismiss))
                 {
                     Mercenary captured = merc;
-                    double cost = captured.EffectiveLoadout?.getTotalCost ?? 0;
-                    int refund = (int)Math.Round(cost * FCSettings.squadDismissalRefundFraction);
                     string pawnLabel = captured.pawn?.LabelShortCap ?? "?";
                     Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "FCMercDismissConfirm".Translate(pawnLabel, refund),
+                        "FCMercDismissConfirm".Translate(pawnLabel),
                         delegate { squad.DismissMercenary(captured); }));
                 }
                 TooltipHandler.TipRegion(dismissRect, squad.IsBusy

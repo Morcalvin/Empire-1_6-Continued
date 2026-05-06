@@ -1290,12 +1290,11 @@ namespace FactionColonies
                     squad.IsBusy ? (Action)null : (Action)delegate { squad.UpgradeToTemplate(); }));
             }
 
-            int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
-            list.Add(new FloatMenuOption("FCSquadMenuDismiss".Translate(refund),
+            list.Add(new FloatMenuOption("FCSquadMenuDismiss".Translate(),
                 squad.IsBusy ? (Action)null : (Action)delegate
                 {
                     Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "FCSquadActDismissConfirm".Translate(squad.DisplayName, refund),
+                        "FCSquadActDismissConfirm".Translate(squad.DisplayName),
                         delegate { util?.DismissSquad(squad); }));
                 }));
 

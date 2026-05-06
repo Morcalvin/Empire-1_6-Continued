@@ -103,7 +103,7 @@ namespace FactionColonies
         public virtual void OnSquadHired(FactionFC faction, MercenarySquadFC squad) { }
 
         /// <summary>Called after a squad is dismissed by the player. The squad has been removed
-        /// from the faction-wide pool and any partial refund has already been applied.</summary>
+        /// from the faction-wide pool.</summary>
         public virtual void OnSquadDismissed(FactionFC faction, MercenarySquadFC squad) { }
 
         /// <summary>Called after a hired squad's loadout has been brought up to its source

@@ -235,10 +235,9 @@ namespace FactionColonies
             Rect dismissRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismiss".Translate(), highlighted: isHighlighted, disabled: !canDismiss))
             {
-                int refund = (int)Math.Round(capturedSquad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
                 MilitaryCustomizationUtil utilCaptured = util;
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    "FCSquadActDismissConfirm".Translate(capturedSquad.DisplayName, refund),
+                    "FCSquadActDismissConfirm".Translate(capturedSquad.DisplayName),
                     delegate { utilCaptured.DismissSquad(capturedSquad); }));
             }
             if (squad.IsBusy)

@@ -473,7 +473,6 @@ namespace FactionColonies
 
             MercenarySquadFC squad = MilTemplateFactory.CreateMercSquad();
             squad.outfit = template;
-            squad.hireCostPaid = cost;
             squad.hiredAtTick = Find.TickManager.TicksGame;
             template.hiresEverMade++;
             squad.SetName(template.name + " #" + template.hiresEverMade);
@@ -486,9 +485,9 @@ namespace FactionColonies
             return squad;
         }
 
-        /// <summary>Dismisses <paramref name="squad"/>: refunds <see cref="FCSettings.squadDismissalRefundFraction"/>
-        /// of <see cref="MercenarySquadFC.hireCostPaid"/>, removes it from <see cref="mercenarySquads"/>,
-        /// and fires <see cref="LifecycleRegistry.InvokeOnSquadDismissed"/>. No-op when busy.</summary>
+        /// <summary>Dismisses <paramref name="squad"/>: removes it from <see cref="mercenarySquads"/>
+        /// and fires <see cref="LifecycleRegistry.InvokeOnSquadDismissed"/>. No silver is returned.
+        /// No-op when busy.</summary>
         public bool DismissSquad(MercenarySquadFC squad)
         {
             if (squad is null) return false;
@@ -497,18 +496,13 @@ namespace FactionColonies
                 Messages.Message("FCCannotDismissBusySquad".Translate(squad.DisplayName), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
-            int refund = (int)Math.Round(squad.hireCostPaid * FCSettings.squadDismissalRefundFraction);
-            if (refund > 0)
-            {
-                PaymentUtil.RefundSilver(refund, PaymentUtil.Reason_SquadDismissalRefund, squad.settlement);
-            }
             // Detach from billet so StationedSquads queries see it gone immediately.
             squad.settlement = null;
             squad.autoDefend = false;
             mercenarySquads.Remove(squad);
             RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadDismissed(squad);
-            Messages.Message("FCSquadDismissed".Translate(squad.DisplayName, refund), MessageTypeDefOf.NeutralEvent);
+            Messages.Message("FCSquadDismissed".Translate(squad.DisplayName), MessageTypeDefOf.NeutralEvent);
             return true;
         }
 

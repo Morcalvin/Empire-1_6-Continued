@@ -6,8 +6,8 @@
 	<FCMilitaryTableSetSquad>Set Squad</FCMilitaryTableSetSquad>
 	<FCMilitaryTableDeploySquad>Deploy Squad</FCMilitaryTableDeploySquad>
 	<FCMilitaryTableResetSquad>Reset Squad</FCMilitaryTableResetSquad>
-	<FCMilitaryTableButtonCreateSquad>Manage Squads</FCMilitaryTableButtonCreateSquad>
-	<FCMilitaryTableButtonCreateUnit>Manage Units</FCMilitaryTableButtonCreateUnit>
+	<FCMilitaryTableButtonCreateSquad>Squad Templates</FCMilitaryTableButtonCreateSquad>
+	<FCMilitaryTableButtonCreateUnit>Unit Templates</FCMilitaryTableButtonCreateUnit>
 	<FCMilitaryTableButtonCreateFireSupport>Manage Fire Support</FCMilitaryTableButtonCreateFireSupport>
 	<FCMilTableConfirm>Are you sure? Click to confirm</FCMilTableConfirm>
 	<FCNoSquadAvailable>No Available Squads</FCNoSquadAvailable>

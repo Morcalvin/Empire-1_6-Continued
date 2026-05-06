@@ -39,12 +39,10 @@ namespace FactionColonies
 
         /* -*-*-*-*- Squad-first refactor fields -*-*-*-*-
          * nextAvailableTick: per-squad cooldown expiry. Updated in MilitaryOperation.EnterCooldown.
-         * hireCostPaid: silver paid when this squad was hired; basis for the dismissal refund.
          * hiredAtTick: tick at which the squad was hired (analytics + future age hooks).
          * autoDefend: per-squad opt-in to foreign-defender candidate selection. Replaces the
          * old per-settlement comp.autoDefend flag — auto-defend now lives on the squad. */
         public int nextAvailableTick;
-        public int hireCostPaid;
         public int hiredAtTick;
         public bool autoDefend;
 
@@ -79,7 +77,6 @@ namespace FactionColonies
             Scribe_References.Look(ref map, "map");
             Scribe_References.Look(ref lord, "lord");
             Scribe_Values.Look(ref nextAvailableTick, "nextAvailableTick", 0);
-            Scribe_Values.Look(ref hireCostPaid, "hireCostPaid", 0);
             Scribe_Values.Look(ref hiredAtTick, "hiredAtTick", 0);
             Scribe_Values.Look(ref autoDefend, "autoDefend", false);
         }
@@ -245,7 +242,6 @@ namespace FactionColonies
             public List<Mercenary> Fires;      // mercs to be fired (unclaimed by any slot)
             public int UpgradeSilver;          // sum of positive diffs on claims (× upgradeMult)
             public int FreshHireSilver;        // sum of fresh-hire costs (× hireMult)
-            public int FireRefund;             // sum of refunds for fires (× dismissalRefund)
         }
 
         private UpgradePlan BuildUpgradePlan()
@@ -291,46 +287,38 @@ namespace FactionColonies
                 }
             }
 
-            // Mercs not claimed are fired (refunded).
+            // Mercs not claimed are fired.
             plan.Fires.AddRange(claimable);
-            double fireRefundSum = 0;
-            foreach (Mercenary m in plan.Fires)
-            {
-                MilUnitFC current = m?.EffectiveLoadout;
-                if (current != null) fireRefundSum += current.getTotalCost;
-            }
 
             plan.UpgradeSilver = (int)Math.Round(upgradeSum * FCSettings.squadUpgradeCostMultiplier);
             plan.FreshHireSilver = (int)Math.Round(freshHireSum * FCSettings.squadHireCostMultiplier);
-            plan.FireRefund = (int)Math.Round(fireRefundSum * FCSettings.squadDismissalRefundFraction);
             return plan;
         }
 
         /// <summary>Net silver cost of running <see cref="UpgradeToTemplate"/> right now.
-        /// Computed as upgrade-diff (claimed mercs) + hire-cost (fresh slots) − refund (fired
-        /// mercs). May be negative if downsizing dominates. Zero when no template, no
-        /// changes, or the squad is missing/busy.</summary>
+        /// Computed as upgrade-diff (claimed mercs) + hire-cost (fresh slots). Fired mercs
+        /// produce no silver. Zero when no template, no changes, or the squad is missing/busy.</summary>
         public int UpgradeCost
         {
             get
             {
                 if (outfit is null || outfit.Units is null || mercenaries is null) return 0;
                 UpgradePlan plan = BuildUpgradePlan();
-                return plan.UpgradeSilver + plan.FreshHireSilver - plan.FireRefund;
+                return plan.UpgradeSilver + plan.FreshHireSilver;
             }
         }
 
-        /// <summary>Component breakdown of <see cref="UpgradeCost"/>: gross upgrade silver,
-        /// fresh-hire silver, and refund silver from fires. Useful for inspection-window
-        /// tooltips that explain where the displayed total came from.</summary>
-        public (int upgrade, int hire, int refund) UpgradeCostBreakdown
+        /// <summary>Component breakdown of <see cref="UpgradeCost"/>: gross upgrade silver and
+        /// fresh-hire silver. Useful for inspection-window tooltips that explain where the
+        /// displayed total came from.</summary>
+        public (int upgrade, int hire) UpgradeCostBreakdown
         {
             get
             {
                 if (outfit is null || outfit.Units is null || mercenaries is null)
-                    return (0, 0, 0);
+                    return (0, 0);
                 UpgradePlan plan = BuildUpgradePlan();
-                return (plan.UpgradeSilver, plan.FreshHireSilver, plan.FireRefund);
+                return (plan.UpgradeSilver, plan.FreshHireSilver);
             }
         }
 
@@ -345,9 +333,8 @@ namespace FactionColonies
 
         /// <summary>Race + xenotype-aware re-template. For each template slot:
         /// reuse an existing merc whose pawn race (and Biotech xenotype) matches; otherwise
-        /// fresh-hire a new pawn. Mercs unclaimed by any slot are fired with a per-merc
-        /// dismissal refund. Net cost = upgrade-diff + fresh-hire − refund (may be negative).
-        /// Affordability is gated on net cost, not gross.</summary>
+        /// fresh-hire a new pawn. Mercs unclaimed by any slot are fired.
+        /// Net cost = upgrade-diff + fresh-hire.</summary>
         public bool UpgradeToTemplate()
         {
             if (outfit is null || outfit.Units is null || mercenaries is null) return false;
@@ -358,7 +345,7 @@ namespace FactionColonies
             }
 
             UpgradePlan plan = BuildUpgradePlan();
-            int net = plan.UpgradeSilver + plan.FreshHireSilver - plan.FireRefund;
+            int net = plan.UpgradeSilver + plan.FreshHireSilver;
 
             if (net > 0 && PaymentUtil.GetSilver() < net)
             {
@@ -369,12 +356,6 @@ namespace FactionColonies
             if (net > 0)
             {
                 PaymentUtil.PaySilver(net, PaymentUtil.Reason_SquadUpgrade, settlement);
-            }
-            else if (net < 0)
-            {
-                // Net refund — surplus silver returns through the standard payment channel
-                // so observers see the upgrade and its refund as paired events.
-                PaymentUtil.RefundSilver(-net, PaymentUtil.Reason_SquadUpgradeRefund, settlement);
             }
 
             UsedWeaponList = new List<ThingWithComps>();
@@ -886,12 +867,11 @@ namespace FactionColonies
             return true;
         }
 
-        /// <summary>Dismisses a single mercenary: refunds silver proportional to the merc's
-        /// equipped loadout cost × <see cref="FCSettings.squadDismissalRefundFraction"/>,
-        /// strips and destroys the pawn (and any animal handler), and clears the slot to an
-        /// empty placeholder so the player can refill it later via <see cref="FillEmptySlots"/>.
-        /// The slot is preserved (not removed from the list) so its blueprint stays available.
-        /// Returns false if the squad is busy or the slot is already empty.</summary>
+        /// <summary>Dismisses a single mercenary: strips and destroys the pawn (and any animal
+        /// handler), and clears the slot to an empty placeholder so the player can refill it
+        /// later via <see cref="FillEmptySlots"/>. No silver is returned. The slot is preserved
+        /// (not removed from the list) so its blueprint stays available. Returns false if the
+        /// squad is busy or the slot is already empty.</summary>
         public bool DismissMercenary(Mercenary merc)
         {
             if (merc is null || merc.IsEmptySlot) return false;
@@ -901,12 +881,6 @@ namespace FactionColonies
                     MessageTypeDefOf.RejectInput, false);
                 return false;
             }
-
-            /* Refund: per-merc, based on the merc's effective (currently equipped) loadout cost. */
-            double cost = merc.EffectiveLoadout?.getTotalCost ?? 0;
-            int refund = (int)Math.Round(cost * FCSettings.squadDismissalRefundFraction);
-            if (refund > 0)
-                PaymentUtil.RefundSilver(refund, PaymentUtil.Reason_SquadDismissalRefund, settlement);
 
             /* Strip + destroy. Mirrors the UpgradeToTemplate fire-pass cleanup. */
             StripPawn(merc);
@@ -921,7 +895,7 @@ namespace FactionColonies
             merc.currentLoadout = null;
 
             FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
-            Messages.Message("FCMercDismissed".Translate(refund), MessageTypeDefOf.NeutralEvent, false);
+            Messages.Message("FCMercDismissed".Translate(), MessageTypeDefOf.NeutralEvent, false);
             return true;
         }
 
