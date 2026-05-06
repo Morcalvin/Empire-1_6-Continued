@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Permissions;
 using System.Text;
 using UnityEngine;
 using Verse;
@@ -1047,19 +1048,39 @@ namespace FactionColonies
             }
         }
 
-        public void GainUnrestWithReason(Message message, double amount)
+        public double GainUnrestWithReason(Message message, double amount)
         {
             Messages.Message(message);
-            unrest += amount * GetStatValue(FCStatDefOf.unrestGainedMultiplier);
+            return GainUnrest(amount);
         }
-        public void GainUnrest(double amount)
+        public double GainUnrest(double amount)
         {
-            unrest += amount * GetStatValue(FCStatDefOf.unrestGainedMultiplier);
+            double gain = amount * GetStatValue(FCStatDefOf.unrestGainedMultiplier);
+            unrest += gain;
+            return gain;
         }
 
-        public void GainHappiness(double amount)
+        public double GainHappiness(double amount)
         {
-            happiness += amount * GetStatValue(FCStatDefOf.happinessGainedMultiplier);
+            double gain = amount * GetStatValue(FCStatDefOf.happinessGainedMultiplier);
+            happiness += gain;
+            return gain;
+        }
+
+        public double GainLoyalty(double amount)
+        {
+            // When or if we add a loyaltyGainedMultiplier, we'd refer to it here
+            double gain = amount;
+            loyalty += gain;
+            return gain;
+        }
+
+        public double GainProsperity(double amount)
+        {
+            // When or if we add a prosperityGainedMultiplier, we'd refer to it here
+            double gain = amount;
+            prosperity += gain;
+            return gain;
         }
 
         /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*

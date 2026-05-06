@@ -2,8 +2,8 @@
 <LanguageData>
 
 	<!-- Bills -->
-	<FCNotEnoughSilverForBill>You did not have enough silver to pay an outstanding bill from</FCNotEnoughSilverForBill>
-	<FCConfiscatedTithes>They have confiscated your tithes in return</FCConfiscatedTithes>
+	<FCNotEnoughSilverForBill>You did not have enough silver to pay an outstanding bill from {0}.</FCNotEnoughSilverForBill>
+	<FCConfiscatedTithes>They have confiscated your tithes in return.</FCConfiscatedTithes>
 	<FCOutstandingBills>Outstanding Bills</FCOutstandingBills>
 	<FCDueDate>Due Date</FCDueDate>
 	<FCAmount>Amount</FCAmount>

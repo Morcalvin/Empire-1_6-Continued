@@ -972,7 +972,8 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleRight;
             origColor = GUI.color;
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(autoX, rect.y + pad, 150f, summaryH), "FCAutoResolve".Translate());
+            Rect autoResolveRectLabel = new Rect(autoX, rect.y + pad, 150f, summaryH);
+            Widgets.Label(autoResolveRectLabel, "FCAutoResolve".Translate());
             GUI.color = origColor;
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
@@ -986,6 +987,31 @@ namespace FactionColonies
             else if (!faction.autoResolveBills && prevAutoResolve)
             {
                 Messages.Message("FCBillsNotAutoResolving".Translate(), MessageTypeDefOf.NeutralEvent);
+            }
+
+            // Allow late payments checkbox (second row, below auto-resolve)
+            float lateY = autoResolveRectLabel.y;
+            float lateX = autoResolveRectLabel.x - 150f;
+            fontBefore = Text.Font;
+            anchorBefore = Text.Anchor;
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleRight;
+            origColor = GUI.color;
+            GUI.color = Color.gray;
+            Rect latePaymentRectLabel = new Rect(lateX, lateY, 150f, summaryH);
+            Widgets.Label(latePaymentRectLabel, "FCAllowLatePayments".Translate());
+            GUI.color = origColor;
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
+            bool prevAllowLate = faction.allowLatePayments;
+            Widgets.Checkbox(new Vector2(lateX + 153f, lateY + 1f), ref faction.allowLatePayments, 22);
+            if (faction.allowLatePayments && !prevAllowLate)
+            {
+                Messages.Message("FCBillsLatePaymentsAllowed".Translate(), MessageTypeDefOf.NeutralEvent);
+            }
+            else if (!faction.allowLatePayments && prevAllowLate)
+            {
+                Messages.Message("FCBillsLatePaymentsDisallowed".Translate(), MessageTypeDefOf.NeutralEvent);
             }
 
             // Empty state
@@ -1041,9 +1067,7 @@ namespace FactionColonies
 
                 // Top-left: Settlement name + bill kind (clickable, colored by bill type)
                 string settleName = bill.settlement != null ? bill.settlement.Name : "Null";
-                string kindLabel = bill.kind == BillKindFC.SquadDeployment
-                    ? (string)"FCBillKindSquadDeployment".Translate()
-                    : (string)"FCBillKindTax".Translate();
+                string kindLabel = string.IsNullOrEmpty(bill.label) ? "" : bill.label;
                 string headerLabel = settleName + " - " + kindLabel;
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;

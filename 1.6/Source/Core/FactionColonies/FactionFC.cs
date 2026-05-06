@@ -192,6 +192,7 @@ namespace FactionColonies
         public List<BillFC> Bills = new List<BillFC>();
         public List<BillFC> OldBills = new List<BillFC>();
         public bool autoResolveBills;
+        public bool allowLatePayments = true;
 
         /* Resources */
         public List<ResourcePool> resourcePools = new List<ResourcePool>();
@@ -364,6 +365,7 @@ namespace FactionColonies
             Scribe_Collections.Look(ref Bills, "Bills", LookMode.Deep);
             Scribe_Collections.Look(ref OldBills, "OldBills", LookMode.Deep);
             Scribe_Values.Look(ref autoResolveBills, "autoResolveBills");
+            Scribe_Values.Look(ref allowLatePayments, "allowLatePayments", true);
 
             //Road builder
             Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
@@ -1759,9 +1761,14 @@ namespace FactionColonies
                     List<ResourcePool> resourcePools = settlement.CreateResourcePools();
 
                     BillFC bill = new BillFC(settlement);
+                    bill.label = "FCBillKindTax".Translate();
                     bill.taxes.resourcePools = resourcePools;
                     bill.taxes.itemTithes.AddRange(list);
                     bill.taxes.silverAmount = silverAmount;
+                    bill.AddUnpaidPenalty(BillPenaltyStat.Unrest, 10);
+                    bill.AddUnpaidPenalty(BillPenaltyStat.Happiness, 10);
+                    bill.AddLatePaidPenalty(BillPenaltyStat.Unrest, 4);
+                    bill.AddLatePaidPenalty(BillPenaltyStat.Happiness, 4);
 
                     Bills.Add(bill);
 

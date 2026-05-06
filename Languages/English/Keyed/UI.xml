@@ -59,6 +59,9 @@
 	<FCAutoResolving>Auto-Resolving : {0}</FCAutoResolving>
 	<FCBillsAutoResolving>Bills are now autoresolving!</FCBillsAutoResolving>
 	<FCBillsNotAutoResolving>Bills are now not autoresolving.</FCBillsNotAutoResolving>
+	<FCAllowLatePayments>Allow Late Payments</FCAllowLatePayments>
+	<FCBillsLatePaymentsAllowed>Bills that expire will be automatically paid, incurring Late Payment penalties.</FCBillsLatePaymentsAllowed>
+	<FCBillsLatePaymentsDisallowed>Bills that expire will not be paid, incurring Unpaid Bill penalties.</FCBillsLatePaymentsDisallowed>
 	<FCDesc>Desc</FCDesc>
 	<FCCreateNewFaction>Create New Faction</FCCreateNewFaction>
 	<FCResetToDefault>Reset to Default</FCResetToDefault>

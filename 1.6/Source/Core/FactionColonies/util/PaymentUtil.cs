@@ -260,8 +260,15 @@ namespace FactionColonies
             if (fc is null) return;
 
             int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
-            BillFC bill = new BillFC(home, BillKindFC.SquadDeployment, lifespanTicks);
+            BillFC bill = new BillFC(home, lifespanTicks);
+            bill.label = "FCBillKindSquadDeployment".Translate();
             bill.taxes.silverAmount = -cost;
+            /* silverAmount must be set BEFORE the Scaled helpers -- they read it for
+             * the linear scaling computation. */
+            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Unrest, 10);
+            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Happiness, 10);
+            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Unrest, 4);
+            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Happiness, 4);
             fc.Bills.Add(bill);
         }
 
