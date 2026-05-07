@@ -189,7 +189,8 @@ namespace FactionColonies
             if (mercenaries is null) return total;
             foreach (Mercenary merc in mercenaries)
             {
-                MilUnitFC current = merc?.EffectiveLoadout;
+                if (merc is null || merc.IsEmptySlot) continue;
+                MilUnitFC current = merc.EffectiveLoadout;
                 if (current is null) continue;
                 total += current.getTotalCost;
             }
