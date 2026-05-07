@@ -312,15 +312,29 @@ namespace FactionColonies
             // Find best external auto-defender in range.
             IAutoDefender bestExternal = AutoDefenderRegistry.FindBestDefender(target.Tile, 0);
 
-            // Target's defending power is the projected level of whatever's currently in
-            // op.defender.force — squad-derived if a squad is stationed, half-power synthetic
-            // if the billet is empty, or 0 for an external raid target with no force yet.
+            // Project the foreign squad's defending force the same way the target's force was
+            // projected. Comparing the foreign squad's raw loadout level against the target's
+            // already-bonused level was an apples-to-oranges asymmetry that made small foreign
+            // squads lose to empty-billet synthetic forces of equal level.
+            MilitaryForce foreignProjected = bestForeignSquad is object
+                ? MilitaryForce.CreateMilitaryForceFromSquad(bestForeignSquad, isAttacking: false)
+                : null;
+
             double targetLevel = op.defender.force?.militaryLevel ?? 0;
-            double foreignLevel = bestForeignSquad is object ? bestForeignLevel : 0;
+            double foreignLevel = foreignProjected?.militaryLevel ?? 0;
             double externalLevel = bestExternal?.MilitaryLevel ?? 0;
 
-            // Foreign squad wins if it beats both the target's level and any external option.
-            if (bestForeignSquad is object && foreignLevel > targetLevel && foreignLevel >= externalLevel)
+            // When the target has no real stationed squad, op.defender.force is the half-power
+            // unstaffed-billet synthetic — it shouldn't gate a real foreign squad the user opted
+            // into via autoDefend. Override unconditionally in that case; otherwise compare power.
+            bool targetHasOwnSquad = op.defender.squad is object;
+
+            // Foreign squad wins if either (a) target has no own squad to project — any real
+            // foreign squad beats a synthetic billet — or (b) it beats the target's level outright.
+            // In both branches it must also be at least as strong as the external option.
+            if (bestForeignSquad is object
+                && (!targetHasOwnSquad || foreignLevel > targetLevel)
+                && foreignLevel >= externalLevel)
             {
                 MilitaryForce homeForce = targetSettlement is object
                     ? MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement, isAttacking: true)
@@ -333,7 +347,9 @@ namespace FactionColonies
             }
 
             // External wins if it beats the target's level (and the foreign was not stronger).
-            if (bestExternal is object && externalLevel > targetLevel)
+            // Same "no own squad" override applies — synthetic billet shouldn't gate a real
+            // external defender either.
+            if (bestExternal is object && (!targetHasOwnSquad || externalLevel > targetLevel))
             {
                 op.defender.homeSettlement = null;
                 op.defender.squad = null;
@@ -461,11 +477,15 @@ namespace FactionColonies
         public bool HasDefenseAt(WorldSettlementFC settlement)
         {
             if (settlement is null) return false;
-            IReadOnlyList<MilitaryOperation> ops = GetOpsForSettlement(settlement);
+            // "Under attack" is target-based, not defender-based: when a foreign auto-defender
+            // is selected, op.defender.homeSettlement points at the foreign billet (the squad's
+            // home), not the settlement actually being attacked. Look up by target tile and
+            // match on op.targetObject so the right settlement gets the under-attack flag.
+            IReadOnlyList<MilitaryOperation> ops = GetOpsAt(settlement.Tile);
             for (int i = 0; i < ops.Count; i++)
             {
                 MilitaryOperation op = ops[i];
-                if (op.defender.homeSettlement == settlement) return true;
+                if (op.targetObject == settlement) return true;
             }
             return false;
         }

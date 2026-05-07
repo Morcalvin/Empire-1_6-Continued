@@ -648,9 +648,8 @@ namespace FactionColonies
             // Don't spawn reinforcements from the home settlement defending itself — already handled
             if (home == ourSettlement) return;
 
-            // Pick the first stationed squad that's available (assigned, not busy, past cooldown)
-            // and not physically deployed elsewhere. Must also have an outfit + mercs to send.
-            MercenarySquadFC squad = home.FirstAvailableStationedSquad;
+            // Use the squad recorded on the op (set at op creation by ApplyAutoDefenderSelection)
+            MercenarySquadFC squad = op.defender.squad;
             if (squad is null
                 || squad.outfit is null
                 || !squad.mercenaries.Any()
@@ -821,17 +820,14 @@ namespace FactionColonies
             if (friendlies == null || friendlies.Count == 0)
             {
                 WorldSettlementFC homeSettlement = force.homeSettlement;
-                WorldObjectComp_SettlementMilitary homeComp = homeSettlement?.MilitaryComp;
-                MercenarySquadFC squad = homeSettlement?.FirstAvailableStationedSquad;
+                // Use the squad recorded on the op, set at op creation by PickPrimaryDefendingSquad
+                // (target's own squad) or ApplyAutoDefenderSelection (foreign auto-defender)
+                MercenarySquadFC squad = op?.defender?.squad;
                 bool hasSquad = squad != null
                     && squad.outfit != null
                     && squad.mercenaries.Any();
                 bool squadDeployed = hasSquad && squad.IsPhysicallyDeployed();
-                bool squadAvailable = hasSquad && !squadDeployed
-                    && homeComp != null
-                    && (homeComp.militaryJob == null
-                        || homeComp.militaryJob == MilitaryJobDefOf.Undefined
-                        || homeComp.militaryJob == MilitaryJobDefOf.DefendFriendlySettlement);
+                bool squadAvailable = hasSquad && !squadDeployed;
 
                 if (squadAvailable)
                 {
