@@ -8,7 +8,8 @@ namespace FactionColonies
 {
     public class FCWindow_AnimalPicker : Window
     {
-        private readonly MilUnitFC unit;
+        private readonly Action<PawnKindDef> onConfirm;
+        private readonly Action onUnequip;
         private PawnKindDef selectedDef;
         private string searchTerm = "";
         private Vector2 scrollPos;
@@ -20,10 +21,32 @@ namespace FactionColonies
 
         public override Vector2 InitialSize => new Vector2(450f, 550f);
 
+        /* Direct-mutation constructor: kept for callers that just want the picker
+         * to set unit.animal and tick. Used by DesignUnitsWindow. */
         public FCWindow_AnimalPicker(MilUnitFC unit)
+            : this(unit?.animal,
+                  picked =>
+                  {
+                      if (unit is null) return;
+                      unit.animal = picked;
+                      unit.ChangeTick();
+                  },
+                  () =>
+                  {
+                      if (unit is null) return;
+                      unit.animal = null;
+                      unit.ChangeTick();
+                  })
         {
-            this.unit = unit;
-            selectedDef = unit.animal;
+        }
+
+        /* Callback-based constructor: lets callers (e.g. Dialog_PawnLoadout) defer
+         * mutation so opening the picker without confirming is a no-op. */
+        public FCWindow_AnimalPicker(PawnKindDef initialAnimal, Action<PawnKindDef> onConfirm, Action onUnequip)
+        {
+            selectedDef = initialAnimal;
+            this.onConfirm = onConfirm;
+            this.onUnequip = onUnequip;
             draggable = true;
             doCloseX = true;
             absorbInputAroundWindow = true;
@@ -115,8 +138,7 @@ namespace FactionColonies
             Rect unequipRect = new Rect(buttonBar.x, buttonBar.y, buttonWidth, buttonBar.height);
             if (Widgets.ButtonText(unequipRect, "FCUnitActionUnequipThing".Translate()))
             {
-                unit.animal = null;
-                unit.ChangeTick();
+                if (onUnequip != null) onUnequip();
                 Close();
             }
 
@@ -134,8 +156,7 @@ namespace FactionColonies
             {
                 if (canConfirm)
                 {
-                    unit.animal = selectedDef;
-                    unit.ChangeTick();
+                    if (onConfirm != null) onConfirm(selectedDef);
                     Close();
                 }
             }

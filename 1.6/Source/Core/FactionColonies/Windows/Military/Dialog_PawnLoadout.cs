@@ -19,7 +19,7 @@ namespace FactionColonies
     /// </summary>
     public class Dialog_PawnLoadout : Window
     {
-        public override Vector2 InitialSize => new Vector2(640f, 600f);
+        public override Vector2 InitialSize => new Vector2(640f, 680f);
 
         private readonly MercenarySquadFC squad;
         private readonly Mercenary merc;
@@ -36,7 +36,9 @@ namespace FactionColonies
         }
 
         /* Returns the merc's ownedLoadout (the target/assigned loadout), creating
-         * it as a clone of the squad template on first edit. */
+         * it as a clone of the squad template on first edit. Only call from
+         * confirm/apply paths — calling on picker open would break association
+         * even when the user cancels. */
         private MilUnitFC EnsureOwnedLoadout()
         {
             if (merc is null) return null;
@@ -64,23 +66,51 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Header
+            MilUnitFC current = merc.BlueprintLoadout;
+
+            // Header bar (full-width highlight behind the title; right-inset
+            // leaves room for the close X which overlaps inRect's top-right).
+            Rect headerBar = new Rect(inRect.x, inRect.y, inRect.width - 26f, 35f);
+            Widgets.DrawHighlight(headerBar);
+
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
             string title = merc.pawn != null
                 ? (string)"FCDialogPawnLoadoutTitle".Translate(merc.pawn.LabelShortCap)
                 : (string)"FCDialogPawnLoadoutTitleEmpty".Translate();
-            Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 30f), title);
+            Widgets.Label(new Rect(headerBar.x + 5f, headerBar.y, headerBar.width - 10f, headerBar.height), title);
 
+            // Subtitle: template association state
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
             string sub = merc.ownedLoadout != null
                 ? (string)"FCDialogPawnLoadoutDivergedSubtitle".Translate()
                 : (string)"FCDialogPawnLoadoutInheritedSubtitle".Translate(merc.loadout?.name ?? (string)"FCNone".Translate());
-            Widgets.Label(new Rect(inRect.x, inRect.y + 28f, inRect.width, 18f), sub);
+            Widgets.Label(new Rect(inRect.x, headerBar.yMax + 4f, inRect.width, 18f), sub);
+
+            // Info: race + xenotype (read-only — pawn identity is preserved here)
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            string raceName = current?.pawnKind?.race?.label?.CapitalizeFirst() ?? "Unknown";
+            string infoLine;
+            if (ModsConfig.BiotechActive)
+            {
+                string xenoName = current?.GetXenotypeLabel() ?? "";
+                infoLine = "Race".Translate() + ": " + raceName + "   ·   " + "Xenotype".Translate() + ": " + xenoName;
+            }
+            else
+            {
+                infoLine = "Race".Translate() + ": " + raceName;
+            }
+            Widgets.Label(new Rect(inRect.x, headerBar.yMax + 26f, inRect.width, 20f), infoLine);
+
+            // Total equipment cost (read-only — Upgrade pays cost diff on equip)
+            float totalCost = current != null ? (float)current.getTotalCost : 0f;
+            Widgets.Label(new Rect(inRect.x, headerBar.yMax + 48f, inRect.width, 20f),
+                "FCTotalEquipmentCostLabel".Translate() + totalCost.ToString("F0"));
 
             // Layout: portrait + slots on the left, apparel list on the right
-            float topY = inRect.y + 54f;
+            float topY = inRect.y + 105f;
             float bottomBtnH = 36f;
 
             float leftW = 220f;
@@ -137,7 +167,7 @@ namespace FactionColonies
             else
                 Widgets.DrawMenuSection(portraitRect);
 
-            float slotsY = portraitRect.yMax + gap + 14f;
+            float slotsY = portraitRect.yMax + gap + 18f;
             float slotsTotalW = slotSize * 2 + 16f;
             float slotsX = rect.x + (rect.width - slotsTotalW) / 2f;
             Rect animalSlot = new Rect(slotsX, slotsY, slotSize, slotSize);
@@ -147,9 +177,8 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.UpperCenter;
-            const float labelW = 80f;
-            Widgets.Label(new Rect(animalSlot.center.x - labelW / 2f, animalSlot.y - 14f, labelW, 14f), "fcLabelAnimal".Translate());
-            Widgets.Label(new Rect(weaponSlot.center.x - labelW / 2f, weaponSlot.y - 14f, labelW, 14f), "fcLabelWeapon".Translate());
+            Widgets.Label(new Rect(animalSlot.x - 15f, animalSlot.y - 18f, animalSlot.width + 30f, 18f), "fcLabelAnimal".Translate());
+            Widgets.Label(new Rect(weaponSlot.x - 15f, weaponSlot.y - 18f, weaponSlot.width + 30f, 18f), "fcLabelWeapon".Translate());
             Widgets.DrawMenuSection(animalSlot);
             Widgets.DrawMenuSection(weaponSlot);
             Text.Font = fontBefore;
@@ -173,89 +202,49 @@ namespace FactionColonies
             }
         }
 
-        // --- Right panel: apparel list + add button ---
+        // --- Right panel: apparel list (shared widget) ---
 
         private void DrawApparelPanel(Rect rect)
         {
-            const float headerH = 24f;
-            const float rowH = 28f;
-            const float iconSize = 24f;
-
-            GameFont fontBefore = Text.Font;
-            TextAnchor anchorBefore = Text.Anchor;
-
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(new Rect(rect.x, rect.y, rect.width - 110f, headerH), "fcEquippedApparel".Translate());
-
-            Rect addBtnRect = new Rect(rect.xMax - 100f, rect.y, 100f, headerH);
-            if (Widgets.ButtonText(addBtnRect, "fcAddApparel".Translate()))
+            ApparelListWidget.Draw(rect, merc.BlueprintLoadout, ref apparelScroll, new ApparelListWidget.Options
             {
-                OpenApparelPicker();
-            }
-
-            // Display the target (assigned) loadout — what the player is editing.
-            MilUnitFC current = merc.BlueprintLoadout;
-            List<SavedThing> apparel = current?.apparel?.Where(a => a.thing != null).ToList() ?? new List<SavedThing>();
-
-            Rect listRect = new Rect(rect.x, rect.y + headerH + 4f, rect.width, rect.height - headerH - 4f);
-            float viewH = apparel.Count * rowH;
-            Rect viewRect = new Rect(0, 0, listRect.width - 16f, viewH);
-            Widgets.BeginScrollView(listRect, ref apparelScroll, viewRect);
-            for (int i = 0; i < apparel.Count; i++)
-            {
-                SavedThing item = apparel[i];
-                Rect row = new Rect(0, i * rowH, viewRect.width, rowH);
-                if (i % 2 == 0) Widgets.DrawHighlight(row);
-
-                Rect iconRect = new Rect(row.x + 4f, row.y + 2f, iconSize, iconSize);
-                Widgets.ThingIcon(iconRect, item.thing, item.stuff);
-                Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(iconRect.xMax + 6f, row.y, row.width - iconSize - 50f, rowH),
-                    item.thing.LabelCap);
-
-                Rect removeRect = new Rect(row.xMax - 28f, row.y + 4f, 24f, rowH - 8f);
-                if (Widgets.ButtonText(removeRect, "X"))
-                {
-                    SavedThing captured = item;
-                    MilUnitFC target = EnsureOwnedLoadout();
-                    if (target != null)
-                    {
-                        target.RemoveApparel(captured.thing);
-                    }
-                }
-            }
-            Widgets.EndScrollView();
-
-            Text.Font = fontBefore;
-            Text.Anchor = anchorBefore;
+                canEdit = true,
+                showHeaderButtons = true,
+                getEditTarget = EnsureOwnedLoadout,
+            });
         }
 
         // --- Pickers ---
 
+        /* All pickers defer EnsureOwnedLoadout into their confirm callbacks so that
+         * opening and cancelling does not break the template association. Display
+         * filters read from BlueprintLoadout (which falls back to the squad template). */
+
         private void OpenWeaponPicker()
         {
-            MilUnitFC target = EnsureOwnedLoadout();
-            if (target is null) return;
+            MilUnitFC source = merc.BlueprintLoadout;
+            ThingDef raceDef = source?.pawnKind?.race;
             List<ThingDef> weaponDefs = DefDatabase<ThingDef>.AllDefs
                 .Where(t => t.IsWeapon && t.BaseMarketValue != 0
                     && !CraftUtil.WeaponBlockedForMercs(t)
                     && t.generateAllowChance > 0f
                     && CraftUtil.CanCraftItem(t)
-                    && HARUtil.CanRaceUseWeapon(target.pawnKind?.race, t))
+                    && HARUtil.CanRaceUseWeapon(raceDef, t))
                 .OrderBy(t => t.label)
                 .ToList();
 
-            SavedThing? currentWeapon = target.HasWeapon ? target.weapons[0] : (SavedThing?)null;
+            SavedThing? currentWeapon = source?.HasWeapon == true ? source.weapons[0] : (SavedThing?)null;
             Find.WindowStack.Add(new FCWindow_ItemStuffPicker(
                 weaponDefs,
                 onConfirm: (item, stuff) =>
                 {
-                    target.SetWeapon(item, stuff);
+                    MilUnitFC target = EnsureOwnedLoadout();
+                    if (target != null) target.SetWeapon(item, stuff);
                 },
                 onUnequip: () =>
                 {
-                    target.ClearWeapon();
+                    MilUnitFC target = EnsureOwnedLoadout();
+                    if (target != null) target.ClearWeapon();
                 },
                 titleKey: "fcPickWeapon",
                 initialItem: currentWeapon?.thing,
@@ -263,37 +252,26 @@ namespace FactionColonies
             ));
         }
 
-        private void OpenApparelPicker()
-        {
-            MilUnitFC target = EnsureOwnedLoadout();
-            if (target is null) return;
-            BodyDef body = target.pawnKind?.race?.race?.body ?? BodyDefOf.Human;
-            List<ThingDef> apparelDefs = DefDatabase<ThingDef>.AllDefs
-                .Where(t => t.IsApparel
-                    && t.apparel.PawnCanWear(Gender.None, DevelopmentalStage.Adult)
-                    && CraftUtil.CanCraftItem(t)
-                    && HARUtil.CanRaceWearApparel(target.pawnKind?.race, t)
-                    && !target.apparel.Any(a => a.thing == t))
-                .OrderBy(t => t.label)
-                .ToList();
-            Find.WindowStack.Add(new FCWindow_ItemStuffPicker(
-                apparelDefs,
-                onConfirm: (item, stuff) =>
-                {
-                    target.SetApparel(item, stuff);
-                },
-                titleKey: "fcPickApparel"
-            ));
-        }
-
         private void OpenAnimalPicker()
         {
-            MilUnitFC target = EnsureOwnedLoadout();
-            if (target is null) return;
-            // The animal picker mutates the target unit directly. Animal data is
-            // informational here — the actual animal companion attachment to a pawn is
-            // rebuilt only on full outfit changes (Upgrade All / Fill).
-            Find.WindowStack.Add(new FCWindow_AnimalPicker(target));
+            MilUnitFC source = merc.BlueprintLoadout;
+            Find.WindowStack.Add(new FCWindow_AnimalPicker(
+                initialAnimal: source?.animal,
+                onConfirm: picked =>
+                {
+                    MilUnitFC target = EnsureOwnedLoadout();
+                    if (target is null) return;
+                    target.animal = picked;
+                    target.ChangeTick();
+                },
+                onUnequip: () =>
+                {
+                    MilUnitFC target = EnsureOwnedLoadout();
+                    if (target is null) return;
+                    target.animal = null;
+                    target.ChangeTick();
+                }
+            ));
         }
 
         // --- Pick from pool ---
