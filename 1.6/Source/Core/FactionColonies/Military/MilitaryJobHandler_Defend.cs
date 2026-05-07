@@ -99,6 +99,12 @@ namespace FactionColonies
     /// </summary>
     internal static class DefensiveBattleEffects
     {
+        /// <summary>Set true by <see cref="ApplyWin"/> / <see cref="ApplyLoss"/> after a result
+        /// letter is sent. <see cref="WorldObjectComp_SettlementMilitary.EndBattle"/> resets this
+        /// at entry and reads it after the per-op dispatch loop to decide whether a fallback
+        /// letter is needed.</summary>
+        internal static bool letterEmitted;
+
         /// <summary>Looks up the per-tile <see cref="BattlefieldContext"/> directly from the manager
         /// so this helper doesn't depend on the comp's private <c>Battlefield</c> backdoor.</summary>
         private static BattlefieldContext BattlefieldFor(WorldSettlementFC settlement)
@@ -122,6 +128,7 @@ namespace FactionColonies
             Find.LetterStack.ReceiveLetter("FCDefenseSuccessful".Translate(),
                 text,
                 LetterDefOf.PositiveEvent, new LookTargets(settlement));
+            letterEmitted = true;
         }
 
         public static void ApplyLoss(WorldSettlementFC settlement)
@@ -214,6 +221,7 @@ namespace FactionColonies
 
             Find.LetterStack.ReceiveLetter("FCDefenseFailure".Translate(), str, LetterDefOf.Death,
                 new LookTargets(settlement));
+            letterEmitted = true;
         }
     }
 }

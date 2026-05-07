@@ -48,8 +48,10 @@
 	<!-- Defense -->
 	<FCDefenseSuccessful>Defense Successful</FCDefenseSuccessful>
 	<FCDefenseSuccessfulFull>The defense of {0} was successful!</FCDefenseSuccessfulFull>
+	<FCDefenseSuccessfulFallback>The defense of {0} ended in victory. (Detailed battle resolution was unavailable.)</FCDefenseSuccessfulFallback>
 	<FCDefenseFailure>Defense Failure</FCDefenseFailure>
 	<FCDefenseFailureFull>The defense of our settlement, {0}, has been crushed.</FCDefenseFailureFull>
+	<FCDefenseFailureFallback>The defense of {0} ended in defeat. (Detailed battle resolution was unavailable.)</FCDefenseFailureFallback>
 	<FCDefenseBattleOverLeaveMap>The battle is over. Gather your forces and leave the settlement when ready.</FCDefenseBattleOverLeaveMap>
 	<FCReformCaravanBattleStillActive>The battle isn't over until every hostile has died or left the map.</FCReformCaravanBattleStillActive>
 	<FCManualBattleStarted>Battle for {0}</FCManualBattleStarted>

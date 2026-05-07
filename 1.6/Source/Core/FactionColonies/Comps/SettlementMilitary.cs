@@ -629,6 +629,10 @@ namespace FactionColonies
         {
             var faction = FactionCache.FactionComp;
 
+            // Reset before per-op dispatch so the fallback emitter at the end of this method can
+            // detect whether any handler successfully sent a result letter.
+            DefensiveBattleEffects.letterEmitted = false;
+
             LogUtil.Message("WorldSettlementFC.EndBattle: Handling combat resolution...");
 
             // Op completion runs first so manager state catches up before any side effect
@@ -679,7 +683,24 @@ namespace FactionColonies
             // logically distinct attack on the settlement.
             // isUnderAttack is computed from manager state; the op completing already drove it.
             // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
-            _ = won;       // outcome consumed inside op.CompleteBattle's handler dispatch.
+
+            // Defense-in-depth: the per-op pipeline has multiple silent-skip points (empty
+            // opsAtTile, ops in non-Engaged phase, ApplyResult throwing before ReceiveLetter,
+            // etc.). End-of-battle must always produce a letter — emit a fallback if no handler
+            // managed to send one. Body text deliberately calls out the abnormal path so user
+            // bug reports are unambiguous.
+            if (!DefensiveBattleEffects.letterEmitted)
+            {
+                string title = (won ? "FCDefenseSuccessful" : "FCDefenseFailure").Translate();
+                string body = (won ? "FCDefenseSuccessfulFallback" : "FCDefenseFailureFallback")
+                    .Translate(WorldSettlement?.Name ?? "");
+                Find.LetterStack.ReceiveLetter(title, body,
+                    won ? LetterDefOf.PositiveEvent : LetterDefOf.Death,
+                    new LookTargets(WorldSettlement));
+                LogUtil.Warning($"WorldSettlementFC.EndBattle: emitted fallback letter (won={won}) " +
+                    $"because no per-op handler sent a result letter at tile {WorldSettlement?.Tile}.");
+            }
+
             _ = remaining; // legacy parameter retained for source compat with callers.
             _ = faction;
         }
