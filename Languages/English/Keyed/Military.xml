@@ -48,10 +48,8 @@
 	<!-- Defense -->
 	<FCDefenseSuccessful>Defense Successful</FCDefenseSuccessful>
 	<FCDefenseSuccessfulFull>The defense of {0} was successful!</FCDefenseSuccessfulFull>
-	<FCDefenseSuccessfulFallback>The defense of {0} ended in victory. (Detailed battle resolution was unavailable.)</FCDefenseSuccessfulFallback>
 	<FCDefenseFailure>Defense Failure</FCDefenseFailure>
 	<FCDefenseFailureFull>The defense of our settlement, {0}, has been crushed.</FCDefenseFailureFull>
-	<FCDefenseFailureFallback>The defense of {0} ended in defeat. (Detailed battle resolution was unavailable.)</FCDefenseFailureFallback>
 	<FCDefenseBattleOverLeaveMap>The battle is over. Gather your forces and leave the settlement when ready.</FCDefenseBattleOverLeaveMap>
 	<FCReformCaravanBattleStillActive>The battle isn't over until every hostile has died or left the map.</FCReformCaravanBattleStillActive>
 	<FCManualBattleStarted>Battle for {0}</FCManualBattleStarted>
@@ -181,7 +179,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCMilPowerTipSquad>Power from {0}</FCMilPowerTipSquad>
 	<FCMilPowerTipSquadShort>Power source: stationed squad</FCMilPowerTipSquadShort>
 	<FCMilPowerTipAllBusy>All stationed squads are currently busy. Power shown is potential when recalled.</FCMilPowerTipAllBusy>
-	<FCMilPowerTipGhost>No squad assigned — defending at half power. Assign a squad to use this billet.</FCMilPowerTipGhost>
+	<FCMilPowerTipGhost>Defending at half power due to not having an assigned squad.</FCMilPowerTipGhost>
 	<FCMilPowerTipNoMilitary>This settlement type has no military capacity.</FCMilPowerTipNoMilitary>
 	<FCMilPowerTipUnderAttack>This settlement is under attack.</FCMilPowerTipUnderAttack>
 

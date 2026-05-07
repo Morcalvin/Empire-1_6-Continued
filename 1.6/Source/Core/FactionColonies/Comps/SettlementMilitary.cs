@@ -508,6 +508,17 @@ namespace FactionColonies
                 FactionCache.FactionComp?.RemoveEvent(evt);
                 return;
             }
+
+            // Player-initiated defense (Defend gizmo / caravan arrival) jumps the warning-event
+            // timer. Without this, the op stays in Scheduled phase and CompleteBattle silently
+            // bails at battle end, with no result letter. OnEventFired's auto-trigger path runs the
+            // same transition before calling StartDefense.
+            if (op.phase == MilitaryOperationPhase.Scheduled
+                || op.phase == MilitaryOperationPhase.Traveling)
+            {
+                op.BeginEngagement();
+            }
+
             BattlefieldContext bf = manager.GetOrCreateBattlefield(WorldSettlement.Tile);
             bf.StartDefense(op, after);
         }
@@ -572,21 +583,13 @@ namespace FactionColonies
             // isUnderAttack is computed from manager state; the op completing already drove it.
             // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
 
-            // Defense-in-depth: the per-op pipeline has multiple silent-skip points (empty
-            // opsAtTile, ops in non-Engaged phase, ApplyResult throwing before ReceiveLetter,
-            // etc.). End-of-battle must always produce a letter — emit a fallback if no handler
-            // managed to send one. Body text deliberately calls out the abnormal path so user
-            // bug reports are unambiguous.
+            // Every battle resolution should produce a result letter via the per-op handler
+            // (ApplyWin / ApplyLoss). If none did, then the upstream pipeline has a silent-skip bug;
+            // log as an error. Earlier log lines ("ignoring re-entry on op id=N in phase X",
+            // "no manager ops at tile", etc.) identify which skip point fired.
             if (!DefensiveBattleEffects.letterEmitted)
             {
-                string title = (won ? "FCDefenseSuccessful" : "FCDefenseFailure").Translate();
-                string body = (won ? "FCDefenseSuccessfulFallback" : "FCDefenseFailureFallback")
-                    .Translate(WorldSettlement?.Name ?? "");
-                Find.LetterStack.ReceiveLetter(title, body,
-                    won ? LetterDefOf.PositiveEvent : LetterDefOf.Death,
-                    new LookTargets(WorldSettlement));
-                LogUtil.Warning($"WorldSettlementFC.EndBattle: emitted fallback letter (won={won}) " +
-                    $"because no per-op handler sent a result letter at tile {WorldSettlement?.Tile}.");
+                LogUtil.Error($"EndBattle: no per-op handler sent a result letter at tile {WorldSettlement?.Tile} (won={won}). ");
             }
 
             _ = remaining; // legacy parameter retained for source compat with callers.
