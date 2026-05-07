@@ -807,4 +807,19 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_57</defName>
+		<label>Mercantile Fixes</label>
+		<description>When RimWar is active, trader caravans from the Mercantile policy can fail to spawn and spam the log with errors. The root bug is ultimately on RimWar&apos;s side, but this patch hardens Empire&apos;s code to more gracefully handle such errors.</description>
+		<releaseDate>2026-05-07</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Set the mercantile trader as a forced event so it doesn&apos;t get suppressed by the storyteller or third-party patches</li>
+		<li>Wrap the caravan spawning processing in a try/catch so we can still update the next arrival tick if an error occurs</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
