@@ -412,6 +412,11 @@ namespace FactionColonies
         {
             if (op is null) return;
 
+            // Attach the op so attackerPawns / defenderPawns aggregations (derived from
+            // activeOps) include this op's per-side pawn lists. Without this the stuck-battle
+            // guard in Tick() trips on the next 250-tick boundary because aggregations read empty.
+            op.AttachToBattlefield();
+
             // Drop the op's warning event from the queue if it's still there. Op.OnEventFired
             // already strips it from sourceEvents; this removes it from the FactionFC event list.
             FactionFC factionFC = FactionCache.FactionComp;
