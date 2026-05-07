@@ -822,4 +822,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_58</defName>
+		<label>Capital-less Mercantiles</label>
+		<description>Previously, trader caravans sent by the Mercantile Policy would fail to show up if the player hadn&apos;t set a capital location. With this patch, they now *will* show up.</description>
+		<releaseDate>2026-05-07</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Merantile caravans use TaxMap instead of ReturnCapitalMap(). TaxMap actually falls through to the player&apos;s active colony if neither a capital nor a tax spot are set</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

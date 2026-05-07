@@ -17,7 +17,7 @@ namespace FactionColonies
         {
             if (nextCaravanTick > Find.TickManager.TicksGame) return;
 
-            Map map = faction.ReturnCapitalMap();
+            Map map = faction.TaxMap;
             if (map is null)
             {
                 ScheduleNextCaravan(true);
@@ -85,6 +85,7 @@ namespace FactionColonies
                 days = Rand.RangeInclusive(ext.caravanMinDays, ext.caravanMaxDays);
             }
             nextCaravanTick = Find.TickManager.TicksGame + (int)(days * GenDate.TicksPerDay);
+            LogUtil.Message($"Next Mercantile Caravan set to arrive {days} days from now (on tick {nextCaravanTick})");
         }
 
         public override void ExposeData()
