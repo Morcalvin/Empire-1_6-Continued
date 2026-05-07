@@ -324,9 +324,9 @@ Please report this if you don't get your colonists sent to defend back, or your 
 
 	<FCSquadInspectionPowerLine>Power: {0} ({1}/{2} slots)</FCSquadInspectionPowerLine>
 	<FCSquadInspectionStatsValueCaption>Current value</FCSquadInspectionStatsValueCaption>
-	<FCSquadInspectionStatsValueLine>{0}s</FCSquadInspectionStatsValueLine>
+	<FCSquadInspectionStatsValueLine>${0}</FCSquadInspectionStatsValueLine>
 	<FCSquadInspectionStatsDeployCaption>Deployment cost</FCSquadInspectionStatsDeployCaption>
-	<FCSquadInspectionStatsDeployLine>{0}s</FCSquadInspectionStatsDeployLine>
+	<FCSquadInspectionStatsDeployLine>${0}</FCSquadInspectionStatsDeployLine>
 	<FCSquadInspectionStatsPowerCaption>Power</FCSquadInspectionStatsPowerCaption>
 	<FCSquadInspectionStatsPowerLine>{0}</FCSquadInspectionStatsPowerLine>
 	<FCSquadInspectionStatsSlotsCaption>Slots</FCSquadInspectionStatsSlotsCaption>

@@ -83,6 +83,10 @@ namespace FactionColonies
             DrawContextBand(contextRect);
             y = contextRect.yMax + (BandGap / 2f);
 
+            Rect barAboveStats = new Rect(inRect.x + 4f, y, inRect.width - 8f, 1f);
+            TexLoad.DrawHorizontalPeakGradient(barAboveStats, Color.gray);
+            y = barAboveStats.yMax + (BandGap / 2f);
+
             /* Stats band: Current value | Deployment cost | Power | Slots */
             Rect statsRect = new Rect(inRect.x, y, inRect.width, StatsBandHeight);
             DrawStatsBand(statsRect);
