@@ -183,6 +183,15 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCMilPowerTipAllBusy>All stationed squads are currently busy. Power shown is potential when recalled.</FCMilPowerTipAllBusy>
 	<FCMilPowerTipGhost>No squad assigned — defending at half power. Assign a squad to use this billet.</FCMilPowerTipGhost>
 	<FCMilPowerTipNoMilitary>This settlement type has no military capacity.</FCMilPowerTipNoMilitary>
+	<FCMilPowerTipUnderAttack>This settlement is under attack.</FCMilPowerTipUnderAttack>
+
+	<!-- Defender squad picker (Dialog_DefendSettlement) -->
+	<FCDefenderPickerTitle>Choose Defender for {0}</FCDefenderPickerTitle>
+	<FCDefenderPickerIncoming>Incoming attacker: Level {0}, Efficiency x{1}, Force ~{2}</FCDefenderPickerIncoming>
+	<FCDefenderPickerCurrentDefender>Currently defending: {0} (Force {1})</FCDefenderPickerCurrentDefender>
+	<FCDefenderPickerCurrentExternal>Currently defending: {0} (external, Force {1})</FCDefenderPickerCurrentExternal>
+	<FCDefenderPickerExternal>External Defenders</FCDefenderPickerExternal>
+	<FCDefenderPickerTiles>tiles</FCDefenderPickerTiles>
 
 	<!-- Squad-first refactor (hire / assign / cap / dialogs) -->
 	<FCMilitaryTabBySettlement>By Settlement</FCMilitaryTabBySettlement>

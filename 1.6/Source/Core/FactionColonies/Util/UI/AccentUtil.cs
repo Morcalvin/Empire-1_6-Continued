@@ -72,6 +72,42 @@ namespace FactionColonies
             return MilInactive;
         }
 
+        /// <summary>Accent color for a squad row, driven by the squad's own state — NOT its
+        /// settlement's. Red is reserved for squads that are part of an active defending force
+        /// (their home settlement is the actual defender of a defensive op). Squads merely
+        /// billeted at a settlement that's under attack but not part of the defending force
+        /// fall through to their own state color.</summary>
+        public static Color GetSquadAccent(MercenarySquadFC squad)
+        {
+            if (squad is null || squad.settlement is null) return MilInactive;
+
+            // Red: this squad's settlement is the active defender of a defensive op. The
+            // squad is part of the defending force as a stationed unit. We check defender
+            // homeSettlement (not isUnderAttack on the target) so a squad billeted at the
+            // attack target but with the defender swapped elsewhere doesn't show red.
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is object)
+            {
+                IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(squad.settlement);
+                for (int i = 0; i < ops.Count; i++)
+                {
+                    MilitaryOperation op = ops[i];
+                    if (op.IsDefensive && op.defender?.homeSettlement == squad.settlement)
+                        return MilUnderAttack;
+                }
+            }
+
+            MilitaryOperation own = squad.Operation;
+            if (own is object)
+            {
+                if (own.kind == MilitaryJobDefOf.Cooldown) return MilCooldown;
+                return MilActiveMission;
+            }
+
+            if (squad.outfit != null) return MilReady;
+            return MilInactive;
+        }
+
         private static bool AnyStationedSquadHasOutfit(WorldSettlementFC settlement)
         {
             if (settlement is null) return false;

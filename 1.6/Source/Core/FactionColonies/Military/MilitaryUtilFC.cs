@@ -138,6 +138,70 @@ namespace FactionColonies
         }
 
         /// <summary>
+        /// Replaces the defending side of the op linked to <paramref name="evt"/> with the
+        /// given <paramref name="squad"/>. The squad's <see cref="MercenarySquadFC.settlement"/>
+        /// becomes the new <c>op.defender.homeSettlement</c>; foreign squads blend the home
+        /// settlement's base force into the projected defender.
+        /// <para>User-facing entry. For the auto-defender / debug paths still routed through settlements,
+        /// see <see cref="ChangeDefendingMilitaryForce"/>.</para>
+        /// </summary>
+        public static void ChangeDefendingToSquad(FCEvent evt, MercenarySquadFC squad)
+        {
+            if (squad?.settlement is null) return;
+
+            FactionFC factionfc = FactionCache.FactionComp;
+            if (factionfc is null) return;
+            WorldSettlementFC homeSettlement = factionfc.ReturnSettlementByLocation(evt.location);
+
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperation op = evt.linkedOperation;
+            if (op is null)
+            {
+                LogUtil.Warning($"ChangeDefendingToSquad: warning event at tile {evt.location} has no linked op.");
+                return;
+            }
+
+            if (op.defender?.squad == squad)
+            {
+                Messages.Message("FCMilitaryAlreadyDefendingSettlement".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+
+            ReleaseCurrentDefender(op);
+
+            // Reindex by detaching the op from manager indices, mutating the defender, then
+            // re-registering. _bySquad / _bySettlement are keyed off op.defender.* and would
+            // otherwise lag the swap.
+            manager.Unregister(op);
+
+            MilitaryForce newForce;
+            if (squad.settlement == homeSettlement)
+            {
+                newForce = MilitaryForce.CreateMilitaryForceFromSquad(squad);
+                op.defender.homeSettlement = homeSettlement;
+                op.defender.squad = squad;
+                op.defender.force = newForce;
+                op.externalDefenderSource = null;
+                Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
+            }
+            else
+            {
+                MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
+                newForce = MilitaryForce.CreateMilitaryForceFromSquad(squad, homeDefendingForce: homeForce);
+                op.defender.homeSettlement = squad.settlement;
+                op.defender.squad = squad;
+                op.defender.force = newForce;
+                op.externalDefenderSource = null;
+
+                Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
+                    squad.settlement.Name, homeSettlement?.Name ?? "", newForce?.militaryLevel ?? 0),
+                    LetterDefOf.NeutralEvent);
+            }
+
+            manager.Register(op);
+        }
+
+        /// <summary>
         /// Replaces the op's defender with the given external <see cref="IAutoDefender"/>.
         /// No-op if no linked op exists.
         /// </summary>

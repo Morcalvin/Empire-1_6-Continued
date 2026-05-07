@@ -121,10 +121,10 @@ namespace FactionColonies
                 Widgets.DrawHighlight(cardRect);
             }
 
-            // Accent strip
-            Color accent = squad.settlement?.MilitaryComp != null
-                ? AccentUtil.GetMilitaryAccent(squad.settlement.MilitaryComp)
-                : AccentUtil.MilInactive;
+            // Accent strip — driven by the squad's own state, not the settlement's. A squad
+            // billeted at a settlement under attack but NOT part of the active defending force
+            // shouldn't share the under-attack red.
+            Color accent = AccentUtil.GetSquadAccent(squad);
             Widgets.DrawBoxSolid(new Rect(cardRect.x, cardRect.y, AccentW, cardRect.height), accent);
 
             float contentX = cardRect.x + AccentW + 6f;

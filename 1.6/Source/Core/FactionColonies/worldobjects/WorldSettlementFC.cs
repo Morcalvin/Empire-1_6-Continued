@@ -13,17 +13,20 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>Display state for a settlement's squad-derived military power.
-    /// Drives text color and tooltip in the settlement window and main military tab.</summary>
+    /// Drives text color and tooltip in the settlement window and main military tab.
+    /// UnderAttack takes precedence over the squad-derived states — red is reserved for it.</summary>
     public enum SettlementPowerStatus
     {
         /// <summary>At least one stationed squad is available (white text).</summary>
         Squad,
         /// <summary>Squads are stationed but all are busy in ops/cooldown (yellow text).</summary>
         AllBusy,
-        /// <summary>SquadCap > 0 but no squad stationed — defending at half power (red text).</summary>
+        /// <summary>SquadCap > 0 but no squad stationed — defending at half power (yellow text).</summary>
         Ghost,
         /// <summary>SquadCap == 0 — settlement type has no military capacity (greyed out).</summary>
-        NoMilitary
+        NoMilitary,
+        /// <summary>Settlement is the target of an active defensive op (red text). Overrides Squad/AllBusy/Ghost.</summary>
+        UnderAttack
     }
 
     /// <summary>
@@ -312,14 +315,21 @@ namespace FactionColonies
 
         /// <summary>Settlement-wide military power for UI display. Reflects the strongest
         /// available stationed squad's projected force (white). Yellow when squads exist
-        /// but all are busy (raid, cooldown, defense). Red half-power "ghost" when the
+        /// but all are busy (raid, cooldown, defense). Yellow half-power "ghost" when the
         /// billet is empty but cap > 0 (still defends — see
         /// <see cref="MilitaryForce.CreateMilitaryForceFromUnstaffedBillet"/>). Greyed out
-        /// when cap == 0 (structurally non-military).</summary>
+        /// when cap == 0 (structurally non-military). Red UnderAttack overrides everything
+        /// when the settlement is the target of an active defensive op.</summary>
         public (double level, double efficiency, SettlementPowerStatus status) GetDisplayedPower()
         {
             int cap = SquadCap;
             if (cap <= 0) return (0, 0, SettlementPowerStatus.NoMilitary);
+
+            // UnderAttack short-circuits the squad-derived state. We still report the
+            // strongest stationed squad's level/eff (or the ghost fallback) so the tooltip
+            // has something meaningful to show — only the *status* (and thus the color)
+            // changes.
+            bool underAttack = MilitaryComp?.isUnderAttack ?? false;
 
             List<MercenarySquadFC> stationed = StationedSquads;
             if (stationed.Count == 0)
@@ -330,7 +340,8 @@ namespace FactionColonies
                 double ghostEff = 1.0;
                 FactionFC fc = FactionCache.FactionComp;
                 if (fc is object) ghostEff = fc.GetStatValue(FCStatDefOf.militaryCombatEfficiency, this);
-                return (ghostLevel, ghostEff, SettlementPowerStatus.Ghost);
+                return (ghostLevel, ghostEff,
+                    underAttack ? SettlementPowerStatus.UnderAttack : SettlementPowerStatus.Ghost);
             }
 
             // Pick the strongest squad, preferring available ones. If none are available,
@@ -360,9 +371,10 @@ namespace FactionColonies
             if (pick is null) return (0, 0, SettlementPowerStatus.NoMilitary);
 
             SquadPower power = SquadPowerRegistry.Resolve(pick);
-            SettlementPowerStatus status = bestAvailable is object
-                ? SettlementPowerStatus.Squad
-                : SettlementPowerStatus.AllBusy;
+            SettlementPowerStatus status;
+            if (underAttack) status = SettlementPowerStatus.UnderAttack;
+            else if (bestAvailable is object) status = SettlementPowerStatus.Squad;
+            else status = SettlementPowerStatus.AllBusy;
             return (power.militaryLevel, power.militaryEfficiency, status);
         }
 

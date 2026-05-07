@@ -2213,8 +2213,9 @@ namespace FactionColonies
         {
             switch (status)
             {
+                case SettlementPowerStatus.UnderAttack: return AccentUtil.MilUnderAttack;
                 case SettlementPowerStatus.AllBusy: return new Color(1f, 0.85f, 0.4f);
-                case SettlementPowerStatus.Ghost: return new Color(0.95f, 0.4f, 0.4f);
+                case SettlementPowerStatus.Ghost: return new Color(1f, 0.85f, 0.4f);
                 case SettlementPowerStatus.NoMilitary: return Color.gray;
                 default: return Color.white;
             }
@@ -2225,6 +2226,8 @@ namespace FactionColonies
         {
             switch (status)
             {
+                case SettlementPowerStatus.UnderAttack:
+                    return "FCMilPowerTipUnderAttack".Translate();
                 case SettlementPowerStatus.Squad:
                     MercenarySquadFC strongest = null;
                     double bestLevel = -1;
