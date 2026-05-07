@@ -1991,8 +1991,7 @@ namespace FactionColonies
                 : (string)"FCMilitaryTableChangeSquad".Translate();
             if (UIUtil.ButtonFlat(setRect, setLabel, disabled: noSquads || slotBusy, highlighted: isHighlighted))
             {
-                List<FloatMenuOption> opts = militaryUtil.BuildSquadAssignmentOptions(settlement);
-                Find.WindowStack.Add(new Searchable_FloatMenu(opts));
+                Find.WindowStack.Add(new Dialog_AssignSquadToSettlement(settlement, squad));
             }
             TooltipHandler.TipRegion(setRect, slotBusy
                 ? "FCSquadCannotModifyBusyTip".Translate()

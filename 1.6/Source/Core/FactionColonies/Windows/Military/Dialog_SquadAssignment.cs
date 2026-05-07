@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Verse;
 
@@ -9,6 +10,8 @@ namespace FactionColonies
     /// Lists every Empire settlement with an indicator showing remaining cap room, and the
     /// option to "Unassign" (return the squad to the pool). On confirm calls
     /// <see cref="MilitaryCustomizationUtil.AttemptToAssign"/> or <see cref="MilitaryCustomizationUtil.Unassign"/>.
+    /// Settlements at cap open a sub-menu listing their current squads to displace, dispatched
+    /// via <see cref="MilitaryCustomizationUtil.AttemptToSwap"/>.
     /// </summary>
     public class Dialog_SquadAssignment : Window
     {
@@ -84,9 +87,14 @@ namespace FactionColonies
                     int cap = s.SquadCap;
                     bool isHere = squad?.settlement == s;
                     bool atCap = !isHere && stationed >= cap;
+                    // Atomic swap requires at least one non-busy occupant to displace; if every
+                    // squad at the target is busy we fall back to the legacy disabled state.
+                    bool allDisplaceableBusy = atCap && s.StationedSquads.All(q => q is null || q.IsBusy);
+                    bool clickable = !atCap || (atCap && !allDisplaceableBusy);
 
                     Color colorBefore = GUI.color;
-                    if (atCap) GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                    if (atCap && allDisplaceableBusy) GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                    else if (atCap) GUI.color = new Color(0.9f, 0.85f, 0.6f); // swap-target tint
                     else if (isHere) GUI.color = new Color(0.6f, 0.9f, 0.6f);
 
                     Text.Anchor = TextAnchor.MiddleLeft;
@@ -98,15 +106,55 @@ namespace FactionColonies
                     Text.Anchor = TextAnchor.UpperLeft;
                     GUI.color = colorBefore;
 
-                    if (!atCap && Widgets.ButtonInvisible(rowRect))
+                    if (atCap && allDisplaceableBusy)
                     {
-                        if (util.AttemptToAssign(squad, s)) Close();
+                        TooltipHandler.TipRegion(rowRect, "FCDialogSquadAssignmentAllBusyTip".Translate());
+                    }
+                    else if (clickable && Widgets.ButtonInvisible(rowRect))
+                    {
+                        if (atCap)
+                        {
+                            OpenDisplaceMenu(util, s);
+                        }
+                        else if (util.AttemptToAssign(squad, s))
+                        {
+                            Close();
+                        }
                     }
                     row++;
                 }
             }
 
             Widgets.EndScrollView();
+        }
+
+        /// <summary>Opens a sub-menu listing the target settlement's current squads and lets the
+        /// player pick which one to displace. Busy squads are greyed. Picking dispatches through
+        /// <see cref="MilitaryCustomizationUtil.AttemptToSwap"/>.</summary>
+        private void OpenDisplaceMenu(MilitaryCustomizationUtil util, WorldSettlementFC target)
+        {
+            List<FloatMenuOption> opts = new List<FloatMenuOption>();
+            opts.Add(new FloatMenuOption(
+                "FCDialogSquadAssignmentDisplacePrompt".Translate(target.Name ?? "?"),
+                null, MenuOptionPriority.High));
+
+            foreach (MercenarySquadFC occupant in target.StationedSquads)
+            {
+                if (occupant is null) continue;
+                MercenarySquadFC capturedOccupant = occupant;
+                System.Action onPick = occupant.IsBusy ? (System.Action)null : delegate
+                {
+                    if (util.AttemptToSwap(squad, target, capturedOccupant))
+                    {
+                        Close();
+                    }
+                };
+                opts.Add(new FloatMenuOption(
+                    "FCDialogSquadAssignmentDisplaceLabel".Translate(occupant.DisplayName),
+                    onPick));
+            }
+
+            Find.WindowStack.Add(new FloatMenu(opts));
         }
     }
 }

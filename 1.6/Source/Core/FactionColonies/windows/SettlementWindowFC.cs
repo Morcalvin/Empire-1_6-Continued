@@ -1184,9 +1184,8 @@ namespace FactionColonies
             }
 
             // Hire & assign here.
-            int silver = (int)PaymentUtil.GetSilver();
             bool roomForHire = stationed.Count < cap;
-            list.Add(new FloatMenuOption("FCSettlementMilHireAndAssign".Translate(silver),
+            list.Add(new FloatMenuOption("FCSettlementMilHireAndAssign".Translate(),
                 roomForHire ? (Action)delegate
                 {
                     Find.WindowStack.Add(new Dialog_HireSquad(settlement));

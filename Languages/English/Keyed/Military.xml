@@ -262,7 +262,17 @@ Please report this if you don't get your colonists sent to defend back, or your 
 
 	<FCSettlementMilHeader>Squads: {0} / {1}  &#x2022;  Max squad size: {2}</FCSettlementMilHeader>
 	<FCSettlementMilSquadEntry>{0} (auto-defend: {1})</FCSettlementMilSquadEntry>
-	<FCSettlementMilHireAndAssign>Hire &amp; assign here (${0} silver)</FCSettlementMilHireAndAssign>
+	<FCSettlementMilHireAndAssign>Hire Squad &amp; Assign Here</FCSettlementMilHireAndAssign>
+
+	<FCAssignSquadPickerTitle>Assign squad to {0}</FCAssignSquadPickerTitle>
+	<FCAssignSquadPickerCurrentSlot>Current slot occupant: {0}</FCAssignSquadPickerCurrentSlot>
+	<FCAssignSquadPickerSlotEmpty>Slot is empty</FCAssignSquadPickerSlotEmpty>
+	<FCAssignSquadPickerStationed>Stationed: {0} / {1}</FCAssignSquadPickerStationed>
+	<FCSquadPickerUnassignSlot>Unassign — empty this slot</FCSquadPickerUnassignSlot>
+	<FCSquadSwapBusyReject>Cannot swap: {0} is busy.</FCSquadSwapBusyReject>
+	<FCDialogSquadAssignmentDisplaceLabel>Displace {0}</FCDialogSquadAssignmentDisplaceLabel>
+	<FCDialogSquadAssignmentDisplacePrompt>Displace which squad at {0}?</FCDialogSquadAssignmentDisplacePrompt>
+	<FCDialogSquadAssignmentAllBusyTip>All squads at this settlement are busy.</FCDialogSquadAssignmentAllBusyTip>
 
 	<FCSquadMenuToggleAutoDefend>Auto-defend: {0}</FCSquadMenuToggleAutoDefend>
 	<FCSquadMenuReassign>Reassign...</FCSquadMenuReassign>

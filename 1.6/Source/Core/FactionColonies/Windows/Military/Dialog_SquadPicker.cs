@@ -92,6 +92,14 @@ namespace FactionColonies
         protected virtual float ExtraRowsHeight => 0f;
         protected virtual void DrawExtraRows(Rect viewRect, ref float runningY) { }
 
+        /* Column-visibility seams — let subclasses hide travel and/or win-chance when the picker
+         * is used outside of the offensive flow (e.g. defensive swaps don't need travel since
+         * the warning window already accounts for arrival; the assign-to-slot picker needs
+         * neither). When hidden, the freed horizontal space goes to the squad name / status /
+         * Inspect / cost columns and the corresponding sort modes are pruned from the toolbar. */
+        protected virtual bool ShowTravel    => true;
+        protected virtual bool ShowWinChance => true;
+
         public override void DoWindowContents(Rect inRect)
         {
             if (rowsDirty) RebuildRows();
@@ -127,13 +135,13 @@ namespace FactionColonies
             if (prevAvailableOnly != availableOnly) rowsDirty = true;
             if (Widgets.ButtonText(sortButton, "FCSquadPickerSort".Translate(SortLabel(sort))))
             {
-                List<FloatMenuOption> opts = new List<FloatMenuOption>
-                {
-                    new FloatMenuOption(SortLabel(SortMode.WinChance), () => { sort = SortMode.WinChance; rowsDirty = true; }),
-                    new FloatMenuOption(SortLabel(SortMode.Travel),    () => { sort = SortMode.Travel;    rowsDirty = true; }),
-                    new FloatMenuOption(SortLabel(SortMode.Power),     () => { sort = SortMode.Power;     rowsDirty = true; }),
-                    new FloatMenuOption(SortLabel(SortMode.Name),      () => { sort = SortMode.Name;      rowsDirty = true; })
-                };
+                List<FloatMenuOption> opts = new List<FloatMenuOption>();
+                if (ShowWinChance)
+                    opts.Add(new FloatMenuOption(SortLabel(SortMode.WinChance), () => { sort = SortMode.WinChance; rowsDirty = true; }));
+                if (ShowTravel)
+                    opts.Add(new FloatMenuOption(SortLabel(SortMode.Travel),    () => { sort = SortMode.Travel;    rowsDirty = true; }));
+                opts.Add(new FloatMenuOption(SortLabel(SortMode.Power),         () => { sort = SortMode.Power;     rowsDirty = true; }));
+                opts.Add(new FloatMenuOption(SortLabel(SortMode.Name),          () => { sort = SortMode.Name;      rowsDirty = true; }));
                 Find.WindowStack.Add(new FloatMenu(opts));
             }
 
@@ -249,11 +257,14 @@ namespace FactionColonies
             // Dim card content when squad is unavailable (busy / cooldown / unassigned).
             Color baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
 
-            /* Right-side column: status badge (top) + Inspect button (bottom), same width. */
+            /* Right-side column: status badge (top) + Inspect button (bottom), same width.
+             * rightColW (160) is the unconditional bump so longer statuses like
+             * "Busy: Defend Settlement" stop wrapping in tiny font. boxW/boxGap collapse to 0
+             * when the win-chance box is hidden so the squad name reclaims the space. */
             const float btnH = 20f;
-            const float rightColW = 110f;
-            const float boxW = 150f;
-            const float boxGap = 15f;
+            const float rightColW = 160f;
+            float boxW = ShowWinChance ? 150f : 0f;
+            float boxGap = ShowWinChance ? 15f : 0f;
 
             float rightColX = cardRect.xMax - rightColW - 4f;
             float headerY = cardRect.y;
@@ -277,80 +288,92 @@ namespace FactionColonies
             TooltipHandler.TipRegion(inspectRect, "FCMilBtnInspectTip".Translate());
 
             /* Win-chance box — Pow + Eff stacked vertically on the left, Win chance on the right
-             * with a horizontal peak-gradient band (dimmed win-chance color) behind it. No
-             * full-box highlight — the gradient is the only color cue inside the box. */
+             * with a horizontal peak-gradient band (dimmed win-chance color) behind it. Hidden
+             * entirely when ShowWinChance is false (squad name reclaims the row). */
             float boxX = rightColX - boxGap - boxW;
-            Rect boxRect = new Rect(boxX, cardRect.y + 4f, boxW, cardRect.height - 8f);
-
-            string powLbl = (string)"FCSquadColPower".Translate() + ": " + row.ourPower.ToString("0.0");
-            string effLbl = row.hasOurForce
-                ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.ourEfficiency.ToString("0.##")
-                : (string)"FCSquadColEfficiency".Translate() + ": -";
-            string winLbl;
-            if (row.hasOurForce && (row.winChanceMin > 0 || row.winChanceMax > 0))
+            if (ShowWinChance)
             {
-                double minPct = Math.Round(row.winChanceMin * 100);
-                double maxPct = Math.Round(row.winChanceMax * 100);
-                winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
+                Rect boxRect = new Rect(boxX, cardRect.y + 4f, boxW, cardRect.height - 8f);
+
+                string powLbl = (string)"FCSquadColPower".Translate() + ": " + row.ourPower.ToString("0.0");
+                string effLbl = row.hasOurForce
+                    ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.ourEfficiency.ToString("0.##")
+                    : (string)"FCSquadColEfficiency".Translate() + ": -";
+                string winLbl;
+                if (row.hasOurForce && (row.winChanceMin > 0 || row.winChanceMax > 0))
+                {
+                    double minPct = Math.Round(row.winChanceMin * 100);
+                    double maxPct = Math.Round(row.winChanceMax * 100);
+                    winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
+                }
+                else
+                {
+                    winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
+                }
+
+                float halfBoxW = boxW * 0.5f;
+                float halfBoxH = boxRect.height * 0.5f;
+
+                // Pow / Eff stacked vertically on the left half. White text (dimmed when unavailable).
+                Text.Anchor = TextAnchor.MiddleLeft;
+                GUI.color = baseTint;
+                Widgets.Label(new Rect(boxX, boxRect.y,             halfBoxW, halfBoxH), powLbl);
+                Widgets.Label(new Rect(boxX, boxRect.y + halfBoxH,  halfBoxW, halfBoxH), effLbl);
+
+                // Win chance on the right half, vertically centered, with a peak-gradient band
+                // behind it tinted by a dimmed win-chance color so the (full-saturation) label
+                // remains legible even when the color is red.
+                Rect winRect = new Rect(boxX + halfBoxW, boxRect.y, halfBoxW, boxRect.height);
+                const float gradH = 28f;
+                Rect gradRect = new Rect(winRect.x-10f, winRect.center.y - gradH * 0.5f, winRect.width+20f, gradH);
+                Color gradColor = UIUtil.Dim(winColor, 0.3f);
+                TexLoad.DrawHorizontalPeakGradient(gradRect, gradColor);
+
+                GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(winRect, winLbl);
             }
-            else
-            {
-                winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
-            }
 
-            float halfBoxW = boxW * 0.5f;
-            float halfBoxH = boxRect.height * 0.5f;
-
-            // Pow / Eff stacked vertically on the left half. White text (dimmed when unavailable).
-            Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = baseTint;
-            Widgets.Label(new Rect(boxX, boxRect.y,             halfBoxW, halfBoxH), powLbl);
-            Widgets.Label(new Rect(boxX, boxRect.y + halfBoxH,  halfBoxW, halfBoxH), effLbl);
-
-            // Win chance on the right half, vertically centered, with a peak-gradient band
-            // behind it tinted by a dimmed win-chance color so the (full-saturation) label
-            // remains legible even when the color is red.
-            Rect winRect = new Rect(boxX + halfBoxW, boxRect.y, halfBoxW, boxRect.height);
-            const float gradH = 28f;
-            Rect gradRect = new Rect(winRect.x-10f, winRect.center.y - gradH * 0.5f, winRect.width+20f, gradH);
-            Color gradColor = UIUtil.Dim(winColor, 0.3f);
-            TexLoad.DrawHorizontalPeakGradient(gradRect, gradColor);
-
-            GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(winRect, winLbl);
-
-            /* Squad name (left, win-chance colored) — header row, left of the box. */
+            /* Squad name (left, win-chance colored) — header row, left of the box. When the box
+             * is hidden, name extends all the way to the right column. */
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
-            float nameW = boxX - contentX - boxGap;
+            float nameW = ShowWinChance ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (nameW < 0f) nameW = 0f;
             Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), squad.DisplayName);
 
-            /* Detail row — Settlement | Travel | Cost, left of the box. */
+            /* Detail row — Settlement | Travel | Cost, left of the box (or all the way to the
+             * right column when the box is hidden). Travel column collapses when ShowTravel
+             * is false, folding its space into Cost. */
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = baseTint;
 
-            float labelsW = boxX - contentX - boxGap;
+            float labelsW = ShowWinChance ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (labelsW < 0f) labelsW = 0f;
             float colSettlement = Math.Min(220f, labelsW * 0.5f);
-            float colTravel     = Math.Min(120f, Math.Max(0f, (labelsW - colSettlement) * 0.5f));
+            float colTravel     = ShowTravel
+                ? Math.Min(100f, Math.Max(0f, (labelsW - colSettlement) * 0.4f))
+                : 0f;
             float colCost       = Math.Max(0f, labelsW - colSettlement - colTravel);
 
             string settlementLbl = "FCSquadColBillet".Translate() + ": "
                 + (squad.settlement?.Name ?? "FCMilitaryTableSlotEmpty".Translate());
-            string travelLbl = "FCSquadColTravel".Translate() + ": "
-                + (squad.IsAssigned && row.travelTicks > 0
-                    ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
-                    : "-");
             string costLbl = (string)"FCSquadColDeploymentCost".Translate() + ": $" + row.deploymentCost;
 
             float dx = contentX;
             Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
-            Widgets.Label(new Rect(dx, detailY, colTravel,     CardDetailH), travelLbl);     dx += colTravel;
-            Widgets.Label(new Rect(dx, detailY, colCost,       CardDetailH), costLbl);
+            if (ShowTravel)
+            {
+                string travelLbl = "FCSquadColTravel".Translate() + ": "
+                    + (squad.IsAssigned && row.travelTicks > 0
+                        ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
+                        : "-");
+                Widgets.Label(new Rect(dx, detailY, colTravel, CardDetailH), travelLbl);
+                dx += colTravel;
+            }
+            Widgets.Label(new Rect(dx, detailY, colCost, CardDetailH), costLbl);
 
             // Whole-card click → select. Drawn last so the Inspect button consumes its click first.
             if (Widgets.ButtonInvisible(cardRect))

@@ -1,0 +1,244 @@
+using FactionColonies.util;
+using RimWorld;
+using System.Collections.Generic;
+using UnityEngine;
+using Verse;
+
+namespace FactionColonies
+{
+    /// <summary>
+    /// Squad picker opened by the main-tab Settlement Slot "Set / Change" button. Pure
+    /// assignment flow — no offensive op, no defense engagement, so travel time and win
+    /// chance are hidden. When the slot already has an occupant, an extra "Unassign"
+    /// card sits above the squad list. Confirm dispatches through
+    /// <see cref="MilitaryCustomizationUtil.AttemptToAssign"/>,
+    /// <see cref="MilitaryCustomizationUtil.AttemptToSwap"/>, or
+    /// <see cref="MilitaryCustomizationUtil.Unassign"/> depending on the selection.
+    /// </summary>
+    public class Dialog_AssignSquadToSettlement : Dialog_SquadPicker
+    {
+        private readonly WorldSettlementFC target;
+        private readonly MercenarySquadFC currentSlotSquad;
+        private bool unassignSelected;
+
+        /* Travel and win-chance are unused for assignment — hide both columns and let the
+         * status badge / Inspect button / squad name reclaim the freed space. */
+        protected override bool ShowTravel    => false;
+        protected override bool ShowWinChance => false;
+
+        public Dialog_AssignSquadToSettlement(WorldSettlementFC target, MercenarySquadFC currentSlotSquad)
+        {
+            this.target = target;
+            this.currentSlotSquad = currentSlotSquad;
+            // WinChance is the base default but it's pruned from the toolbar here, so seed sort
+            // with a mode that's still visible. Power matches what most players will care about
+            // when picking a squad to billet.
+            this.sort = SortMode.Power;
+
+            doCloseX = true;
+            forcePause = false;
+            absorbInputAroundWindow = true;
+            closeOnClickedOutside = false;
+            draggable = true;
+        }
+
+        protected override float DrawHeader(Rect inRect)
+        {
+            Rect titleRect = new Rect(0, 0, inRect.width, TitleH);
+            Widgets.DrawHighlight(titleRect);
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(new Rect(8f, 0, inRect.width - 16f, TitleH),
+                "FCAssignSquadPickerTitle".Translate(target?.Name ?? "?"));
+
+            UIUtil.DrawColoredHorizontalLine(0, TitleH, inRect.width, Color.gray);
+
+            float y = TitleH + 6f;
+            float innerX = 8f;
+            float innerW = inRect.width - 16f;
+            float lineH = 22f;
+
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+
+            string slotLine = currentSlotSquad is object
+                ? (string)"FCAssignSquadPickerCurrentSlot".Translate(currentSlotSquad.DisplayName)
+                : (string)"FCAssignSquadPickerSlotEmpty".Translate();
+            Widgets.Label(new Rect(innerX, y, innerW, lineH), slotLine);
+            y += lineH;
+
+            int stationed = target?.StationedSquads?.Count ?? 0;
+            int cap = target?.SquadCap ?? 0;
+            Widgets.Label(new Rect(innerX, y, innerW, lineH),
+                "FCAssignSquadPickerStationed".Translate(stationed, cap));
+            y += lineH;
+
+            return y;
+        }
+
+        protected override bool CanConfirm()
+        {
+            if (unassignSelected) return currentSlotSquad is object && !currentSlotSquad.IsBusy;
+            if (selected is null) return false;
+            if (selected == currentSlotSquad) return true; // explicit no-op confirm
+            return selected.IsAvailable;
+        }
+
+        protected override void OnRowSelected(MercenarySquadFC squad)
+        {
+            base.OnRowSelected(squad);
+            unassignSelected = false;
+        }
+
+        protected override void Confirm()
+        {
+            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            if (util is null || target is null) { Close(); return; }
+
+            if (unassignSelected)
+            {
+                if (currentSlotSquad is object) util.Unassign(currentSlotSquad);
+                Close();
+                return;
+            }
+
+            if (selected is null || selected == currentSlotSquad)
+            {
+                Close();
+                return;
+            }
+
+            int stationed = target.StationedSquads?.Count ?? 0;
+            int cap = target.SquadCap;
+            bool atCap = stationed >= cap && selected.settlement != target;
+
+            bool ok;
+            if (atCap && currentSlotSquad is object && currentSlotSquad.settlement == target)
+            {
+                ok = util.AttemptToSwap(selected, target, currentSlotSquad);
+            }
+            else
+            {
+                ok = util.AttemptToAssign(selected, target);
+            }
+            if (ok) Close();
+        }
+
+        protected override void RebuildRows()
+        {
+            rows.Clear();
+
+            FactionFC fc = FactionCache.FactionComp;
+            List<MercenarySquadFC> pool = fc?.militaryCustomizationUtil?.mercenarySquads;
+            if (pool is null)
+            {
+                rowsDirty = false;
+                return;
+            }
+
+            int now = Find.TickManager.TicksGame;
+
+            foreach (MercenarySquadFC squad in pool)
+            {
+                if (squad is null) continue;
+                bool available = squad.IsAvailable;
+                if (availableOnly && !available && squad != currentSlotSquad) continue;
+
+                double power = SquadPowerRegistry.Resolve(squad).militaryLevel;
+
+                string status;
+                Color statusColor;
+                bool isReady;
+                ComputeStatus(squad, now, out status, out statusColor, out isReady);
+
+                int injuredCount = squad.CountInjuredMercs();
+                if (isReady && injuredCount > 0)
+                {
+                    status = "FCSquadStatusInjured".Translate(injuredCount);
+                    statusColor = AccentUtil.MilActiveMission;
+                }
+
+                rows.Add(new RowData
+                {
+                    squad = squad,
+                    travelTicks = 0,
+                    winChanceMin = 0,
+                    winChanceMax = 0,
+                    ourPower = power,
+                    ourEfficiency = 0,
+                    hasOurForce = false,
+                    status = status,
+                    statusColor = statusColor,
+                    available = available,
+                    deploymentCost = squad.DeploymentCost,
+                    injuredCount = injuredCount
+                });
+            }
+
+            ApplySort();
+            rowsDirty = false;
+        }
+
+        /* Extra "Unassign — empty this slot" card at the bottom of the squad list. Renders only
+         * when the slot has a current occupant; click selects it (clears any squad selection),
+         * confirm calls Unassign on the occupant. */
+        protected override float ExtraRowsHeight =>
+            currentSlotSquad is object ? (CardH + RowGap) : 0f;
+
+        protected override void DrawExtraRows(Rect viewRect, ref float runningY)
+        {
+            if (currentSlotSquad is null) return;
+
+            Rect cardRect = new Rect(0f, runningY, viewRect.width, CardH);
+            DrawUnassignCard(cardRect);
+            runningY += CardH + RowGap;
+        }
+
+        private void DrawUnassignCard(Rect cardRect)
+        {
+            bool isSelected = unassignSelected;
+            Color accent = AccentUtil.MilInactive;
+
+            if (isSelected)
+            {
+                Widgets.DrawHighlightSelected(cardRect);
+                Widgets.DrawBoxSolid(cardRect, new Color(accent.r, accent.g, accent.b, 0.10f));
+            }
+            else if (Mouse.IsOver(cardRect))
+            {
+                Widgets.DrawHighlight(cardRect);
+            }
+
+            Widgets.DrawBoxSolid(new Rect(cardRect.x, cardRect.y, AccentW, cardRect.height), accent);
+
+            float contentX = cardRect.x + AccentW + 6f;
+
+            GameFont fontBefore = Text.Font;
+            TextAnchor anchorBefore = Text.Anchor;
+            Color colorBefore = GUI.color;
+
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = accent;
+            Widgets.Label(new Rect(contentX, cardRect.y, cardRect.width - contentX - 8f, CardHeaderH),
+                "FCSquadPickerUnassignSlot".Translate());
+
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            Widgets.Label(new Rect(contentX, cardRect.y + CardHeaderH, cardRect.width - contentX - 8f, CardDetailH),
+                "FCAssignSquadPickerCurrentSlot".Translate(currentSlotSquad.DisplayName));
+
+            if (Widgets.ButtonInvisible(cardRect))
+            {
+                selected = null;
+                unassignSelected = true;
+            }
+
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
+            GUI.color = colorBefore;
+        }
+    }
+}

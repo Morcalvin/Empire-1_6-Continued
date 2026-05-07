@@ -95,12 +95,6 @@ namespace FactionColonies
                 ?? settlement?.FirstAvailableStationedSquad
                 ?? settlement?.PrimaryStationedSquad;
 
-            if (Find.CurrentMap.Parent is WorldSettlementFC)
-            {
-                // I think this case might be obsolete now that SettlementFC has been phased out. Need to double-check
-                Messages.Message("FCMilitaryTriedDeployingToSettlementFC".Translate(), MessageTypeDefOf.RejectInput);
-                return;
-            }
             if (squad == null)
             {
                 LogUtil.Warning($"Attempted to call in allied forces for settlement {settlement.Name} with NULL MilitaryComp. Skipping");

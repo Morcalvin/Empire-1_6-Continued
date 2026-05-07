@@ -1,4 +1,5 @@
 ﻿using RimWorld;
+using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -400,47 +401,6 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Builds float-menu options for assigning an existing hired squad to
-        /// <paramref name="settlement"/>. Lists every squad in <see cref="mercenarySquads"/>:
-        /// squads billeted at another settlement appear greyed (null Action) with that
-        /// settlement's name as a suffix; the squad already in this settlement appears with
-        /// a "(current)" suffix and a no-op Action. Hiring lives in the Create-Squad window
-        /// now; this menu only reassigns the existing pool.</summary>
-        public List<FloatMenuOption> BuildSquadAssignmentOptions(WorldSettlementFC settlement)
-        {
-            List<FloatMenuOption> options = new List<FloatMenuOption>();
-            if (mercenarySquads is null || mercenarySquads.Count == 0)
-            {
-                options.Add(new FloatMenuOption("FCNoSquadAvailable".Translate(), null));
-                return options;
-            }
-
-            foreach (MercenarySquadFC squad in mercenarySquads)
-            {
-                if (squad is null) continue;
-                MercenarySquadFC captured = squad;
-
-                bool alreadyHere = squad.settlement == settlement;
-                bool elsewhere = squad.IsAssigned && !alreadyHere;
-
-                string suffix;
-                if (alreadyHere) suffix = "  " + (string)"FCSetSquadCurrent".Translate();
-                else if (elsewhere) suffix = "  - " + squad.settlement.Name;
-                else suffix = "";
-
-                string label = squad.DisplayName + suffix;
-
-                Action onPick;
-                if (alreadyHere) onPick = delegate { /* no-op: squad already billeted here */ };
-                else if (elsewhere) onPick = null;   // null Action greys the row in FloatMenu
-                else onPick = delegate { AttemptToAssign(captured, settlement); };
-
-                options.Add(new FloatMenuOption(label, onPick));
-            }
-
-            return options;
-        }
-
         /// <summary>Pre-refactor entry point. Creates a fresh hired squad from the template and
         /// attempts to assign it to <paramref name="settlement"/>. Internally identical to
         /// <see cref="HireSquad"/> + <see cref="AttemptToAssign"/>.</summary>
@@ -528,22 +488,74 @@ namespace FactionColonies
                 return false;
             }
 
-            squad.settlement = settlement;
+            Assign(squad, settlement, true);
             Messages.Message("FCSquadAssigned".Translate(squad.DisplayName, settlement.Name), MessageTypeDefOf.PositiveEvent);
+            return true;
+        }
+
+        /// <summary>Unassigns <paramref name="displace"/> from its current settlement
+        /// (only if it's currently at <paramref name="target"/>), then assigns
+        /// <paramref name="incoming"/> to <paramref name="target"/>. Both squads must be non-busy.
+        /// Used by the Change-button picker to displace a slot's existing occupant when the target
+        /// is at squad cap. Returns true only if both legs succeed.</summary>
+        public bool AttemptToSwap(MercenarySquadFC incoming, WorldSettlementFC target,
+            MercenarySquadFC displace)
+        {
+            if (incoming is null || target is null) return false;
+            if (incoming == displace) return true; // same squad in slot — no-op
+            if (incoming.IsBusy)
+            {
+                Messages.Message("FCSquadSwapBusyReject".Translate(incoming.DisplayName), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+            if (displace is object && displace.IsBusy)
+            {
+                Messages.Message("FCSquadSwapBusyReject".Translate(displace.DisplayName), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+
+            // Detach the displaced squad first so the cap validator sees the slot as free.
+            if (displace is object && displace.settlement == target)
+            {
+                Unassign(displace, true);
+            }
+
+            if (!AttemptToAssign(incoming, target))
+            {
+                // Best-effort restore: AttemptToAssign already logged its rejection message.
+                if (displace is object) Assign(displace, target, true);
+                return false;
+            }
             return true;
         }
 
         /// <summary>Removes <paramref name="squad"/>'s billet (returns it to the unassigned pool).
         /// No-op when busy.</summary>
-        public bool Unassign(MercenarySquadFC squad)
+        public bool Unassign(MercenarySquadFC squad, bool silent = false)
         {
             if (squad is null) return false;
             if (squad.IsBusy)
             {
-                Messages.Message("FCCannotUnassignBusySquad".Translate(squad.DisplayName), MessageTypeDefOf.RejectInput, false);
+                if (!silent)
+                    Messages.Message("FCCannotUnassignBusySquad".Translate(squad.DisplayName), MessageTypeDefOf.RejectInput, false);
                 return false;
             }
             squad.settlement = null;
+            return true;
+        }
+        /// <summary>
+        /// Actually assigns the squad to the settlement. Meant to be handle any special on-assign processing
+        /// that might be added in the future, but for now, it literally just sets the squad's settlement.
+        /// </summary>
+        /// <param name="squad"></param>
+        /// <param name="settlement"></param>
+        /// <param name="silent"></param>
+        /// <returns></returns>
+        public bool Assign(MercenarySquadFC squad, WorldSettlementFC settlement, bool silent = false)
+        {
+            if (squad is null || settlement is null) return false;
+
+            squad.settlement = settlement;
             return true;
         }
 

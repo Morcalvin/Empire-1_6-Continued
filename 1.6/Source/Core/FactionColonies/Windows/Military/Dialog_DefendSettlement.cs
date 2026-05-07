@@ -140,6 +140,10 @@ namespace FactionColonies
                 Math.Round(op.defender.force?.DefensivePower ?? 0).ToString("0"));
         }
 
+        /* Travel time isn't actionable for defense. Squads dispatched during the warning window
+         * are presumed to arrive in time, so we hide the column and free its space for cost. */
+        protected override bool ShowTravel => false;
+
         protected override bool CanConfirm() =>
             (selected is object && selected.IsAvailable) || selectedExternal is object;
 
