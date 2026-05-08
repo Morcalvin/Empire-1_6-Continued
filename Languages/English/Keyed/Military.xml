@@ -318,7 +318,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadInspectionSlotLabel>Slot {0}</FCSquadInspectionSlotLabel>
 	<FCSquadInspectionLoadoutLabel>Loadout: {0}</FCSquadInspectionLoadoutLabel>
 	<FCSquadInspectionStatusLabel>Status: {0}</FCSquadInspectionStatusLabel>
-	<FCSquadInspectionDivergedTip>This pawn has a personal loadout that differs from the pool unit. Reset in the editor to restore inheritance.</FCSquadInspectionDivergedTip>
+	<FCSquadInspectionDivergedTip>This pawn has a personal loadout that differs from the unit template. Reset in the editor to restore inheritance.</FCSquadInspectionDivergedTip>
 	<FCSquadInspectionStatusOk>OK</FCSquadInspectionStatusOk>
 	<FCSquadInspectionStatusInjured>Injured ({0})</FCSquadInspectionStatusInjured>
 	<FCSquadInspectionStatusDowned>Downed</FCSquadInspectionStatusDowned>
@@ -360,10 +360,12 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<!-- Per-pawn loadout dialog -->
 	<FCDialogPawnLoadoutTitle>Edit pawn: {0}</FCDialogPawnLoadoutTitle>
 	<FCDialogPawnLoadoutTitleEmpty>Edit empty slot</FCDialogPawnLoadoutTitleEmpty>
-	<FCDialogPawnLoadoutInheritedSubtitle>Inherits from pool unit: {0}</FCDialogPawnLoadoutInheritedSubtitle>
+	<FCDialogPawnLoadoutInheritedSubtitle>Inherits from unit template: {0}</FCDialogPawnLoadoutInheritedSubtitle>
 	<FCDialogPawnLoadoutDivergedSubtitle>Personal loadout (template association broken)</FCDialogPawnLoadoutDivergedSubtitle>
-	<FCDialogPawnLoadoutPickFromPool>Pick from pool unit...</FCDialogPawnLoadoutPickFromPool>
-	<FCDialogPawnLoadoutResetToPool>Reset to pool unit</FCDialogPawnLoadoutResetToPool>
+	<FCDialogPawnLoadoutPickFromPool>Pick from unit template...</FCDialogPawnLoadoutPickFromPool>
+	<FCDialogPawnLoadoutResetToPool>Reset to unit template</FCDialogPawnLoadoutResetToPool>
+	<FCDialogPawnLoadoutApply>Apply</FCDialogPawnLoadoutApply>
+	<FCDialogPawnLoadoutClose>Close</FCDialogPawnLoadoutClose>
 
 	<FCNoUnitAvailable>No units available</FCNoUnitAvailable>
 

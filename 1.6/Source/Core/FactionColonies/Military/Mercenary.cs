@@ -7,13 +7,13 @@ namespace FactionColonies
     public class Mercenary : IExposable, ILoadReferenceable
     {
         //init variables
-        /* Pool unit pointer for display ("Marksman" template tag). Mutable from the
+        /* Unit template pointer for display ("Marksman" template tag). Mutable from the
          * outside via DesignUnitsWindow — do NOT trust this for cost/gear queries.
-         * Goes null only on pool unit deletion. */
+         * Goes null only on unit template deletion. */
         public MilUnitFC loadout;
         /* "This pawn has been personalized" marker. Cloned from currentLoadout on
-         * direct edit (Dialog_PawnLoadout) or pool unit deletion. Cleared on per-pawn
-         * pool swap, bulk Upgrade All claim, or "Reset to pool" action. */
+         * direct edit (Dialog_PawnLoadout) or unit template deletion. Cleared on per-pawn
+         * template swap, bulk Upgrade All claim, or "Reset to unit template" action. */
         public MilUnitFC ownedLoadout;
         /* Truth of equipped gear right now. Always populated when the pawn is alive.
          * Re-cloned on every gear-touching event (hire / fill / upgrade / per-pawn
@@ -133,7 +133,7 @@ namespace FactionColonies
                  *   2. Intermediate-refactor saves: loadout + ownedLoadout, no currentLoadout.
                  *   3. Post-refactor saves: currentLoadout already populated.
                  * Adopt ownedLoadout when present (it was the truth in shape 2), else
-                 * clone the pool unit for shape 1. Mercs without a pawn or loadout
+                 * clone the unit template for shape 1. Mercs without a pawn or loadout
                  * stay null (empty slot or fresh-created). */
                 if (currentLoadout == null)
                 {

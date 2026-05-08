@@ -116,7 +116,7 @@ namespace FactionColonies
         /// Nulls the outfit reference for any deployed squad whose template has been deleted.
         /// Mercenaries and their gear are left untouched — the squad keeps whatever loadout
         /// it had at the moment the player last edited it. Per-merc <see cref="Mercenary.loadout"/>
-        /// pool references stay valid; deletion of pool units snapshots into <c>ownedLoadout</c>
+        /// template references stay valid; deletion of unit templates snapshots into <c>ownedLoadout</c>
         /// via <see cref="DeleteUnit"/>.
         /// </summary>
         public void ValidateDeployedSquadOutfits()
@@ -358,7 +358,7 @@ namespace FactionColonies
                     if (m.ownedLoadout is null)
                     {
                         // Prefer the equipped-truth snapshot. Fall back to cloning the
-                        // about-to-be-deleted pool unit if currentLoadout was never set
+                        // about-to-be-deleted unit template if currentLoadout was never set
                         // (empty slot or unmigrated save).
                         m.ownedLoadout = (m.currentLoadout ?? unit).Clone();
                     }
@@ -380,7 +380,7 @@ namespace FactionColonies
 
         /// <summary>Removes <paramref name="template"/> from the templates pool. Clears
         /// <see cref="MercenarySquadFC.outfit"/> on every mercenary squad that referenced it —
-        /// mercs and gear are left untouched (each merc still references its pool unit through
+        /// mercs and gear are left untouched (each merc still references its unit template through
         /// <see cref="Mercenary.loadout"/>). No snapshot is needed; templates don't directly
         /// own gear.</summary>
         public void DeleteTemplate(MilSquadFC template)

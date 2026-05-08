@@ -86,7 +86,7 @@ namespace FactionColonies
             if (unassignSelected) return currentSlotSquad is object && !currentSlotSquad.IsBusy;
             if (selected is null) return false;
             if (selected == currentSlotSquad) return true; // explicit no-op confirm
-            return selected.IsAvailable;
+            return !selected.IsBusy;
         }
 
         protected override void OnRowSelected(MercenarySquadFC squad)
@@ -146,7 +146,7 @@ namespace FactionColonies
             foreach (MercenarySquadFC squad in pool)
             {
                 if (squad is null) continue;
-                bool available = squad.IsAvailable;
+                bool available = !squad.IsBusy;
                 if (availableOnly && !available && squad != currentSlotSquad) continue;
 
                 SquadPower sp = SquadPowerRegistry.Resolve(squad);

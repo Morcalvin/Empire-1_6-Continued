@@ -8,11 +8,18 @@ using Verse;
 namespace FactionColonies
 {
     /// <summary>
-    /// Per-pawn loadout editor. Mutates <see cref="Mercenary.ownedLoadout"/> only —
-    /// the merc's *target/assigned* loadout. Does NOT touch
-    /// <see cref="Mercenary.currentLoadout"/> (equipped snapshot) or the pawn's
-    /// actual gear. The per-pawn Upgrade button on the inspection window does the
-    /// assigned → equipped transition (paying the silver cost diff).
+    /// Per-pawn loadout editor with buffered edits and a live preview pawn.
+    ///
+    /// All edits go to <see cref="workingLoadout"/> (a clone of <c>merc.ownedLoadout</c> taken
+    /// at open time). Nothing is committed to <c>merc.ownedLoadout</c> until the player clicks
+    /// Apply; closing the window without Apply discards all changes.
+    ///
+    /// The preview pawn shown on the left is a deep clone of <c>merc.pawn</c> (via
+    /// <see cref="GameComponent_PawnDuplicator"/>) and is re-equipped on the fly from
+    /// <see cref="DisplayLoadout"/>. The clone is destroyed in <see cref="PostClose"/>.
+    ///
+    /// Apply only writes <c>merc.ownedLoadout</c>. The squad inspection's per-pawn Upgrade
+    /// button does the assigned -> equipped transition (paying the silver cost diff).
     ///
     /// Reuses <see cref="FCWindow_ItemStuffPicker"/> for weapon and apparel pickers (same UX
     /// as the unit designer). Pawn identity (kindDef / xenotype) is preserved.
@@ -25,48 +32,67 @@ namespace FactionColonies
         private readonly Mercenary merc;
         private Vector2 apparelScroll;
 
+        /* Buffered edits. null = "inherits from squad template" (same semantics as
+         * Mercenary.ownedLoadout being null). Apply writes this onto merc.ownedLoadout. */
+        private MilUnitFC workingLoadout;
+        private bool dirty;
+
+        /* Live preview pawn — deep clone of merc.pawn, re-equipped from DisplayLoadout.
+         * Created lazily on first DoWindowContents and destroyed in PostClose. */
+        private Pawn previewPawn;
+        private MilUnitFC lastEquippedLoadoutRef;
+        private int lastEquippedTick = int.MinValue;
+
         public Dialog_PawnLoadout(MercenarySquadFC squad, Mercenary merc)
         {
             this.squad = squad;
             this.merc = merc;
+            this.workingLoadout = merc?.ownedLoadout?.Clone();
             doCloseX = true;
             forcePause = false;
             absorbInputAroundWindow = true;
             draggable = true;
         }
 
-        /* Returns the merc's ownedLoadout (the target/assigned loadout), creating
-         * it as a clone of the squad template on first edit. Only call from
-         * confirm/apply paths — calling on picker open would break association
-         * even when the user cancels. */
-        private MilUnitFC EnsureOwnedLoadout()
+        /* The loadout the dialog displays. Mirrors Mercenary.BlueprintLoadout's
+         * fallback chain but reads the working buffer rather than ownedLoadout. */
+        private MilUnitFC DisplayLoadout =>
+            workingLoadout ?? merc?.loadout ?? merc?.currentLoadout;
+
+        /* Returns the working buffer, lazily allocating it on first edit. Picker
+         * confirm callbacks call this so that opening + cancelling a picker doesn't
+         * break inheritance from the squad template. Always marks dirty — this is
+         * only invoked from edit-confirmation paths. */
+        private MilUnitFC EnsureWorkingLoadout()
         {
             if (merc is null) return null;
-            if (merc.ownedLoadout != null) return merc.ownedLoadout;
+            dirty = true;
+            if (workingLoadout != null) return workingLoadout;
 
             MilUnitFC source = merc.loadout ?? merc.currentLoadout;
-            MilUnitFC clone;
             if (source != null)
             {
-                clone = source.Clone();
+                workingLoadout = source.Clone();
             }
             else
             {
-                clone = MilTemplateFactory.CreateUnit(false);
-                clone.name = (string)"FCSquadInspectionPersonalLoadoutDefaultName".Translate();
+                workingLoadout = MilTemplateFactory.CreateUnit(false);
+                workingLoadout.name = (string)"FCSquadInspectionPersonalLoadoutDefaultName".Translate();
             }
-            merc.ownedLoadout = clone;
-            return merc.ownedLoadout;
+            return workingLoadout;
         }
 
         public override void DoWindowContents(Rect inRect)
         {
             if (merc is null) { Close(); return; }
 
+            EnsurePreviewPawn();
+            RefreshPreviewIfStale();
+
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            MilUnitFC current = merc.BlueprintLoadout;
+            MilUnitFC current = DisplayLoadout;
 
             // Header bar (full-width highlight behind the title; right-inset
             // leaves room for the close X which overlaps inRect's top-right).
@@ -80,10 +106,10 @@ namespace FactionColonies
                 : (string)"FCDialogPawnLoadoutTitleEmpty".Translate();
             Widgets.Label(new Rect(headerBar.x + 5f, headerBar.y, headerBar.width - 10f, headerBar.height), title);
 
-            // Subtitle: template association state
+            // Subtitle: template association state (based on the working buffer)
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            string sub = merc.ownedLoadout != null
+            string sub = workingLoadout != null
                 ? (string)"FCDialogPawnLoadoutDivergedSubtitle".Translate()
                 : (string)"FCDialogPawnLoadoutInheritedSubtitle".Translate(merc.loadout?.name ?? (string)"FCNone".Translate());
             Widgets.Label(new Rect(inRect.x, headerBar.yMax + 4f, inRect.width, 18f), sub);
@@ -120,37 +146,64 @@ namespace FactionColonies
             DrawLeftPanel(leftPanel);
             DrawApparelPanel(rightPanel);
 
-            // Bottom: Pick from pool + Reset to pool + Done
+            // Bottom: [Pick] [Reset]               [Apply] [Close]
             Rect bottomRect = new Rect(inRect.x, inRect.yMax - bottomBtnH, inRect.width, bottomBtnH);
-            float bx = bottomRect.x;
             float gap = 8f;
-            float wideW = 220f;
+            float pickW = 200f;
+            float resetW = 180f;
+            float rightBtnW = 90f;
 
-            if (Widgets.ButtonText(new Rect(bx, bottomRect.y, wideW, bottomRect.height),
-                "FCDialogPawnLoadoutPickFromPool".Translate()))
+            Rect pickRect = new Rect(bottomRect.x, bottomRect.y, pickW, bottomRect.height);
+            if (Widgets.ButtonText(pickRect, "FCDialogPawnLoadoutPickFromPool".Translate()))
             {
                 OpenPickFromPoolMenu();
             }
-            bx += wideW + gap;
 
-            // Reset: clear ownedLoadout so BlueprintLoadout falls back to the squad
-            // template (loadout). Pawn equipment is untouched — Upgrade does the sync.
-            bool canReset = merc.ownedLoadout != null && merc.loadout != null;
+            // Reset: clear workingLoadout so DisplayLoadout falls back to the squad
+            // template (loadout). Buffered — only Apply commits.
+            bool canReset = workingLoadout != null && merc.loadout != null;
             Color colorBefore = GUI.color;
             if (!canReset) GUI.color = Color.gray;
-            Rect resetRect = new Rect(bx, bottomRect.y, wideW, bottomRect.height);
+            Rect resetRect = new Rect(pickRect.xMax + gap, bottomRect.y, resetW, bottomRect.height);
             if (Widgets.ButtonText(resetRect, "FCDialogPawnLoadoutResetToPool".Translate(), true, true, canReset))
             {
-                merc.ownedLoadout = null;
+                workingLoadout = null;
+                dirty = true;
             }
             GUI.color = colorBefore;
 
-            float doneW = 120f;
-            Rect doneRect = new Rect(bottomRect.xMax - doneW, bottomRect.y, doneW, bottomRect.height);
-            if (Widgets.ButtonText(doneRect, "OK".Translate())) Close();
+            Rect closeRect = new Rect(bottomRect.xMax - rightBtnW, bottomRect.y, rightBtnW, bottomRect.height);
+            Rect applyRect = new Rect(closeRect.x - gap - rightBtnW, bottomRect.y, rightBtnW, bottomRect.height);
+
+            if (!dirty) GUI.color = Color.gray;
+            if (Widgets.ButtonText(applyRect, "FCDialogPawnLoadoutApply".Translate(), true, true, dirty))
+            {
+                ApplyChanges();
+            }
+            GUI.color = colorBefore;
+
+            if (Widgets.ButtonText(closeRect, "FCDialogPawnLoadoutClose".Translate())) Close();
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
+        }
+
+        public override void PostClose()
+        {
+            base.PostClose();
+            DestroyPreviewPawn();
+            workingLoadout = null;
+        }
+
+        // --- Apply ---
+
+        /* Commits workingLoadout onto merc.ownedLoadout. Clones so the dialog can
+         * keep buffering further edits without aliasing the assigned loadout. */
+        private void ApplyChanges()
+        {
+            if (merc is null) return;
+            merc.ownedLoadout = workingLoadout?.Clone();
+            dirty = false;
         }
 
         // --- Left panel: pawn portrait + weapon/animal slots ---
@@ -162,8 +215,8 @@ namespace FactionColonies
             const float gap = 14f;
 
             Rect portraitRect = new Rect(rect.x + (rect.width - 100f) / 2f, rect.y, 100f, portraitH);
-            if (merc.pawn != null)
-                UIUtil.DrawPawnPortrait(portraitRect, merc.pawn);
+            if (previewPawn != null)
+                UIUtil.DrawPawnPortrait(portraitRect, previewPawn);
             else
                 Widgets.DrawMenuSection(portraitRect);
 
@@ -184,8 +237,8 @@ namespace FactionColonies
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
-            // Display the target (assigned) loadout — what the player is editing.
-            MilUnitFC current = merc.BlueprintLoadout;
+            // Display the working buffer (or template fallback) — what the player is editing.
+            MilUnitFC current = DisplayLoadout;
             // Use non-interactive draws so ButtonInvisible below handles all clicks.
             if (current?.HasWeapon == true)
                 Widgets.DrawTextureFitted(weaponSlot, current.weapons[0].thing.uiIcon, 1f);
@@ -206,23 +259,23 @@ namespace FactionColonies
 
         private void DrawApparelPanel(Rect rect)
         {
-            ApparelListWidget.Draw(rect, merc.BlueprintLoadout, ref apparelScroll, new ApparelListWidget.Options
+            ApparelListWidget.Draw(rect, DisplayLoadout, ref apparelScroll, new ApparelListWidget.Options
             {
                 canEdit = true,
                 showHeaderButtons = true,
-                getEditTarget = EnsureOwnedLoadout,
+                getEditTarget = EnsureWorkingLoadout,
             });
         }
 
         // --- Pickers ---
 
-        /* All pickers defer EnsureOwnedLoadout into their confirm callbacks so that
+        /* All pickers defer EnsureWorkingLoadout into their confirm callbacks so that
          * opening and cancelling does not break the template association. Display
-         * filters read from BlueprintLoadout (which falls back to the squad template). */
+         * filters read from DisplayLoadout (which falls back to the squad template). */
 
         private void OpenWeaponPicker()
         {
-            MilUnitFC source = merc.BlueprintLoadout;
+            MilUnitFC source = DisplayLoadout;
             ThingDef raceDef = source?.pawnKind?.race;
             List<ThingDef> weaponDefs = DefDatabase<ThingDef>.AllDefs
                 .Where(t => t.IsWeapon && t.BaseMarketValue != 0
@@ -238,12 +291,12 @@ namespace FactionColonies
                 weaponDefs,
                 onConfirm: (item, stuff) =>
                 {
-                    MilUnitFC target = EnsureOwnedLoadout();
+                    MilUnitFC target = EnsureWorkingLoadout();
                     if (target != null) target.SetWeapon(item, stuff);
                 },
                 onUnequip: () =>
                 {
-                    MilUnitFC target = EnsureOwnedLoadout();
+                    MilUnitFC target = EnsureWorkingLoadout();
                     if (target != null) target.ClearWeapon();
                 },
                 titleKey: "fcPickWeapon",
@@ -254,19 +307,19 @@ namespace FactionColonies
 
         private void OpenAnimalPicker()
         {
-            MilUnitFC source = merc.BlueprintLoadout;
+            MilUnitFC source = DisplayLoadout;
             Find.WindowStack.Add(new FCWindow_AnimalPicker(
                 initialAnimal: source?.animal,
                 onConfirm: picked =>
                 {
-                    MilUnitFC target = EnsureOwnedLoadout();
+                    MilUnitFC target = EnsureWorkingLoadout();
                     if (target is null) return;
                     target.animal = picked;
                     target.ChangeTick();
                 },
                 onUnequip: () =>
                 {
-                    MilUnitFC target = EnsureOwnedLoadout();
+                    MilUnitFC target = EnsureWorkingLoadout();
                     if (target is null) return;
                     target.animal = null;
                     target.ChangeTick();
@@ -274,7 +327,7 @@ namespace FactionColonies
             ));
         }
 
-        // --- Pick from pool ---
+        // --- Pick from unit template ---
 
         private void OpenPickFromPoolMenu()
         {
@@ -286,15 +339,90 @@ namespace FactionColonies
                 MilUnitFC captured = unit;
                 options.Add(new FloatMenuOption(captured.name, delegate
                 {
-                    // Personalize this merc to use the picked pool unit's gear as their
-                    // assigned loadout. Squad ref (loadout) and equipped state
-                    // (currentLoadout) are untouched — Upgrade does the equipment sync.
-                    merc.ownedLoadout = captured.Clone();
+                    // Personalize this merc to use the picked unit template's gear as their
+                    // working loadout. Buffered — only Apply commits to ownedLoadout.
+                    workingLoadout = captured.Clone();
+                    dirty = true;
                 }));
             }
             if (options.Count == 0)
                 options.Add(new FloatMenuOption("FCNoUnitAvailable".Translate(), null));
             Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        // --- Preview pawn ---
+
+        /* Lazy-clones merc.pawn into previewPawn on first call. Uses the base game's
+         * GameComponent_PawnDuplicator which deep-copies identity, appearance, genes,
+         * traits, skills, hediffs, abilities, and arrives with no gear (forceNoGear).
+         *
+         * Anomaly side effect: Duplicate writes pawn.duplicate.duplicateOf on the
+         * source (used by the duplicate-sickness mechanic). Snapshot/restore around
+         * the call so opening this dialog does not silently mark merc.pawn as a
+         * duplicate. The clone's own duplicate state is irrelevant — we destroy it
+         * in PostClose. */
+        private void EnsurePreviewPawn()
+        {
+            if (previewPawn != null) return;
+            if (merc?.pawn is null) return;
+
+            int savedDuplicateOf = int.MinValue;
+            bool hadDup = ModsConfig.AnomalyActive && merc.pawn.duplicate != null;
+            if (hadDup) savedDuplicateOf = merc.pawn.duplicate.duplicateOf;
+
+            try
+            {
+                GameComponent_PawnDuplicator dup = Current.Game?.GetComponent<GameComponent_PawnDuplicator>();
+                if (dup is null) return;
+                previewPawn = dup.Duplicate(merc.pawn);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtil.Warning($"Dialog_PawnLoadout: failed to clone preview pawn: {ex.Message}");
+                previewPawn = null;
+            }
+            finally
+            {
+                if (hadDup) merc.pawn.duplicate.duplicateOf = savedDuplicateOf;
+            }
+        }
+
+        /* Re-equips previewPawn from DisplayLoadout when either the buffer reference
+         * or its tickChanged value differs from the last equip pass. */
+        private void RefreshPreviewIfStale()
+        {
+            if (previewPawn is null) return;
+            MilUnitFC display = DisplayLoadout;
+            int displayTick = display?.tickChanged ?? int.MinValue;
+            if (display == lastEquippedLoadoutRef && displayTick == lastEquippedTick) return;
+
+            MilUnitFC.ApplyEquipmentToPawn(previewPawn, display);
+            previewPawn.Drawer?.renderer?.SetAllGraphicsDirty();
+            PortraitsCache.SetDirty(previewPawn);
+
+            lastEquippedLoadoutRef = display;
+            lastEquippedTick = displayTick;
+        }
+
+        private void DestroyPreviewPawn()
+        {
+            if (previewPawn is null) return;
+            try
+            {
+                previewPawn.apparel?.DestroyAll();
+                previewPawn.equipment?.DestroyAllEquipment();
+                if (!previewPawn.Destroyed) previewPawn.Destroy();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtil.Warning($"Dialog_PawnLoadout: failed to destroy preview pawn: {ex.Message}");
+            }
+            finally
+            {
+                previewPawn = null;
+                lastEquippedLoadoutRef = null;
+                lastEquippedTick = int.MinValue;
+            }
         }
     }
 }

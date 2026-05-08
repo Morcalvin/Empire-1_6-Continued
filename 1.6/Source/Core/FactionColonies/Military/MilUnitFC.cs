@@ -223,30 +223,44 @@ namespace FactionColonies
         protected virtual void RefreshPreviewEquipment()
         {
             if (previewPawn == null) return;
+            ApplyEquipmentToPawn(previewPawn, this);
+            pawnEquipmentDirty = false;
+        }
 
-            previewPawn.apparel.DestroyAll();
-            previewPawn.equipment.DestroyAllEquipment();
+        /* Strips and re-equips the target pawn from this unit's apparel/weapons.
+         * Used by both the lazy preview pawn and Dialog_PawnLoadout's cloned-pawn
+         * preview. Apparel colors are resolved via the player faction's color rules. */
+        public static void ApplyEquipmentToPawn(Pawn target, MilUnitFC source)
+        {
+            if (target is null || source is null) return;
+
+            target.apparel?.DestroyAll();
+            target.equipment?.DestroyAllEquipment();
 
             FactionFC factionComp = FactionCache.FactionComp;
-            foreach (SavedThing a in apparel)
+            if (source.apparel != null && target.apparel != null)
             {
-                Thing t = a.CreateThing();
-                if (t is Apparel ap)
+                foreach (SavedThing a in source.apparel)
                 {
-                    Color resolved = factionComp != null ? factionComp.ResolveApparelColor(a) : Color.white;
-                    t.SetColor(resolved, reportFailure: false);
-                    previewPawn.apparel.Wear(ap);
+                    Thing t = a.CreateThing();
+                    if (t is Apparel ap)
+                    {
+                        Color resolved = factionComp != null ? factionComp.ResolveApparelColor(a) : Color.white;
+                        t.SetColor(resolved, reportFailure: false);
+                        target.apparel.Wear(ap);
+                    }
                 }
             }
 
-            foreach (SavedThing w in weapons)
+            if (source.weapons != null && target.equipment != null)
             {
-                Thing wt = w.CreateThing();
-                if (wt is ThingWithComps twc)
-                    previewPawn.equipment.AddEquipment(twc);
+                foreach (SavedThing w in source.weapons)
+                {
+                    Thing wt = w.CreateThing();
+                    if (wt is ThingWithComps twc)
+                        target.equipment.AddEquipment(twc);
+                }
             }
-
-            pawnEquipmentDirty = false;
         }
 
         // --- Equipment Mutation Methods ---
