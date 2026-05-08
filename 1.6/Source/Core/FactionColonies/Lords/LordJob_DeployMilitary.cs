@@ -134,9 +134,10 @@ namespace FactionColonies
 
         /// <summary>
         /// Grabs a new currentOrderPosition from <see cref="MercenarySquadFC.orderLocation"/>
-        /// and updates the toils with it.
+        /// and pushes it into the toils' data. Runs as a preAction so the data is fresh before
+        /// <c>GotoToil</c> calls <c>UpdateAllDuties</c> on the target toil.
         /// </summary>
-        private void UpdateOrderPosition()
+        private void UpdateOrderPositionData()
         {
             if (squad is null) return;
             IntVec3 newPos = squad.orderLocation;
@@ -144,13 +145,21 @@ namespace FactionColonies
 
             lordToil_DefendPoint.SetDefendPoint(newPos);
             ((LordToilData_HuntEnemies)lordToil_HuntEnemies.data).fallbackLocation = newPos;
+        }
 
-            lord.CurLordToil.UpdateAllDuties();
-
-            // Force pawns to drop their current job so the new duty takes effect this tick instead of after the current job finishes.
-            // Defend's think tree ends in JobGiver_WanderNearDutyLocation, which alternates GotoWander/Wait_Wander via this flag.
-            // Without resetting it, ~50% of interrupts land on the "wait" half of the toggle and queue a 125-200 tick Wait_Wander
-            // before any movement — visible as a 1-2s freeze before the squad heads to the new point.
+        /// <summary>
+        /// Force pawns to drop their current job so the new duty takes effect this tick instead of after the current job finishes.
+        /// Runs as a postAction (after <c>GotoToil</c> has installed the target toil's duty) so the pawns' next job is picked
+        /// against the new duty, not against the soon-to-be-discarded source duty. This matters for Leave->Move/Attack: the
+        /// leave duty's <c>JobGiver_ExitMapBest</c> hands out a Goto with <c>expiryInterval = 500</c> that won't re-evaluate
+        /// for ~8 seconds, so any job-end before the duty swap leaves the pawn locked into walking off the map.
+        ///
+        /// Defend's think tree ends in JobGiver_WanderNearDutyLocation, which alternates GotoWander/Wait_Wander via
+        /// <c>nextMoveOrderIsWait</c>. Without resetting it, ~50% of interrupts land on the "wait" half of the toggle and
+        /// queue a 125-200 tick Wait_Wander before any movement, visible as a 1-2s freeze before the squad heads to the new point.
+        /// </summary>
+        private void RestartPawnJobs()
+        {
             foreach (Pawn p in lord.ownedPawns)
             {
                 if (p is null) continue;
@@ -206,7 +215,11 @@ namespace FactionColonies
                         },
                         preActions = new List<TransitionAction>(1)
                         {
-                            new TransitionAction_Custom(UpdateOrderPosition)
+                            new TransitionAction_Custom(UpdateOrderPositionData)
+                        },
+                        postActions = new List<TransitionAction>(1)
+                        {
+                            new TransitionAction_Custom(RestartPawnJobs)
                         }
                     };
                 }
@@ -237,7 +250,11 @@ namespace FactionColonies
                 },
                 preActions = new List<TransitionAction>(1)
                 {
-                    new TransitionAction_Custom(UpdateOrderPosition)
+                    new TransitionAction_Custom(UpdateOrderPositionData)
+                },
+                postActions = new List<TransitionAction>(1)
+                {
+                    new TransitionAction_Custom(RestartPawnJobs)
                 }
             };
         }
