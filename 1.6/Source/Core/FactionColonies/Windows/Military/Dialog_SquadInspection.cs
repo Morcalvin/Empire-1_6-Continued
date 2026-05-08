@@ -563,10 +563,12 @@ namespace FactionColonies
                     TooltipHandler.TipRegion(editRect, "FCSquadCannotModifyBusyTip".Translate());
                 bx += btnW + SmallGap;
 
-                /* Upgrade — apply the merc's assigned loadout (BlueprintLoadout) to
-                   the pawn's equipped gear, paying the cost diff. */
+                /* Upgrade: apply the merc's assigned loadout (BlueprintLoadout) to
+                   the pawn's equipped gear, paying any positive cost diff. Allowed
+                   whenever the assigned loadout differs from the equipped one,
+                   including same-cost or cheaper changes (which charge zero silver). */
                 int slotUpgradeCost = ComputePerPawnUpgradeCost(merc);
-                bool canUpgrade = slotUpgradeCost > 0 && !squad.IsBusy && merc.pawn != null;
+                bool canUpgrade = PerPawnUpgradeNeeded(merc) && !squad.IsBusy && merc.pawn != null;
                 Rect upgRect = new Rect(bx, rect.y, btnW, btnH);
                 if (UIUtil.ButtonFlat(upgRect,
                     "FCSquadInspectionPerSlotUpgrade".Translate(slotUpgradeCost), disabled: !canUpgrade))
@@ -639,14 +641,67 @@ namespace FactionColonies
 
         /// <summary>Cost to bring the pawn's currently-equipped gear in line with the
         /// merc's assigned loadout (<see cref="Mercenary.BlueprintLoadout"/> = ownedLoadout
-        /// ?? loadout). Returns 0 when there's no positive diff.</summary>
+        /// ?? loadout). Returns 0 when the assigned loadout costs the same or less than
+        /// the equipped one, in which case the upgrade still applies (re-equips), it's
+        /// just free. Use <see cref="PerPawnUpgradeNeeded"/> to gate the button.</summary>
         private int ComputePerPawnUpgradeCost(Mercenary merc)
         {
             if (merc is null) return 0;
             double targetCost = SumEquipmentCost(merc.BlueprintLoadout);
             double equippedCost = SumEquipmentCost(merc.currentLoadout);
-            if (targetCost <= equippedCost) return 0;
-            return (int)Math.Round((targetCost - equippedCost) * FCSettings.squadUpgradeCostMultiplier);
+            double diff = targetCost - equippedCost;
+            if (diff <= 0) return 0;
+            return (int)Math.Round(diff * FCSettings.squadUpgradeCostMultiplier);
+        }
+
+        /// <summary>True when the merc's assigned loadout (<see cref="Mercenary.BlueprintLoadout"/>)
+        /// differs from the equipped snapshot (<see cref="Mercenary.currentLoadout"/>) in any
+        /// applied way (apparel set/stuff/color, weapon, animal).</summary>
+        private static bool PerPawnUpgradeNeeded(Mercenary merc)
+        {
+            if (merc is null) return false;
+            MilUnitFC target = merc.BlueprintLoadout;
+            if (target is null) return false;
+            MilUnitFC equipped = merc.currentLoadout;
+            if (equipped is null) return true;
+            if (target.animal != equipped.animal) return true;
+            if (!ApparelEquivalent(target.apparel, equipped.apparel)) return true;
+            if (!WeaponsEquivalent(target.weapons, equipped.weapons)) return true;
+            return false;
+        }
+
+        private static bool ApparelEquivalent(List<SavedThing> a, List<SavedThing> b)
+        {
+            int an = a == null ? 0 : a.Count(x => x.thing != null);
+            int bn = b == null ? 0 : b.Count(x => x.thing != null);
+            if (an != bn) return false;
+            if (an == 0) return true;
+            List<SavedThing> sa = a.Where(x => x.thing != null).OrderBy(x => x.thing.defName).ToList();
+            List<SavedThing> sb = b.Where(x => x.thing != null).OrderBy(x => x.thing.defName).ToList();
+            for (int i = 0; i < an; i++)
+            {
+                if (!SavedThingEquivalent(sa[i], sb[i])) return false;
+            }
+            return true;
+        }
+
+        private static bool WeaponsEquivalent(List<SavedThing> a, List<SavedThing> b)
+        {
+            SavedThing? wa = a == null ? (SavedThing?)null : a.Where(x => x.thing != null).Select(x => (SavedThing?)x).FirstOrDefault();
+            SavedThing? wb = b == null ? (SavedThing?)null : b.Where(x => x.thing != null).Select(x => (SavedThing?)x).FirstOrDefault();
+            if (wa.HasValue != wb.HasValue) return false;
+            if (!wa.HasValue) return true;
+            return SavedThingEquivalent(wa.Value, wb.Value);
+        }
+
+        private static bool SavedThingEquivalent(SavedThing a, SavedThing b)
+        {
+            if (a.thing != b.thing) return false;
+            if (a.stuff != b.stuff) return false;
+            if (a.quality != b.quality) return false;
+            if (a.hasColor != b.hasColor) return false;
+            if (a.hasColor && a.color != b.color) return false;
+            return true;
         }
 
         private void PerPawnUpgrade(Mercenary merc, int cost)
