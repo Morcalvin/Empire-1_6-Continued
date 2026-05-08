@@ -144,6 +144,9 @@ namespace FactionColonies
          * are presumed to arrive in time, so we hide the column and free its space for cost. */
         protected override bool ShowTravel => false;
 
+        /* Highlight the squad currently committed to defense. */
+        protected override MercenarySquadFC CurrentSquadIndicator => op?.defender?.squad;
+
         protected override bool CanConfirm() =>
             (selected is object && selected.IsAvailable) || selectedExternal is object;
 

@@ -240,7 +240,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadColPower>Power</FCSquadColPower>
 	<FCSquadColEfficiency>Eff</FCSquadColEfficiency>
 	<FCSquadColCost>Cost</FCSquadColCost>
-	<FCSquadColDeploymentCost>Deploy</FCSquadColDeploymentCost>
+	<FCSquadColDeploymentCost>Deploy Cost</FCSquadColDeploymentCost>
 	<FCSquadColUpgrade>Upgrade</FCSquadColUpgrade>
 	<FCSquadColActions>Actions</FCSquadColActions>
 

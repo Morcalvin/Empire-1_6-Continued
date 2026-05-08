@@ -21,10 +21,14 @@ namespace FactionColonies
         private readonly MercenarySquadFC currentSlotSquad;
         private bool unassignSelected;
 
-        /* Travel and win-chance are unused for assignment — hide both columns and let the
-         * status badge / Inspect button / squad name reclaim the freed space. */
+        /* Travel and win-chance are unused for assignment — hide them. Pow/Eff stay visible so
+         * the player can compare squad strength while picking. */
         protected override bool ShowTravel    => false;
         protected override bool ShowWinChance => false;
+
+        /* Flag the slot's existing occupant so the player can see what they'd be displacing
+         * before committing. */
+        protected override MercenarySquadFC CurrentSquadIndicator => currentSlotSquad;
 
         public Dialog_AssignSquadToSettlement(WorldSettlementFC target, MercenarySquadFC currentSlotSquad)
         {
@@ -145,7 +149,7 @@ namespace FactionColonies
                 bool available = squad.IsAvailable;
                 if (availableOnly && !available && squad != currentSlotSquad) continue;
 
-                double power = SquadPowerRegistry.Resolve(squad).militaryLevel;
+                SquadPower sp = SquadPowerRegistry.Resolve(squad);
 
                 string status;
                 Color statusColor;
@@ -165,9 +169,9 @@ namespace FactionColonies
                     travelTicks = 0,
                     winChanceMin = 0,
                     winChanceMax = 0,
-                    ourPower = power,
-                    ourEfficiency = 0,
-                    hasOurForce = false,
+                    ourPower = sp.militaryLevel,
+                    ourEfficiency = sp.militaryEfficiency,
+                    hasOurForce = true,
                     status = status,
                     statusColor = statusColor,
                     available = available,

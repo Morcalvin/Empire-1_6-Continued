@@ -92,13 +92,19 @@ namespace FactionColonies
         protected virtual float ExtraRowsHeight => 0f;
         protected virtual void DrawExtraRows(Rect viewRect, ref float runningY) { }
 
-        /* Column-visibility seams — let subclasses hide travel and/or win-chance when the picker
-         * is used outside of the offensive flow (e.g. defensive swaps don't need travel since
-         * the warning window already accounts for arrival; the assign-to-slot picker needs
-         * neither). When hidden, the freed horizontal space goes to the squad name / status /
-         * Inspect / cost columns and the corresponding sort modes are pruned from the toolbar. */
-        protected virtual bool ShowTravel    => true;
-        protected virtual bool ShowWinChance => true;
+        /* Column-visibility seams: let subclasses hide travel, force metrics (Pow/Eff), and/or
+         * win-chance independently. Defensive swaps skip travel (the warning window already
+         * accounts for arrival); the assign-to-slot picker skips win chance (no engagement to
+         * predict) but keeps Pow/Eff so the player can compare squad strength. When hidden, the
+         * freed horizontal space goes to the squad name / status / Inspect / cost columns and
+         * the corresponding sort modes are pruned from the toolbar. */
+        protected virtual bool ShowTravel        => true;
+        protected virtual bool ShowForceMetrics  => true;
+        protected virtual bool ShowWinChance     => true;
+
+        /* Returns a squad that should be flagged as the "current" / "already-assigned" candidate
+         * in this picker's context. */
+        protected virtual MercenarySquadFC CurrentSquadIndicator => null;
 
         public override void DoWindowContents(Rect inRect)
         {
@@ -213,9 +219,12 @@ namespace FactionColonies
 
         /* Win-chance-derived color: drives the accent strip, name, win-chance box, and selected
          * highlight overlay. Midpoint matches the WinChance sort key so visual gradient and
-         * sort order stay aligned. Falls back to MilInactive when the row has no force on our side. */
-        protected static Color WinChanceColor(RowData row)
+         * sort order stay aligned. Falls back to MilInactive when the row has no force on our
+         * side. Virtual so subclasses without a win-chance dimension (e.g. the assign picker)
+         * can substitute a neutral hue instead of perpetually-red. */
+        protected virtual Color WinChanceColor(RowData row)
         {
+            if (!ShowWinChance) return AccentUtil.MilInactive;
             if (!row.hasOurForce) return AccentUtil.MilInactive;
             double midPct = (row.winChanceMin + row.winChanceMax) * 50.0; // *0.5 then *100
             return AccentUtil.GetStatColor((float)midPct, inverted: false);
@@ -233,8 +242,11 @@ namespace FactionColonies
             Color winColor = WinChanceColor(row);
 
             // Hover / selected highlight (whole card). Selected gets a faint win-chance tint
-            // overlay so the selection visual reinforces the box color.
+            // overlay so the selection visual reinforces the box color. The "current" indicator
+            // (already-assigned squad in this picker's context) renders as a green 2-px outline
+            // so it stays visible whether or not the row is also the user's row-click selection.
             bool isSelected = selected == squad;
+            bool isCurrentCard = CurrentSquadIndicator is object && squad == CurrentSquadIndicator;
             if (isSelected)
             {
                 Widgets.DrawHighlightSelected(cardRect);
@@ -243,6 +255,13 @@ namespace FactionColonies
             else if (Mouse.IsOver(cardRect))
             {
                 Widgets.DrawHighlight(cardRect);
+            }
+            if (isCurrentCard)
+            {
+                Color outlineBefore = GUI.color;
+                GUI.color = new Color(0.6f, 0.9f, 0.6f);
+                Widgets.DrawBox(cardRect, 2);
+                GUI.color = outlineBefore;
             }
 
             // Accent strip — driven by win chance, not settlement military state.
@@ -258,13 +277,14 @@ namespace FactionColonies
             Color baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
 
             /* Right-side column: status badge (top) + Inspect button (bottom), same width.
-             * rightColW (160) is the unconditional bump so longer statuses like
+             * rightColW (180) is the unconditional bump so longer statuses like
              * "Busy: Defend Settlement" stop wrapping in tiny font. boxW/boxGap collapse to 0
-             * when the win-chance box is hidden so the squad name reclaims the space. */
+             * when both the Pow/Eff and WinChance halves are hidden; box shrinks to ~half-width
+             * when WinChance is hidden but Pow/Eff is still shown. */
             const float btnH = 20f;
-            const float rightColW = 160f;
-            float boxW = ShowWinChance ? 150f : 0f;
-            float boxGap = ShowWinChance ? 15f : 0f;
+            const float rightColW = 180f;
+            float boxW = ShowWinChance ? 150f : (ShowForceMetrics ? 90f : 0f);
+            float boxGap = (boxW > 0f) ? 15f : 0f;
 
             float rightColX = cardRect.xMax - rightColW - 4f;
             float headerY = cardRect.y;
@@ -287,61 +307,91 @@ namespace FactionColonies
             }
             TooltipHandler.TipRegion(inspectRect, "FCMilBtnInspectTip".Translate());
 
-            /* Win-chance box — Pow + Eff stacked vertically on the left, Win chance on the right
-             * with a horizontal peak-gradient band (dimmed win-chance color) behind it. Hidden
-             * entirely when ShowWinChance is false (squad name reclaims the row). */
+            /* Pow/Eff/WinChance box — Pow + Eff stacked vertically on the left, Win chance on
+             * the right with a horizontal peak-gradient band (dimmed win-chance color) behind
+             * it. When WinChance is hidden but ForceMetrics is shown, the box shrinks to a
+             * single Pow/Eff column. When both are hidden, the box is skipped entirely. */
             float boxX = rightColX - boxGap - boxW;
-            if (ShowWinChance)
+            if (ShowForceMetrics || ShowWinChance)
             {
                 Rect boxRect = new Rect(boxX, cardRect.y + 4f, boxW, cardRect.height - 8f);
+                float powEffW = ShowWinChance ? boxW * 0.5f : boxW;
 
-                string powLbl = (string)"FCSquadColPower".Translate() + ": " + row.ourPower.ToString("0.0");
-                string effLbl = row.hasOurForce
-                    ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.ourEfficiency.ToString("0.##")
-                    : (string)"FCSquadColEfficiency".Translate() + ": -";
-                string winLbl;
-                if (row.hasOurForce && (row.winChanceMin > 0 || row.winChanceMax > 0))
+                if (ShowForceMetrics)
                 {
-                    double minPct = Math.Round(row.winChanceMin * 100);
-                    double maxPct = Math.Round(row.winChanceMax * 100);
-                    winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
+                    string powLbl = (string)"FCSquadColPower".Translate() + ": " + row.ourPower.ToString("0.0");
+                    string effLbl = row.hasOurForce
+                        ? (string)"FCSquadColEfficiency".Translate() + ": x" + row.ourEfficiency.ToString("0.##")
+                        : (string)"FCSquadColEfficiency".Translate() + ": -";
+
+                    float halfBoxH = boxRect.height * 0.5f;
+
+                    // Pow / Eff stacked vertically on the left half (or full width if no win chance).
+                    Text.Anchor = TextAnchor.MiddleLeft;
+                    GUI.color = baseTint;
+                    Widgets.Label(new Rect(boxX, boxRect.y,             powEffW, halfBoxH), powLbl);
+                    Widgets.Label(new Rect(boxX, boxRect.y + halfBoxH,  powEffW, halfBoxH), effLbl);
                 }
-                else
+
+                if (ShowWinChance)
                 {
-                    winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
+                    string winLbl;
+                    if (row.hasOurForce && (row.winChanceMin > 0 || row.winChanceMax > 0))
+                    {
+                        double minPct = Math.Round(row.winChanceMin * 100);
+                        double maxPct = Math.Round(row.winChanceMax * 100);
+                        winLbl = (string)"FCSquadColWinChance".Translate() + ": " + TextUtil.FormatRange(minPct, maxPct, "0") + "%";
+                    }
+                    else
+                    {
+                        winLbl = (string)"FCSquadColWinChance".Translate() + ": -";
+                    }
+
+                    // Win chance on the right half (or full width if no Pow/Eff), vertically
+                    // centered, with a peak-gradient band behind it tinted by a dimmed
+                    // win-chance color so the full-saturation label remains legible even when
+                    // the color is red.
+                    float winX = boxX + (ShowForceMetrics ? powEffW : 0f);
+                    float winW = ShowForceMetrics ? (boxW - powEffW) : boxW;
+                    Rect winRect = new Rect(winX, boxRect.y, winW, boxRect.height);
+                    const float gradH = 28f;
+                    Rect gradRect = new Rect(winRect.x - 10f, winRect.center.y - gradH * 0.5f, winRect.width + 20f, gradH);
+                    Color gradColor = UIUtil.Dim(winColor, 0.3f);
+                    TexLoad.DrawHorizontalPeakGradient(gradRect, gradColor);
+
+                    GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    Widgets.Label(winRect, winLbl);
                 }
-
-                float halfBoxW = boxW * 0.5f;
-                float halfBoxH = boxRect.height * 0.5f;
-
-                // Pow / Eff stacked vertically on the left half. White text (dimmed when unavailable).
-                Text.Anchor = TextAnchor.MiddleLeft;
-                GUI.color = baseTint;
-                Widgets.Label(new Rect(boxX, boxRect.y,             halfBoxW, halfBoxH), powLbl);
-                Widgets.Label(new Rect(boxX, boxRect.y + halfBoxH,  halfBoxW, halfBoxH), effLbl);
-
-                // Win chance on the right half, vertically centered, with a peak-gradient band
-                // behind it tinted by a dimmed win-chance color so the (full-saturation) label
-                // remains legible even when the color is red.
-                Rect winRect = new Rect(boxX + halfBoxW, boxRect.y, halfBoxW, boxRect.height);
-                const float gradH = 28f;
-                Rect gradRect = new Rect(winRect.x-10f, winRect.center.y - gradH * 0.5f, winRect.width+20f, gradH);
-                Color gradColor = UIUtil.Dim(winColor, 0.3f);
-                TexLoad.DrawHorizontalPeakGradient(gradRect, gradColor);
-
-                GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
-                Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(winRect, winLbl);
             }
 
             /* Squad name (left, win-chance colored) — header row, left of the box. When the box
-             * is hidden, name extends all the way to the right column. */
+             * is hidden, name extends all the way to the right column. Squads matching
+             * CurrentSquadIndicator get a "(current)" suffix in green so the player can spot the
+             * already-assigned candidate without scanning every billet. */
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
-            float nameW = ShowWinChance ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
+            bool boxVisible = ShowForceMetrics || ShowWinChance;
+            float nameW = boxVisible ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (nameW < 0f) nameW = 0f;
-            Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), squad.DisplayName);
+            string nameLbl = squad.DisplayName;
+            Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), nameLbl);
+            if (isCurrentCard)
+            {
+                // Append "(current)" right after the name, green-tinted, using the existing
+                // FCSetSquadCurrent key.
+                Vector2 nameSize = Text.CalcSize(nameLbl);
+                float suffixX = contentX + Math.Min(nameSize.x + 6f, nameW - 4f);
+                float suffixW = Math.Max(0f, contentX + nameW - suffixX);
+                if (suffixW > 0f)
+                {
+                    Color colorBefore2 = GUI.color;
+                    GUI.color = new Color(0.6f, 0.9f, 0.6f);
+                    Widgets.Label(new Rect(suffixX, headerY, suffixW, CardHeaderH), "FCSetSquadCurrent".Translate());
+                    GUI.color = colorBefore2;
+                }
+            }
 
             /* Detail row — Settlement | Travel | Cost, left of the box (or all the way to the
              * right column when the box is hidden). Travel column collapses when ShowTravel
@@ -350,11 +400,11 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = baseTint;
 
-            float labelsW = ShowWinChance ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
+            float labelsW = boxVisible ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (labelsW < 0f) labelsW = 0f;
             float colSettlement = Math.Min(220f, labelsW * 0.5f);
             float colTravel     = ShowTravel
-                ? Math.Min(100f, Math.Max(0f, (labelsW - colSettlement) * 0.4f))
+                ? Math.Min(90f, Math.Max(0f, (labelsW - colSettlement) * 0.4f))
                 : 0f;
             float colCost       = Math.Max(0f, labelsW - colSettlement - colTravel);
 
