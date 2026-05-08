@@ -50,19 +50,21 @@ namespace FactionColonies
 
             if (result.AttackerVictory)
             {
-                ApplyCaptureSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement, op.targetTile, target);
+                ApplyCaptureSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement, op.targetTile, target, op);
             }
             else if (result.DefenderVictory)
             {
+                string body = "FCCaptureEnemySettlementFailure".Translate(op.aggressor.homeSettlement.Name, target.Name);
+                body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
                 Find.LetterStack.ReceiveLetter("FCCaptureSettlement".Translate(),
-                    "FCCaptureEnemySettlementFailure".Translate(op.aggressor.homeSettlement.Name, target.Name),
+                    body,
                     LetterDefOf.NegativeEvent, new LookTargets(target));
             }
         }
 
         /* Shared capture-victory side effects, used by both legacy and op-aware paths. */
         private static void ApplyCaptureSuccess(FactionFC faction, WorldSettlementFC home,
-            PlanetTile capturedTile, Settlement target)
+            PlanetTile capturedTile, Settlement target, MilitaryOperation op = null)
         {
             string tmpName = target.LabelCap;
             TechLevel tech = target.Faction.def.techLevel;
@@ -79,7 +81,7 @@ namespace FactionColonies
             {
                 LogUtil.Warning($"Capture: target settlement at {capturedTile} survived Destroy(); " +
                                 "likely destruction-protected. Falling back to raid rewards.");
-                ApplyCaptureFallbackToRaid(faction, home, tempFactionLink, target);
+                ApplyCaptureFallbackToRaid(faction, home, tempFactionLink, target, op);
                 return;
             }
 
@@ -124,8 +126,10 @@ namespace FactionColonies
                 tempFactionLink.defeated = true;
             }
 
+            string body = "FCCaptureEnemySettlementSuccess".Translate(home.Name, worldsettlement.Name, worldsettlement.settlementLevel);
+            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
             Find.LetterStack.ReceiveLetter("FCCaptureSettlement".Translate(),
-                "FCCaptureEnemySettlementSuccess".Translate(home.Name, worldsettlement.Name, worldsettlement.settlementLevel),
+                body,
                 LetterDefOf.PositiveEvent, new LookTargets(worldsettlement));
         }
 
@@ -133,13 +137,15 @@ namespace FactionColonies
          * won the battle. Send a "couldn't permanently neutralize, raided supplies instead" letter
          * and route through Raid's victory side effects (loot + optional prisoner + delivery). */
         private static void ApplyCaptureFallbackToRaid(FactionFC faction, WorldSettlementFC home,
-            Faction enemyFaction, Settlement target)
+            Faction enemyFaction, Settlement target, MilitaryOperation op = null)
         {
+            string body = "FCCaptureBlockedFallbackToRaid".Translate(home.Name, target.LabelCap);
+            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
             Find.LetterStack.ReceiveLetter(
                 "FCCaptureSettlement".Translate(),
-                "FCCaptureBlockedFallbackToRaid".Translate(home.Name, target.LabelCap),
+                body,
                 LetterDefOf.NeutralEvent, new LookTargets(target));
-            MilitaryJobHandler_Raid.ApplyVictoryToTarget(faction, home, enemyFaction, target);
+            MilitaryJobHandler_Raid.ApplyVictoryToTarget(faction, home, enemyFaction, target, op);
         }
     }
 }

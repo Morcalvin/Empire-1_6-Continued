@@ -57,13 +57,56 @@ namespace FactionColonies
             return result;
         }
 
-        public static void FightRound(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
+        /// <summary>
+        /// Per-round outcome detail. Returned by <see cref="SimulateRound"/> so callers can
+        /// record both the raw d20 roll (1..20) and the dampening-applied final score for
+        /// both sides. The round winner is determined by score comparison; force decrement
+        /// is the caller's responsibility (see <see cref="FightRound"/> or
+        /// <c>MilitaryOperation.AdvanceBattleProgress</c>).
+        /// </summary>
+        public struct RoundOutcome
+        {
+            public int attackerRawRoll;
+            public int defenderRawRoll;
+            public double attackerDampenedEfficiency;
+            public double defenderDampenedEfficiency;
+            public double attackerScore;
+            public double defenderScore;
+            public bool attackerWonRound;
+        }
+
+        /// <summary>
+        /// Roll one round without mutating either force. True d20 (1..20 inclusive) rolled for
+        /// each side, multiplied by their dampened efficiency. The higher score wins the round.
+        /// On ties the defender wins.
+        /// </summary>
+        public static RoundOutcome SimulateRound(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
         {
             rand = rand ?? new RimWorldRandProvider();
-            var randA = rand.Range(0, 20) * DampenEfficiency(MFA.militaryEfficiency);
-            var randB = rand.Range(0, 20) * DampenEfficiency(MFB.militaryEfficiency);
+            // True d20: 1..20 inclusive. rand.Range(int, int) follows Verse.Rand semantics
+            // (max-exclusive), so pass (1, 21).
+            int rawA = rand.Range(1, 21);
+            int rawB = rand.Range(1, 21);
+            double effA = DampenEfficiency(MFA.militaryEfficiency);
+            double effB = DampenEfficiency(MFB.militaryEfficiency);
+            double scoreA = rawA * effA;
+            double scoreB = rawB * effB;
+            return new RoundOutcome
+            {
+                attackerRawRoll = rawA,
+                defenderRawRoll = rawB,
+                attackerDampenedEfficiency = effA,
+                defenderDampenedEfficiency = effB,
+                attackerScore = scoreA,
+                defenderScore = scoreB,
+                attackerWonRound = scoreA > scoreB
+            };
+        }
 
-            if (randA > randB)
+        public static void FightRound(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
+        {
+            RoundOutcome outcome = SimulateRound(MFA, MFB, rand);
+            if (outcome.attackerWonRound)
             {
                 MFB.forceRemaining -= 1;
             }

@@ -482,20 +482,13 @@ namespace FactionColonies
                     EndBattle(false, 0, null);
                     return;
                 }
-                // Auto-resolve: SimulateBattleFc populates BattleResult.defenderInitialForce /
-                // defenderRemainingForce, which is what op.CompleteBattle reads for overwhelming-
-                // victory detection. No need to seed initialPawnCount here (the auto-resolve path
-                // never spawns map pawns).
-                BattleResult battleResult = SimulateBattleFc.FightBattle(atkForce, defForce);
-
-                // Time-based auto-resolve: hold the result and stay in Engaged phase for a
-                // duration scaled to the simulator's round count. comp.isUnderAttack /
+                // Per-round auto-resolve: seed BattleProgress and let the per-hour event clock
+                // roll one round per hour until completion. comp.isUnderAttack /
                 // comp.militaryBusy / squad.IsBusy all read manager state, so they continue
-                // reflecting "engaged" through the window. CompleteBattle (with its
+                // reflecting "engaged" through the duration. CompleteBattle (with its
                 // settlement-side effects via MilitaryJobHandler_Defend.ApplyResult) fires
-                // when the autoResolveBattleComplete event lands.
-                int duration = op.ComputeAutoResolveDuration(battleResult);
-                op.ScheduleAutoResolveCompletion(battleResult, duration);
+                // when the final round resolves.
+                op.BeginAutoResolveProgress();
 
                 // "Battle commenced" letter: the 24h warning announced the imminent attack;
                 // this confirms it has now begun. Outcome letter still fires from the handler

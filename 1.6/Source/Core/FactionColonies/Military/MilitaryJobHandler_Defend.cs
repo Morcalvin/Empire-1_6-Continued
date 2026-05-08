@@ -79,8 +79,8 @@ namespace FactionColonies
 
             try
             {
-                if (result.DefenderVictory) DefensiveBattleEffects.ApplyWin(target);
-                else DefensiveBattleEffects.ApplyLoss(target);
+                if (result.DefenderVictory) DefensiveBattleEffects.ApplyWin(target, op);
+                else DefensiveBattleEffects.ApplyLoss(target, op);
             }
             catch (Exception e)
             {
@@ -110,7 +110,7 @@ namespace FactionColonies
         private static BattlefieldContext BattlefieldFor(WorldSettlementFC settlement)
             => FactionCache.MilitaryManager?.GetBattlefield(settlement?.Tile ?? PlanetTile.Invalid);
 
-        public static void ApplyWin(WorldSettlementFC settlement)
+        public static void ApplyWin(WorldSettlementFC settlement, MilitaryOperation op = null)
         {
             FactionFC faction = FactionCache.FactionComp;
             if (faction is null) return;
@@ -124,6 +124,7 @@ namespace FactionColonies
                 text += "\n\n" + deliveryMsg;
             if (settlement.Map != null)
                 text += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
+            text = MilitaryLetterUtil.AppendBattleRoundLog(text, op);
 
             Find.LetterStack.ReceiveLetter("FCDefenseSuccessful".Translate(),
                 text,
@@ -131,7 +132,7 @@ namespace FactionColonies
             letterEmitted = true;
         }
 
-        public static void ApplyLoss(WorldSettlementFC settlement)
+        public static void ApplyLoss(WorldSettlementFC settlement, MilitaryOperation op = null)
         {
             FactionFC faction = FactionCache.FactionComp;
             if (faction is null) return;
@@ -218,6 +219,7 @@ namespace FactionColonies
                 str += "\n\n" + deliveryMsg;
             if (settlement.Map != null)
                 str += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
+            str = MilitaryLetterUtil.AppendBattleRoundLog(str, op);
 
             Find.LetterStack.ReceiveLetter("FCDefenseFailure".Translate(), str, LetterDefOf.Death,
                 new LookTargets(settlement));

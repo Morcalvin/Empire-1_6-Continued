@@ -14,6 +14,30 @@ namespace FactionColonies
     public static class DebugUtil
     {
 
+        [DebugAction("Empire", "Force auto-resolve round now", allowedGameStates = AllowedGameStates.Playing)]
+        private static void ForceAutoResolveRoundNow()
+        {
+            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            if (mgr is null)
+            {
+                LogUtil.MessageForce("No MilitaryOperationManager available.");
+                return;
+            }
+            int bumped = 0;
+            foreach (MilitaryOperation op in mgr.active)
+            {
+                if (op is null) continue;
+                if (op.phase != MilitaryOperationPhase.Engaged) continue;
+                FCEvent evt = op.sourceEvents.FirstOrDefault(e => e is object && e.def == FCEventDefOf.autoResolveBattleRound);
+                if (evt is object)
+                {
+                    evt.timeTillTrigger = Find.TickManager.TicksGame + 1;
+                    bumped++;
+                }
+            }
+            LogUtil.MessageForce($"Bumped {bumped} autoResolveBattleRound event(s) to fire next tick.");
+        }
+
         [DebugAction("Empire", "View Events and ticks till", allowedGameStates = AllowedGameStates.Playing)]
         private static void ViewEventsAndLog()
         {

@@ -43,11 +43,9 @@ namespace FactionColonies
         /* Result, set on resolution */
         public BattleResult result;
 
-        /* Eagerly simulated result awaiting time-based completion of an auto-resolve battle.
-         * Populated by ScheduleAutoResolveCompletion when the simulator runs at engagement
-         * start; consumed (and cleared) when the autoResolveBattleComplete event fires and
-         * we hand off to CompleteBattle. */
-        public BattleResult pendingResult;
+        /* Live state of an auto-resolved battle: per-round rolls accumulated as the battle
+         * unfolds (one round per hour). Null for manual-resolve and pre-engagement ops. */
+        public BattleProgress battleProgress;
 
         /* Wakeup events scheduled by this op (arrival, cooldown, ...). */
         public List<FCEvent> sourceEvents = new List<FCEvent>();
@@ -92,7 +90,7 @@ namespace FactionColonies
             Scribe_Deep.Look(ref defender, "defender");
             Scribe_References.Look(ref externalDefenderSource, "externalDefenderSource");
             Scribe_Deep.Look(ref result, "result");
-            Scribe_Deep.Look(ref pendingResult, "pendingResult");
+            Scribe_Deep.Look(ref battleProgress, "battleProgress");
             Scribe_Collections.Look(ref sourceEvents, "sourceEvents", LookMode.Reference);
             Scribe_Values.Look(ref battlefieldRef, "battlefieldRef", PlanetTile.Invalid);
 
@@ -203,48 +201,131 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Stash an eagerly-simulated <paramref name="result"/> on the op and schedule a delayed
-        /// <c>autoResolveBattleComplete</c> event so the op stays in <see cref="MilitaryOperationPhase.Engaged"/>
-        /// for <paramref name="durationTicks"/> before <see cref="CompleteBattle"/> runs. Settlements/squads
-        /// remain "militarily engaged" during the window (computed comp/squad properties read manager state).
-        /// <para>If the op is not in <see cref="MilitaryOperationPhase.Engaged"/>, falls through to
-        /// <see cref="CompleteBattle"/> immediately as a safety net.</para>
+        /// Initialise <see cref="battleProgress"/> from current participant forces and schedule
+        /// the first per-round event. The flow:
+        ///   T+0   Preparing (no roll)
+        ///   T+1h  flip to Engaged (no roll, just status change)
+        ///   T+2h  round 1 rolls
+        ///   T+3h+ round N rolls
+        /// Continues until one side reaches 0 force, at which point <see cref="CompleteBattle"/>
+        /// fires with the resulting <see cref="BattleResult"/>.
+        /// <para>If the op is not in <see cref="MilitaryOperationPhase.Engaged"/>, falls through
+        /// to <see cref="CompleteBattle"/> immediately with an Error result as a safety net.</para>
         /// </summary>
-        public void ScheduleAutoResolveCompletion(BattleResult result, int durationTicks)
+        public void BeginAutoResolveProgress()
         {
             if (phase != MilitaryOperationPhase.Engaged)
             {
-                LogUtil.Warning($"ScheduleAutoResolveCompletion: op id={id} not in Engaged (phase={phase}); falling through to immediate CompleteBattle.");
-                CompleteBattle(result);
+                LogUtil.Warning($"BeginAutoResolveProgress: op id={id} not in Engaged (phase={phase}); falling through to immediate CompleteBattle.");
+                CompleteBattle(new BattleResult { winner = BattleWinner.Error });
                 return;
             }
 
-            pendingResult = result;
+            if (aggressor?.force is null || defender?.force is null)
+            {
+                LogUtil.Error($"BeginAutoResolveProgress: missing force on op id={id} (aggressor={(aggressor?.force is object)}, defender={(defender?.force is object)}).");
+                CompleteBattle(new BattleResult { winner = BattleWinner.Error });
+                return;
+            }
+
+            MilitaryForce atk = aggressor.force;
+            MilitaryForce def = defender.force;
+
+            // Defender advantage applied to the live defender.forceRemaining (matches
+            // SimulateBattleFc.FightBattle's mutation, so MilitaryForce-based readers like
+            // CalculateDefenderWinChance see the same baseline). The progress object snapshots
+            // the post-advantage value as defenderInitialForce.
+            def.forceRemaining = Math.Round(def.forceRemaining * FCSettings.defenderAdvantage);
+
+            battleProgress = new BattleProgress
+            {
+                attackerInitialForce = atk.forceRemaining,
+                defenderInitialForce = def.forceRemaining,
+                attackerForceRemaining = atk.forceRemaining,
+                defenderForceRemaining = def.forceRemaining,
+                attackerEfficiency = atk.militaryEfficiency,
+                defenderEfficiency = def.militaryEfficiency,
+                attackerLabel = aggressor.squad?.DisplayName ?? aggressor.homeSettlement?.Name ?? aggressor.faction?.Name ?? "?",
+                defenderLabel = defender.homeSettlement?.Name ?? defender.squad?.DisplayName ?? defender.faction?.Name ?? "?",
+                attackerFactionName = aggressor.faction?.Name ?? "?",
+                defenderFactionName = defender.faction?.Name ?? "?",
+                targetTile = targetTile,
+                subPhase = BattleSubPhase.Preparing
+            };
+
+            ScheduleNextRoundEvent();
+        }
+
+        private void ScheduleNextRoundEvent()
+        {
             PlanetTile evtTile = targetTile.Valid
                 ? targetTile
                 : (defender?.homeSettlement?.Tile ?? aggressor?.homeSettlement?.Tile ?? PlanetTile.Invalid);
-            ScheduleEvent(FCEventDefOf.autoResolveBattleComplete, evtTile, Math.Max(1, durationTicks));
+            int interval = Math.Max(1, FCSettings.autoResolveTicksPerRound);
+            if (DebugSettings.godMode) interval = 1;
+            ScheduleEvent(FCEventDefOf.autoResolveBattleRound, evtTile, interval);
         }
 
         /// <summary>
-        /// Compute how many ticks an auto-resolved battle should occupy the Engaged phase, based
-        /// on the simulator's round count and configured pacing. Registry providers can adjust the
-        /// final value via <see cref="AutoResolveDurationRegistry"/>.
+        /// Advance the battle by one tick of the per-round clock. Called from
+        /// <see cref="OnEventFired"/> when an <c>autoResolveBattleRound</c> event fires.
+        /// First call (Preparing -> Engaged) doesn't roll - just flips status and reschedules.
+        /// Subsequent calls roll one round, append a <see cref="RoundEntry"/>, and either
+        /// schedule the next round or hand off to <see cref="CompleteBattle"/>.
         /// </summary>
-        public int ComputeAutoResolveDuration(BattleResult battleResult)
+        private void AdvanceBattleProgress()
         {
-            if (DebugSettings.godMode) return 1;
+            if (battleProgress is null)
+            {
+                LogUtil.Error($"AdvanceBattleProgress: op id={id} has null battleProgress; using Error result.");
+                CompleteBattle(new BattleResult { winner = BattleWinner.Error });
+                return;
+            }
 
-            int rounds = battleResult?.totalRounds ?? 0;
-            int ticks = FCSettings.autoResolveBaseTicks
-                      + rounds * FCSettings.autoResolveTicksPerRound;
-            int min = Math.Max(1, FCSettings.autoResolveMinTicks);
-            int max = Math.Max(min, FCSettings.autoResolveMaxTicks);
-            ticks = Math.Max(min, Math.Min(max, ticks));
+            if (battleProgress.subPhase == BattleSubPhase.Preparing)
+            {
+                battleProgress.subPhase = BattleSubPhase.Engaged;
+                ScheduleNextRoundEvent();
+                return;
+            }
 
-            AutoResolveDurationRegistry.InvokeModifyDuration(this, battleResult, ref ticks);
+            // Engaged or RollsInProgress: roll one round.
+            battleProgress.subPhase = BattleSubPhase.RollsInProgress;
+            SimulateBattleFc.RoundOutcome outcome = SimulateBattleFc.SimulateRound(aggressor.force, defender.force);
+            if (outcome.attackerWonRound)
+            {
+                defender.force.forceRemaining -= 1;
+                battleProgress.defenderForceRemaining -= 1;
+            }
+            else
+            {
+                aggressor.force.forceRemaining -= 1;
+                battleProgress.attackerForceRemaining -= 1;
+            }
 
-            return Math.Max(1, ticks);
+            battleProgress.rounds.Add(new RoundEntry
+            {
+                roundNumber = battleProgress.rounds.Count + 1,
+                attackerRawRoll = outcome.attackerRawRoll,
+                defenderRawRoll = outcome.defenderRawRoll,
+                attackerScore = outcome.attackerScore,
+                defenderScore = outcome.defenderScore,
+                attackerWonRound = outcome.attackerWonRound,
+                attackerForceAfter = battleProgress.attackerForceRemaining,
+                defenderForceAfter = battleProgress.defenderForceRemaining
+            });
+
+            if (battleProgress.IsComplete)
+            {
+                battleProgress.winner = battleProgress.attackerForceRemaining <= 0
+                    ? BattleWinner.Defender : BattleWinner.Attacker;
+                battleProgress.subPhase = BattleSubPhase.Resolved;
+                CompleteBattle(battleProgress.ToBattleResult());
+            }
+            else
+            {
+                ScheduleNextRoundEvent();
+            }
         }
 
         /// <summary>
@@ -488,7 +569,9 @@ namespace FactionColonies
         /// <para>Scheduled / Traveling + arrival/warning event → <see cref="BeginEngagement"/>,
         /// then handler.ResolvesManually → <see cref="MilitaryJobHandler.OnManualResolve(MilitaryOperation)"/>
         /// (submod fires <see cref="CompleteBattle"/> later) or auto-resolve via
-        /// <see cref="MilitaryJobHandler.OnAutoResolve"/> + <see cref="CompleteBattle"/>.</para>
+        /// <see cref="BeginAutoResolveProgress"/>.</para>
+        /// <para>Engaged + autoResolveBattleRound event → <see cref="AdvanceBattleProgress"/>
+        /// (rolls one round, schedules next, or hands off to <see cref="CompleteBattle"/>).</para>
         /// <para>CooldownPending + cooldown event → <see cref="Resolve"/>.</para>
         /// </summary>
         public void OnEventFired(FCEvent evt)
@@ -529,16 +612,9 @@ namespace FactionColonies
             }
 
             if (phase == MilitaryOperationPhase.Engaged
-                && evt.def == FCEventDefOf.autoResolveBattleComplete)
+                && evt.def == FCEventDefOf.autoResolveBattleRound)
             {
-                BattleResult r = pendingResult;
-                pendingResult = null;
-                if (r is null)
-                {
-                    LogUtil.Error($"MilitaryOperation.OnEventFired: autoResolveBattleComplete fired on op id={id} with null pendingResult; using Error result.");
-                    r = new BattleResult { winner = BattleWinner.Error };
-                }
-                CompleteBattle(r);
+                AdvanceBattleProgress();
                 return;
             }
 
@@ -554,31 +630,14 @@ namespace FactionColonies
 
         private void AutoResolveAndComplete()
         {
-            BattleResult r;
-            try
+            if (aggressor?.force is null || defender?.force is null)
             {
-                if (kind?.Handler is object)
-                {
-                    r = kind.Handler.OnAutoResolve(this);
-                }
-                else if (aggressor?.force is null || defender?.force is null)
-                {
-                    LogUtil.Error($"MilitaryOperation.AutoResolveAndComplete: missing force on op id={id} " +
-                                  $"(aggressor={(aggressor?.force is object)}, defender={(defender?.force is object)}).");
-                    r = new BattleResult { winner = BattleWinner.Error };
-                }
-                else
-                {
-                    // Defensive ops with no handler use the simulator directly.
-                    r = SimulateBattleFc.FightBattle(aggressor.force, defender.force);
-                }
+                LogUtil.Error($"MilitaryOperation.AutoResolveAndComplete: missing force on op id={id} " +
+                              $"(aggressor={(aggressor?.force is object)}, defender={(defender?.force is object)}).");
+                CompleteBattle(new BattleResult { winner = BattleWinner.Error });
+                return;
             }
-            catch (Exception e)
-            {
-                LogUtil.Error($"MilitaryOperation.AutoResolveAndComplete: handler threw: {e}. Op id={id}.");
-                r = new BattleResult { winner = BattleWinner.Error };
-            }
-            CompleteBattle(r);
+            BeginAutoResolveProgress();
         }
     }
 }

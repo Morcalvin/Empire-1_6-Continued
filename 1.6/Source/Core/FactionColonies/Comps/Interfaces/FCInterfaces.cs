@@ -235,21 +235,6 @@ namespace FactionColonies
         void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker);
     }
     /// <summary>
-    /// Lets submods adjust how long a defensive auto-resolve battle stays in the Engaged
-    /// phase before <see cref="MilitaryOperation.CompleteBattle"/> fires. Called once per op
-    /// per auto-resolve, after the base formula and clamp. Register implementations via
-    /// <see cref="AutoResolveDurationRegistry"/>.
-    /// </summary>
-    public interface IAutoResolveDurationProvider
-    {
-        /// <summary>
-        /// Adjust <paramref name="durationTicks"/> in place. Use <paramref name="op"/> participants
-        /// and <paramref name="result"/> (notably <c>totalRounds</c> and <c>winner</c>) to shape
-        /// the engagement window. The orchestrator clamps the final value to at least 1 tick.
-        /// </summary>
-        void ModifyDuration(MilitaryOperation op, BattleResult result, ref int durationTicks);
-    }
-    /// <summary>
     /// Allows submods to veto or filter defense assignments. Called when a settlement
     /// is considered as a defender for another settlement (both manual selection and auto-defend).
     /// Register implementations via <see cref="DefenseValidatorRegistry"/>.

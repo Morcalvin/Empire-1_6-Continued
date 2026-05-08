@@ -356,6 +356,40 @@ namespace FactionColonies
                     yield return ChangeDefenderAction(pendingEvents[i]);
                 }
             }
+
+            // "Watch battle" gizmo: visible while an auto-resolved battle on this settlement
+            // is in flight. Opens the live BattleProgressWindow for the linked op so the
+            // player can watch rolls land hour by hour.
+            MilitaryOperation activeBattle = FindActiveBattleProgressOp();
+            if (activeBattle is object)
+            {
+                yield return WatchBattleAction(activeBattle);
+            }
+        }
+
+        private MilitaryOperation FindActiveBattleProgressOp()
+        {
+            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            if (mgr is null) return null;
+            IReadOnlyList<MilitaryOperation> active = mgr.active;
+            foreach(MilitaryOperation op in active)
+            {
+                if (op?.battleProgress is null) continue;
+                if (op.phase != MilitaryOperationPhase.Engaged) continue;
+                if (op.defender?.homeSettlement == WorldSettlement) return op;
+            }
+            return null;
+        }
+
+        private Command WatchBattleAction(MilitaryOperation op)
+        {
+            return new Command_Action
+            {
+                defaultLabel = "FCBattleProgressGizmoLabel".Translate(),
+                defaultDesc = "FCBattleProgressGizmoDesc".Translate(),
+                icon = TexLoad.iconMilitary,
+                action = delegate { Find.WindowStack.Add(new BattleProgressWindow(op)); }
+            };
         }
 
         private Command DefendColonyAction()

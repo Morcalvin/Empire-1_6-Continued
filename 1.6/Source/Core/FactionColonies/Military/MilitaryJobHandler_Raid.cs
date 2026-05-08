@@ -4,6 +4,7 @@ using RimWorld.Planet;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
+using static UnityEngine.GraphicsBuffer;
 
 namespace FactionColonies
 {
@@ -56,26 +57,20 @@ namespace FactionColonies
             if (result.AttackerVictory)
             {
                 ApplyVictoryToTarget(FactionCache.FactionComp, op.aggressor.homeSettlement,
-                    op.defender?.faction, target);
+                    op.defender?.faction, target, op);
             }
             else
             {
+                string body = "FCRaidEnemySettlementFailure".Translate(target.LabelCap);
+                body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
                 Find.LetterStack.ReceiveLetter("FCRaidFailure".Translate(),
-                    "FCRaidEnemySettlementFailure".Translate(target.LabelCap),
+                    body,
                     LetterDefOf.NegativeEvent, new LookTargets(target));
             }
         }
 
-        /* Shared victory side effects: loot, prisoners, XP, delivery event. Called from ApplyResult,
-         * and from MilitaryJobHandler_Capture's failed-destruction fallback. */
-        internal static void ApplyVictoryToTarget(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target)
+        private static void LootByTech(TechLevel tech, ref int lootLevel, ref bool getSlaves)
         {
-            faction.AddExperienceToFactionLevel(5f);
-
-            TechLevel tech = target.Faction.def.techLevel;
-            int lootLevel;
-            bool getSlaves = true;
-
             switch (tech)
             {
                 case TechLevel.Archotech:
@@ -94,12 +89,28 @@ namespace FactionColonies
                     lootLevel = 1;
                     break;
             }
-
-            if (target.Faction.def.defName == "Insect")
+        }
+        private static void LootByFactionDef(FactionDef def, ref int lootLevel, ref bool getSlaves)
+        {
+            if (def.defName == "Insect")
             {
                 lootLevel = 3;
                 getSlaves = false;
             }
+        }
+
+        /* Shared victory side effects: loot, prisoners, XP, delivery event. Called from ApplyResult,
+         * and from MilitaryJobHandler_Capture's failed-destruction fallback. */
+        internal static void ApplyVictoryToTarget(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target, MilitaryOperation op = null)
+        {
+            faction.AddExperienceToFactionLevel(5f);
+
+            TechLevel tech = target.Faction.def.techLevel;
+            int lootLevel = 1;
+            bool getSlaves = true;
+
+            LootByTech(tech, ref lootLevel, ref getSlaves);
+            LootByFactionDef(target.Faction.def, ref lootLevel, ref getSlaves);
 
             List<Thing> loot = PaymentUtil.GenerateRaidLoot(lootLevel, tech);
 
@@ -114,8 +125,10 @@ namespace FactionColonies
                 home.AddPrisoner(prisoner);
             }
 
+            string body = "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text;
+            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
             Find.LetterStack.ReceiveLetter("FCRaidLoot".Translate(),
-                "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text,
+                body,
                 LetterDefOf.PositiveEvent, new LookTargets(target));
 
             FCEvent eventParams = new FCEvent()

@@ -185,7 +185,7 @@ namespace FactionColonies
         public static FCEventDef captureEnemySettlement;
         public static FCEventDef cooldownMilitary;
         public static FCEventDef settlementBeingAttacked;
-        public static FCEventDef autoResolveBattleComplete;
+        public static FCEventDef autoResolveBattleRound;
         public static FCEventDef deliveryArrival;
 
         static FCEventDefOf()

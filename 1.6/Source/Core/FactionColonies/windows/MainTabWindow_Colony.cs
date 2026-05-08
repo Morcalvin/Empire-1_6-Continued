@@ -1479,6 +1479,17 @@ namespace FactionColonies
 
         private void HandleLocationClick(FCEvent evt)
         {
+            // Auto-resolve battle round events open the live battle progress window instead of
+            // a settlement view. Lets the player click an in-progress battle on the events tab
+            // to watch it unfold.
+            if (evt.linkedOperation is object
+                && evt.def == FCEventDefOf.autoResolveBattleRound
+                && evt.linkedOperation.battleProgress is object)
+            {
+                Find.WindowStack.Add(new BattleProgressWindow(evt.linkedOperation));
+                return;
+            }
+
             if (evt.hasDestination)
             {
                 Find.WindowStack.Add(new SettlementWindowFc(faction.ReturnSettlementByLocation(evt.location)));

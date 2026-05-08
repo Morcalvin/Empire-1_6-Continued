@@ -56,6 +56,26 @@
 	<FCManualBattleStartedDesc>{0} is under attack by {1}! Take command of the settlement's defenses.</FCManualBattleStartedDesc>
 	<FCAutoBattleCommenced>Battle commenced at {0}</FCAutoBattleCommenced>
 	<FCAutoBattleCommencedDesc>The defenders of {0} have engaged forces from {1}. The settlement remains militarily committed until the battle resolves.</FCAutoBattleCommencedDesc>
+
+	<!-- Per-round auto-resolve battle (BattleProgressWindow + round-log letter append) -->
+	<FCAutoResolveRoundLogHeader>Battle round summary:</FCAutoResolveRoundLogHeader>
+	<FCBattleProgressWindowTitle>Battle for {0}</FCBattleProgressWindowTitle>
+	<FCBattleProgressNoBattle>No battle in progress.</FCBattleProgressNoBattle>
+	<FCBattlePhasePreparing>Preparing for battle</FCBattlePhasePreparing>
+	<FCBattlePhaseEngaged>Engaged</FCBattlePhaseEngaged>
+	<FCBattlePhaseRolling>Round {0} resolved</FCBattlePhaseRolling>
+	<FCBattlePhaseResolved>Battle concluded</FCBattlePhaseResolved>
+	<FCBattleSideAttacker>Attacker</FCBattleSideAttacker>
+	<FCBattleSideDefender>Defender</FCBattleSideDefender>
+	<FCBattleForceLine>Force: {0} / {1}</FCBattleForceLine>
+	<FCBattleEfficiencyLine>Efficiency: x{0}</FCBattleEfficiencyLine>
+	<FCBattleColRound>Round</FCBattleColRound>
+	<FCBattleColAttacker>Attacker (raw -> final)</FCBattleColAttacker>
+	<FCBattleColDefender>Defender (raw -> final)</FCBattleColDefender>
+	<FCBattleColWinner>Winner</FCBattleColWinner>
+	<FCBattleColForces>Forces (A / D)</FCBattleColForces>
+	<FCBattleProgressGizmoLabel>Battle in progress</FCBattleProgressGizmoLabel>
+	<FCBattleProgressGizmoDesc>Open the live battle progress window for this settlement.</FCBattleProgressGizmoDesc>
 	<FCNewWaveArrived>New Wave at {0}</FCNewWaveArrived>
 	<FCNewWaveArrivedDesc>A new wave of attackers from {1} has arrived at {0}! Reinforcements may be on the way.</FCNewWaveArrivedDesc>
 	<FCDefendColony>Defend</FCDefendColony>

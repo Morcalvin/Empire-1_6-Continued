@@ -1,6 +1,7 @@
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using FactionColonies.util;
 
 namespace FactionColonies
 {
@@ -51,18 +52,20 @@ namespace FactionColonies
             if (result.AttackerVictory)
             {
                 ApplyEnslaveSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement,
-                    op.defender?.faction, target);
+                    op.defender?.faction, target, op);
             }
             else if (result.DefenderVictory)
             {
+                string body = "FCRaidEnemySettlementFailure".Translate(target.LabelCap);
+                body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
                 Find.LetterStack.ReceiveLetter("FCRaidFailure".Translate(),
-                    "FCRaidEnemySettlementFailure".Translate(target.LabelCap),
+                    body,
                     LetterDefOf.NegativeEvent, new LookTargets(target));
             }
         }
 
         /* Shared enslave-victory side effects: 1-3 prisoners. */
-        private static void ApplyEnslaveSuccess(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target)
+        private static void ApplyEnslaveSuccess(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target, MilitaryOperation op = null)
         {
             faction.AddExperienceToFactionLevel(5f);
 
@@ -76,8 +79,10 @@ namespace FactionColonies
                 home.AddPrisoner(prisoner);
             }
 
+            string body = "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text;
+            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
             Find.LetterStack.ReceiveLetter("FCRaidLoot".Translate(),
-                "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text,
+                body,
                 LetterDefOf.PositiveEvent, new LookTargets(target));
         }
     }
