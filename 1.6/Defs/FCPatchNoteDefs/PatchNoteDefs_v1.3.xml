@@ -836,4 +836,19 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_59</defName>
+		<label>Reduce VRAM usage</label>
+		<description>Did you know that many of Empire&apos;s textures were over 1000 pixels on a side? I sure didn&apos;t. But thanks to that, Empire would use a whopping 600MB+ of VRAM!\n\nThis patch shrinks all those icons to more reasonable sizes, thereby reducing Empire&apos;s VRAM usage to only about 36MB.</description>
+		<releaseDate>2026-05-07</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Shrink faction icons to 256x256, and shrink trait icons to 128x128</li>
+		<li>Remove redundant texture loads in TexLoad</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

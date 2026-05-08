@@ -21,7 +21,6 @@ namespace FactionColonies
             gradientVertical = CreateVerticalGradient();
         }
 
-        public static readonly Texture2D iconTest100 = ContentFinder<Texture2D>.Get("GUI/100x");
         public static readonly Texture2D questionmark = ContentFinder<Texture2D>.Get("GUI/questionmark");
         public static readonly Texture2D buildingLocked = ContentFinder<Texture2D>.Get("GUI/LockedBuildingSlot");
         public static readonly Texture2D refreshIcon = ContentFinder<Texture2D>.Get("GUI/Buttons/Refresh");
@@ -36,38 +35,8 @@ namespace FactionColonies
         public static readonly Texture2D iconProsperity = ContentFinder<Texture2D>.Get("GUI/Prosperity");
         public static readonly Texture2D iconMilitary = ContentFinder<Texture2D>.Get("GUI/MilitaryLevel");
         public static readonly Texture2D iconCustomize = ContentFinder<Texture2D>.Get("GUI/customizebutton");
-        public static readonly Texture2D iconUpgrade = ContentFinder<Texture2D>.Get("UI/Buttons/ReorderUp");
 
         public static readonly Texture2D iconTrade = ContentFinder<Texture2D>.Get("UI/Commands/Trade");
-
-
-        //Trait Icons
-        public static readonly Texture2D traitAuthoritarianLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Authoritarian");
-        public static readonly Texture2D traitAuthoritarianDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/AuthoritarianDark");
-        public static readonly Texture2D traitEgalitarianLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Egalitarian");
-        public static readonly Texture2D traitEgalitarianDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/EgalitarianDark");
-        public static readonly Texture2D traitExpansionistLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Expansionist");
-        public static readonly Texture2D traitExpansionistDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/ExpansionistDark");
-        public static readonly Texture2D traitFeudalLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Feudal");
-        public static readonly Texture2D traitFeudalDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/FeudalDark");
-        public static readonly Texture2D traitIsolationistLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Isolationist");
-        public static readonly Texture2D traitIsolationistDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/IsolationistDark");
-        public static readonly Texture2D traitMilitaristicLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Militaristic");
-        public static readonly Texture2D traitMilitaristicDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/MilitaristicDark");
-        public static readonly Texture2D traitPacifistLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Pacifist");
-        public static readonly Texture2D traitPacifistDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/PacifistDark");
-        public static readonly Texture2D traitTechnocraticLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Technocratic");
-        public static readonly Texture2D traitTechnocraticDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/TechnocraticDark");
-        public static readonly Texture2D traitSlaverLight = ContentFinder<Texture2D>.Get("GUI/MainTraits/Feudal");
-        public static readonly Texture2D traitSlaverDark = ContentFinder<Texture2D>.Get("GUI/MainTraits/FeudalDark");
-
-        //UnitCustomization
-        public static readonly Texture2D unitCircle = ContentFinder<Texture2D>.Get("GUI/unitCircle");
-
-        // Patch notes link button textures
-        public static readonly Texture2D discordIcon = ContentFinder<Texture2D>.Get("GUI/Buttons/discordlogo");
-        public static readonly Texture2D githubIcon = ContentFinder<Texture2D>.Get("GUI/Buttons/githublogo");
-        public static readonly Texture2D wikiIcon = ContentFinder<Texture2D>.Get("GUI/Buttons/wikilogo");
 
         public static List<Texture2D> factionIcons = new List<Texture2D>();
         public static readonly Texture2D checkerboard;
