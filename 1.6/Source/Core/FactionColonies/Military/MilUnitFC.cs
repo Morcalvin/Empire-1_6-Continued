@@ -32,6 +32,11 @@ namespace FactionColonies
         private bool pawnIdentityDirty = true;    // Needs new PawnGenerator call (race/xeno change)
         private bool pawnEquipmentDirty = true;   // Needs equipment refresh on same pawn
 
+        /* Monotonic edit counter bumped on every ChangeTick(). Tick-independent so
+         * same-tick edits (and edits made while paused) are still detected by UI
+         * code that wants to refresh derived state. */
+        public int editVersion;
+
         public MilUnitFC()
         {
         }
@@ -268,6 +273,7 @@ namespace FactionColonies
         public void ChangeTick()
         {
             tickChanged = Find.TickManager.TicksGame;
+            editVersion++;
             costDirty = true;
         }
 

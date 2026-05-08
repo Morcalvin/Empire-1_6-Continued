@@ -41,7 +41,7 @@ namespace FactionColonies
          * Created lazily on first DoWindowContents and destroyed in PostClose. */
         private Pawn previewPawn;
         private MilUnitFC lastEquippedLoadoutRef;
-        private int lastEquippedTick = int.MinValue;
+        private int lastEquippedVersion = int.MinValue;
 
         public Dialog_PawnLoadout(MercenarySquadFC squad, Mercenary merc)
         {
@@ -388,20 +388,20 @@ namespace FactionColonies
         }
 
         /* Re-equips previewPawn from DisplayLoadout when either the buffer reference
-         * or its tickChanged value differs from the last equip pass. */
+         * or its editVersion differs from the last equip pass. */
         private void RefreshPreviewIfStale()
         {
             if (previewPawn is null) return;
             MilUnitFC display = DisplayLoadout;
-            int displayTick = display?.tickChanged ?? int.MinValue;
-            if (display == lastEquippedLoadoutRef && displayTick == lastEquippedTick) return;
+            int version = display?.editVersion ?? int.MinValue;
+            if (display == lastEquippedLoadoutRef && version == lastEquippedVersion) return;
 
             MilUnitFC.ApplyEquipmentToPawn(previewPawn, display);
             previewPawn.Drawer?.renderer?.SetAllGraphicsDirty();
             PortraitsCache.SetDirty(previewPawn);
 
             lastEquippedLoadoutRef = display;
-            lastEquippedTick = displayTick;
+            lastEquippedVersion = version;
         }
 
         private void DestroyPreviewPawn()
@@ -421,7 +421,7 @@ namespace FactionColonies
             {
                 previewPawn = null;
                 lastEquippedLoadoutRef = null;
-                lastEquippedTick = int.MinValue;
+                lastEquippedVersion = int.MinValue;
             }
         }
     }
