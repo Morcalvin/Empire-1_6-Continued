@@ -259,7 +259,7 @@ namespace FactionColonies
                             LogUtil.MessageForce($"Debug - Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
                             if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
                             {
-                                Messages.Message($"{settlement.Name} is already under attack — debug attack dropped.", MessageTypeDefOf.RejectInput);
+                                Messages.Message($"Debug attack on {settlement.Name} failed (no MilitaryComp or MilitaryManager).", MessageTypeDefOf.RejectInput);
                             }
                         }));
                     }
@@ -295,13 +295,28 @@ namespace FactionColonies
                             MilitaryUtil.GetTechLevelBaseline(enemyFaction.def.techLevel, out double _, out double efficiency);
                             MilitaryForce attackingForce = new MilitaryForce(chosenLevel, efficiency, null, enemyFaction);
                             LogUtil.MessageForce($"Debug - Instant Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
-                            if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
+                            if (settlement.MilitaryComp is null || FactionCache.MilitaryManager is null)
                             {
-                                Messages.Message($"{settlement.Name} is already under attack — debug attack dropped.", MessageTypeDefOf.RejectInput);
+                                Messages.Message($"Debug attack on {settlement.Name} failed (no MilitaryComp or MilitaryManager).", MessageTypeDefOf.RejectInput);
                                 return;
                             }
 
-                            FCEvent attackEvt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
+                            // Call the manager directly so we get the freshly-created op handle. Going via
+                            // MilitaryUtilFC.AttackPlayerSettlement would force a tile-wide event lookup, which
+                            // returns the FIRST settlementBeingAttacked at this tile — that can be an older,
+                            // already-stacked attack rather than the one we just queued.
+                            MilitaryOperation op = FactionCache.MilitaryManager.CreateDefensiveOp(settlement, attackingForce, enemyFaction);
+                            if (op is null) return;
+
+                            FCEvent attackEvt = null;
+                            for (int i = op.sourceEvents.Count - 1; i >= 0; i--)
+                            {
+                                if (op.sourceEvents[i]?.def == FCEventDefOf.settlementBeingAttacked)
+                                {
+                                    attackEvt = op.sourceEvents[i];
+                                    break;
+                                }
+                            }
                             if (attackEvt != null)
                             {
                                 attackEvt.timeTillTrigger = Find.TickManager.TicksGame + 1;

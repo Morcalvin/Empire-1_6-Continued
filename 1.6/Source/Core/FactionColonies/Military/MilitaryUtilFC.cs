@@ -12,30 +12,14 @@ namespace FactionColonies
         /// Schedules a defensive operation against an Empire settlement: creates a
         /// <see cref="MilitaryOperation"/> via the manager, runs auto-defender selection,
         /// and queues the 24-hour <c>settlementBeingAttacked</c> warning event linked back
-        /// to the op. Returns true on success, false if the attack was rejected (already
-        /// under attack or no comp).
+        /// to the op. Returns true on success, false if the attack was rejected
+        /// (no MilitaryComp or MilitaryManager unavailable).
         /// </summary>
         public static bool AttackPlayerSettlement(MilitaryForce attackingForce, WorldSettlementFC settlement, Faction enemyFaction)
         {
             if (settlement?.MilitaryComp is null)
             {
                 LogUtil.Warning($"AttackPlayerSettlement rejected: {settlement?.Name ?? "null"} has no MilitaryComp. " +
-                    $"Attacker {enemyFaction?.Name ?? "null"} dropped.");
-                return false;
-            }
-
-            var milComp = settlement.MilitaryComp;
-            FCEvent existingEvent = ReturnMilitaryEventByLocation(settlement.Tile);
-
-            // Allow new attacks if a manual battle is active on the map (wave defense)
-            // or the map is still loaded post-battle (map reuse). Reject only when there's
-            // a pending warning-phase event and no active battle map yet.
-            bool hasActiveBattle = milComp.isUnderAttack && settlement.HasMap;
-            bool hasPostBattleMap = !milComp.isUnderAttack && settlement.HasMap;
-            if (!hasActiveBattle && !hasPostBattleMap && (milComp.isUnderAttack || existingEvent is object))
-            {
-                LogUtil.Warning($"AttackPlayerSettlement rejected: {settlement.Name} is already under attack " +
-                    $"(isUnderAttack={milComp.isUnderAttack}, existingEvent={existingEvent is object}). " +
                     $"Attacker {enemyFaction?.Name ?? "null"} dropped.");
                 return false;
             }
@@ -174,25 +158,18 @@ namespace FactionColonies
             // otherwise lag the swap.
             manager.Unregister(op);
 
-            MilitaryForce newForce;
+            MilitaryForce newForce = MilitaryForce.CreateMilitaryForceFromSquad(squad);
+            op.defender.homeSettlement = squad.settlement;
+            op.defender.squad = squad;
+            op.defender.force = newForce;
+            op.externalDefenderSource = null;
+
             if (squad.settlement == homeSettlement)
             {
-                newForce = MilitaryForce.CreateMilitaryForceFromSquad(squad);
-                op.defender.homeSettlement = homeSettlement;
-                op.defender.squad = squad;
-                op.defender.force = newForce;
-                op.externalDefenderSource = null;
                 Messages.Message("FCDefendingMilitaryReset".Translate(), MessageTypeDefOf.NeutralEvent);
             }
             else
             {
-                MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
-                newForce = MilitaryForce.CreateMilitaryForceFromSquad(squad, homeDefendingForce: homeForce);
-                op.defender.homeSettlement = squad.settlement;
-                op.defender.squad = squad;
-                op.defender.force = newForce;
-                op.externalDefenderSource = null;
-
                 Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
                     squad.settlement.Name, homeSettlement?.Name ?? "", newForce?.militaryLevel ?? 0),
                     LetterDefOf.NeutralEvent);

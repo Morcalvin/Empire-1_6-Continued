@@ -187,7 +187,6 @@ namespace FactionColonies
             }
 
             int now = Find.TickManager.TicksGame;
-            MilitaryForce homeBase = MilitaryForce.CreateMilitaryForceFromSettlement(homeSettlement, isAttacking: true);
 
             foreach (MercenarySquadFC squad in pool)
             {
@@ -202,9 +201,7 @@ namespace FactionColonies
 
                 int travelTicks = TravelUtil.ReturnTicksToArrive(squad.settlement.Tile, homeSettlement.Tile);
 
-                MilitaryForce defenderForce = squad.settlement == homeSettlement
-                    ? MilitaryForce.CreateMilitaryForceFromSquad(squad)
-                    : MilitaryForce.CreateMilitaryForceFromSquad(squad, homeDefendingForce: homeBase);
+                MilitaryForce defenderForce = MilitaryForce.CreateMilitaryForceFromSquad(squad);
 
                 bool hasDefenderForce = defenderForce is object;
                 double defenderPower = SquadPowerRegistry.Resolve(squad).militaryLevel;

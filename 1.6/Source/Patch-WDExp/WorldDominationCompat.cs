@@ -92,7 +92,7 @@ namespace FactionColonies.WDExp
             else
             {
                 LogUtil.Message("WD raid on Empire settlement " + empireSettlement.Name +
-                    " dropped (settlement already under attack).");
+                    " dropped (helper rejected — likely missing MilitaryComp or MilitaryManager).");
             }
 
             return false;

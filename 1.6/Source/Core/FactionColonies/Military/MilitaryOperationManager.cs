@@ -336,12 +336,9 @@ namespace FactionColonies
                 && (!targetHasOwnSquad || foreignLevel > targetLevel)
                 && foreignLevel >= externalLevel)
             {
-                MilitaryForce homeForce = targetSettlement is object
-                    ? MilitaryForce.CreateMilitaryForceFromSettlement(targetSettlement, isAttacking: true)
-                    : null;
                 op.defender.homeSettlement = bestForeignBillet;
                 op.defender.squad = bestForeignSquad;
-                op.defender.force = MilitaryForce.CreateMilitaryForceFromSquad(bestForeignSquad, isAttacking: false, homeDefendingForce: homeForce);
+                op.defender.force = MilitaryForce.CreateMilitaryForceFromSquad(bestForeignSquad, isAttacking: false);
                 op.externalDefenderSource = null;
                 return;
             }

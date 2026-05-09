@@ -121,6 +121,42 @@ namespace FactionColonies
         }
 
         [EmpireTest("MilitaryForce")]
+        public static void CreateFromSquad_ForceEqualsResolvedSquadPower_NoHiddenSettlementBonus()
+        {
+            // Regression: previously, the defender-selection paths added the besieged settlement's
+            // settlementMilitaryLevel onto a foreign squad's force via homeDefendingForce, while
+            // the home squad fought without it. The squad-only model means CreateMilitaryForceFromSquad
+            // (with no homeDefendingForce) should produce a militaryLevel equal to the squad's
+            // resolved power level (no settlement-based addition).
+            FactionFC faction = FactionCache.FactionComp;
+            if (faction is null) TestAssert.Skip("No FactionFC");
+
+            MercenarySquadFC squad = null;
+            foreach (WorldSettlementFC s in faction.settlements)
+            {
+                foreach (MercenarySquadFC stationed in s.StationedSquads)
+                {
+                    if (stationed?.settlement is object) { squad = stationed; break; }
+                }
+                if (squad is object) break;
+            }
+            if (squad is null) TestAssert.Skip("No stationed squad available");
+
+            double resolvedLevel = SquadPowerRegistry.Resolve(squad).militaryLevel;
+            MilitaryForce force = MilitaryForce.CreateMilitaryForceFromSquad(squad);
+
+            TestAssert.IsNotNull(force, "Force should be created for a stationed squad");
+            // militaryLevel may include faction-wide attack/defense bonuses (CombineForce adds those).
+            // The contract here is the absence of the *settlement-level* addition: force.militaryLevel
+            // must not exceed the squad's resolved level by anywhere near the settlement's mil level.
+            double settlementLevel = squad.settlement.settlementMilitaryLevel;
+            double overshoot = force.militaryLevel - resolvedLevel;
+            TestAssert.IsTrue(overshoot < settlementLevel,
+                $"CreateMilitaryForceFromSquad should not silently add settlementMilitaryLevel " +
+                $"({settlementLevel}); force.militaryLevel={force.militaryLevel}, resolved={resolvedLevel}, overshoot={overshoot}");
+        }
+
+        [EmpireTest("MilitaryForce")]
         public static void EnemyPower_BaselineReflectsTechLevel()
         {
             Settlement enemy = Find.WorldObjects.Settlements
