@@ -30,10 +30,9 @@ namespace FactionColonies
         public override BattleResult OnAutoResolve(MilitaryOperation op)
         {
             // Forces are populated in CreateOffensiveOp + BeginEngagement. Use them directly so
-            // BattleModifierRegistry / op-aware modifiers see the same instances.
-            // Defensive fallback: CreateOffensiveOp populates aggressor.force eagerly via the
-            // squad-derived path, so this should never be reached on modern saves. Kept for
-            // resilience against legacy paths that never set the force.
+            // BattleModifierRegistry / op-aware modifiers see the same instances. The fallback
+            // chain reconstructs a force from the squad or an unstaffed billet if the op
+            // somehow reaches this point without one.
             MilitaryForce attacker = op.aggressor?.force
                 ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
                 ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);

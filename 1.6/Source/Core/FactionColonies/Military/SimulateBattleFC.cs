@@ -12,10 +12,8 @@ namespace FactionColonies
             try
             {
                 // Battle modifiers are applied by op.BeginEngagement before this point in the
-                // op-driven flow. Legacy save paths that bypass the manager (mid-flight events
-                // restored from pre-refactor saves) skip modifier application — acceptable
-                // because those code paths are dead for new ops and only surface during one-time
-                // load migration.
+                // op-driven flow; callers that invoke FightBattle directly (tests, win-chance
+                // probes) get the unmodified baseline.
 
                 // Defender advantage: defenders are inherently harder to dislodge
                 MFB.forceRemaining = Math.Round(MFB.forceRemaining * FCSettings.defenderAdvantage);

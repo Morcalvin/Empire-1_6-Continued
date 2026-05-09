@@ -28,7 +28,7 @@ namespace FactionColonies
 
         public override BattleResult OnAutoResolve(MilitaryOperation op)
         {
-            // Defensive fallback (see MilitaryJobHandler_Raid.OnAutoResolve note).
+            // See MilitaryJobHandler_Raid.OnAutoResolve for the force-resolution fallback chain.
             MilitaryForce attacker = op.aggressor?.force
                 ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
                 ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);

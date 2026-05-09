@@ -7,10 +7,9 @@ using System.Linq;
 using Verse;
 using Verse.AI.Group;
 
-// Comp legacy load buffers reference [Obsolete] DefenseWave (drained on PostLoadInit by
-// MilitaryMigrationUtil). The runtime surface is computed properties backed by the manager;
-// no other obsolete consumption lives here. File-level pragma scopes the silence to the
-// load-buffer block.
+// Save-load buffers (declared below) reference [Obsolete] DefenseWave; they are drained on
+// PostLoadInit by MilitaryMigrationUtil. The runtime surface is computed properties backed by
+// the manager. File-level pragma scopes the obsolete-warning silence to this file.
 #pragma warning disable 0618
 
 namespace FactionColonies
@@ -62,11 +61,11 @@ namespace FactionColonies
         public int artilleryTimer = 0;
         public int settlementMilitaryLevel;
 
-        /// <summary>Legacy 1:1 settlement-to-squad accessor. Squads now live on the faction-wide
-        /// pool and reference their billet via <see cref="MercenarySquadFC.settlement"/>.
+        /// <summary>Compatibility shim: 1:1 settlement-to-squad accessor. Squads live on the
+        /// faction-wide pool and reference their billet via <see cref="MercenarySquadFC.settlement"/>.
         /// New code should iterate <see cref="WorldSettlementFC.StationedSquads"/>; this shim
         /// returns the first stationed squad for cross-mod source compatibility.</summary>
-        [System.Obsolete("Use WorldSettlementFC.StationedSquads. This shim returns the primary stationed squad for back-compat.")]
+        [System.Obsolete("Use WorldSettlementFC.StationedSquads. This shim returns the primary stationed squad.")]
         public MercenarySquadFC militarySquad
         {
             get
@@ -77,9 +76,8 @@ namespace FactionColonies
             }
             set
             {
-                // Legacy 1:1 setter: "this is THE squad now". Translate to the canonical
-                // squad-first model by detaching any existing stationed squads, then
-                // attaching the new one.
+                // Setter semantics: "this is THE squad now". Detach any other stationed squads,
+                // then attach the new one to this settlement.
                 if (WorldSettlement is null) return;
                 if (value is null)
                 {
@@ -101,11 +99,11 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Legacy per-settlement auto-defend flag. Auto-defend now lives on the squad
-        /// (<see cref="MercenarySquadFC.autoDefend"/>) so a settlement with multiple squads can
-        /// opt some in and some out. The shim returns true when any stationed squad has
-        /// <c>autoDefend</c> set; the setter applies the flag to all stationed squads.</summary>
-        [System.Obsolete("Use MercenarySquadFC.autoDefend. This shim aggregates across stationed squads for back-compat.")]
+        /// <summary>Compatibility shim: per-settlement auto-defend flag. Auto-defend lives on
+        /// the squad (<see cref="MercenarySquadFC.autoDefend"/>) so a settlement with multiple
+        /// squads can opt some in and some out. The shim returns true when any stationed squad
+        /// has <c>autoDefend</c> set; the setter applies the flag to all stationed squads.</summary>
+        [System.Obsolete("Use MercenarySquadFC.autoDefend. This shim aggregates across stationed squads.")]
         public bool autoDefend
         {
             get
@@ -129,22 +127,22 @@ namespace FactionColonies
             }
         }
 
-        // -*-*-*-*- Squad-first migration buffers -*-*-*-*-
-        // Pre-refactor saves wrote militarySquad/autoDefend on the comp itself. After this
-        // refactor those fields live on MercenarySquadFC (squad.settlement / squad.autoDefend).
-        // On load we capture the legacy values into [Unsaved] buffers; MilitaryMigrationUtil
-        // drains them in PostLoadInit. Never written on save.
+        // -*-*-*-*- Squad-first comp-side load buffers -*-*-*-*-
+        // The canonical home for these values is MercenarySquadFC (squad.settlement /
+        // squad.autoDefend). When a save XML carries them on the comp, ExposeData captures
+        // them into these [Unsaved] buffers; MilitaryMigrationUtil drains them in PostLoadInit.
+        // Never written on save.
         [Unsaved] public MercenarySquadFC _legacyMilitarySquad;
         [Unsaved] public bool _legacyAutoDefend;
 
-        /* -*-*-*-*- Legacy load buffers -*-*-*-*-
-         * Old saves carried operation state on the comp directly. The canonical state now lives
-         * on MilitaryOperation in the manager; the comp's militaryBusy / militaryJob /
-         * militaryLocation / militaryEnemy / isUnderAttack are computed properties that read
-         * from the manager (defined below). Battle infrastructure (attackers / defenders /
-         * draftedNPCs) lives on BattlefieldContext. These _legacy* fields are loaded from old
-         * save XML during LoadingVars and consumed once by <see cref="MilitaryMigrationUtil"/>
-         * in PostLoadInit. They are NOT written on save.
+        /* -*-*-*-*- Operation-state comp-side load buffers -*-*-*-*-
+         * The canonical home for op state is MilitaryOperation on the manager; the comp's
+         * militaryBusy / militaryJob / militaryLocation / militaryEnemy / isUnderAttack are
+         * computed properties that read from the manager (defined below). Battle infrastructure
+         * (attackers / defenders / draftedNPCs) lives on BattlefieldContext. When a save XML
+         * carries these values on the comp, ExposeData reads them into the buffers below
+         * during LoadingVars; <see cref="MilitaryMigrationUtil"/> drains them in PostLoadInit.
+         * They are never written on save.
          */
         public bool _legacyMilitaryBusy;
         public MilitaryJobDef _legacyMilitaryJob;
@@ -283,15 +281,15 @@ namespace FactionColonies
             Scribe_Values.Look(ref artilleryTimer, "artilleryTimer");
             Scribe_Values.Look(ref settlementMilitaryLevel, "settlementMilitaryLevel");
 
-            /* Backward compat: load pre-refactor save state into legacy buffers consumed by
-             * MilitaryMigrationUtil during PostLoadInit. The canonical state lives on
-             * MilitaryOperationManager (ops) and BattlefieldContext (battle pawns).
-             * These are NOT written on save — post-refactor saves use the new layout. */
+            /* On LoadingVars, fill the comp-side load buffers from XML so MilitaryMigrationUtil
+             * can drain them in PostLoadInit. Canonical state lives on MilitaryOperationManager
+             * (ops) and BattlefieldContext (battle pawns); save writes use the manager-owned
+             * layout, so these reads only resolve values when a comp-side XML is present. */
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
-                // Squad-first refactor: capture pre-refactor militarySquad/autoDefend on the comp
-                // into [Unsaved] buffers. Drained in PostLoadInit by MigrateLegacyComp_MilitarySquad
-                // which writes squad.settlement = this and squad.autoDefend = legacy value.
+                // Squad-first split: capture militarySquad/autoDefend from the XML into
+                // [Unsaved] buffers. MigrateLegacyComp_MilitarySquad consumes them in
+                // PostLoadInit and writes squad.settlement = this + squad.autoDefend = buffer.
                 Scribe_References.Look(ref _legacyMilitarySquad, "militarySquad");
                 Scribe_Values.Look(ref _legacyAutoDefend, "autoDefend", false);
 
@@ -626,7 +624,7 @@ namespace FactionColonies
                 LogUtil.Error($"EndBattle: no per-op handler sent a result letter at tile {WorldSettlement?.Tile} (won={won}). ");
             }
 
-            _ = remaining; // legacy parameter retained for source compat with callers.
+            _ = remaining; // parameter retained for source compatibility with external callers.
             _ = faction;
         }
 
@@ -746,10 +744,10 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Pre-refactor entry point. Resolves the settlement's primary stationed squad
-        /// (via the obsolete <see cref="militarySquad"/> shim) and forwards. Will be removed in a
-        /// follow-up — callers should pick a specific squad via <see cref="WorldSettlementFC.StationedSquads"/>
-        /// or the new source-picker dialog.</summary>
+        /// <summary>Compatibility shim that resolves the settlement's primary stationed squad
+        /// (via the obsolete <see cref="militarySquad"/> accessor) and forwards. Callers should
+        /// pick a specific squad via <see cref="WorldSettlementFC.StationedSquads"/> or the
+        /// source-picker dialog.</summary>
         [System.Obsolete("Pass an explicit MercenarySquadFC squad. Resolves to the primary stationed squad as a fallback.")]
         public void SendMilitary(PlanetTile location, MilitaryJobDef job, int timeToFinish, Faction enemy)
         {

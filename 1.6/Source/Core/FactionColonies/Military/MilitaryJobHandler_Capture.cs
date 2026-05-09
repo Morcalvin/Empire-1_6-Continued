@@ -27,7 +27,7 @@ namespace FactionColonies
 
         public override BattleResult OnAutoResolve(MilitaryOperation op)
         {
-            // Defensive fallback (see MilitaryJobHandler_Raid.OnAutoResolve note).
+            // See MilitaryJobHandler_Raid.OnAutoResolve for the force-resolution fallback chain.
             MilitaryForce attacker = op.aggressor?.force
                 ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
                 ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
@@ -62,7 +62,8 @@ namespace FactionColonies
             }
         }
 
-        /* Shared capture-victory side effects, used by both legacy and op-aware paths. */
+        /* Shared capture-victory side effects: destroy the target settlement, replace it with a
+         * player-owned WorldSettlementFC, and configure starting prosperity/loyalty. */
         private static void ApplyCaptureSuccess(FactionFC faction, WorldSettlementFC home,
             PlanetTile capturedTile, Settlement target, MilitaryOperation op = null)
         {

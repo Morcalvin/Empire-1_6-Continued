@@ -16,10 +16,9 @@ namespace FactionColonies
     /// <see cref="BattlefieldContext.StartDefense"/>, which decides auto-vs-manual internally based
     /// on <c>FCSettings.battleMode</c> and the settlement's <c>supportsManualBattle</c>.
     /// <see cref="ApplyResult"/> applies the settlement-side outcome (loyalty / happiness / building
-    /// destruction) — extracted from the legacy <c>WorldObjectComp_SettlementMilitary.WinBattle/LoseBattle</c>.
-    /// Because <c>ApplyResult</c> fires per-op, multi-op battle resolutions (multiple concurrent
-    /// attackers on one tile) apply the full settlement-side penalty set once per op — each op is a
-    /// distinct logical attack with its own consequences.</para>
+    /// destruction). Because it fires per-op, multi-op battle resolutions (multiple concurrent
+    /// attackers on one tile) apply the full settlement-side penalty set once per op — each op
+    /// is a distinct logical attack with its own consequences.</para>
     /// </summary>
     public class MilitaryJobHandler_Defend : MilitaryJobHandler
     {
@@ -92,10 +91,9 @@ namespace FactionColonies
     /// <summary>
     /// Settlement-side effects of a defensive battle outcome (loyalty / happiness / prosperity
     /// changes, building destruction on loss, "settlement leveled down" rolls, result letters).
-    /// Extracted from <see cref="WorldObjectComp_SettlementMilitary"/>'s legacy <c>WinBattle</c> /
-    /// <c>LoseBattle</c> methods so settlement effects run inside <see cref="MilitaryOperation.CompleteBattle"/>
-    /// (via <see cref="MilitaryJobHandler_Defend.ApplyResult"/>) before lifecycle listeners observe
-    /// the resolved op.
+    /// Invoked from <see cref="MilitaryJobHandler_Defend.ApplyResult"/> so the effects run inside
+    /// <see cref="MilitaryOperation.CompleteBattle"/> before lifecycle listeners observe the
+    /// resolved op.
     /// </summary>
     internal static class DefensiveBattleEffects
     {

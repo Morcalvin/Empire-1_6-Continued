@@ -231,10 +231,10 @@ namespace FactionColonies
             MilitaryForce atk = aggressor.force;
             MilitaryForce def = defender.force;
 
-            // Defender advantage applied to the live defender.forceRemaining (matches
-            // SimulateBattleFc.FightBattle's mutation, so MilitaryForce-based readers like
-            // CalculateDefenderWinChance see the same baseline). The progress object snapshots
-            // the post-advantage value as defenderInitialForce.
+            // Apply defender advantage in place on the live defender.forceRemaining so
+            // MilitaryForce-based readers like CalculateDefenderWinChance see the same
+            // post-advantage baseline. The progress object snapshots this value as
+            // defenderInitialForce.
             def.forceRemaining = Math.Round(def.forceRemaining * FCSettings.defenderAdvantage);
 
             battleProgress = new BattleProgress
@@ -377,10 +377,9 @@ namespace FactionColonies
                 def?.OnDefenseComplete(victory, battleResult);
             }
 
-            // Drive EmpireThreatAdaptation from every battle the empire participates in (offensive
-            // and defensive). Previously only the defensive comp path notified, so offensive
-            // raid wins/losses never tuned the threat curve. Skip on Error results — the battle
-            // didn't really happen.
+            // Drive EmpireThreatAdaptation from every battle the empire participates in
+            // (offensive and defensive), so raid outcomes tune the threat curve alongside
+            // defensive ones. Skip on Error results — the battle didn't really happen.
             if (battleResult is object && battleResult.winner != BattleWinner.Error)
             {
                 EmpireThreatAdaptation adapt = FactionCache.FactionComp?.threatAdaptation;
@@ -448,11 +447,10 @@ namespace FactionColonies
 
             int cooldownTicks = ComputeCooldownTicks();
 
-            // Squad-first cooldown: each participating squad gets its own cooldown gate via
-            // squad.nextAvailableTick. The FCEvent below still drives the op's Resolve() but
-            // squad availability ("can launch a new op?") reads from the squad directly, so
-            // multiple squads at one settlement no longer share a single per-settlement
-            // cooldown.
+            // Each participating squad gets its own cooldown gate via squad.nextAvailableTick.
+            // The FCEvent below drives the op's Resolve(); squad availability ("can launch a
+            // new op?") reads from the squad directly, so multiple squads at one settlement
+            // hold independent per-squad cooldowns.
             int wakeTick = Find.TickManager.TicksGame + cooldownTicks;
             // Mirror onto nextPhaseTick so the busy-status display (which reads
             // op.nextPhaseTick) shows the cooldown countdown rather than 0.0 d.
