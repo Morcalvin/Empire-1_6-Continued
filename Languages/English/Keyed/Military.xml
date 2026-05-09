@@ -70,8 +70,10 @@
 	<FCBattleForceLine>Force: {0} / {1}</FCBattleForceLine>
 	<FCBattleEfficiencyLine>Efficiency: x{0}</FCBattleEfficiencyLine>
 	<FCBattleColRound>Round</FCBattleColRound>
-	<FCBattleColAttacker>Attacker (raw -> final)</FCBattleColAttacker>
-	<FCBattleColDefender>Defender (raw -> final)</FCBattleColDefender>
+	<FCBattleColAttackerRoll>Attacker Roll</FCBattleColAttackerRoll>
+	<FCBattleColDefenderRoll>Defender Roll</FCBattleColDefenderRoll>
+	<FCBattleColRollRaw>Raw</FCBattleColRollRaw>
+	<FCBattleColRollFinal>Final</FCBattleColRollFinal>
 	<FCBattleColWinner>Winner</FCBattleColWinner>
 	<FCBattleColForces>Forces (A / D)</FCBattleColForces>
 	<FCBattleProgressGizmoLabel>Battle in progress</FCBattleProgressGizmoLabel>
