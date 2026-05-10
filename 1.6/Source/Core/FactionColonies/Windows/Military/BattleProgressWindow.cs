@@ -212,9 +212,7 @@ namespace FactionColonies
             string title = isAttacker
                 ? "FCBattleSideAttacker".Translate()
                 : "FCBattleSideDefender".Translate();
-            GUI.color = new Color(0.95f, 0.95f, 0.95f);
-            Widgets.Label(titleRect.ContractedBy(4f, 0f), title);
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(titleRect.ContractedBy(4f, 0f), title, new Color(0.95f, 0.95f, 0.95f));
 
             /* Icon block: 40x40 icon flush left/right, two text rows on the other side.
                When the faction can't be resolved at all (live participant gone AND the
@@ -263,9 +261,7 @@ namespace FactionColonies
             string factionName = faction?.Name ?? fallbackFactionName;
             if (!string.IsNullOrEmpty(factionName))
                 Widgets.Label(nameRect, factionName);
-            GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            Widgets.Label(labelRect, label ?? "?");
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(labelRect, label ?? "?", new Color(0.7f, 0.7f, 0.7f));
 
             /* Efficiency line */
             float effY = blockY + blockH + 4f;
@@ -352,9 +348,7 @@ namespace FactionColonies
             {
                 Text.Anchor = TextAnchor.MiddleCenter;
                 Text.Font = GameFont.Small;
-                GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                Widgets.Label(inner, "FCBattleReportNoRoundDetail".Translate());
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(inner, "FCBattleReportNoRoundDetail".Translate(), new Color(0.7f, 0.7f, 0.7f));
                 Text.Anchor = TextAnchor.UpperLeft;
                 return;
             }
@@ -559,9 +553,7 @@ namespace FactionColonies
 
         private static void DrawRawRollCell(Rect rect, int rawRoll)
         {
-            GUI.color = new Color(0.6f, 0.6f, 0.6f);
-            Widgets.Label(rect, rawRoll.ToString());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(rect, rawRoll.ToString(), new Color(0.6f, 0.6f, 0.6f));
         }
 
         /* Center-pointing chevron in the winner's Final cell: "<" on attacker side (points toward
@@ -570,18 +562,16 @@ namespace FactionColonies
            to the vertical mirror axis. */
         private static void DrawWinnerChevron(Rect atkFinalCell, Rect defFinalCell, bool attackerWon, Color winnerColor)
         {
-            GUI.color = winnerColor;
             if (attackerWon)
             {
                 Text.Anchor = TextAnchor.MiddleRight;
-                Widgets.Label(atkFinalCell.ContractedBy(4f, 0f), "<");
+                UIUtil.DrawColoredLabel(atkFinalCell.ContractedBy(4f, 0f), "<", winnerColor);
             }
             else
             {
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(defFinalCell.ContractedBy(4f, 0f), ">");
+                UIUtil.DrawColoredLabel(defFinalCell.ContractedBy(4f, 0f), ">", winnerColor);
             }
-            GUI.color = Color.white;
         }
 
         private Color ResolveWinnerBlockTint(bool attackerWon)
