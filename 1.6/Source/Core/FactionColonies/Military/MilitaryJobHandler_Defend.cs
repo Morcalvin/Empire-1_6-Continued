@@ -79,7 +79,7 @@ namespace FactionColonies
             try
             {
                 if (result.DefenderVictory) DefensiveBattleEffects.ApplyWin(target, op);
-                else DefensiveBattleEffects.ApplyLoss(target, op);
+                else DefensiveBattleEffects.ApplyLoss(target, op, result);
             }
             catch (Exception e)
             {
@@ -130,7 +130,7 @@ namespace FactionColonies
             letterEmitted = true;
         }
 
-        public static void ApplyLoss(WorldSettlementFC settlement, MilitaryOperation op = null)
+        public static void ApplyLoss(WorldSettlementFC settlement, MilitaryOperation op = null, BattleResult result = null)
         {
             FactionFC faction = FactionCache.FactionComp;
             if (faction is null) return;
@@ -149,6 +149,24 @@ namespace FactionColonies
             //  stat<1.0 -> higher threshold (less destruction)
             //  stat>1.0 -> lower threshold (more destruction)
             double destructionStat = faction.GetStatValue(FCStatDefOf.buildingDestructionChance);
+
+            // Crushing-defeat amplifier: a defensive loss with zero enemy casualties
+            // multiplies the settlement-side penalty set. Mirrors the OV cooldown skip on the
+            // winning side. Applied before the destruction-chance threshold is computed so the
+            // boosted destruction stat also drives the level-demotion roll below.
+            bool isCrushingDefeat = result is object && result.IsCrushingDefeatForDefender;
+            if (isCrushingDefeat)
+            {
+                float pm = FCSettings.crushingDefeatPenaltyMultiplier;
+                if (pm > 1f)
+                {
+                    prosperityLoss *= pm;
+                    happinessLoss *= pm;
+                    loyaltyLoss *= pm;
+                    destructionStat *= pm;
+                }
+            }
+
             int deconstructChance = Math.Max(0, Math.Min(11, (int)Math.Round(11 - 4 * destructionStat)));
 
             settlement.prosperity -= prosperityLoss;

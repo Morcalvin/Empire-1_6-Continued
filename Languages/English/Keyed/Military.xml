@@ -44,6 +44,8 @@
 	<FCCaptureBlockedFallbackToRaid>{0}'s military forces overwhelmed {1}'s defenders, but were unable to permanently neutralize the settlement. The squad raided what supplies they could and is returning home.</FCCaptureBlockedFallbackToRaid>
 	<FCOverwhelmingVictory>Overwhelming Victory</FCOverwhelmingVictory>
 	<FCOverwhelmingVictoryDesc>Due to your military force's overwhelming victory, the military force is still available for deployment.</FCOverwhelmingVictoryDesc>
+	<FCCrushingDefeat>Crushing Defeat</FCCrushingDefeat>
+	<FCCrushingDefeatDesc>Your military force has been routed without inflicting a single casualty. The squad has suffered devastating losses and will require significant time to recover.</FCCrushingDefeatDesc>
 
 	<!-- Defense -->
 	<FCDefenseSuccessful>Defense Successful</FCDefenseSuccessful>
@@ -92,6 +94,7 @@
 	<FCBattleArchiveOutcomeVictory>Victory</FCBattleArchiveOutcomeVictory>
 	<FCBattleArchiveOutcomeOverwhelmingVictory>Overwhelming Victory</FCBattleArchiveOutcomeOverwhelmingVictory>
 	<FCBattleArchiveOutcomeDefeat>Defeat</FCBattleArchiveOutcomeDefeat>
+	<FCBattleArchiveOutcomeCrushingDefeat>Crushing Defeat</FCBattleArchiveOutcomeCrushingDefeat>
 	<FCBattleArchiveSettingsHeader>Battle Archive</FCBattleArchiveSettingsHeader>
 	<FCBattleArchiveMaxEntriesLabel>Max battle reports archived</FCBattleArchiveMaxEntriesLabel>
 	<FCBattleArchiveMaxEntriesTip>How many of the most recent battle reports to keep around. Older reports are evicted when the cap is reached. Letters that reference an evicted report show a "no longer available" message on click.</FCBattleArchiveMaxEntriesTip>

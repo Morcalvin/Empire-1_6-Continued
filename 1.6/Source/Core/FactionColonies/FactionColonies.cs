@@ -177,6 +177,29 @@ namespace FactionColonies
         public const int DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND = GenDate.TicksPerHour; // 2500
         public static int autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
 
+        /* Auto-resolve casualty translation: the abstract force decrement from an
+         * auto-resolved battle is converted into real hediffs/deaths on the deployed
+         * squad pawns. Deaths only fire when the casualty rate exceeds the threshold;
+         * the per-casualty death roll then ramps linearly to maxDeathFraction at 100%.
+         * Crushing Defeat (100% rate, the losing side wiped) follows the same ramp,
+         * which lands at ~80% deaths with defaults. */
+        public const float DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD = 0.75f;
+        public const float DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION = 0.80f;
+        public const bool DEFAULT_APPLY_AUTO_RESOLVE_INJURIES = true;
+        public static float autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
+        public static float autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
+        public static bool applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
+
+        /* Crushing Defeat consequences. A "Crushing Defeat" is any battle the empire loses
+         * without inflicting a single casualty on the winning side — the mirror of
+         * Overwhelming Victory. Settlement-defense penalties (prosperity / happiness /
+         * loyalty / building destruction) are multiplied by crushingDefeatPenaltyMultiplier
+         * and the post-battle cooldown is extended by crushingDefeatCooldownMultiplier. */
+        public const float DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER = 2.0f;
+        public const float DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER = 2.0f;
+        public static float crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+        public static float crushingDefeatCooldownMultiplier = DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER;
+
         /* Battle archive cap. The world-level archive (WorldComponent_Archive) keeps
          * the N most recent battle reports for the player to review via the military
          * tab. Letters that reference an evicted report fall back to a "no longer
@@ -261,6 +284,11 @@ namespace FactionColonies
             Scribe_Values.Look(ref efficiencyDamping, "efficiencyDamping", DEFAULT_EFFICIENCY_DAMPING);
             Scribe_Values.Look(ref maxConcurrentBattleMaps, "maxConcurrentBattleMaps", 0);
             Scribe_Values.Look(ref autoResolveTicksPerRound, "autoResolveTicksPerRound", DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND);
+            Scribe_Values.Look(ref autoResolveCasualtyDeathThreshold, "autoResolveCasualtyDeathThreshold", DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD);
+            Scribe_Values.Look(ref autoResolveCasualtyMaxDeathFraction, "autoResolveCasualtyMaxDeathFraction", DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION);
+            Scribe_Values.Look(ref applyAutoResolveInjuries, "applyAutoResolveInjuries", DEFAULT_APPLY_AUTO_RESOLVE_INJURIES);
+            Scribe_Values.Look(ref crushingDefeatPenaltyMultiplier, "crushingDefeatPenaltyMultiplier", DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER);
+            Scribe_Values.Look(ref crushingDefeatCooldownMultiplier, "crushingDefeatCooldownMultiplier", DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER);
             Scribe_Values.Look(ref battleArchiveMaxEntries, "battleArchiveMaxEntries", DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES);
             if (Scribe.mode == LoadSaveMode.LoadingVars
                 && (battleArchiveMaxEntries < MIN_BATTLE_ARCHIVE_MAX_ENTRIES
@@ -692,6 +720,11 @@ namespace FactionColonies
                 efficiencyDamping = DEFAULT_EFFICIENCY_DAMPING;
                 maxConcurrentBattleMaps = 0;
                 autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
+                autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
+                autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
+                applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
+                crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+                crushingDefeatCooldownMultiplier = DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER;
                 mercenaryHealRatePerHour = 1f;
                 squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
                 squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
@@ -844,6 +877,26 @@ namespace FactionColonies
 
             ls.Label("FCSettingMercHealRate".Translate() + ": " + mercenaryHealRatePerHour.ToString("0.0") + " HP/hr", -1f, "FCSettingMercHealRateTip".Translate());
             mercenaryHealRatePerHour = ls.Slider(mercenaryHealRatePerHour, 0.1f, 100f);
+
+            ls.Gap(12f);
+            ls.GapLine();
+            Text.Font = GameFont.Medium;
+            ls.Label("FCSettingAutoResolveCasualtiesHeader".Translate());
+            Text.Font = GameFont.Small;
+
+            ls.CheckboxLabeled("FCSettingApplyAutoResolveInjuries".Translate(), ref applyAutoResolveInjuries, "FCSettingApplyAutoResolveInjuriesTip".Translate());
+
+            ls.Label("FCSettingAutoResolveDeathThreshold".Translate() + ": " + (autoResolveCasualtyDeathThreshold * 100f).ToString("0") + "%", -1f, "FCSettingAutoResolveDeathThresholdTip".Translate());
+            autoResolveCasualtyDeathThreshold = ls.Slider(autoResolveCasualtyDeathThreshold, 0.0f, 1.0f);
+
+            ls.Label("FCSettingAutoResolveMaxDeathFraction".Translate() + ": " + (autoResolveCasualtyMaxDeathFraction * 100f).ToString("0") + "%", -1f, "FCSettingAutoResolveMaxDeathFractionTip".Translate());
+            autoResolveCasualtyMaxDeathFraction = ls.Slider(autoResolveCasualtyMaxDeathFraction, 0.0f, 1.0f);
+
+            ls.Label("FCSettingCrushingDefeatPenaltyMultiplier".Translate() + ": " + crushingDefeatPenaltyMultiplier.ToString("0.00") + "x", -1f, "FCSettingCrushingDefeatPenaltyMultiplierTip".Translate());
+            crushingDefeatPenaltyMultiplier = ls.Slider(crushingDefeatPenaltyMultiplier, 1.0f, 5.0f);
+
+            ls.Label("FCSettingCrushingDefeatCooldownMultiplier".Translate() + ": " + crushingDefeatCooldownMultiplier.ToString("0.00") + "x", -1f, "FCSettingCrushingDefeatCooldownMultiplierTip".Translate());
+            crushingDefeatCooldownMultiplier = ls.Slider(crushingDefeatCooldownMultiplier, 1.0f, 5.0f);
 
             ls.Gap(12f);
             ls.GapLine();

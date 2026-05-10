@@ -88,6 +88,22 @@
     </FactionColonies.FCStatDef>
 
     <FactionColonies.FCStatDef>
+        <defName>mercenaryDeathChanceMultiplier</defName>
+        <label>mercenary death chance multiplier</label>
+        <aggregation>Multiplicative</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_mercenaryDeathChanceMultiplier</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
+        <defName>mercenaryCasualtyRateMultiplier</defName>
+        <label>mercenary casualty rate multiplier</label>
+        <aggregation>Multiplicative</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_mercenaryCasualtyRateMultiplier</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
         <defName>squadCapPerSettlement</defName>
         <label>squad capacity bonus</label>
         <aggregation>Additive</aggregation>

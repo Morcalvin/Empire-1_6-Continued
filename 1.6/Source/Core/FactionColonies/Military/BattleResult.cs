@@ -85,6 +85,17 @@ namespace FactionColonies
             (winner == BattleWinner.Defender && defenderInitialForce > 0
                 && defenderForceRemaining >= defenderInitialForce);
 
+        /* Crushing Defeat is Overwhelming Victory viewed from the loser's side: the loser
+         * inflicted zero casualties on the winner. Mathematically identical to
+         * IsOverwhelmingVictory; exposed as a separate accessor so penalty-side code reads
+         * clearly. The "ForAttacker"/"ForDefender" variants pin the perspective so callers
+         * don't need to combine winner + OV themselves. */
+        public bool IsCrushingDefeat => IsOverwhelmingVictory;
+        public bool IsCrushingDefeatForAttacker =>
+            winner == BattleWinner.Defender && IsOverwhelmingVictory;
+        public bool IsCrushingDefeatForDefender =>
+            winner == BattleWinner.Attacker && IsOverwhelmingVictory;
+
         /// <summary>
         /// True when one side has been depleted. Used by <see cref="MilitaryOperation.AdvanceBattleProgress"/>
         /// to decide whether to schedule another round or hand off to <c>CompleteBattle</c>.

@@ -362,6 +362,32 @@ namespace FactionColonies
                 LogUtil.Error($"MilitaryOperation.CompleteBattle: handler {kind?.Handler?.GetType().Name} threw in ApplyResult: {e}");
             }
 
+            // Translate abstract per-side force losses to real injuries/deaths on each
+            // participating Empire squad's deployed mercs. Manual battles already dealt
+            // damage on the map, so they're skipped via wasManualBattle. Both aggressor
+            // and defender squads are processed — one or both may be empty (offensive ops
+            // have no defender squad; pure-defensive ops have no aggressor squad).
+            if (battleResult is object && !battleResult.wasManualBattle
+                && battleResult.winner != BattleWinner.Error)
+            {
+                if (aggressor?.squad is object)
+                {
+                    BattleCasualtyApplicator.ApplyCasualtiesToSquad(
+                        aggressor.squad,
+                        battleResult.attackerInitialForce,
+                        battleResult.attackerForceRemaining,
+                        aggressor.homeSettlement);
+                }
+                if (defender?.squad is object && defender.squad != aggressor?.squad)
+                {
+                    BattleCasualtyApplicator.ApplyCasualtiesToSquad(
+                        defender.squad,
+                        battleResult.defenderInitialForce,
+                        battleResult.defenderForceRemaining,
+                        defender.homeSettlement);
+                }
+            }
+
             // Roll up squad injuries onto the loadout BEFORE listeners run, so OnBattleResolved
             // observers see post-battle injury counts. Pawn deaths are already reflected in
             // squad.dead via the Pawn.Kill harmony patch — this call records the wound list.
@@ -407,6 +433,19 @@ namespace FactionColonies
                     LetterDefOf.PositiveEvent);
                 Resolve();
                 return;
+            }
+
+            // Crushing-defeat letter: the loser-side mirror of overwhelming victory. The
+            // squad was wiped without scoring a single kill on the enemy. Defensive settlement
+            // penalty multiplication is applied inside MilitaryJobHandler_Defend.ApplyResult;
+            // the squad wipe is applied by BattleCasualtyApplicator above; the cooldown
+            // extension is applied inside EnterCooldown by checking result.IsCrushingDefeat.
+            if (!victory && kind != MilitaryJobDefOf.Deploy && battleResult.IsOverwhelmingVictory)
+            {
+                Find.LetterStack.ReceiveLetter(
+                    "FCCrushingDefeat".Translate(),
+                    "FCCrushingDefeatDesc".Translate(),
+                    LetterDefOf.NegativeEvent);
             }
 
             EnterCooldown();
@@ -489,6 +528,19 @@ namespace FactionColonies
                     cooldown += deaths * deadMultiplier;
                 }
             }
+            // Crushing-defeat cooldown extension: a battle the empire lost without
+            // inflicting a single casualty leaves the squad shattered for longer than a
+            // typical loss. Applies symmetrically to offensive (failed raid) and defensive
+            // (settlement overrun) Crushing Defeats. Skipped on Error results.
+            if (result is object && result.winner != BattleWinner.Error
+                && result.IsCrushingDefeat
+                && ((IsOffensive && result.IsCrushingDefeatForAttacker)
+                    || (IsDefensive && result.IsCrushingDefeatForDefender)))
+            {
+                float mult = FCSettings.crushingDefeatCooldownMultiplier;
+                if (mult > 1f) cooldown = (int)Math.Round(cooldown * mult);
+            }
+
             cooldown = Math.Max(cooldown, 0);
             if (DebugSettings.godMode) cooldown = 1;
             return cooldown;

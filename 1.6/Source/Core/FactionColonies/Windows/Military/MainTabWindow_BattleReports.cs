@@ -210,7 +210,15 @@ namespace FactionColonies
             bool playerWon = (playerSide == BattleViewerSide.Attacker)
                 ? report.AttackerVictory
                 : report.DefenderVictory;
-            if (!playerWon) return (string)"FCBattleArchiveOutcomeDefeat".Translate();
+            if (!playerWon)
+            {
+                // Crushing Defeat is the loser-side mirror of Overwhelming Victory — the player
+                // failed to inflict a single casualty. Distinct label so the report tab surfaces
+                // the state at a glance.
+                return report.IsCrushingDefeat
+                    ? (string)"FCBattleArchiveOutcomeCrushingDefeat".Translate()
+                    : (string)"FCBattleArchiveOutcomeDefeat".Translate();
+            }
             return report.IsOverwhelmingVictory
                 ? (string)"FCBattleArchiveOutcomeOverwhelmingVictory".Translate()
                 : (string)"FCBattleArchiveOutcomeVictory".Translate();

@@ -54,6 +54,19 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingMercHealRateTip>Approximate hit points per in-game hour an undeployed mercenary recovers from an untreated wound.</FCSettingMercHealRateTip>
 	<FCEmpireMercHealRateStatExplanation>Empire mercenary at base recovering</FCEmpireMercHealRateStatExplanation>
 
+	<!-- Auto-resolve casualties + Crushing Defeat -->
+	<FCSettingAutoResolveCasualtiesHeader>Auto-Resolve Casualties</FCSettingAutoResolveCasualtiesHeader>
+	<FCSettingApplyAutoResolveInjuries>Apply injuries and deaths from auto-resolved battles</FCSettingApplyAutoResolveInjuries>
+	<FCSettingApplyAutoResolveInjuriesTip>When enabled, the abstract force losses from an auto-resolved battle are converted into real injuries (and potentially deaths) on the participating mercenary pawns. When disabled, auto-resolve never touches squad pawns.</FCSettingApplyAutoResolveInjuriesTip>
+	<FCSettingAutoResolveDeathThreshold>Auto-resolve death threshold</FCSettingAutoResolveDeathThreshold>
+	<FCSettingAutoResolveDeathThresholdTip>The squad casualty rate (lost force fraction) below which no mercenary dies — all casualties are injuries instead. At 75% (default) a squad that loses 75% of its force will start seeing deaths.</FCSettingAutoResolveDeathThresholdTip>
+	<FCSettingAutoResolveMaxDeathFraction>Auto-resolve max death fraction</FCSettingAutoResolveMaxDeathFraction>
+	<FCSettingAutoResolveMaxDeathFractionTip>The fraction of casualties that die at the worst possible outcome (100% casualty rate — a Crushing Defeat). At 80% (default), roughly 80% of the wiped squad dies and the rest survive gravely injured.</FCSettingAutoResolveMaxDeathFractionTip>
+	<FCSettingCrushingDefeatPenaltyMultiplier>Crushing Defeat penalty multiplier</FCSettingCrushingDefeatPenaltyMultiplier>
+	<FCSettingCrushingDefeatPenaltyMultiplierTip>Multiplies the settlement-side penalties (prosperity, happiness, loyalty, building destruction chance) when a settlement is lost in a Crushing Defeat — a defense where your forces failed to inflict a single casualty.</FCSettingCrushingDefeatPenaltyMultiplierTip>
+	<FCSettingCrushingDefeatCooldownMultiplier>Crushing Defeat cooldown multiplier</FCSettingCrushingDefeatCooldownMultiplier>
+	<FCSettingCrushingDefeatCooldownMultiplierTip>Multiplies the post-battle military cooldown after a Crushing Defeat. A devastated squad needs longer to regroup before it can be deployed again.</FCSettingCrushingDefeatCooldownMultiplierTip>
+
 	<!-- Squad-first economy sliders -->
 	<FCSettingSquadsHeader>Squads</FCSettingSquadsHeader>
 	<FCSettingMaxSquadSize>Max Squad Size</FCSettingMaxSquadSize>
