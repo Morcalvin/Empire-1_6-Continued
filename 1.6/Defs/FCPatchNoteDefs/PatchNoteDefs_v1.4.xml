@@ -247,4 +247,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_4_17</defName>
+		<label>Tax Tick Update</label>
+		<description>Minor backend change to the tax tick processing.</description>
+		<releaseDate>2026-05-10</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Removes an overly-strict tax period guard in TaxTick() that blocked the debug action for instantly proccing taxes</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

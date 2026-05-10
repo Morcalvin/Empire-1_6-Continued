@@ -82,7 +82,6 @@ namespace FactionColonies
 
         /* Timing & Scheduling */
         public int taxTimeDue = Find.TickManager.TicksGame;
-        public int lastTaxTickTime = -1;
         public int timeStart = Find.TickManager.TicksGame;
         public int uiTimeUpdate;
         public int militaryTimeDue;
@@ -299,7 +298,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref _profit, "profit");
 
             Scribe_Values.Look(ref taxTimeDue, "taxTimeDue");
-            Scribe_Values.Look(ref lastTaxTickTime, "lastTaxTickTime", -1);
             Scribe_Values.Look(ref timeStart, "timeStart", -1);
             Scribe_Values.Look(ref uiTimeUpdate, "uiTimeUpdate");
             Scribe_Values.Look(ref militaryTimeDue, "militaryTimeDue", -1);
@@ -693,16 +691,6 @@ namespace FactionColonies
         {
             if (faction is null || Find.TickManager.TicksGame < taxTimeDue)
                 return;
-
-            int now = Find.TickManager.TicksGame;
-            int minInterval = Math.Max(GenDate.TicksPerDay, FCSettings.timeBetweenTaxes / 2);
-            if (lastTaxTickTime > 0 && now - lastTaxTickTime < minInterval)
-            {
-                LogUtil.Error($"TaxTick guard: AddTax would fire {now - lastTaxTickTime} ticks after last call (min {minInterval}). settlements={settlements.Count}, taxTimeDue={taxTimeDue}, timeBetweenTaxes={FCSettings.timeBetweenTaxes}. Skipping and rescheduling.");
-                taxTimeDue = now + FCSettings.timeBetweenTaxes;
-                return;
-            }
-            lastTaxTickTime = now;
 
             AddTax();
             taxTimeDue = Find.TickManager.TicksGame + FCSettings.timeBetweenTaxes;
