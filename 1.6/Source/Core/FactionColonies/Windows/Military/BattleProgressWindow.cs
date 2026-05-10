@@ -113,7 +113,8 @@ namespace FactionColonies
 
             /* -*- Two columns: attacker vs defender -*- */
             float columnsY = inRect.y + headerH + 8f;
-            float columnsH = 160f;
+            // Tight-fit: titleH(22) + gap(4) + blockH(44) + gap(4) + effH(20) + gap(4) + barH(18) + 2*innerPad(16) = 132
+            float columnsH = 132f;
             float colGap = 12f;
             float colW = (inRect.width - colGap) * 0.5f;
             Rect attackerCol = new Rect(inRect.x, columnsY, colW, columnsH);
@@ -311,6 +312,21 @@ namespace FactionColonies
             return new Color(0.75f, 0.30f, 0.25f, 0.55f);
         }
 
+        /* Faction-color tint for the table's "Attacker" / "Defender" group header cells.
+           Distinct from the side-panel title tint (which is player-perspective): here we want
+           each group label to read as its own faction's color, so attacker reads enemy-red
+           against the player's defender-blue (or vice versa) regardless of POV. */
+        private static Color ResolveFactionHeaderTint(Faction faction, bool isAttacker)
+        {
+            if (faction is object)
+            {
+                return UIUtil.Dim(faction.Color, 0.5f);
+            }
+            return isAttacker
+                ? new Color(0.75f, 0.30f, 0.25f, 0.35f)
+                : new Color(0.30f, 0.55f, 0.75f, 0.35f);
+        }
+
         /* -*- Round list -*- */
 
         private const float RoundHeaderH = 44f; // two 22px tiers
@@ -334,18 +350,20 @@ namespace FactionColonies
                 return;
             }
 
-            // The scroll-view content is sized so it would need a scrollbar (rows usually
-            // overflow). Reserve the scrollbar width in the header so the leaf columns line
-            // up between header and rows.
             int count = br.rounds.Count;
             float contentH = Math.Max(RoundRowH, count * RoundRowH);
             float viewportH = inner.height - RoundHeaderH - 2f;
             bool needsScroll = contentH > viewportH;
             float scrollReserve = needsScroll ? ScrollUtil.ScrollbarWidth + 1f : 0f;
 
+            // Faction sources for the group-header tints: prefer live faction state, fall back
+            // to the archived reference. Either is fine null — ResolveFactionHeaderTint handles it.
+            Faction atkFaction = aggressorParticipant?.faction ?? br.attackerFaction;
+            Faction defFaction = defenderParticipant?.faction ?? br.defenderFaction;
+
             float tableW = inner.width - scrollReserve;
             Rect headerRect = new Rect(inner.x, inner.y, tableW, RoundHeaderH);
-            DrawRoundListHeader(headerRect);
+            DrawRoundListHeader(headerRect, atkFaction, defFaction);
 
             Rect viewportOuter = new Rect(inner.x, inner.y + RoundHeaderH + 2f, inner.width, viewportH);
             Rect viewRect = ScrollUtil.BeginScrollView(viewportOuter, ref scrollPos, contentH);
@@ -356,22 +374,17 @@ namespace FactionColonies
             {
                 int displayIndex = (count - 1) - i;
                 Rect rowRect = new Rect(0f, displayIndex * RoundRowH, viewRect.width, RoundRowH);
-                DrawRoundRow(rowRect, br.rounds[i], leafW);
+                DrawRoundRow(rowRect, br.rounds[i], leafW,
+                    br.attackerInitialForce, br.defenderInitialForce);
             }
-
-            // Vertical group separator between the two "Final" columns (the mirror axis).
-            float sepX = ComputeRollGroupSeparatorX(4f, leafW);
-            GUI.color = new Color(1f, 1f, 1f, 0.25f);
-            Widgets.DrawLineVertical(sepX, 0f, contentH);
-            GUI.color = Color.white;
 
             ScrollUtil.EndScrollView();
         }
 
         /* Header tiers:
-            Top:    | Round | Attacker (3 cols) | Defender (3 cols) |
-            Bottom:         |  Force  |  Raw  |  Final  |  Final  |  Raw  |  Force  |    */
-        private void DrawRoundListHeader(Rect rect)
+            Top:    | Round | Attacker (3 cols)   | Defender (3 cols)   | Round |
+            Bottom:         | Force | Raw | Final | Final | Raw | Force |       */
+        private void DrawRoundListHeader(Rect rect, Faction atkFaction, Faction defFaction)
         {
             Text.Font = GameFont.Small;
             float[] leafW = ComputeRoundLeafWidths(rect.width);
@@ -386,109 +399,176 @@ namespace FactionColonies
             string finalLabel = "FCBattleColRollFinal".Translate().ToString();
             string forceLabel = "FCBattleColForce".Translate().ToString();
 
+            // Column rects we'll need for both tinting and labels.
+            float x = startX;
+            Rect leftRoundRect = new Rect(x, rect.y, leafW[0], RoundHeaderH);
+            x += leafW[0];
+
+            float atkGroupX = x;
+            float atkGroupW = leafW[1] + leafW[2] + leafW[3];
+            Rect atkGroupTopRect = new Rect(atkGroupX, rect.y, atkGroupW, topRowH);
+            Rect atkForceRect = new Rect(x, midY, leafW[1], topRowH); x += leafW[1];
+            Rect atkRawRect = new Rect(x, midY, leafW[2], topRowH); x += leafW[2];
+            Rect atkFinalRect = new Rect(x, midY, leafW[3], topRowH); x += leafW[3];
+
+            float defGroupX = x;
+            float defGroupW = leafW[4] + leafW[5] + leafW[6];
+            Rect defGroupTopRect = new Rect(defGroupX, rect.y, defGroupW, topRowH);
+            Rect defFinalRect = new Rect(x, midY, leafW[4], topRowH); x += leafW[4];
+            Rect defRawRect = new Rect(x, midY, leafW[5], topRowH); x += leafW[5];
+            Rect defForceRect = new Rect(x, midY, leafW[6], topRowH); x += leafW[6];
+
+            Rect rightRoundRect = new Rect(x, rect.y, leafW[7], RoundHeaderH);
+
+            // Highlights (drawn first, behind text): Round columns (full height) and Final
+            // column header cells (bottom tier only — the group label sits on faction color above).
+            Widgets.DrawHighlight(leftRoundRect);
+            Widgets.DrawHighlight(rightRoundRect);
+            Widgets.DrawHighlight(atkFinalRect);
+            Widgets.DrawHighlight(defFinalRect);
+
+            // Faction-color tints under the "Attacker" / "Defender" top-tier group labels.
+            Widgets.DrawBoxSolid(atkGroupTopRect, ResolveFactionHeaderTint(atkFaction, isAttacker: true));
+            Widgets.DrawBoxSolid(defGroupTopRect, ResolveFactionHeaderTint(defFaction, isAttacker: false));
+
+            // Labels.
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
             Text.Anchor = TextAnchor.MiddleCenter;
 
-            float x = startX;
+            Widgets.Label(leftRoundRect, roundLabel);
+            Widgets.Label(rightRoundRect, roundLabel);
 
-            // Round (full-height)
-            Widgets.Label(new Rect(x, rect.y, leafW[0], RoundHeaderH), roundLabel);
-            x += leafW[0];
+            Widgets.Label(atkGroupTopRect, atkLabel);
+            Widgets.Label(atkForceRect, forceLabel);
+            Widgets.Label(atkRawRect, rawLabel);
+            Widgets.Label(atkFinalRect, finalLabel);
 
-            // Attacker group: top label spans 3 cols; bottom row = Force | Raw | Final
-            float atkGroupX = x;
-            float atkGroupW = leafW[1] + leafW[2] + leafW[3];
-            Widgets.Label(new Rect(atkGroupX, rect.y, atkGroupW, topRowH), atkLabel);
-            Widgets.Label(new Rect(x, midY, leafW[1], topRowH), forceLabel);
-            x += leafW[1];
-            Widgets.Label(new Rect(x, midY, leafW[2], topRowH), rawLabel);
-            x += leafW[2];
-            Widgets.Label(new Rect(x, midY, leafW[3], topRowH), finalLabel);
-            x += leafW[3];
-
-            // Defender group: top label spans 3 cols; bottom row = Final | Raw | Force (mirrored)
-            float defGroupX = x;
-            float defGroupW = leafW[4] + leafW[5] + leafW[6];
-            Widgets.Label(new Rect(defGroupX, rect.y, defGroupW, topRowH), defLabel);
-            Widgets.Label(new Rect(x, midY, leafW[4], topRowH), finalLabel);
-            x += leafW[4];
-            Widgets.Label(new Rect(x, midY, leafW[5], topRowH), rawLabel);
-            x += leafW[5];
-            Widgets.Label(new Rect(x, midY, leafW[6], topRowH), forceLabel);
+            Widgets.Label(defGroupTopRect, defLabel);
+            Widgets.Label(defFinalRect, finalLabel);
+            Widgets.Label(defRawRect, rawLabel);
+            Widgets.Label(defForceRect, forceLabel);
 
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
 
             // Horizontal divider between the two header tiers (under the grouped columns only).
             GUI.color = new Color(1f, 1f, 1f, 0.2f);
-            Widgets.DrawLineHorizontal(atkGroupX, midY, atkGroupW);
-            Widgets.DrawLineHorizontal(defGroupX, midY, defGroupW);
+            TexLoad.DrawHorizontalPeakGradientLine(atkGroupX, midY, atkGroupW, Color.white);
+            TexLoad.DrawHorizontalPeakGradientLine(defGroupX, midY, defGroupW, Color.white);
             // Bottom border of the entire header.
-            Widgets.DrawLineHorizontal(rect.x, rect.yMax, rect.width);
+            TexLoad.DrawHorizontalPeakGradientLine(rect.x, rect.yMax, rect.width, Color.white);
             GUI.color = Color.white;
 
-            // Vertical group separator: between Atk Final and Def Final (mirror axis).
-            float sepX = ComputeRollGroupSeparatorX(startX, leafW);
-            GUI.color = new Color(1f, 1f, 1f, 0.25f);
-            Widgets.DrawLineVertical(sepX, rect.y, RoundHeaderH);
+            // Vertical separators: left-Round / Atk-Final mirror-axis / right-Round.
+            float[] sepXs = ComputeColumnSeparatorXs(startX, leafW);
+            GUI.color = Color.gray;
+            Widgets.DrawLineVertical(rect.x + (rect.width / 2f), rect.y, RoundHeaderH);
             GUI.color = Color.white;
         }
 
-        private void DrawRoundRow(Rect rect, RoundEntry r, float[] leafW)
+        private void DrawRoundRow(Rect rect, RoundEntry r, float[] leafW,
+            double attackerInitial, double defenderInitial)
         {
+            // Font/anchor set once up front so the Force-cell label (drawn before the
+            // step-4 text block) doesn't depend on lingering state from prior frames.
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleCenter;
+
             float startX = rect.x + 4f;
 
-            // Tint the winner's 3-column block. Color depends on player perspective:
-            // green if player won, red if player lost; neutral when neither side is the player.
+            float x = startX;
+            Rect leftRoundCell = new Rect(x, rect.y, leafW[0], rect.height); x += leafW[0];
+            Rect atkForceCell = new Rect(x, rect.y, leafW[1], rect.height); x += leafW[1];
+            Rect atkRawCell = new Rect(x, rect.y, leafW[2], rect.height); x += leafW[2];
+            Rect atkFinalCell = new Rect(x, rect.y, leafW[3], rect.height); x += leafW[3];
+            Rect defFinalCell = new Rect(x, rect.y, leafW[4], rect.height); x += leafW[4];
+            Rect defRawCell = new Rect(x, rect.y, leafW[5], rect.height); x += leafW[5];
+            Rect defForceCell = new Rect(x, rect.y, leafW[6], rect.height); x += leafW[6];
+            Rect rightRoundCell = new Rect(x, rect.y, leafW[7], rect.height);
+
+            /* 1. Column highlights (Round columns + Final columns). Drawn first so subsequent
+                  layers stack cleanly on top. */
+            Widgets.DrawHighlight(leftRoundCell);
+            Widgets.DrawHighlight(rightRoundCell);
+            Widgets.DrawHighlight(atkFinalCell);
+            Widgets.DrawHighlight(defFinalCell);
+
+            /* 2. Per-side Force progress bar (drawn before winner tint so the tint can overlay
+                  the losing-side bar without obscuring the winner-side tint, which we keep on
+                  Raw + Final only). */
+            DrawForceCell(atkForceCell, r.attackerForceAfter, attackerInitial, isAttacker: true);
+            DrawForceCell(defForceCell, r.defenderForceAfter, defenderInitial, isAttacker: false);
+
+            /* 3. Winner-side tint on the Raw + Final cells (skipping Force so the bar reads
+                  cleanly). */
             Color winnerTint = ResolveWinnerBlockTint(r.attackerWonRound);
             if (winnerTint.a > 0f)
             {
-                float blockX;
-                float blockW;
-                if (r.attackerWonRound)
-                {
-                    blockX = startX + leafW[0];
-                    blockW = leafW[1] + leafW[2] + leafW[3];
-                }
-                else
-                {
-                    blockX = startX + leafW[0] + leafW[1] + leafW[2] + leafW[3];
-                    blockW = leafW[4] + leafW[5] + leafW[6];
-                }
-                Widgets.DrawBoxSolid(new Rect(blockX, rect.y, blockW, rect.height), winnerTint);
+                Rect winnerBlock = r.attackerWonRound
+                    ? new Rect(atkRawCell.x, rect.y, atkRawCell.width + atkFinalCell.width, rect.height)
+                    : new Rect(defFinalCell.x, rect.y, defFinalCell.width + defRawCell.width, rect.height);
+                Widgets.DrawBoxSolid(winnerBlock, winnerTint);
             }
 
+            /* 4. Cell text. */
             Text.Anchor = TextAnchor.MiddleCenter;
             Text.Font = GameFont.Small;
 
-            float x = startX;
+            // Round (both sides — same number, mirrored for visual symmetry).
+            Widgets.Label(leftRoundCell, r.roundNumber.ToString());
+            Widgets.Label(rightRoundCell, r.roundNumber.ToString());
 
-            // Round
-            Widgets.Label(new Rect(x, rect.y, leafW[0], rect.height), r.roundNumber.ToString());
-            x += leafW[0];
+            // Raw rolls (de-emphasized in dim grey).
+            DrawRawRollCell(atkRawCell, r.attackerRawRoll);
+            DrawRawRollCell(defRawCell, r.defenderRawRoll);
 
-            // Attacker: Force | Raw | Final
-            Widgets.Label(new Rect(x, rect.y, leafW[1], rect.height), r.attackerForceAfter.ToString("0.#"));
-            x += leafW[1];
-            DrawRawRollCell(new Rect(x, rect.y, leafW[2], rect.height), r.attackerRawRoll);
-            x += leafW[2];
-            Widgets.Label(new Rect(x, rect.y, leafW[3], rect.height), r.attackerScore.ToString("0.00"));
-            x += leafW[3];
-
-            // Defender: Final | Raw | Force (mirrored)
-            Widgets.Label(new Rect(x, rect.y, leafW[4], rect.height), r.defenderScore.ToString("0.00"));
-            x += leafW[4];
-            DrawRawRollCell(new Rect(x, rect.y, leafW[5], rect.height), r.defenderRawRoll);
-            x += leafW[5];
-            Widgets.Label(new Rect(x, rect.y, leafW[6], rect.height), r.defenderForceAfter.ToString("0.#"));
+            // Final values + center-pointing chevron in the winning Final cell.
+            Widgets.Label(atkFinalCell, r.attackerScore.ToString("0.00"));
+            Widgets.Label(defFinalCell, r.defenderScore.ToString("0.00"));
+            DrawWinnerChevron(atkFinalCell, defFinalCell, r.attackerWonRound, ResolveWinnerBlockColor(r.attackerWonRound));
 
             Text.Anchor = TextAnchor.UpperLeft;
+        }
+
+        private static void DrawForceCell(Rect rect, double remaining, double initial, bool isAttacker)
+        {
+            float fill = initial > 0 ? Mathf.Clamp01((float)(remaining / initial)) : 0f;
+            Color bg = new Color(0.15f, 0.15f, 0.15f, 0.7f);
+            Color barFill = isAttacker
+                ? new Color(0.55f, 0.25f, 0.20f)   // muted attacker red-orange
+                : new Color(0.22f, 0.40f, 0.55f);  // muted defender blue
+            // Inset the bar slightly so it doesn't crowd the column dividers.
+            Rect bar = rect.ContractedBy(2f);
+            UIUtil.DrawProgressBarColors(bar, fill, bg, barFill);
+
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Widgets.Label(rect, remaining.ToString("0.#"));
         }
 
         private static void DrawRawRollCell(Rect rect, int rawRoll)
         {
             GUI.color = new Color(0.6f, 0.6f, 0.6f);
             Widgets.Label(rect, rawRoll.ToString());
+            GUI.color = Color.white;
+        }
+
+        /* Center-pointing chevron in the winner's Final cell: "<" on attacker side (points toward
+           the attacker's value, which sits left of the mirror axis), ">" on defender side. The
+           chevron is justified to the cell's center-facing edge so it appears immediately next
+           to the vertical mirror axis. */
+        private static void DrawWinnerChevron(Rect atkFinalCell, Rect defFinalCell, bool attackerWon, Color winnerColor)
+        {
+            GUI.color = winnerColor;
+            if (attackerWon)
+            {
+                Text.Anchor = TextAnchor.MiddleRight;
+                Widgets.Label(atkFinalCell.ContractedBy(4f, 0f), "<");
+            }
+            else
+            {
+                Text.Anchor = TextAnchor.MiddleLeft;
+                Widgets.Label(defFinalCell.ContractedBy(4f, 0f), ">");
+            }
             GUI.color = Color.white;
         }
 
@@ -504,27 +584,45 @@ namespace FactionColonies
             return new Color(1f, 1f, 1f, 0.10f);
         }
 
-        /* Leaf order: Round, AtkForce, AtkRaw, AtkFinal, DefFinal, DefRaw, DefForce.
-           Percentages: 8 / 16 / 13 / 17 / 17 / 13 / 16 = 100. */
+        private Color ResolveWinnerBlockColor(bool attackerWon)
+        {
+            if (PlayerSideKnown)
+            {
+                bool playerWonThisRound = (PlayerIsAttacker == attackerWon);
+                return playerWonThisRound
+                    ? new Color(0.20f, 0.80f, 0.20f, 1f)
+                    : new Color(0.80f, 0.20f, 0.20f, 1f);
+            }
+            return new Color(1f, 1f, 1f, 0.75f);
+        }
+
+        /* Leaf order (8 cols, fully mirrored across the centerline):
+              0:LeftRound  1:AtkForce  2:AtkRaw  3:AtkFinal | 4:DefFinal  5:DefRaw  6:DefForce  7:RightRound
+           Percentages:    10 / 14 / 11 / 15 / 15 / 11 / 14 / 10 = 100. */
         private static float[] ComputeRoundLeafWidths(float totalWidth)
         {
             float w = totalWidth - 8f;
             return new[]
             {
-                w * 0.08f,
-                w * 0.16f,
-                w * 0.13f,
-                w * 0.17f,
-                w * 0.17f,
-                w * 0.13f,
-                w * 0.16f
+                w * 0.10f,
+                w * 0.14f,
+                w * 0.11f,
+                w * 0.15f,
+                w * 0.15f,
+                w * 0.11f,
+                w * 0.14f,
+                w * 0.10f
             };
         }
 
-        /* X-position of the vertical separator between Atk Final and Def Final (mirror axis). */
-        private static float ComputeRollGroupSeparatorX(float startX, float[] leafW)
+        /* X-positions of the three vertical column separators: after left Round, mirror axis
+           (between Atk Final and Def Final), and before right Round. */
+        private static float[] ComputeColumnSeparatorXs(float startX, float[] leafW)
         {
-            return startX + leafW[0] + leafW[1] + leafW[2] + leafW[3];
+            float afterLeftRound = startX + leafW[0];
+            float mirrorAxis = afterLeftRound + leafW[1] + leafW[2] + leafW[3];
+            float beforeRightRound = mirrorAxis + leafW[4] + leafW[5] + leafW[6];
+            return new[] { afterLeftRound, mirrorAxis, beforeRightRound };
         }
     }
 }

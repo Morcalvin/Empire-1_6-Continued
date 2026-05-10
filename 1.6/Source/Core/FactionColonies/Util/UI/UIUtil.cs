@@ -16,7 +16,13 @@ namespace FactionColonies
         private static readonly Color TableHeaderBgColor = new Color(1f, 1f, 1f, 0.1f);
         private static readonly Color TableHeaderTextColor = new Color(0.85f, 0.85f, 0.85f);
 
-        public static Color Dim(Color c, float mag = 0.7f) => new Color(c.r * mag, c.g * mag, c.b * mag, c.a);
+        public static Color Dim(Color c, float mag = 0.7f) => Magnify(c, mag);
+        public static Color Magnify(Color c, float mag) => new Color(Math.Clamp(c.r * mag, 0f, 1f),
+                                                                     Math.Clamp(c.g * mag, 0f, 1f),
+                                                                     Math.Clamp(c.b * mag, 0f, 1f),
+                                                                     c.a);
+        public static Color Transparency(Color c, float mag) => new Color(c.r, c.g, c.b, Math.Clamp(c.a * mag, 0f, 1f));
+        public static Color Opaque(Color c) => Transparency(c, 1f);
 
         public static void DrawProgressBar(Rect rect, float progress)
         {
