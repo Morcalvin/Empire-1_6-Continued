@@ -73,14 +73,18 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Draws a horizontal gradient that fades from <paramref name="color"/> to transparent (left to right).
+        /// Draws a horizontal gradient that fades from <paramref name="color"/> to transparent.
+        /// Left-to-right by default; pass <paramref name="reversed"/> = true to flip (transparent-to-color).
         /// Uses the cached gradient texture tinted via GUI.color.
         /// </summary>
-        public static void DrawHorizontalGradient(Rect rect, Color color)
+        public static void DrawHorizontalGradient(Rect rect, Color color, bool reversed = false)
         {
             Color prev = GUI.color;
             GUI.color = color;
-            GUI.DrawTexture(rect, gradientHorizontal, ScaleMode.StretchToFill, true);
+            if (reversed)
+                GUI.DrawTextureWithTexCoords(rect, gradientHorizontal, new Rect(1, 0, -1, 1));
+            else
+                GUI.DrawTexture(rect, gradientHorizontal, ScaleMode.StretchToFill, true);
             GUI.color = prev;
         }
         public static void DrawHorizontalGradientLine(float x, float y, float width, Color color)

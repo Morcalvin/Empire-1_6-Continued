@@ -399,7 +399,7 @@ namespace FactionColonies
             // to offensive raid/capture/enslave wins, self-defense, foreign-defender assists, and
             // external IAutoDefender contributions. Deploy ops are excluded — squad presence on
             // the player map isn't a discrete battle, so the shortcut isn't meaningful there.
-            if (victory && kind != MilitaryJobDefOf.Deploy && IsOverwhelmingVictory(battleResult))
+            if (victory && kind != MilitaryJobDefOf.Deploy && battleResult.IsOverwhelmingVictory)
             {
                 Find.LetterStack.ReceiveLetter(
                     "FCOverwhelmingVictory".Translate(),
@@ -410,27 +410,6 @@ namespace FactionColonies
             }
 
             EnterCooldown();
-        }
-
-        /* True when the winning side took zero casualties. Inspects the winner so the shortcut
-         * applies to both offensive (attacker won, lost no force) and defensive (defender won,
-         * lost no force) battles. Force counts are populated by SimulateBattleFc for auto-
-         * resolve, and by comp.EndBattle (defender side only) for manual battles — the unset
-         * side defaults to 0, which the early returns reject as "no battle on this side". */
-        private static bool IsOverwhelmingVictory(BattleResult result)
-        {
-            if (result is null) return false;
-            if (result.winner == BattleWinner.Defender)
-            {
-                if (result.defenderInitialForce <= 0) return false;
-                return result.defenderForceRemaining >= result.defenderInitialForce;
-            }
-            if (result.winner == BattleWinner.Attacker)
-            {
-                if (result.attackerInitialForce <= 0) return false;
-                return result.attackerForceRemaining >= result.attackerInitialForce;
-            }
-            return false;
         }
 
         /// <summary>

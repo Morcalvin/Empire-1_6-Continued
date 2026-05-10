@@ -85,7 +85,6 @@ namespace FactionColonies
 
             Rect listOuter = new Rect(tableRect.x, headerRect.yMax + 2f,
                 tableRect.width, tableRect.yMax - headerRect.yMax - 2f);
-            Widgets.DrawMenuSection(listOuter);
 
             // Snapshot to a list so the user can open a row mid-frame without a mutated
             // archive interfering.
@@ -211,9 +210,10 @@ namespace FactionColonies
             bool playerWon = (playerSide == BattleViewerSide.Attacker)
                 ? report.AttackerVictory
                 : report.DefenderVictory;
-            return playerWon
-                ? (string)"FCBattleArchiveOutcomeVictory".Translate()
-                : (string)"FCBattleArchiveOutcomeDefeat".Translate();
+            if (!playerWon) return (string)"FCBattleArchiveOutcomeDefeat".Translate();
+            return report.IsOverwhelmingVictory
+                ? (string)"FCBattleArchiveOutcomeOverwhelmingVictory".Translate()
+                : (string)"FCBattleArchiveOutcomeVictory".Translate();
         }
 
         /// <summary>Column widths: Kind 18%, Target 36%, Date 26%, Outcome 20%.</summary>

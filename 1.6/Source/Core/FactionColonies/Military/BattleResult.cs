@@ -78,6 +78,13 @@ namespace FactionColonies
         public bool AttackerVictory => winner == BattleWinner.Attacker;
         public bool DefenderVictory => winner == BattleWinner.Defender;
 
+        /* True when the winning side took zero casualties. */
+        public bool IsOverwhelmingVictory =>
+            (winner == BattleWinner.Attacker && attackerInitialForce > 0
+                && attackerForceRemaining >= attackerInitialForce) ||
+            (winner == BattleWinner.Defender && defenderInitialForce > 0
+                && defenderForceRemaining >= defenderInitialForce);
+
         /// <summary>
         /// True when one side has been depleted. Used by <see cref="MilitaryOperation.AdvanceBattleProgress"/>
         /// to decide whether to schedule another round or hand off to <c>CompleteBattle</c>.

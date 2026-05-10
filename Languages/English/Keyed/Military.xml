@@ -69,12 +69,12 @@
 	<FCBattleForceLine>Force: {0} / {1}</FCBattleForceLine>
 	<FCBattleEfficiencyLine>Efficiency: x{0}</FCBattleEfficiencyLine>
 	<FCBattleColRound>Round</FCBattleColRound>
-	<FCBattleColAttackerRoll>Attacker Roll</FCBattleColAttackerRoll>
-	<FCBattleColDefenderRoll>Defender Roll</FCBattleColDefenderRoll>
+	<FCBattleColAttacker>Attacker</FCBattleColAttacker>
+	<FCBattleColDefender>Defender</FCBattleColDefender>
 	<FCBattleColRollRaw>Raw</FCBattleColRollRaw>
 	<FCBattleColRollFinal>Final</FCBattleColRollFinal>
-	<FCBattleColWinner>Winner</FCBattleColWinner>
-	<FCBattleColForces>Forces (A / D)</FCBattleColForces>
+	<FCBattleColForce>Force</FCBattleColForce>
+	<FCBattleNextRoundIn>Next round in {0}s</FCBattleNextRoundIn>
 	<FCBattleProgressGizmoLabel>Battle in progress</FCBattleProgressGizmoLabel>
 	<FCBattleProgressGizmoDesc>Open the live battle progress window for this settlement.</FCBattleProgressGizmoDesc>
 
@@ -85,11 +85,12 @@
 	<FCMilitaryTabBattleReports>Battle Reports</FCMilitaryTabBattleReports>
 	<FCBattleArchiveCount>{0} reports</FCBattleArchiveCount>
 	<FCBattleArchiveColKind>Kind</FCBattleArchiveColKind>
-	<FCBattleArchiveColTarget>Target</FCBattleArchiveColTarget>
+	<FCBattleArchiveColTarget>Opposing Faction</FCBattleArchiveColTarget>
 	<FCBattleArchiveColDate>Date</FCBattleArchiveColDate>
 	<FCBattleArchiveColOutcome>Outcome</FCBattleArchiveColOutcome>
 	<FCBattleArchiveEmpty>No battles have been recorded yet.</FCBattleArchiveEmpty>
 	<FCBattleArchiveOutcomeVictory>Victory</FCBattleArchiveOutcomeVictory>
+	<FCBattleArchiveOutcomeOverwhelmingVictory>Overwhelming Victory</FCBattleArchiveOutcomeOverwhelmingVictory>
 	<FCBattleArchiveOutcomeDefeat>Defeat</FCBattleArchiveOutcomeDefeat>
 	<FCBattleArchiveSettingsHeader>Battle Archive</FCBattleArchiveSettingsHeader>
 	<FCBattleArchiveMaxEntriesLabel>Max battle reports archived</FCBattleArchiveMaxEntriesLabel>
@@ -230,8 +231,8 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCDefenderPickerTiles>tiles</FCDefenderPickerTiles>
 
 	<!-- Squad-first refactor (hire / assign / cap / dialogs) -->
-	<FCMilitaryTabBySettlement>By Settlement</FCMilitaryTabBySettlement>
-	<FCMilitaryTabBySquad>By Squad</FCMilitaryTabBySquad>
+	<FCMilitaryTabBySettlement>Settlements</FCMilitaryTabBySettlement>
+	<FCMilitaryTabBySquad>Squads</FCMilitaryTabBySquad>
 	<FCSquadsHeaderCount>Squads: {0} / {1}</FCSquadsHeaderCount>
 
 	<FCSquadHired>Squad "{0}" has been hired for ${1} silver.</FCSquadHired>

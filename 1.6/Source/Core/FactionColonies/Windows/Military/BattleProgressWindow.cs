@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FactionColonies.util;
 using RimWorld;
 using UnityEngine;
@@ -12,24 +13,24 @@ namespace FactionColonies
     /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
 
     /// <summary>
-    /// Shared window for "watch this battle" — both during live auto-resolve and
+    /// Shared window for "watch this battle", both during live auto-resolve and
     /// when reviewing an archived <see cref="BattleResult"/>. Two mirrored side panels
     /// (attacker left, defender right) with faction icon + name/label, efficiency, and
-    /// a health bar with the force ratio overlaid. Below: a scrolling round-roll log
-    /// with a two-tier header (Attacker Roll / Defender Roll each spanning Raw | Final).
-    /// Player-side round wins are tinted green; player-side losses red. Pure NPC-vs-NPC
-    /// (player aligned with neither side) is not tinted.
+    /// a health bar with the force ratio overlaid. Live battles get an inline countdown
+    /// progress bar showing time until the next round tick. Below: a scrolling, mirrored
+    /// round-roll log — Round | Atk Force/Raw/Final | Def Final/Raw/Force — with the
+    /// winning side's block tinted per round.
     /// <para>For manual battles the rounds list is empty; the round-list area shows a
     /// "no per-round detail" placeholder instead of an empty scroll viewport.</para>
     /// </summary>
     public class BattleProgressWindow : Window
     {
+        // Live op reference is null when opened from an archived report; the countdown
+        // bar is the only feature that requires it.
+        private readonly MilitaryOperation op;
         private readonly BattleResult result;
         private readonly BattleViewerSide playerSide;
-        // Optional: present only when opened from a live MilitaryOperation. The faction
-        // icon resolves from these first, then falls through to result.attackerFaction /
-        // result.defenderFaction (the faction references stored on the archived report),
-        // and only as a last resort to the cached faction-name string with no icon.
+        // Icon resolution priority: live participant -> archived faction reference -> name string.
         private readonly MilitaryOperationParticipant aggressorParticipant;
         private readonly MilitaryOperationParticipant defenderParticipant;
 
@@ -37,6 +38,7 @@ namespace FactionColonies
 
         public BattleProgressWindow(MilitaryOperation op)
         {
+            this.op = op;
             this.result = op?.battleResult;
             this.playerSide = MilitaryUtil.ResolvePlayerSide(op);
             this.aggressorParticipant = op?.aggressor;
@@ -82,9 +84,11 @@ namespace FactionColonies
 
             BattleResult br = result;
 
-            /* -*- Header -*- */
-            float headerH = 56f;
+            /* -*- Header (title + sub-phase + optional tick countdown) -*- */
+            bool showTickBar = TryGetTickProgress(br, out float tickProgress, out int ticksRemaining);
+            float headerH = showTickBar ? 72f : 56f;
             Rect headerRect = new Rect(inRect.x, inRect.y, inRect.width, headerH);
+
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.UpperCenter;
             string targetName = !string.IsNullOrEmpty(br.defenderLabel) ? br.defenderLabel : "?";
@@ -95,6 +99,17 @@ namespace FactionColonies
             Widgets.Label(new Rect(headerRect.x, headerRect.y + 30f, headerRect.width, 22f),
                 SubPhaseLabel(br));
             Text.Anchor = TextAnchor.UpperLeft;
+
+            if (showTickBar)
+            {
+                const float tickBarW = 240f;
+                const float tickBarH = 12f;
+                Rect tickBarRect = new Rect(
+                    headerRect.x + (headerRect.width - tickBarW) / 2f,
+                    headerRect.y + 54f,
+                    tickBarW, tickBarH);
+                DrawTickProgressBar(tickBarRect, tickProgress, ticksRemaining);
+            }
 
             /* -*- Two columns: attacker vs defender -*- */
             float columnsY = inRect.y + headerH + 8f;
@@ -134,6 +149,40 @@ namespace FactionColonies
             }
         }
 
+        /* -*- Tick countdown -*- */
+
+        private bool TryGetTickProgress(BattleResult br, out float progress, out int ticksRemaining)
+        {
+            progress = 0f;
+            ticksRemaining = 0;
+            if (op is null) return false;
+            if (br.subPhase == BattleSubPhase.Resolved) return false;
+            if (br.IsComplete) return false;
+
+            FCEvent evt = op.sourceEvents?.FirstOrDefault(
+                e => e is object && e.def == FCEventDefOf.autoResolveBattleRound);
+            if (evt is null) return false;
+
+            ticksRemaining = Mathf.Max(0, evt.timeTillTrigger - Find.TickManager.TicksGame);
+            int interval = Mathf.Max(1, FCSettings.autoResolveTicksPerRound);
+            if (DebugSettings.godMode) interval = 1;
+            progress = 1f - Mathf.Clamp01((float)ticksRemaining / interval);
+            return true;
+        }
+
+        private static void DrawTickProgressBar(Rect rect, float progress, int ticksRemaining)
+        {
+            Color bg = new Color(0.15f, 0.15f, 0.15f);
+            Color fill = new Color(0.35f, 0.65f, 0.75f);
+            UIUtil.DrawProgressBarColors(rect, progress, bg, fill);
+
+            int seconds = Mathf.CeilToInt(ticksRemaining / 60f);
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Widgets.Label(rect, "FCBattleNextRoundIn".Translate(seconds));
+            Text.Anchor = TextAnchor.UpperLeft;
+        }
+
         /* -*- Side panel (mirrored: attacker = left-anchored, defender = right-anchored) -*- */
         private void DrawSideColumn(Rect rect, MilitaryOperationParticipant participant,
             Faction storedFaction, string label, string fallbackFactionName,
@@ -149,11 +198,13 @@ namespace FactionColonies
             bool isPlayerSide = isAttacker ? PlayerIsAttacker : (playerSide == BattleViewerSide.Defender);
             TextAnchor textAnchor = isAttacker ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
 
-            /* Title row with side-aware tint */
+            /* Title row with side-aware gradient. Full color on the outer edge, fading to
+               transparent toward the panel centerline (between the two columns), so the
+               two sides read as "facing inward". */
             float titleH = 22f;
             Rect titleRect = new Rect(inner.x, inner.y, inner.width, titleH);
             Color titleTint = ResolveTitleTint(PlayerSideKnown, isPlayerSide);
-            Widgets.DrawBoxSolid(titleRect, titleTint);
+            TexLoad.DrawHorizontalGradient(titleRect, titleTint, reversed: !isAttacker);
 
             Text.Font = GameFont.Small;
             Text.Anchor = textAnchor;
@@ -241,11 +292,13 @@ namespace FactionColonies
         }
 
         /* Title row tint: muted player color for player side, soft red for enemy side,
-           neutral white-alpha for pure NPC-vs-NPC ops where neither side is the player. */
+           neutral white-alpha for pure NPC-vs-NPC ops where neither side is the player.
+           Alpha is on the higher side here because the gradient fades it to zero by the
+           inner edge, so the average density across the band is much lower than a solid fill. */
         private static Color ResolveTitleTint(bool playerSideKnown, bool isPlayerSide)
         {
             if (!playerSideKnown)
-                return new Color(1f, 1f, 1f, 0.08f);
+                return new Color(1f, 1f, 1f, 0.18f);
             if (isPlayerSide)
             {
                 Faction player = FactionCache.PlayerColonyFaction;
@@ -253,16 +306,15 @@ namespace FactionColonies
                     ? player.Color
                     : new Color(0.30f, 0.55f, 0.75f);
                 Color dim = UIUtil.Dim(baseColor, 0.5f);
-                return new Color(dim.r, dim.g, dim.b, 0.25f);
+                return new Color(dim.r, dim.g, dim.b, 0.55f);
             }
-            return new Color(0.75f, 0.30f, 0.25f, 0.25f);
+            return new Color(0.75f, 0.30f, 0.25f, 0.55f);
         }
 
         /* -*- Round list -*- */
 
         private const float RoundHeaderH = 44f; // two 22px tiers
         private const float RoundRowH = 22f;
-        private const float ScrollbarReserve = 16f;
 
         private void DrawRoundList(Rect rect, BattleResult br)
         {
@@ -282,39 +334,43 @@ namespace FactionColonies
                 return;
             }
 
-            // Reserve scrollbar space in the header so columns line up with the rows.
-            float tableW = inner.width - ScrollbarReserve;
+            // The scroll-view content is sized so it would need a scrollbar (rows usually
+            // overflow). Reserve the scrollbar width in the header so the leaf columns line
+            // up between header and rows.
+            int count = br.rounds.Count;
+            float contentH = Math.Max(RoundRowH, count * RoundRowH);
+            float viewportH = inner.height - RoundHeaderH - 2f;
+            bool needsScroll = contentH > viewportH;
+            float scrollReserve = needsScroll ? ScrollUtil.ScrollbarWidth + 1f : 0f;
+
+            float tableW = inner.width - scrollReserve;
             Rect headerRect = new Rect(inner.x, inner.y, tableW, RoundHeaderH);
             DrawRoundListHeader(headerRect);
 
-            Rect viewportOuter = new Rect(inner.x, inner.y + RoundHeaderH + 2f, inner.width,
-                                          inner.height - RoundHeaderH - 2f);
+            Rect viewportOuter = new Rect(inner.x, inner.y + RoundHeaderH + 2f, inner.width, viewportH);
+            Rect viewRect = ScrollUtil.BeginScrollView(viewportOuter, ref scrollPos, contentH);
 
-            int count = br.rounds.Count;
-            float contentH = Math.Max(RoundRowH, count * RoundRowH);
-            Rect viewportInner = new Rect(0f, 0f, viewportOuter.width - ScrollbarReserve, contentH);
-
-            Widgets.BeginScrollView(viewportOuter, ref scrollPos, viewportInner);
-
-            float[] leafW = ComputeRoundLeafWidths(viewportInner.width);
+            float[] leafW = ComputeRoundLeafWidths(viewRect.width);
             // Latest at top.
             for (int i = count - 1; i >= 0; i--)
             {
                 int displayIndex = (count - 1) - i;
-                Rect rowRect = new Rect(0f, displayIndex * RoundRowH, viewportInner.width, RoundRowH);
+                Rect rowRect = new Rect(0f, displayIndex * RoundRowH, viewRect.width, RoundRowH);
                 DrawRoundRow(rowRect, br.rounds[i], leafW);
             }
 
-            // Group separator: vertical line between Atk Final and Def Raw, drawn inside
-            // the scroll view so it scrolls with the rows but stays in the column position.
-            float sepX = ComputeRollGroupSeparatorX(0f + 4f, leafW);
+            // Vertical group separator between the two "Final" columns (the mirror axis).
+            float sepX = ComputeRollGroupSeparatorX(4f, leafW);
             GUI.color = new Color(1f, 1f, 1f, 0.25f);
             Widgets.DrawLineVertical(sepX, 0f, contentH);
             GUI.color = Color.white;
 
-            Widgets.EndScrollView();
+            ScrollUtil.EndScrollView();
         }
 
+        /* Header tiers:
+            Top:    | Round | Attacker (3 cols) | Defender (3 cols) |
+            Bottom:         |  Force  |  Raw  |  Final  |  Final  |  Raw  |  Force  |    */
         private void DrawRoundListHeader(Rect rect)
         {
             Text.Font = GameFont.Small;
@@ -324,12 +380,11 @@ namespace FactionColonies
             float topRowH = RoundHeaderH * 0.5f;
 
             string roundLabel = "FCBattleColRound".Translate().ToString();
-            string atkRollLabel = "FCBattleColAttackerRoll".Translate().ToString();
-            string defRollLabel = "FCBattleColDefenderRoll".Translate().ToString();
-            string winnerLabel = "FCBattleColWinner".Translate().ToString();
-            string forcesLabel = "FCBattleColForces".Translate().ToString();
+            string atkLabel = "FCBattleColAttacker".Translate().ToString();
+            string defLabel = "FCBattleColDefender".Translate().ToString();
             string rawLabel = "FCBattleColRollRaw".Translate().ToString();
             string finalLabel = "FCBattleColRollFinal".Translate().ToString();
+            string forceLabel = "FCBattleColForce".Translate().ToString();
 
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
             Text.Anchor = TextAnchor.MiddleCenter;
@@ -340,35 +395,31 @@ namespace FactionColonies
             Widgets.Label(new Rect(x, rect.y, leafW[0], RoundHeaderH), roundLabel);
             x += leafW[0];
 
-            // Attacker Roll group
+            // Attacker group: top label spans 3 cols; bottom row = Force | Raw | Final
             float atkGroupX = x;
-            float atkGroupW = leafW[1] + leafW[2];
-            Widgets.Label(new Rect(atkGroupX, rect.y, atkGroupW, topRowH), atkRollLabel);
-            Widgets.Label(new Rect(x, midY, leafW[1], topRowH), rawLabel);
+            float atkGroupW = leafW[1] + leafW[2] + leafW[3];
+            Widgets.Label(new Rect(atkGroupX, rect.y, atkGroupW, topRowH), atkLabel);
+            Widgets.Label(new Rect(x, midY, leafW[1], topRowH), forceLabel);
             x += leafW[1];
-            Widgets.Label(new Rect(x, midY, leafW[2], topRowH), finalLabel);
+            Widgets.Label(new Rect(x, midY, leafW[2], topRowH), rawLabel);
             x += leafW[2];
-
-            // Defender Roll group
-            float defGroupX = x;
-            float defGroupW = leafW[3] + leafW[4];
-            Widgets.Label(new Rect(defGroupX, rect.y, defGroupW, topRowH), defRollLabel);
-            Widgets.Label(new Rect(x, midY, leafW[3], topRowH), rawLabel);
+            Widgets.Label(new Rect(x, midY, leafW[3], topRowH), finalLabel);
             x += leafW[3];
+
+            // Defender group: top label spans 3 cols; bottom row = Final | Raw | Force (mirrored)
+            float defGroupX = x;
+            float defGroupW = leafW[4] + leafW[5] + leafW[6];
+            Widgets.Label(new Rect(defGroupX, rect.y, defGroupW, topRowH), defLabel);
             Widgets.Label(new Rect(x, midY, leafW[4], topRowH), finalLabel);
             x += leafW[4];
-
-            // Winner (full-height)
-            Widgets.Label(new Rect(x, rect.y, leafW[5], RoundHeaderH), winnerLabel);
+            Widgets.Label(new Rect(x, midY, leafW[5], topRowH), rawLabel);
             x += leafW[5];
-
-            // Forces (full-height)
-            Widgets.Label(new Rect(x, rect.y, leafW[6], RoundHeaderH), forcesLabel);
+            Widgets.Label(new Rect(x, midY, leafW[6], topRowH), forceLabel);
 
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
 
-            // Horizontal divider between the two tiers (only under the grouped columns).
+            // Horizontal divider between the two header tiers (under the grouped columns only).
             GUI.color = new Color(1f, 1f, 1f, 0.2f);
             Widgets.DrawLineHorizontal(atkGroupX, midY, atkGroupW);
             Widgets.DrawLineHorizontal(defGroupX, midY, defGroupW);
@@ -376,7 +427,7 @@ namespace FactionColonies
             Widgets.DrawLineHorizontal(rect.x, rect.yMax, rect.width);
             GUI.color = Color.white;
 
-            // Vertical group separator between the two roll groups.
+            // Vertical group separator: between Atk Final and Def Final (mirror axis).
             float sepX = ComputeRollGroupSeparatorX(startX, leafW);
             GUI.color = new Color(1f, 1f, 1f, 0.25f);
             Widgets.DrawLineVertical(sepX, rect.y, RoundHeaderH);
@@ -385,71 +436,95 @@ namespace FactionColonies
 
         private void DrawRoundRow(Rect rect, RoundEntry r, float[] leafW)
         {
-            // Player-side row tint (preserved from previous version).
-            if (PlayerSideKnown)
+            float startX = rect.x + 4f;
+
+            // Tint the winner's 3-column block. Color depends on player perspective:
+            // green if player won, red if player lost; neutral when neither side is the player.
+            Color winnerTint = ResolveWinnerBlockTint(r.attackerWonRound);
+            if (winnerTint.a > 0f)
             {
-                bool playerWonThisRound = (PlayerIsAttacker == r.attackerWonRound);
-                Color tint = playerWonThisRound
-                    ? new Color(0.20f, 0.50f, 0.20f, 0.25f)
-                    : new Color(0.50f, 0.20f, 0.20f, 0.25f);
-                Widgets.DrawBoxSolid(rect, tint);
+                float blockX;
+                float blockW;
+                if (r.attackerWonRound)
+                {
+                    blockX = startX + leafW[0];
+                    blockW = leafW[1] + leafW[2] + leafW[3];
+                }
+                else
+                {
+                    blockX = startX + leafW[0] + leafW[1] + leafW[2] + leafW[3];
+                    blockW = leafW[4] + leafW[5] + leafW[6];
+                }
+                Widgets.DrawBoxSolid(new Rect(blockX, rect.y, blockW, rect.height), winnerTint);
             }
 
-            float x = rect.x + 4f;
             Text.Anchor = TextAnchor.MiddleCenter;
             Text.Font = GameFont.Small;
+
+            float x = startX;
 
             // Round
             Widgets.Label(new Rect(x, rect.y, leafW[0], rect.height), r.roundNumber.ToString());
             x += leafW[0];
 
-            // Attacker Raw / Final
-            Widgets.Label(new Rect(x, rect.y, leafW[1], rect.height), r.attackerRawRoll.ToString());
+            // Attacker: Force | Raw | Final
+            Widgets.Label(new Rect(x, rect.y, leafW[1], rect.height), r.attackerForceAfter.ToString("0.#"));
             x += leafW[1];
-            Widgets.Label(new Rect(x, rect.y, leafW[2], rect.height), r.attackerScore.ToString("0.00"));
+            DrawRawRollCell(new Rect(x, rect.y, leafW[2], rect.height), r.attackerRawRoll);
             x += leafW[2];
-
-            // Defender Raw / Final
-            Widgets.Label(new Rect(x, rect.y, leafW[3], rect.height), r.defenderRawRoll.ToString());
+            Widgets.Label(new Rect(x, rect.y, leafW[3], rect.height), r.attackerScore.ToString("0.00"));
             x += leafW[3];
+
+            // Defender: Final | Raw | Force (mirrored)
             Widgets.Label(new Rect(x, rect.y, leafW[4], rect.height), r.defenderScore.ToString("0.00"));
             x += leafW[4];
-
-            // Winner
-            string winner = r.attackerWonRound
-                ? "FCBattleSideAttacker".Translate().ToString()
-                : "FCBattleSideDefender".Translate().ToString();
-            Widgets.Label(new Rect(x, rect.y, leafW[5], rect.height), winner);
+            DrawRawRollCell(new Rect(x, rect.y, leafW[5], rect.height), r.defenderRawRoll);
             x += leafW[5];
-
-            // Forces (A / D)
-            string forces = $"{r.attackerForceAfter:0.#} / {r.defenderForceAfter:0.#}";
-            Widgets.Label(new Rect(x, rect.y, leafW[6], rect.height), forces);
+            Widgets.Label(new Rect(x, rect.y, leafW[6], rect.height), r.defenderForceAfter.ToString("0.#"));
 
             Text.Anchor = TextAnchor.UpperLeft;
         }
 
-        /* Leaf order: Round, AtkRaw, AtkFinal, DefRaw, DefFinal, Winner, Forces.
-           Percentages: 8 / 11 / 14 / 11 / 14 / 16 / 26 = 100. */
+        private static void DrawRawRollCell(Rect rect, int rawRoll)
+        {
+            GUI.color = new Color(0.6f, 0.6f, 0.6f);
+            Widgets.Label(rect, rawRoll.ToString());
+            GUI.color = Color.white;
+        }
+
+        private Color ResolveWinnerBlockTint(bool attackerWon)
+        {
+            if (PlayerSideKnown)
+            {
+                bool playerWonThisRound = (PlayerIsAttacker == attackerWon);
+                return playerWonThisRound
+                    ? new Color(0.20f, 0.50f, 0.20f, 0.25f)
+                    : new Color(0.50f, 0.20f, 0.20f, 0.25f);
+            }
+            return new Color(1f, 1f, 1f, 0.10f);
+        }
+
+        /* Leaf order: Round, AtkForce, AtkRaw, AtkFinal, DefFinal, DefRaw, DefForce.
+           Percentages: 8 / 16 / 13 / 17 / 17 / 13 / 16 = 100. */
         private static float[] ComputeRoundLeafWidths(float totalWidth)
         {
             float w = totalWidth - 8f;
             return new[]
             {
                 w * 0.08f,
-                w * 0.11f,
-                w * 0.14f,
-                w * 0.11f,
-                w * 0.14f,
                 w * 0.16f,
-                w * 0.26f
+                w * 0.13f,
+                w * 0.17f,
+                w * 0.17f,
+                w * 0.13f,
+                w * 0.16f
             };
         }
 
-        /* X-position of the vertical separator between Atk Final and Def Raw. */
+        /* X-position of the vertical separator between Atk Final and Def Final (mirror axis). */
         private static float ComputeRollGroupSeparatorX(float startX, float[] leafW)
         {
-            return startX + leafW[0] + leafW[1] + leafW[2];
+            return startX + leafW[0] + leafW[1] + leafW[2] + leafW[3];
         }
     }
 }
