@@ -478,11 +478,16 @@ namespace FactionColonies
             // is selected, op.defender.homeSettlement points at the foreign billet (the squad's
             // home), not the settlement actually being attacked. Look up by target tile and
             // match on op.targetObject so the right settlement gets the under-attack flag.
+            // Filter out ops in CooldownPending/Resolved — the battle is already over and the
+            // squad is recovering; settlement is no longer "under attack" semantically.
             IReadOnlyList<MilitaryOperation> ops = GetOpsAt(settlement.Tile);
             for (int i = 0; i < ops.Count; i++)
             {
                 MilitaryOperation op = ops[i];
-                if (op.targetObject == settlement) return true;
+                if (op.targetObject != settlement) continue;
+                if (op.phase == MilitaryOperationPhase.CooldownPending) continue;
+                if (op.phase == MilitaryOperationPhase.Resolved) continue;
+                return true;
             }
             return false;
         }
