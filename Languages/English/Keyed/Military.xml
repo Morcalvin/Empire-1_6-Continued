@@ -57,8 +57,7 @@
 	<FCAutoBattleCommenced>Battle commenced at {0}</FCAutoBattleCommenced>
 	<FCAutoBattleCommencedDesc>The defenders of {0} have engaged forces from {1}. The settlement remains militarily committed until the battle resolves.</FCAutoBattleCommencedDesc>
 
-	<!-- Per-round auto-resolve battle (BattleProgressWindow + round-log letter append) -->
-	<FCAutoResolveRoundLogHeader>Battle round summary:</FCAutoResolveRoundLogHeader>
+	<!-- Per-round auto-resolve battle (BattleProgressWindow + archived report viewer) -->
 	<FCBattleProgressWindowTitle>Battle for {0}</FCBattleProgressWindowTitle>
 	<FCBattleProgressNoBattle>No battle in progress.</FCBattleProgressNoBattle>
 	<FCBattlePhasePreparing>Preparing for battle</FCBattlePhasePreparing>
@@ -78,6 +77,23 @@
 	<FCBattleColForces>Forces (A / D)</FCBattleColForces>
 	<FCBattleProgressGizmoLabel>Battle in progress</FCBattleProgressGizmoLabel>
 	<FCBattleProgressGizmoDesc>Open the live battle progress window for this settlement.</FCBattleProgressGizmoDesc>
+
+	<!-- Battle report archive (post-battle letter button + military Battle Reports tab) -->
+	<FCBattleReportButton>View battle report</FCBattleReportButton>
+	<FCBattleReportNoRoundDetail>Manual battle; no per-round detail recorded.</FCBattleReportNoRoundDetail>
+	<FCBattleReportEvicted>That battle report has been removed from the archive.</FCBattleReportEvicted>
+	<FCMilitaryTabBattleReports>Battle Reports</FCMilitaryTabBattleReports>
+	<FCBattleArchiveCount>{0} reports</FCBattleArchiveCount>
+	<FCBattleArchiveColKind>Kind</FCBattleArchiveColKind>
+	<FCBattleArchiveColTarget>Target</FCBattleArchiveColTarget>
+	<FCBattleArchiveColDate>Date</FCBattleArchiveColDate>
+	<FCBattleArchiveColOutcome>Outcome</FCBattleArchiveColOutcome>
+	<FCBattleArchiveEmpty>No battles have been recorded yet.</FCBattleArchiveEmpty>
+	<FCBattleArchiveOutcomeVictory>Victory</FCBattleArchiveOutcomeVictory>
+	<FCBattleArchiveOutcomeDefeat>Defeat</FCBattleArchiveOutcomeDefeat>
+	<FCBattleArchiveSettingsHeader>Battle Archive</FCBattleArchiveSettingsHeader>
+	<FCBattleArchiveMaxEntriesLabel>Max battle reports archived</FCBattleArchiveMaxEntriesLabel>
+	<FCBattleArchiveMaxEntriesTip>How many of the most recent battle reports to keep around. Older reports are evicted when the cap is reached. Letters that reference an evicted report show a "no longer available" message on click.</FCBattleArchiveMaxEntriesTip>
 	<FCNewWaveArrived>New Wave at {0}</FCNewWaveArrived>
 	<FCNewWaveArrivedDesc>A new wave of attackers from {1} has arrived at {0}! Reinforcements may be on the way.</FCNewWaveArrivedDesc>
 	<FCDefendColony>Defend</FCDefendColony>

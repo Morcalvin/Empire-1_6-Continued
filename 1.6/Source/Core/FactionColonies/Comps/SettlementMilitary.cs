@@ -372,7 +372,7 @@ namespace FactionColonies
             IReadOnlyList<MilitaryOperation> active = mgr.active;
             foreach(MilitaryOperation op in active)
             {
-                if (op?.battleProgress is null) continue;
+                if (op?.battleResult is null) continue;
                 if (op.phase != MilitaryOperationPhase.Engaged) continue;
                 if (op.defender?.homeSettlement == WorldSettlement) return op;
             }
@@ -575,14 +575,15 @@ namespace FactionColonies
                 // Manual-battle path constructs the BattleResult here from on-map pawn counts;
                 // the auto-resolve path arrives with battleResult already populated by
                 // SimulateBattleFc.FightBattle. Either way, op.CompleteBattle uses
-                // result.defenderRemainingForce vs defenderInitialForce to detect overwhelming
+                // result.defenderForceRemaining vs defenderInitialForce to detect overwhelming
                 // victory (>= all defenders survived) for the FCOverwhelmingVictory letter +
                 // foreign-defender cooldown skip.
                 BattleResult resultForOps = battleResult ?? new BattleResult
                 {
                     winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
                     defenderInitialForce = Battlefield?.initialDefenderCount ?? remaining,
-                    defenderRemainingForce = remaining
+                    defenderForceRemaining = remaining,
+                    wasManualBattle = true
                 };
                 var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
                 if (opsAtTile.Count == 0)

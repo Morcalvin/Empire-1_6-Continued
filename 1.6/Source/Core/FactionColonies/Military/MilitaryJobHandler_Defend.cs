@@ -122,11 +122,11 @@ namespace FactionColonies
                 text += "\n\n" + deliveryMsg;
             if (settlement.Map != null)
                 text += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
-            text = MilitaryLetterUtil.AppendBattleRoundLog(text, op);
 
-            Find.LetterStack.ReceiveLetter("FCDefenseSuccessful".Translate(),
-                text,
-                LetterDefOf.PositiveEvent, new LookTargets(settlement));
+            int reportId = BattleArchiveUtil.ArchiveAndGetId(op, op?.result, BattleOperationKind.Defense);
+            MilitaryLetterUtil.SendBattleReportLetter("FCDefenseSuccessful".Translate(),
+                text, FCLetterDefOf.FCBattleReportLetterPositive,
+                new LookTargets(settlement), reportId, op);
             letterEmitted = true;
         }
 
@@ -217,10 +217,11 @@ namespace FactionColonies
                 str += "\n\n" + deliveryMsg;
             if (settlement.Map != null)
                 str += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
-            str = MilitaryLetterUtil.AppendBattleRoundLog(str, op);
 
-            Find.LetterStack.ReceiveLetter("FCDefenseFailure".Translate(), str, LetterDefOf.Death,
-                new LookTargets(settlement));
+            int reportId = BattleArchiveUtil.ArchiveAndGetId(op, op?.result, BattleOperationKind.Defense);
+            MilitaryLetterUtil.SendBattleReportLetter("FCDefenseFailure".Translate(),
+                str, FCLetterDefOf.FCBattleReportLetterNegative,
+                new LookTargets(settlement), reportId, op);
             letterEmitted = true;
         }
     }

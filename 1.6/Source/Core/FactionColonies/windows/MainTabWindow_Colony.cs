@@ -1484,7 +1484,7 @@ namespace FactionColonies
             // to watch it unfold.
             if (evt.linkedOperation is object
                 && evt.def == FCEventDefOf.autoResolveBattleRound
-                && evt.linkedOperation.battleProgress is object)
+                && evt.linkedOperation.battleResult is object)
             {
                 Find.WindowStack.Add(new BattleProgressWindow(evt.linkedOperation));
                 return;
@@ -1540,10 +1540,11 @@ namespace FactionColonies
             EdictTabDrawer.Draw(rect, faction);
         }
 
-        // Squad-first refactor: military tab gains two subtabs (By Settlement / By Squad).
-        // 0 = By Settlement, 1 = By Squad. Persists across this MainTabWindow_Colony instance.
+        // Military tab subtabs: 0 = By Settlement, 1 = By Squad, 2 = Battle Reports.
+        // Persists across this MainTabWindow_Colony instance.
         private int militarySubtab = 0;
         private MainTabWindow_Squads _bySquadRenderer;
+        private MainTabWindow_BattleReports _battleReportsRenderer;
 
         private void DrawMilitaryTab(Rect rect)
         {
@@ -1600,6 +1601,7 @@ namespace FactionColonies
             {
                 (string)"FCMilitaryTabBySettlement".Translate(),
                 (string)"FCMilitaryTabBySquad".Translate(),
+                (string)"FCMilitaryTabBattleReports".Translate(),
             };
             Rect contentRect;
             militarySubtab = UIUtil.DrawTabRow(subtabBox, tabLabels, militarySubtab,
@@ -1612,10 +1614,15 @@ namespace FactionColonies
             {
                 DrawMilitarySettlementCards(tableRect);
             }
-            else
+            else if (militarySubtab == 1)
             {
                 if (_bySquadRenderer is null) _bySquadRenderer = new MainTabWindow_Squads();
                 _bySquadRenderer.Draw(tableRect);
+            }
+            else
+            {
+                if (_battleReportsRenderer is null) _battleReportsRenderer = new MainTabWindow_BattleReports();
+                _battleReportsRenderer.Draw(tableRect);
             }
         }
 

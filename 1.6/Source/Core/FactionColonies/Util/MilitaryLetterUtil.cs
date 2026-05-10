@@ -1,3 +1,4 @@
+using RimWorld;
 using Verse;
 
 namespace FactionColonies.util
@@ -7,22 +8,27 @@ namespace FactionColonies.util
     /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
 
     /// <summary>
-    /// Helpers shared across military handlers for assembling outcome letters.
+    /// Helpers shared across military handlers for delivering outcome letters.
     /// </summary>
     internal static class MilitaryLetterUtil
     {
         /// <summary>
-        /// Append the per-round table from <paramref name="op"/>'s <see cref="BattleProgress"/>
-        /// to a letter <paramref name="body"/>. Returns the body unchanged when there is no
-        /// progress object (manual battles, error fallbacks) or when no rounds were rolled
-        /// (overwhelming victory shortcut, etc).
+        /// Send a post-battle outcome letter carrying a "View battle report" button that
+        /// opens the archived <see cref="BattleResult"/> identified by <paramref name="reportId"/>.
+        /// Mirrors <see cref="LetterStack.ReceiveLetter(TaggedString, TaggedString, LetterDef, LookTargets, Faction, Quest, System.Collections.Generic.List{ThingDef}, string, int, bool, bool)"/>
+        /// but uses the custom <see cref="ChoiceLetter_BattleReport"/> letter type so the
+        /// dialog shows the button.
         /// </summary>
-        public static string AppendBattleRoundLog(string body, MilitaryOperation op)
+        /// <param name="op">Originating op (used to derive which side the player is on for tinting).
+        /// May be null when the letter is being sent post-completion with no live op reference.</param>
+        public static void SendBattleReportLetter(string label, string text, LetterDef def,
+            LookTargets lookTargets, int reportId, MilitaryOperation op = null)
         {
-            if (op?.battleProgress is null) return body;
-            if (op.battleProgress.rounds is null || op.battleProgress.rounds.Count == 0) return body;
-            return body + "\n\n" + "FCAutoResolveRoundLogHeader".Translate() + "\n"
-                        + op.battleProgress.BuildRoundLogText();
+            ChoiceLetter_BattleReport letter = (ChoiceLetter_BattleReport)
+                LetterMaker.MakeLetter(label, text, def, lookTargets);
+            letter.reportId = reportId;
+            letter.playerSide = MilitaryUtil.ResolvePlayerSide(op);
+            Find.LetterStack.ReceiveLetter(letter);
         }
     }
 }

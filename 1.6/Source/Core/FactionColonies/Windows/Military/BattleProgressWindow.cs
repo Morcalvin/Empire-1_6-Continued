@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FactionColonies.util;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -11,22 +12,53 @@ namespace FactionColonies
     /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
 
     /// <summary>
-    /// Live "watch the battle unfold" window for an auto-resolved battle. Reads the linked
-    /// <see cref="MilitaryOperation.battleProgress"/> every frame: data only changes hourly so
-    /// per-frame reads are cheap. Two mirrored side panels (attacker left, defender right) with
-    /// faction icon + name/label, efficiency, and a health bar with the force ratio overlaid.
-    /// Below: a scrolling round-roll log with a two-tier header (Attacker Roll / Defender Roll
-    /// each spanning Raw | Final). Player-side round wins are tinted green; player-side losses
-    /// red. Pure NPC-vs-NPC ops (player aligned with neither side) are not tinted.
+    /// Shared window for "watch this battle" — both during live auto-resolve and
+    /// when reviewing an archived <see cref="BattleResult"/>. Two mirrored side panels
+    /// (attacker left, defender right) with faction icon + name/label, efficiency, and
+    /// a health bar with the force ratio overlaid. Below: a scrolling round-roll log
+    /// with a two-tier header (Attacker Roll / Defender Roll each spanning Raw | Final).
+    /// Player-side round wins are tinted green; player-side losses red. Pure NPC-vs-NPC
+    /// (player aligned with neither side) is not tinted.
+    /// <para>For manual battles the rounds list is empty; the round-list area shows a
+    /// "no per-round detail" placeholder instead of an empty scroll viewport.</para>
     /// </summary>
     public class BattleProgressWindow : Window
     {
-        private readonly MilitaryOperation op;
+        private readonly BattleResult result;
+        private readonly BattleViewerSide playerSide;
+        // Optional: present only when opened from a live MilitaryOperation. The faction
+        // icon resolves from these first, then falls through to result.attackerFaction /
+        // result.defenderFaction (the faction references stored on the archived report),
+        // and only as a last resort to the cached faction-name string with no icon.
+        private readonly MilitaryOperationParticipant aggressorParticipant;
+        private readonly MilitaryOperationParticipant defenderParticipant;
+
         private Vector2 scrollPos;
 
         public BattleProgressWindow(MilitaryOperation op)
         {
-            this.op = op;
+            this.result = op?.battleResult;
+            this.playerSide = MilitaryUtil.ResolvePlayerSide(op);
+            this.aggressorParticipant = op?.aggressor;
+            this.defenderParticipant = op?.defender;
+            InitWindowProps();
+        }
+
+        /// <summary>
+        /// Constructor for archived-report viewing: the originating op is gone.
+        /// Side panels still render the faction icon when the stored faction reference
+        /// resolves (defeated factions still resolve); only when the faction has been
+        /// removed from the world entirely do they fall back to the bare name string.
+        /// </summary>
+        public BattleProgressWindow(BattleResult result, BattleViewerSide playerSide)
+        {
+            this.result = result;
+            this.playerSide = playerSide;
+            InitWindowProps();
+        }
+
+        private void InitWindowProps()
+        {
             doCloseButton = true;
             doCloseX = true;
             forcePause = false;
@@ -37,28 +69,31 @@ namespace FactionColonies
 
         public override Vector2 InitialSize => new Vector2(720f, 600f);
 
+        private bool PlayerSideKnown => playerSide != BattleViewerSide.Neither;
+        private bool PlayerIsAttacker => playerSide == BattleViewerSide.Attacker;
+
         public override void DoWindowContents(Rect inRect)
         {
-            if (op is null || op.battleProgress is null)
+            if (result is null)
             {
                 Widgets.Label(inRect, "FCBattleProgressNoBattle".Translate());
                 return;
             }
 
-            BattleProgress bp = op.battleProgress;
+            BattleResult br = result;
 
             /* -*- Header -*- */
             float headerH = 56f;
             Rect headerRect = new Rect(inRect.x, inRect.y, inRect.width, headerH);
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.UpperCenter;
-            string targetName = !string.IsNullOrEmpty(bp.defenderLabel) ? bp.defenderLabel : "?";
+            string targetName = !string.IsNullOrEmpty(br.defenderLabel) ? br.defenderLabel : "?";
             Widgets.Label(new Rect(headerRect.x, headerRect.y, headerRect.width, 28f),
                 "FCBattleProgressWindowTitle".Translate(targetName));
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperCenter;
             Widgets.Label(new Rect(headerRect.x, headerRect.y + 30f, headerRect.width, 22f),
-                SubPhaseLabel(bp));
+                SubPhaseLabel(br));
             Text.Anchor = TextAnchor.UpperLeft;
 
             /* -*- Two columns: attacker vs defender -*- */
@@ -69,11 +104,13 @@ namespace FactionColonies
             Rect attackerCol = new Rect(inRect.x, columnsY, colW, columnsH);
             Rect defenderCol = new Rect(inRect.x + colW + colGap, columnsY, colW, columnsH);
 
-            DrawSideColumn(attackerCol, op.aggressor, bp.attackerLabel,
-                bp.attackerInitialForce, bp.attackerForceRemaining, bp.attackerEfficiency,
+            DrawSideColumn(attackerCol, aggressorParticipant, br.attackerFaction,
+                br.attackerLabel, br.attackerFactionName,
+                br.attackerInitialForce, br.attackerForceRemaining, br.attackerEfficiency,
                 isAttacker: true);
-            DrawSideColumn(defenderCol, op.defender, bp.defenderLabel,
-                bp.defenderInitialForce, bp.defenderForceRemaining, bp.defenderEfficiency,
+            DrawSideColumn(defenderCol, defenderParticipant, br.defenderFaction,
+                br.defenderLabel, br.defenderFactionName,
+                br.defenderInitialForce, br.defenderForceRemaining, br.defenderEfficiency,
                 isAttacker: false);
 
             /* -*- Round list (scrollable, latest first) -*- */
@@ -82,16 +119,16 @@ namespace FactionColonies
             float listH = inRect.height - (listY - inRect.y) - closeBtnReserve;
             Rect listRect = new Rect(inRect.x, listY, inRect.width, listH);
 
-            DrawRoundList(listRect, bp);
+            DrawRoundList(listRect, br);
         }
 
-        private string SubPhaseLabel(BattleProgress bp)
+        private string SubPhaseLabel(BattleResult br)
         {
-            switch (bp.subPhase)
+            switch (br.subPhase)
             {
                 case BattleSubPhase.Preparing: return "FCBattlePhasePreparing".Translate();
                 case BattleSubPhase.Engaged: return "FCBattlePhaseEngaged".Translate();
-                case BattleSubPhase.RollsInProgress: return "FCBattlePhaseRolling".Translate(bp.rounds.Count);
+                case BattleSubPhase.RollsInProgress: return "FCBattlePhaseRolling".Translate(br.rounds.Count);
                 case BattleSubPhase.Resolved: return "FCBattlePhaseResolved".Translate();
                 default: return string.Empty;
             }
@@ -99,20 +136,23 @@ namespace FactionColonies
 
         /* -*- Side panel (mirrored: attacker = left-anchored, defender = right-anchored) -*- */
         private void DrawSideColumn(Rect rect, MilitaryOperationParticipant participant,
-            string label, double initial, double remaining, double efficiency, bool isAttacker)
+            Faction storedFaction, string label, string fallbackFactionName,
+            double initial, double remaining, double efficiency, bool isAttacker)
         {
             Widgets.DrawMenuSection(rect);
             Rect inner = rect.ContractedBy(8f);
 
-            Faction faction = participant?.faction;
-            bool playerSideKnown = op.IsOffensive || op.IsDefensive;
-            bool isPlayerSide = isAttacker ? op.IsOffensive : op.IsDefensive;
+            // Live participant takes priority (faction state is freshest there); the
+            // archive-stored Faction reference is the second-tier source so reports
+            // remain rendered with full faction info even after the op is gone.
+            Faction faction = participant?.faction ?? storedFaction;
+            bool isPlayerSide = isAttacker ? PlayerIsAttacker : (playerSide == BattleViewerSide.Defender);
             TextAnchor textAnchor = isAttacker ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
 
             /* Title row with side-aware tint */
             float titleH = 22f;
             Rect titleRect = new Rect(inner.x, inner.y, inner.width, titleH);
-            Color titleTint = ResolveTitleTint(playerSideKnown, isPlayerSide);
+            Color titleTint = ResolveTitleTint(PlayerSideKnown, isPlayerSide);
             Widgets.DrawBoxSolid(titleRect, titleTint);
 
             Text.Font = GameFont.Small;
@@ -124,30 +164,41 @@ namespace FactionColonies
             Widgets.Label(titleRect.ContractedBy(4f, 0f), title);
             GUI.color = Color.white;
 
-            /* Icon block: 40x40 icon flush left/right, two text rows on the other side */
+            /* Icon block: 40x40 icon flush left/right, two text rows on the other side.
+               When the faction can't be resolved at all (live participant gone AND the
+               stored reference no longer resolves — i.e., faction removed from world),
+               the icon is omitted and the text block expands to use the full inner width. */
             float blockY = inner.y + titleH + 4f;
             const float iconSize = 40f;
             const float blockH = 44f;
-            Rect iconRect;
+            bool drawIcon = faction is object;
             Rect textBlockRect;
-            if (isAttacker)
+            if (drawIcon)
             {
-                iconRect = new Rect(inner.x, blockY + (blockH - iconSize) / 2f, iconSize, iconSize);
-                textBlockRect = new Rect(inner.x + iconSize + 8f, blockY,
-                    inner.width - iconSize - 8f, blockH);
+                Rect iconRect;
+                if (isAttacker)
+                {
+                    iconRect = new Rect(inner.x, blockY + (blockH - iconSize) / 2f, iconSize, iconSize);
+                    textBlockRect = new Rect(inner.x + iconSize + 8f, blockY,
+                        inner.width - iconSize - 8f, blockH);
+                }
+                else
+                {
+                    iconRect = new Rect(inner.xMax - iconSize, blockY + (blockH - iconSize) / 2f,
+                        iconSize, iconSize);
+                    textBlockRect = new Rect(inner.x, blockY,
+                        inner.width - iconSize - 8f, blockH);
+                }
+
+                Texture2D iconTex = faction.def?.FactionIcon ?? BaseContent.BadTex;
+                GUI.color = faction.Color;
+                GUI.DrawTexture(iconRect, iconTex);
+                GUI.color = Color.white;
             }
             else
             {
-                iconRect = new Rect(inner.xMax - iconSize, blockY + (blockH - iconSize) / 2f,
-                    iconSize, iconSize);
-                textBlockRect = new Rect(inner.x, blockY,
-                    inner.width - iconSize - 8f, blockH);
+                textBlockRect = new Rect(inner.x, blockY, inner.width, blockH);
             }
-
-            Texture2D iconTex = faction?.def?.FactionIcon ?? BaseContent.BadTex;
-            GUI.color = faction is object ? faction.Color : Color.white;
-            GUI.DrawTexture(iconRect, iconTex);
-            GUI.color = Color.white;
 
             // Top text row: faction name (white). Bottom: label (dim grey).
             float textRowH = blockH * 0.5f;
@@ -157,7 +208,7 @@ namespace FactionColonies
                 textBlockRect.width, textRowH);
 
             Text.Anchor = textAnchor;
-            string factionName = faction?.Name;
+            string factionName = faction?.Name ?? fallbackFactionName;
             if (!string.IsNullOrEmpty(factionName))
                 Widgets.Label(nameRect, factionName);
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
@@ -213,10 +264,23 @@ namespace FactionColonies
         private const float RoundRowH = 22f;
         private const float ScrollbarReserve = 16f;
 
-        private void DrawRoundList(Rect rect, BattleProgress bp)
+        private void DrawRoundList(Rect rect, BattleResult br)
         {
             Widgets.DrawMenuSection(rect);
             Rect inner = rect.ContractedBy(4f);
+
+            // Manual battles have no per-round data — show a placeholder instead of an
+            // empty header + empty scroll viewport.
+            if (br.rounds is null || br.rounds.Count == 0)
+            {
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Text.Font = GameFont.Small;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                Widgets.Label(inner, "FCBattleReportNoRoundDetail".Translate());
+                GUI.color = Color.white;
+                Text.Anchor = TextAnchor.UpperLeft;
+                return;
+            }
 
             // Reserve scrollbar space in the header so columns line up with the rows.
             float tableW = inner.width - ScrollbarReserve;
@@ -226,7 +290,7 @@ namespace FactionColonies
             Rect viewportOuter = new Rect(inner.x, inner.y + RoundHeaderH + 2f, inner.width,
                                           inner.height - RoundHeaderH - 2f);
 
-            int count = bp.rounds.Count;
+            int count = br.rounds.Count;
             float contentH = Math.Max(RoundRowH, count * RoundRowH);
             Rect viewportInner = new Rect(0f, 0f, viewportOuter.width - ScrollbarReserve, contentH);
 
@@ -234,12 +298,11 @@ namespace FactionColonies
 
             float[] leafW = ComputeRoundLeafWidths(viewportInner.width);
             // Latest at top.
-            bool playerSideKnown = op.IsOffensive || op.IsDefensive;
             for (int i = count - 1; i >= 0; i--)
             {
                 int displayIndex = (count - 1) - i;
                 Rect rowRect = new Rect(0f, displayIndex * RoundRowH, viewportInner.width, RoundRowH);
-                DrawRoundRow(rowRect, bp.rounds[i], playerSideKnown, leafW);
+                DrawRoundRow(rowRect, br.rounds[i], leafW);
             }
 
             // Group separator: vertical line between Atk Final and Def Raw, drawn inside
@@ -320,12 +383,12 @@ namespace FactionColonies
             GUI.color = Color.white;
         }
 
-        private void DrawRoundRow(Rect rect, RoundEntry r, bool playerSideKnown, float[] leafW)
+        private void DrawRoundRow(Rect rect, RoundEntry r, float[] leafW)
         {
             // Player-side row tint (preserved from previous version).
-            if (playerSideKnown)
+            if (PlayerSideKnown)
             {
-                bool playerWonThisRound = (op.IsOffensive == r.attackerWonRound);
+                bool playerWonThisRound = (PlayerIsAttacker == r.attackerWonRound);
                 Color tint = playerWonThisRound
                     ? new Color(0.20f, 0.50f, 0.20f, 0.25f)
                     : new Color(0.50f, 0.20f, 0.20f, 0.25f);

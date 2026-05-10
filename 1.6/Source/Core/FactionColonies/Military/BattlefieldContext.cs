@@ -482,7 +482,7 @@ namespace FactionColonies
                     EndBattle(false, 0, null);
                     return;
                 }
-                // Per-round auto-resolve: seed BattleProgress and let the per-hour event clock
+                // Per-round auto-resolve: seed BattleResult and let the per-hour event clock
                 // roll one round per hour until completion. comp.isUnderAttack /
                 // comp.militaryBusy / squad.IsBusy all read manager state, so they continue
                 // reflecting "engaged" through the duration. CompleteBattle (with its

@@ -177,6 +177,15 @@ namespace FactionColonies
         public const int DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND = GenDate.TicksPerHour; // 2500
         public static int autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
 
+        /* Battle archive cap. The world-level archive (WorldComponent_Archive) keeps
+         * the N most recent battle reports for the player to review via the military
+         * tab. Letters that reference an evicted report fall back to a "no longer
+         * available" toast on click. */
+        public const int DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES = 50;
+        public const int MIN_BATTLE_ARCHIVE_MAX_ENTRIES = 1;
+        public const int MAX_BATTLE_ARCHIVE_MAX_ENTRIES = 500;
+        public static int battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
+
         public static int maxPolicyCount = 2;
 
         /* Flag for debug/verbose logging. */
@@ -252,6 +261,14 @@ namespace FactionColonies
             Scribe_Values.Look(ref efficiencyDamping, "efficiencyDamping", DEFAULT_EFFICIENCY_DAMPING);
             Scribe_Values.Look(ref maxConcurrentBattleMaps, "maxConcurrentBattleMaps", 0);
             Scribe_Values.Look(ref autoResolveTicksPerRound, "autoResolveTicksPerRound", DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND);
+            Scribe_Values.Look(ref battleArchiveMaxEntries, "battleArchiveMaxEntries", DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES);
+            if (Scribe.mode == LoadSaveMode.LoadingVars
+                && (battleArchiveMaxEntries < MIN_BATTLE_ARCHIVE_MAX_ENTRIES
+                    || battleArchiveMaxEntries > MAX_BATTLE_ARCHIVE_MAX_ENTRIES))
+            {
+                LogUtil.Warning($"Loaded out-of-range battleArchiveMaxEntries={battleArchiveMaxEntries}; resetting to {DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES}.");
+                battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
+            }
             Scribe_Values.Look(ref mercenaryHealRatePerHour, "mercenaryHealRatePerHour", 1f);
             Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
             Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
@@ -681,6 +698,7 @@ namespace FactionColonies
                 maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
                 squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
                 deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+                battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
@@ -847,6 +865,15 @@ namespace FactionColonies
 
             ls.Label("FCSettingDeploymentBillLifespan".Translate() + ": " + deploymentBillLifespan_days.ToString() + " d", -1f, "FCSettingDeploymentBillLifespanTip".Translate());
             deploymentBillLifespan_days = (int)ls.Slider(deploymentBillLifespan_days, 1f, 60f);
+
+            ls.Gap(12f);
+            ls.GapLine();
+            Text.Font = GameFont.Medium;
+            ls.Label("FCBattleArchiveSettingsHeader".Translate());
+            Text.Font = GameFont.Small;
+
+            ls.Label("FCBattleArchiveMaxEntriesLabel".Translate() + ": " + battleArchiveMaxEntries.ToString(), -1f, "FCBattleArchiveMaxEntriesTip".Translate());
+            battleArchiveMaxEntries = (int)ls.Slider(battleArchiveMaxEntries, MIN_BATTLE_ARCHIVE_MAX_ENTRIES, MAX_BATTLE_ARCHIVE_MAX_ENTRIES);
 
             ls.End();
 

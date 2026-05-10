@@ -20,20 +20,33 @@ namespace FactionColonies
 
                 result.attackerInitialForce = MFA.forceRemaining;
                 result.defenderInitialForce = MFB.forceRemaining;
-                result.roundLog = new List<bool>();
+                result.attackerEfficiency = MFA.militaryEfficiency;
+                result.defenderEfficiency = MFB.militaryEfficiency;
+                result.rounds = new List<RoundEntry>();
 
                 LogUtil.Message("SimulateBattleFc.FightBattle: Starting battle");
                 while (MFA.forceRemaining > 0 && MFB.forceRemaining > 0)
                 {
-                    double prevDefender = MFB.forceRemaining;
-                    FightRound(MFA, MFB, rand);
-                    // If defender lost force this round, attacker won the round
-                    result.roundLog.Add(MFB.forceRemaining < prevDefender);
+                    RoundOutcome outcome = SimulateRound(MFA, MFB, rand);
+                    if (outcome.attackerWonRound) MFB.forceRemaining -= 1;
+                    else MFA.forceRemaining -= 1;
+                    result.rounds.Add(new RoundEntry
+                    {
+                        roundNumber = result.rounds.Count + 1,
+                        attackerRawRoll = outcome.attackerRawRoll,
+                        defenderRawRoll = outcome.defenderRawRoll,
+                        attackerScore = outcome.attackerScore,
+                        defenderScore = outcome.defenderScore,
+                        attackerWonRound = outcome.attackerWonRound,
+                        attackerForceAfter = MFA.forceRemaining,
+                        defenderForceAfter = MFB.forceRemaining
+                    });
                 }
 
-                result.attackerRemainingForce = MFA.forceRemaining;
-                result.defenderRemainingForce = MFB.forceRemaining;
-                result.totalRounds = result.roundLog.Count;
+                result.attackerForceRemaining = MFA.forceRemaining;
+                result.defenderForceRemaining = MFB.forceRemaining;
+                result.totalRounds = result.rounds.Count;
+                result.subPhase = BattleSubPhase.Resolved;
 
                 if (MFA.forceRemaining <= 0)
                 {

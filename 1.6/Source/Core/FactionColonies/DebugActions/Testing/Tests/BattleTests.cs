@@ -119,8 +119,8 @@ namespace FactionColonies
             TestAssert.IsTrue(mfa.forceRemaining > 0, "Attacker should have forces remaining");
             TestAssert.LessThanOrEqual(mfb.forceRemaining, 0, "Defender should be eliminated");
             TestAssert.IsTrue(result.totalRounds > 0, "Battle should have at least one round");
-            TestAssert.IsNotNull(result.roundLog, "Round log should not be null");
-            TestAssert.AreEqual(result.totalRounds, result.roundLog.Count, "totalRounds should match roundLog count");
+            TestAssert.IsNotNull(result.rounds, "Rounds list should not be null");
+            TestAssert.AreEqual(result.totalRounds, result.rounds.Count, "totalRounds should match rounds count");
         }
 
         [EmpireTest("Battle")]
@@ -136,8 +136,8 @@ namespace FactionColonies
             TestAssert.AreEqual(BattleWinner.Defender, result.winner, message: "Defender should win");
             TestAssert.IsTrue(result.DefenderVictory);
             TestAssert.IsTrue(result.totalRounds > 0, "Battle should have at least one round");
-            TestAssert.IsNotNull(result.roundLog, "Round log should not be null");
-            TestAssert.AreEqual(result.totalRounds, result.roundLog.Count, "totalRounds should match roundLog count");
+            TestAssert.IsNotNull(result.rounds, "Rounds list should not be null");
+            TestAssert.AreEqual(result.totalRounds, result.rounds.Count, "totalRounds should match rounds count");
         }
 
         // ============================
@@ -197,7 +197,7 @@ namespace FactionColonies
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_RoundLog_CountMatchesTotalRounds()
+        public static void FightBattle_Rounds_CountMatchesTotalRounds()
         {
             var mfa = CreateForce(8, 1.0, 8);
             var mfb = CreateForce(3, 1.0, 3);
@@ -205,9 +205,9 @@ namespace FactionColonies
 
             BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
 
-            TestAssert.IsNotNull(result.roundLog);
-            TestAssert.AreEqual(result.totalRounds, result.roundLog.Count,
-                "totalRounds should always match roundLog.Count");
+            TestAssert.IsNotNull(result.rounds);
+            TestAssert.AreEqual(result.totalRounds, result.rounds.Count,
+                "totalRounds should always match rounds.Count");
         }
 
         [EmpireTest("Battle")]

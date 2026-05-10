@@ -44,8 +44,9 @@ namespace FactionColonies
         public BattleResult result;
 
         /* Live state of an auto-resolved battle: per-round rolls accumulated as the battle
-         * unfolds (one round per hour). Null for manual-resolve and pre-engagement ops. */
-        public BattleProgress battleProgress;
+         * unfolds (one round per hour). Null for manual-resolve and pre-engagement ops.
+         * After CompleteBattle this points to the same object as <see cref="result"/>. */
+        public BattleResult battleResult;
 
         /* Wakeup events scheduled by this op (arrival, cooldown, ...). */
         public List<FCEvent> sourceEvents = new List<FCEvent>();
@@ -90,7 +91,7 @@ namespace FactionColonies
             Scribe_Deep.Look(ref defender, "defender");
             Scribe_References.Look(ref externalDefenderSource, "externalDefenderSource");
             Scribe_Deep.Look(ref result, "result");
-            Scribe_Deep.Look(ref battleProgress, "battleProgress");
+            Scribe_Deep.Look(ref battleResult, "battleResult");
             Scribe_Collections.Look(ref sourceEvents, "sourceEvents", LookMode.Reference);
             Scribe_Values.Look(ref battlefieldRef, "battlefieldRef", PlanetTile.Invalid);
 
@@ -201,14 +202,14 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Initialise <see cref="battleProgress"/> from current participant forces and schedule
+        /// Initialise <see cref="battleResult"/> from current participant forces and schedule
         /// the first per-round event. The flow:
         ///   T+0   Preparing (no roll)
         ///   T+1h  flip to Engaged (no roll, just status change)
         ///   T+2h  round 1 rolls
         ///   T+3h+ round N rolls
         /// Continues until one side reaches 0 force, at which point <see cref="CompleteBattle"/>
-        /// fires with the resulting <see cref="BattleResult"/>.
+        /// fires with the same <see cref="BattleResult"/> instance.
         /// <para>If the op is not in <see cref="MilitaryOperationPhase.Engaged"/>, falls through
         /// to <see cref="CompleteBattle"/> immediately with an Error result as a safety net.</para>
         /// </summary>
@@ -233,11 +234,11 @@ namespace FactionColonies
 
             // Apply defender advantage in place on the live defender.forceRemaining so
             // MilitaryForce-based readers like CalculateDefenderWinChance see the same
-            // post-advantage baseline. The progress object snapshots this value as
+            // post-advantage baseline. The result object snapshots this value as
             // defenderInitialForce.
             def.forceRemaining = Math.Round(def.forceRemaining * FCSettings.defenderAdvantage);
 
-            battleProgress = new BattleProgress
+            battleResult = new BattleResult
             {
                 attackerInitialForce = atk.forceRemaining,
                 defenderInitialForce = def.forceRemaining,
@@ -249,6 +250,8 @@ namespace FactionColonies
                 defenderLabel = defender.homeSettlement?.Name ?? defender.squad?.DisplayName ?? defender.faction?.Name ?? "?",
                 attackerFactionName = aggressor.faction?.Name ?? "?",
                 defenderFactionName = defender.faction?.Name ?? "?",
+                attackerFaction = aggressor.faction,
+                defenderFaction = defender.faction,
                 targetTile = targetTile,
                 subPhase = BattleSubPhase.Preparing
             };
@@ -275,52 +278,53 @@ namespace FactionColonies
         /// </summary>
         private void AdvanceBattleProgress()
         {
-            if (battleProgress is null)
+            if (battleResult is null)
             {
-                LogUtil.Error($"AdvanceBattleProgress: op id={id} has null battleProgress; using Error result.");
+                LogUtil.Error($"AdvanceBattleProgress: op id={id} has null battleResult; using Error result.");
                 CompleteBattle(new BattleResult { winner = BattleWinner.Error });
                 return;
             }
 
-            if (battleProgress.subPhase == BattleSubPhase.Preparing)
+            if (battleResult.subPhase == BattleSubPhase.Preparing)
             {
-                battleProgress.subPhase = BattleSubPhase.Engaged;
+                battleResult.subPhase = BattleSubPhase.Engaged;
                 ScheduleNextRoundEvent();
                 return;
             }
 
             // Engaged or RollsInProgress: roll one round.
-            battleProgress.subPhase = BattleSubPhase.RollsInProgress;
+            battleResult.subPhase = BattleSubPhase.RollsInProgress;
             SimulateBattleFc.RoundOutcome outcome = SimulateBattleFc.SimulateRound(aggressor.force, defender.force);
             if (outcome.attackerWonRound)
             {
                 defender.force.forceRemaining -= 1;
-                battleProgress.defenderForceRemaining -= 1;
+                battleResult.defenderForceRemaining -= 1;
             }
             else
             {
                 aggressor.force.forceRemaining -= 1;
-                battleProgress.attackerForceRemaining -= 1;
+                battleResult.attackerForceRemaining -= 1;
             }
 
-            battleProgress.rounds.Add(new RoundEntry
+            battleResult.rounds.Add(new RoundEntry
             {
-                roundNumber = battleProgress.rounds.Count + 1,
+                roundNumber = battleResult.rounds.Count + 1,
                 attackerRawRoll = outcome.attackerRawRoll,
                 defenderRawRoll = outcome.defenderRawRoll,
                 attackerScore = outcome.attackerScore,
                 defenderScore = outcome.defenderScore,
                 attackerWonRound = outcome.attackerWonRound,
-                attackerForceAfter = battleProgress.attackerForceRemaining,
-                defenderForceAfter = battleProgress.defenderForceRemaining
+                attackerForceAfter = battleResult.attackerForceRemaining,
+                defenderForceAfter = battleResult.defenderForceRemaining
             });
 
-            if (battleProgress.IsComplete)
+            if (battleResult.IsComplete)
             {
-                battleProgress.winner = battleProgress.attackerForceRemaining <= 0
+                battleResult.winner = battleResult.attackerForceRemaining <= 0
                     ? BattleWinner.Defender : BattleWinner.Attacker;
-                battleProgress.subPhase = BattleSubPhase.Resolved;
-                CompleteBattle(battleProgress.ToBattleResult());
+                battleResult.totalRounds = battleResult.rounds.Count;
+                battleResult.subPhase = BattleSubPhase.Resolved;
+                CompleteBattle(battleResult);
             }
             else
             {
@@ -419,12 +423,12 @@ namespace FactionColonies
             if (result.winner == BattleWinner.Defender)
             {
                 if (result.defenderInitialForce <= 0) return false;
-                return result.defenderRemainingForce >= result.defenderInitialForce;
+                return result.defenderForceRemaining >= result.defenderInitialForce;
             }
             if (result.winner == BattleWinner.Attacker)
             {
                 if (result.attackerInitialForce <= 0) return false;
-                return result.attackerRemainingForce >= result.attackerInitialForce;
+                return result.attackerForceRemaining >= result.attackerInitialForce;
             }
             return false;
         }

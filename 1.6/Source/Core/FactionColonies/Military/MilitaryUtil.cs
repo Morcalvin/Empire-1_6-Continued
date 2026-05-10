@@ -229,5 +229,13 @@ namespace FactionColonies
         {
             GetTechLevelBaseline(tl, out level, out efficiency, out _, out _);
         }
+
+        public static BattleViewerSide ResolvePlayerSide(MilitaryOperation op)
+        {
+            if (op is null) return BattleViewerSide.Neither;
+            if (op.IsOffensive) return BattleViewerSide.Attacker;
+            if (op.IsDefensive) return BattleViewerSide.Defender;
+            return BattleViewerSide.Neither;
+        }
     }
 }

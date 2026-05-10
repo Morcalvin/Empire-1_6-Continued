@@ -55,10 +55,10 @@ namespace FactionColonies
             else if (result.DefenderVictory)
             {
                 string body = "FCCaptureEnemySettlementFailure".Translate(op.aggressor.homeSettlement.Name, target.Name);
-                body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
-                Find.LetterStack.ReceiveLetter("FCCaptureSettlement".Translate(),
-                    body,
-                    LetterDefOf.NegativeEvent, new LookTargets(target));
+                int reportId = BattleArchiveUtil.ArchiveAndGetId(op, result, BattleOperationKind.Capture);
+                MilitaryLetterUtil.SendBattleReportLetter("FCCaptureSettlement".Translate(),
+                    body, FCLetterDefOf.FCBattleReportLetterNegative,
+                    new LookTargets(target), reportId, op);
             }
         }
 
@@ -128,10 +128,10 @@ namespace FactionColonies
             }
 
             string body = "FCCaptureEnemySettlementSuccess".Translate(home.Name, worldsettlement.Name, worldsettlement.settlementLevel);
-            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
-            Find.LetterStack.ReceiveLetter("FCCaptureSettlement".Translate(),
-                body,
-                LetterDefOf.PositiveEvent, new LookTargets(worldsettlement));
+            int reportId = BattleArchiveUtil.ArchiveAndGetId(op, op?.result, BattleOperationKind.Capture);
+            MilitaryLetterUtil.SendBattleReportLetter("FCCaptureSettlement".Translate(),
+                body, FCLetterDefOf.FCBattleReportLetterPositive,
+                new LookTargets(worldsettlement), reportId, op);
         }
 
         /* Failed-capture fallback: target's Destroy() was blocked by another mod, but the squad
@@ -140,11 +140,12 @@ namespace FactionColonies
         private static void ApplyCaptureFallbackToRaid(FactionFC faction, WorldSettlementFC home,
             Faction enemyFaction, Settlement target, MilitaryOperation op = null)
         {
-            string body = "FCCaptureBlockedFallbackToRaid".Translate(home.Name, target.LabelCap);
-            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
+            // The fallback letter doesn't archive — it's a one-line "fallback" notice. The
+            // raid victory below archives via Raid.ApplyVictoryToTarget's letter, which
+            // is the one with the meaningful battle report context.
             Find.LetterStack.ReceiveLetter(
                 "FCCaptureSettlement".Translate(),
-                body,
+                "FCCaptureBlockedFallbackToRaid".Translate(home.Name, target.LabelCap),
                 LetterDefOf.NeutralEvent, new LookTargets(target));
             MilitaryJobHandler_Raid.ApplyVictoryToTarget(faction, home, enemyFaction, target, op);
         }

@@ -57,10 +57,10 @@ namespace FactionColonies
             else if (result.DefenderVictory)
             {
                 string body = "FCRaidEnemySettlementFailure".Translate(target.LabelCap);
-                body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
-                Find.LetterStack.ReceiveLetter("FCRaidFailure".Translate(),
-                    body,
-                    LetterDefOf.NegativeEvent, new LookTargets(target));
+                int reportId = BattleArchiveUtil.ArchiveAndGetId(op, result, BattleOperationKind.Enslave);
+                MilitaryLetterUtil.SendBattleReportLetter("FCRaidFailure".Translate(),
+                    body, FCLetterDefOf.FCBattleReportLetterNegative,
+                    new LookTargets(target), reportId, op);
             }
         }
 
@@ -80,10 +80,10 @@ namespace FactionColonies
             }
 
             string body = "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text;
-            body = MilitaryLetterUtil.AppendBattleRoundLog(body, op);
-            Find.LetterStack.ReceiveLetter("FCRaidLoot".Translate(),
-                body,
-                LetterDefOf.PositiveEvent, new LookTargets(target));
+            int reportId = BattleArchiveUtil.ArchiveAndGetId(op, op?.result, BattleOperationKind.Enslave);
+            MilitaryLetterUtil.SendBattleReportLetter("FCRaidLoot".Translate(),
+                body, FCLetterDefOf.FCBattleReportLetterPositive,
+                new LookTargets(target), reportId, op);
         }
     }
 }
