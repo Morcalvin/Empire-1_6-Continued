@@ -114,7 +114,7 @@ namespace FactionColonies
                 op.externalDefenderSource = null;
 
                 Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
-                    settlementOfMilitaryForce.Name, homeSettlement?.Name ?? "", newForce.militaryLevel),
+                    settlementOfMilitaryForce.Name, homeSettlement?.Name ?? "", newForce.militaryLevel.ToString("F1")),
                     LetterDefOf.NeutralEvent);
             }
 
@@ -171,7 +171,7 @@ namespace FactionColonies
             else
             {
                 Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(), "FCForeignMilitarySwitch".Translate(
-                    squad.settlement.Name, homeSettlement?.Name ?? "", newForce?.militaryLevel ?? 0),
+                    squad.settlement.Name, homeSettlement?.Name ?? "", (newForce?.militaryLevel ?? 0).ToString("F1")),
                     LetterDefOf.NeutralEvent);
             }
 

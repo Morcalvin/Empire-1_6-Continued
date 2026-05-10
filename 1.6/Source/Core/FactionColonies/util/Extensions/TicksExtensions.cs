@@ -18,8 +18,6 @@ namespace FactionColonies.util
                 fractionHours = fractionHours.Substring(2, 1) + "0";
             }
 
-            while (hours.Length < 2) hours = "0" + hours;
-
             if (ticks < GenDate.TicksPerDay) return hours + "." + fractionHours + " hours";
             return GenDate.ToStringTicksToDays(ticks);
         }

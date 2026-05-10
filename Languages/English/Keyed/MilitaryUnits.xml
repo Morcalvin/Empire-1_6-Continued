@@ -20,11 +20,6 @@
 	<!-- Unit Customization -->
 	<FCExportUnit>Exported Unit</FCExportUnit>
 	<FCExportSquad>Exported Squad</FCExportSquad>
-	<FCCantBeModified>{0} can't be modified: {1}</FCCantBeModified>
-	<FCReasonDeployed>A squad containing it is deployed</FCReasonDeployed>
-	<FCReasonDefending>A squad containing it is defending a settlement</FCReasonDefending>
-	<FCReasonDeployedSquad>The squad is currently deployed</FCReasonDeployedSquad>
-	<FCReasonDefendingSquad>The squad is currently defending a settlement</FCReasonDefendingSquad>
 	<FCImportUnit>Import Unit</FCImportUnit>
 	<FCClearUnitSlot>Clear Unit Slot</FCClearUnitSlot>
 	<FCDegraded>Degraded</FCDegraded>
