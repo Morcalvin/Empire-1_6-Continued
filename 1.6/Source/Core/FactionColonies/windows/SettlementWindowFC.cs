@@ -912,45 +912,28 @@ namespace FactionColonies
             // (white), strongest stationed if all busy (yellow), half-power ghost (yellow),
             // or "—" greyed when SquadCap == 0. Red overrides everything when under attack.
             (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
-            FactionFC fc = FactionCache.FactionComp;
 
+            // Headline number is the full defensive total — base x efficiency x defender advantage —
+            // so the value the player sees matches what the settlement actually brings to a defense.
+            double defAdv = FCSettings.defenderAdvantage;
+            double totalLevel = powLevel * powEff * defAdv;
             string label = powStatus == SettlementPowerStatus.NoMilitary
                 ? "—"
-                : ((int)Math.Round(powLevel)).ToString();
+                : ((int)Math.Round(totalLevel)).ToString();
             Color colorBefore = GUI.color;
             GUI.color = ColorForPowerStatus(powStatus);
             Widgets.Label(labelBox, label);
             GUI.color = colorBefore;
 
-            double atkLvlBonus = fc.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking);
-            double atkEffBonus = fc.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking);
-            double defLvlBonus = fc.GetStatValue(FCStatDefOf.militaryLevelBonusDefending);
-            double defEffBonus = fc.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending);
-            double defAdv = FCSettings.defenderAdvantage;
-            double offPower = Math.Round((powLevel + atkLvlBonus) * powEff * atkEffBonus);
-            double defPower = Math.Round((powLevel + defLvlBonus) * powEff * defEffBonus * defAdv);
-
             string statusLine = StatusLineForPower(powStatus);
             string tooltip = "FCSettlementMilitaryLevel".Translate() + "\n-----\n"
                 + "FCSettlementMilitaryLevelDesc".Translate() + "\n\n"
-                + statusLine + "\n"
-                + "Power level: " + powLevel.ToString("0.#")
-                + " (settlement militaryLevel: " + settlement.settlementMilitaryLevel + ")";
-            if (Math.Abs(powEff - 1.0) > 0.001)
-                tooltip += "\nCombat efficiency: " + powEff.ToString("0.0#") + "x";
-            tooltip += "\n\nOffensive Power: " + offPower;
-            if (Math.Abs(atkLvlBonus) > 0.001)
-                tooltip += "\n  Level bonus: +" + atkLvlBonus.ToString("0.#");
-            if (Math.Abs(atkEffBonus - 1.0) > 0.001)
-                tooltip += "\n  Efficiency bonus: " + atkEffBonus.ToString("0.0#") + "x";
-            tooltip += "\n\nDefensive Power: " + defPower;
-            if (Math.Abs(defLvlBonus) > 0.001)
-                tooltip += "\n  Level bonus: +" + defLvlBonus.ToString("0.#");
-            if (Math.Abs(defEffBonus - 1.0) > 0.001)
-                tooltip += "\n  Efficiency bonus: " + defEffBonus.ToString("0.0#") + "x";
-            if (Math.Abs(defAdv - 1.0) > 0.001)
-                tooltip += "\n  Defender advantage: " + defAdv.ToString("0.0#") + "x";
-            return tooltip + CodexTooltips.GetMilitaryTargetingInfo(settlement);
+                + statusLine + "\n\n"
+                + "Base Military Level: " + powLevel.ToString("0.#") + "\n"
+                + "  Military Efficiency: " + powEff.ToString("0.0#") + "x\n"
+                + "  Defender Advantage: " + defAdv.ToString("0.0#") + "x\n"
+                + "Total Military Level: " + ((int)Math.Round(totalLevel));
+            return tooltip;
         }
 
         private static Color ColorForPowerStatus(SettlementPowerStatus status)

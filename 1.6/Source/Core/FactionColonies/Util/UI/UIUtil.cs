@@ -167,6 +167,22 @@ namespace FactionColonies
             GUI.color = origColor;
         }
 
+        public static void ClampedLabel(Rect rect, string label)
+        {
+            string display = Text.ClampTextWithEllipsis(rect, label);
+            Widgets.Label(rect, label);
+        }
+        public static void LabelWithMargin(Rect rect, string label, float margin = 5f)
+        {
+            Rect labelRect = new Rect(rect.x + margin, rect.y, rect.width - (margin * 2), rect.height);
+            Widgets.Label(labelRect, label);
+        }
+        public static void ClampedLabelWithMargin(Rect rect, string label, float margin = 5f)
+        {
+            Rect labelRect = new Rect(rect.x + margin, rect.y, rect.width - (margin * 2), rect.height);
+            ClampedLabel(labelRect, label);
+        }
+
         public static int GetModifier => 1 * (Event.current.shift ? 5 : 1) * (Event.current.control ? 10 : 1);
 
         /// <summary>

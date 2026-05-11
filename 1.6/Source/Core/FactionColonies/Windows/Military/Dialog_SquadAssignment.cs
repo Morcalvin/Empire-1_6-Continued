@@ -17,6 +17,11 @@ namespace FactionColonies
     {
         public override Vector2 InitialSize => new Vector2(480f, 460f);
 
+        private const float TitleHeight = 30f;
+        private const float CostHeaderHeight = 22f;
+        private const float HeaderHeight = TitleHeight + CostHeaderHeight;
+        private const float RowHeight = 32f;
+
         private readonly MercenarySquadFC squad;
         private Vector2 scroll;
 
@@ -26,46 +31,96 @@ namespace FactionColonies
             doCloseX = true;
             forcePause = false;
             absorbInputAroundWindow = true;
+            draggable = true;
         }
 
         public override void DoWindowContents(Rect inRect)
         {
-            Text.Font = GameFont.Medium;
-            Widgets.Label(new Rect(0, 0, inRect.width, 30f),
-                "FCDialogSquadAssignmentHeader".Translate(squad?.DisplayName ?? "(?)"));
-            Text.Font = GameFont.Small;
+            int squadDeploy = squad?.DeploymentCost ?? 0;
 
-            float listTop = 36f;
+            Rect titleHighlightRect = new Rect(0, 0, inRect.width, TitleHeight);
+            Widgets.DrawHighlight(titleHighlightRect);
+
+            Text.Font = GameFont.Medium;
+            UIUtil.ClampedLabelWithMargin(titleHighlightRect, "FCDialogSquadAssignmentHeader".Translate(squad?.DisplayName ?? "(?)"));
+            Text.Font = GameFont.Small;
+            UIUtil.LabelWithMargin(new Rect(4f, TitleHeight, inRect.width, CostHeaderHeight),
+                "FCDialogSquadAssignmentCostHeader".Translate(squadDeploy));
+
+            float listTop = HeaderHeight + 6f;
             float btnH = 36f;
             float listH = inRect.height - listTop - btnH - 8f;
             Rect listRect = new Rect(0, listTop, inRect.width, listH);
 
-            DrawList(listRect);
+            DrawList(listRect, squadDeploy);
 
             float btnY = inRect.height - btnH;
             if (Widgets.ButtonText(new Rect(inRect.width - 160f, btnY, 150f, 32f), "Close".Translate()))
                 Close();
         }
 
-        private void DrawList(Rect rect)
+        /* Per-row state precomputed once so the sort key and the render path share one
+         * source of truth. atCap/allBusy/tooExpensive mirror the gates inside
+         * MilitaryCustomizationUtil.AttemptToAssign + SquadValueValidator, so the dialog
+         * and the actual validator never disagree. */
+        private class RowData
+        {
+            public WorldSettlementFC settlement;
+            public int stationed;
+            public int cap;
+            public bool isHere;
+            public bool atCap;
+            public bool allDisplaceableBusy;
+            public bool tooExpensive;
+            public int maxDeploy;
+            public bool Disabled => tooExpensive || (atCap && allDisplaceableBusy);
+        }
+
+        private void DrawList(Rect rect, int squadDeploy)
         {
             FactionFC fc = FactionCache.FactionComp;
             MilitaryCustomizationUtil util = fc?.militaryCustomizationUtil;
             if (fc is null || util is null) return;
 
-            float rowH = 32f;
-            int rowCount = (fc.settlements?.Count ?? 0) + 1; // +1 for unassign row
-            float viewH = rowCount * rowH;
-            Rect viewRect = new Rect(0, 0, rect.width - 16f, viewH);
-            Widgets.BeginScrollView(rect, ref scroll, viewRect);
+            List<RowData> rows = new List<RowData>();
+            if (fc.settlements is object)
+            {
+                foreach (WorldSettlementFC s in fc.settlements)
+                {
+                    if (s is null) continue;
+                    RowData r = new RowData
+                    {
+                        settlement = s,
+                        stationed = s.StationedSquads.Count,
+                        cap = s.SquadCap,
+                        isHere = squad?.settlement == s,
+                    };
+                    r.atCap = !r.isHere && r.stationed >= r.cap;
+                    r.allDisplaceableBusy = r.atCap && s.StationedSquads.All(q => q is null || q.IsBusy);
+                    r.tooExpensive = !r.isHere && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(
+                        squad, s, out _, out r.maxDeploy);
+                    if (r.isHere)
+                    {
+                        double budget = MilitaryCustomizationUtil.CalculateSquadBudget(s.settlementMilitaryLevel);
+                        r.maxDeploy = MilitaryUtil.CalculateDeploymentCost(budget);
+                    }
+                    rows.Add(r);
+                }
+                // Stable sort: disabled rows last, preserving original order within each bucket.
+                rows = rows.OrderBy(r => r.Disabled ? 1 : 0).ToList();
+            }
+
+            int rowCount = rows.Count + 1; // +1 for unassign row
+            float contentHeight = rowCount * RowHeight;
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scroll, contentHeight);
 
             int row = 0;
 
             // Unassign row
-            Rect unassignRect = new Rect(0, row * rowH, viewRect.width, rowH);
+            Rect unassignRect = new Rect(0, row * RowHeight, viewRect.width, RowHeight);
             if (row % 2 == 0) Widgets.DrawHighlight(unassignRect);
             Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(new Rect(unassignRect.x + 8f, unassignRect.y, unassignRect.width - 100f, rowH),
+            Widgets.Label(new Rect(unassignRect.x + 8f, unassignRect.y, unassignRect.width - 100f, RowHeight),
                 "FCDialogSquadAssignmentUnassign".Translate());
             Text.Anchor = TextAnchor.UpperLeft;
             if (Widgets.ButtonInvisible(unassignRect))
@@ -75,57 +130,67 @@ namespace FactionColonies
             }
             row++;
 
-            if (fc.settlements is object)
+            foreach (RowData r in rows)
             {
-                foreach (WorldSettlementFC s in fc.settlements)
+                Rect rowRect = new Rect(0, row * RowHeight, viewRect.width, RowHeight);
+                if (row % 2 == 0) Widgets.DrawHighlight(rowRect);
+
+                bool disabled = r.Disabled;
+                bool clickable = !disabled;
+
+                Color colorBefore = GUI.color;
+                if (disabled) GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                else if (r.atCap) GUI.color = new Color(0.9f, 0.85f, 0.6f); // swap-target tint
+                else if (r.isHere) GUI.color = new Color(0.6f, 0.9f, 0.6f);
+
+                // Far-right: stationed / cap. Middle: max deployment budget (Tiny). Left: name.
+                Rect countRect = new Rect(rowRect.xMax - 60f, rowRect.y, 50f, RowHeight);
+                Rect budgetRect = new Rect(countRect.x - 200f, rowRect.y, 200f, RowHeight);
+                Rect nameRect = new Rect(rowRect.x + 8f, rowRect.y, budgetRect.x - rowRect.x - 12f, RowHeight);
+
+                Text.Anchor = TextAnchor.MiddleLeft;
+                UIUtil.ClampedLabel(nameRect, r.settlement.Name ?? "?");
+
+                GameFont fontBefore = Text.Font;
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleRight;
+                Widgets.Label(budgetRect,
+                    "FCDialogSquadAssignmentBudgetLabel".Translate(r.maxDeploy));
+                Text.Font = fontBefore;
+
+                Text.Anchor = TextAnchor.MiddleRight;
+                Widgets.Label(countRect, r.stationed + " / " + r.cap);
+
+                Text.Anchor = TextAnchor.UpperLeft;
+                GUI.color = colorBefore;
+
+                if (disabled)
                 {
-                    if (s is null) continue;
-                    Rect rowRect = new Rect(0, row * rowH, viewRect.width, rowH);
-                    if (row % 2 == 0) Widgets.DrawHighlight(rowRect);
-
-                    int stationed = s.StationedSquads.Count;
-                    int cap = s.SquadCap;
-                    bool isHere = squad?.settlement == s;
-                    bool atCap = !isHere && stationed >= cap;
-                    // Atomic swap requires at least one non-busy occupant to displace; if every
-                    // squad at the target is busy we fall back to the legacy disabled state.
-                    bool allDisplaceableBusy = atCap && s.StationedSquads.All(q => q is null || q.IsBusy);
-                    bool clickable = !atCap || (atCap && !allDisplaceableBusy);
-
-                    Color colorBefore = GUI.color;
-                    if (atCap && allDisplaceableBusy) GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                    else if (atCap) GUI.color = new Color(0.9f, 0.85f, 0.6f); // swap-target tint
-                    else if (isHere) GUI.color = new Color(0.6f, 0.9f, 0.6f);
-
-                    Text.Anchor = TextAnchor.MiddleLeft;
-                    Widgets.Label(new Rect(rowRect.x + 8f, rowRect.y, rowRect.width - 100f, rowH),
-                        s.Name ?? "?");
-                    Text.Anchor = TextAnchor.MiddleRight;
-                    Widgets.Label(new Rect(rowRect.xMax - 90f, rowRect.y, 80f, rowH),
-                        stationed + " / " + cap);
-                    Text.Anchor = TextAnchor.UpperLeft;
-                    GUI.color = colorBefore;
-
-                    if (atCap && allDisplaceableBusy)
+                    if (r.tooExpensive)
+                    {
+                        TooltipHandler.TipRegion(rowRect,
+                            "FCDialogSquadAssignmentCostExceededTip".Translate(squadDeploy, r.maxDeploy));
+                    }
+                    else
                     {
                         TooltipHandler.TipRegion(rowRect, "FCDialogSquadAssignmentAllBusyTip".Translate());
                     }
-                    else if (clickable && Widgets.ButtonInvisible(rowRect))
-                    {
-                        if (atCap)
-                        {
-                            OpenDisplaceMenu(util, s);
-                        }
-                        else if (util.AttemptToAssign(squad, s))
-                        {
-                            Close();
-                        }
-                    }
-                    row++;
                 }
+                else if (clickable && Widgets.ButtonInvisible(rowRect))
+                {
+                    if (r.atCap)
+                    {
+                        OpenDisplaceMenu(util, r.settlement);
+                    }
+                    else if (util.AttemptToAssign(squad, r.settlement))
+                    {
+                        Close();
+                    }
+                }
+                row++;
             }
 
-            Widgets.EndScrollView();
+            ScrollUtil.EndScrollView();
         }
 
         /// <summary>Opens a sub-menu listing the target settlement's current squads and lets the
@@ -134,10 +199,6 @@ namespace FactionColonies
         private void OpenDisplaceMenu(MilitaryCustomizationUtil util, WorldSettlementFC target)
         {
             List<FloatMenuOption> opts = new List<FloatMenuOption>();
-            opts.Add(new FloatMenuOption(
-                "FCDialogSquadAssignmentDisplacePrompt".Translate(target.Name ?? "?"),
-                null, MenuOptionPriority.High));
-
             foreach (MercenarySquadFC occupant in target.StationedSquads)
             {
                 if (occupant is null) continue;

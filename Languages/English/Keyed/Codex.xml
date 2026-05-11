@@ -153,7 +153,5 @@
 	<FCCodexTipProfitBreakdown>Income: {0} silver\nUpkeep: {1} silver\nProfit: {2} silver\n\nIncome is the total silver value of all settlement production. Upkeep includes worker costs, building maintenance, and military expenses.</FCCodexTipProfitBreakdown>
 	<FCCodexTipTaxTimer>Tax collection every {0} days (configurable in settings).\n</FCCodexTipTaxTimer>
 	<FCCodexTipTaxAveraging>Tax income uses the AVERAGE of daily production snapshots across the tax period, not a single snapshot at collection time. Building or losing things mid-period affects the average proportionally.</FCCodexTipTaxAveraging>
-	<FCCodexTipMilTargeting>Raid targeting weight: {0}\n(lower military level = more likely targeted; scale: 1-10)</FCCodexTipMilTargeting>
-	<FCCodexTipMilETL>Current Empire Threat Level: {0}x</FCCodexTipMilETL>
 
 </LanguageData>
