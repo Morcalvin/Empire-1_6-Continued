@@ -20,6 +20,9 @@ namespace FactionColonies
         public static readonly Color MilCooldown = new Color(1.0f, 0.85f, 0.1f);
         public static readonly Color MilReady = new Color(0.2f, 0.85f, 0.3f);
         public static readonly Color MilInactive = new Color(0.65f, 0.65f, 0.65f);
+        // Bright amber — for squads whose DeploymentCost exceeds settlement budget. Red is
+        // reserved for under-attack so this needs to read as "attention" without "danger".
+        public static readonly Color MilUnderfunded = new Color(1.0f, 0.75f, 0.0f);
 
         // === Stat Thresholds ===
         public static readonly Color StatGood = new Color(0.2f, 0.85f, 0.3f);

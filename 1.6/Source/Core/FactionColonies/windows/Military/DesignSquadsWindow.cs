@@ -240,21 +240,28 @@ namespace FactionColonies
                 Find.WindowStack.Add(new FCWindow_Rename(selectedSquad.name, "FCRenameSquad", name => selectedSquad.name = name));
             }
 
-            // Cost line
+            // Cost line: design equipment cost on the left, recurring deploy cost on the right.
+            // Both anchor the player's mental model — upfront hire price vs the ongoing
+            // deploy fee shown everywhere else in the UI.
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Rect costRect = new Rect(rect.x, highlightBar.yMax + margin, rect.width, 20f);
+            float costY = highlightBar.yMax + margin;
 
-            if (settlementPointReference != null)
-            {
-                Widgets.Label(costRect, "FCTotalSquadEquipmentCost".Translate(
+            string equipLabel = settlementPointReference != null
+                ? (string)"FCTotalSquadEquipmentCost".Translate(
                     selectedSquad.GetEquipmentTotalCost(),
-                    MilitaryCustomizationUtil.CalculateSquadBudget(settlementPointReference.settlementMilitaryLevel)));
-            }
-            else
-            {
-                Widgets.Label(costRect, "FCTotalSquadEquipmentCostNoRef".Translate(selectedSquad.GetEquipmentTotalCost()));
-            }
+                    MilitaryCustomizationUtil.CalculateSquadBudget(settlementPointReference.settlementMilitaryLevel))
+                : (string)"FCTotalSquadEquipmentCostNoRef".Translate(selectedSquad.GetEquipmentTotalCost());
+
+            float equipWidth = Text.CalcSize(equipLabel).x;
+            Widgets.Label(new Rect(rect.x, costY, equipWidth, 20f), equipLabel);
+
+            int deployCost = MilitaryUtil.CalculateDeploymentCost(selectedSquad.GetEquipmentTotalCost());
+            const float gap = 20f;
+            float deployX = rect.x + equipWidth + gap;
+            Widgets.Label(
+                new Rect(deployX, costY, rect.width - (deployX - rect.x), 20f),
+                "FCSquadDesignDeployCost".Translate(deployCost));
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;

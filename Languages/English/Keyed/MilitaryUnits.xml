@@ -84,6 +84,7 @@
 	<FCDeleteSquadButton>Delete squad</FCDeleteSquadButton>
 	<FCTotalSquadEquipmentCost>Total Squad Equipment Cost: {0} / {1} (Max Cost)</FCTotalSquadEquipmentCost>
 	<FCTotalSquadEquipmentCostNoRef>Total Squad Equipment Cost: {0} / No Reference</FCTotalSquadEquipmentCostNoRef>
+	<FCSquadDesignDeployCost>Deployment Cost: ${0}</FCSquadDesignDeployCost>
 	<FCDeleteSquad>Delete Squad</FCDeleteSquad>
 	<FCSelectASquad>Select A Squad</FCSelectASquad>
 	<FCMilitaryLevelLabel> - Military Level : </FCMilitaryLevelLabel>

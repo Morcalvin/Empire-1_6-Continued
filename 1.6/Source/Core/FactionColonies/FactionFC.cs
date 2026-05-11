@@ -577,6 +577,7 @@ namespace FactionColonies
             /* Built-in stateless squad-assignment validators. */
             SquadAssignmentRegistry.Register(new SquadCapValidator());
             SquadAssignmentRegistry.Register(new SquadSizeValidator());
+            SquadAssignmentRegistry.Register(new SquadValueValidator());
 
             roadBuilder.FirstTick();
 
@@ -1682,6 +1683,7 @@ namespace FactionColonies
         void ILifecycleParticipant.OnSquadUpgraded(MercenarySquadFC squad)
         {
             if (squad is null) return;
+            MilitaryCustomizationUtil.NotifyIfUnderfunded(squad);
             ForEachBehavior(b => b.OnSquadUpgraded(this, squad));
         }
 

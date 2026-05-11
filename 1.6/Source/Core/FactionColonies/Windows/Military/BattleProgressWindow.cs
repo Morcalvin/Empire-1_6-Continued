@@ -86,7 +86,7 @@ namespace FactionColonies
 
             /* -*- Header (title + sub-phase + optional tick countdown) -*- */
             bool showTickBar = TryGetTickProgress(br, out float tickProgress, out int ticksRemaining);
-            float headerH = showTickBar ? 72f : 56f;
+            float headerH = showTickBar ? 80f : 56f;
             Rect headerRect = new Rect(inRect.x, inRect.y, inRect.width, headerH);
 
             Text.Font = GameFont.Medium;
@@ -104,11 +104,17 @@ namespace FactionColonies
             {
                 const float tickBarW = 240f;
                 const float tickBarH = 12f;
+                const float tickLabelH = 16f;
                 Rect tickBarRect = new Rect(
                     headerRect.x + (headerRect.width - tickBarW) / 2f,
                     headerRect.y + 54f,
                     tickBarW, tickBarH);
-                DrawTickProgressBar(tickBarRect, tickProgress, ticksRemaining);
+                Rect tickLabelRect = new Rect(
+                    headerRect.x,
+                    tickBarRect.yMax + 2f,
+                    headerRect.width,
+                    tickLabelH);
+                DrawTickProgressBar(tickBarRect, tickLabelRect, tickProgress, ticksRemaining);
             }
 
             /* -*- Two columns: attacker vs defender -*- */
@@ -171,16 +177,17 @@ namespace FactionColonies
             return true;
         }
 
-        private static void DrawTickProgressBar(Rect rect, float progress, int ticksRemaining)
+        private static void DrawTickProgressBar(Rect barRect, Rect labelRect, float progress, int ticksRemaining)
         {
             Color bg = new Color(0.15f, 0.15f, 0.15f);
             Color fill = new Color(0.35f, 0.65f, 0.75f);
-            UIUtil.DrawProgressBarColors(rect, progress, bg, fill);
+            UIUtil.DrawProgressBarColors(barRect, progress, bg, fill);
 
             int seconds = Mathf.CeilToInt(ticksRemaining / 60f);
-            Text.Font = GameFont.Small;
+            Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(rect, "FCBattleNextRoundIn".Translate(seconds));
+            Widgets.Label(labelRect, "FCBattleNextRoundIn".Translate(seconds));
+            Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
         }
 

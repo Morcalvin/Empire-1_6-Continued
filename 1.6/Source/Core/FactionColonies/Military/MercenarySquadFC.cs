@@ -133,13 +133,23 @@ namespace FactionColonies
         /// <summary>True when this squad is in any active op (offensive, defensive, deploy, or cooldown).</summary>
         public bool IsBusy => Operation is object;
 
+        /// <summary>True when the squad's <see cref="DeploymentCost"/> exceeds its assigned
+        /// settlement's max deploy cost. An underfunded squad stays assigned but can't take
+        /// part in military operations. Distinct from <see cref="IsBusy"/>: this is a structural
+        /// (cost) constraint, not a temporary deployment state.</summary>
+        public bool IsUnderfunded
+            => settlement is object
+               && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(this, settlement, out _, out _);
+
         /// <summary>True when this squad is currently assigned to a billet (settlement). False
         /// when the squad sits in the unassigned hire pool.</summary>
         public bool IsAssigned => settlement is object;
 
-        /// <summary>True when the squad is assigned, not in any active op, and past its
-        /// post-op cooldown. Canonical "can launch a new op" gate.</summary>
-        public bool IsAvailable => IsAssigned && !IsBusy && nextAvailableTick <= Find.TickManager.TicksGame;
+        /// <summary>True when the squad is assigned, not in any active op, not underfunded
+        /// at its settlement, and past its post-op cooldown. Canonical "can launch a new
+        /// op" gate.</summary>
+        public bool IsAvailable
+            => IsAssigned && !IsBusy && !IsUnderfunded && nextAvailableTick <= Find.TickManager.TicksGame;
 
         /* Injury counts. The per-pawn primitive is shared with squad-level aggregates so a
          * single change to the "what counts as injured" rule (e.g. excluding scratches) lands
@@ -232,8 +242,7 @@ namespace FactionColonies
         /// a <see cref="BillFC"/> created at deploy time, due after
         /// <c>FCSettings.deploymentBillLifespan_days</c> days. Surfaced in deploy UI so the
         /// player sees what they're committing to.</summary>
-        public int DeploymentCost =>
-            (int)Math.Round(GetCurrentLoadoutCost() * FCSettings.squadDeploymentCostPercentage);
+        public int DeploymentCost => MilitaryUtil.CalculateDeploymentCost(GetCurrentLoadoutCost());
 
         /* Race + xenotype identity tuple comparison. With Biotech off, race alone is
          * enough; with Biotech on, xenotype (or custom xenotype name) must match too.

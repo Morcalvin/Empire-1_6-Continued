@@ -1354,6 +1354,8 @@ namespace FactionColonies
 
                 // Top-right: Clickable location label
                 string locLabel = GetEventLocationLabel(evt);
+                bool hasLocRect = false;
+                Rect locRect = default(Rect);
                 if (locLabel != null)
                 {
                     fontBefore = Text.Font;
@@ -1361,7 +1363,8 @@ namespace FactionColonies
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleRight;
                     float locW = Mathf.Min(Text.CalcSize(locLabel).x + 8f, contentW * 0.4f);
-                    Rect locRect = new Rect(contentX + contentW - locW, topY, locW, lineH);
+                    locRect = new Rect(contentX + contentW - locW, topY, locW, lineH);
+                    hasLocRect = true;
                     origColor = GUI.color;
                     GUI.color = new Color(0.7f, 0.8f, 0.9f);
                     Widgets.Label(locRect, locLabel);
@@ -1426,6 +1429,20 @@ namespace FactionColonies
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
+                // Row-wide click for in-progress battle events: anywhere outside the location
+                // label opens the live battle window. The location label keeps its own
+                // "open settlement window" behavior.
+                if (evt.def == FCEventDefOf.autoResolveBattleRound
+                    && evt.linkedOperation is object
+                    && evt.linkedOperation.battleResult is object)
+                {
+                    bool overLoc = hasLocRect && Mouse.IsOver(locRect);
+                    if (!overLoc && Mouse.IsOver(rowRect))
+                        Widgets.DrawHighlight(rowRect);
+                    if (!overLoc && Widgets.ButtonInvisible(rowRect))
+                        Find.WindowStack.Add(new BattleProgressWindow(evt.linkedOperation));
+                }
+
                 // Row tooltip
                 string tooltip = GetEventFullTooltip(evt);
                 TooltipHandler.TipRegion(rowRect, tooltip);
@@ -1479,17 +1496,6 @@ namespace FactionColonies
 
         private void HandleLocationClick(FCEvent evt)
         {
-            // Auto-resolve battle round events open the live battle progress window instead of
-            // a settlement view. Lets the player click an in-progress battle on the events tab
-            // to watch it unfold.
-            if (evt.linkedOperation is object
-                && evt.def == FCEventDefOf.autoResolveBattleRound
-                && evt.linkedOperation.battleResult is object)
-            {
-                Find.WindowStack.Add(new BattleProgressWindow(evt.linkedOperation));
-                return;
-            }
-
             if (evt.hasDestination)
             {
                 Find.WindowStack.Add(new SettlementWindowFc(faction.ReturnSettlementByLocation(evt.location)));
@@ -1747,23 +1753,25 @@ namespace FactionColonies
                 if (Mouse.IsOver(nameRect))
                     Widgets.DrawHighlight(nameRect);
 
-                // Header-center-left: Atk/Def/Budget badge.
+                // Header-center-left: Def + max-deploy-cost badge.
                 // Power is squad-derived: strongest available stationed squad (white), or
                 // strongest stationed if all busy (yellow), or half-power ghost if empty
-                // billet (red). Grey when cap=0. Budget remains settlement-derived since
-                // it represents the loadout cost ceiling, not realized power.
+                // billet (red). Grey when cap=0. Max deploy cost is the settlement's
+                // squad-value budget scaled by the deploy-cost percentage, so it compares
+                // apples-to-apples with the Deploy Cost shown in deploy windows.
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                double budget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
+                double rawBudget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
+                int maxDeploy = MilitaryUtil.CalculateDeploymentCost(rawBudget);
                 FactionFC fcBadge = FactionCache.FactionComp;
                 (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
                 double defPower = Math.Round(
                     (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))
                     * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
                     * FCSettings.defenderAdvantage);
-                string badgeStr = "FCMilBadge".Translate(defPower, budget);
+                string badgeStr = "FCMilBadge".Translate(defPower, maxDeploy);
                 Color badgeColorBefore = GUI.color;
                 GUI.color = ColorForPowerStatus(powStatus);
                 Widgets.Label(new Rect(contentX + nameW, topY, badgeW, lineH), badgeStr);
@@ -1832,7 +1840,7 @@ namespace FactionColonies
                     : (string)"FCNone".Translate();
                 string tooltip = settlement.Name + "\n\n"
                     + "FCSettlementTableMilLevel".Translate() + ": " + settlement.settlementMilitaryLevel + "\n"
-                    + "FCMilitaryTableMilitaryBudget".Translate() + ": $" + budget + "\n"
+                    + "FCMilitaryTableMilitaryBudget".Translate() + ": $" + rawBudget + "\n"
                     + "FCMilitaryTableSquad".Translate() + ": " + squadName + "\n"
                     + "FCMilitaryTableAvailable".Translate() + ": " + (milComp.militaryBusy ? "FCNo".Translate() : "FCYes".Translate()) + "\n"
                     + "FCMilitaryTableUnderAttack".Translate() + ": " + (milComp.isUnderAttack ? "FCYes".Translate() : "FCNo".Translate());
@@ -1976,13 +1984,27 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleRight;
             Widgets.Label(slotLabel, "FCMilitaryTableSlotPrefix".Translate(slotIdx + 1));
 
-            // Squad name area
+            // Squad name area. Amber + tooltip when underfunded so the player understands
+            // why the deploy/op buttons are greyed. Red is reserved for under-attack state.
             string squadName = squad?.DisplayName ?? (string)"FCMilitaryTableSlotEmpty".Translate();
             float buttonAreaW = btnW * 4 + btnGap * 3;
             float nameAreaW = rect.xMax - slotLabel.xMax - buttonAreaW - 4f - powW - depCostW - (margin * 2);
             Rect squadNameLabel = new Rect(slotLabel.xMax + 5f, rect.y, nameAreaW, rect.height);
             Text.Anchor = TextAnchor.MiddleLeft;
+            int underSquadDeploy = 0;
+            int underMaxDeploy = 0;
+            bool slotUnderfunded = squad is object
+                && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(
+                    squad, settlement, out underSquadDeploy, out underMaxDeploy);
+            Color nameColorBefore = GUI.color;
+            if (slotUnderfunded) GUI.color = AccentUtil.MilUnderfunded;
             Widgets.Label(squadNameLabel, squadName);
+            GUI.color = nameColorBefore;
+            if (slotUnderfunded)
+            {
+                TooltipHandler.TipRegion(squadNameLabel,
+                    "FCMilSlotUnderfundedTip".Translate(settlement.Name, underSquadDeploy, underMaxDeploy));
+            }
 
             Text.Anchor = TextAnchor.MiddleCenter;
             Rect powerLabel = new Rect(squadNameLabel.xMax + margin, rect.y, powW, rect.height);
@@ -2028,7 +2050,9 @@ namespace FactionColonies
             bx += btnW + btnGap;
 
             // Deploy (per-squad) — offers walk-in + drop pod options for this slot's squad.
-            bool deployDisabled = squad is null || squad.IsBusy
+            // Gated on IsAvailable (not just IsBusy) so underfunded squads and cooling-down
+            // squads can't deploy. The squad-name tooltip explains the underfunded state.
+            bool deployDisabled = squad is null || !squad.IsAvailable
                 || (squad.outfit is null && (squad.mercenaries?.Any(m => m?.pawn != null) != true));
             Rect deployRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(deployRect, "FCDeploy".Translate(), disabled: deployDisabled, highlighted: isHighlighted))
@@ -2040,6 +2064,7 @@ namespace FactionColonies
             }
             string deployTip;
             if (slotBusy) deployTip = "FCSquadCannotModifyBusyTip".Translate();
+            else if (slotUnderfunded) deployTip = "FCMilSlotUnderfundedTip".Translate(settlement.Name, underSquadDeploy, underMaxDeploy);
             else if (squad is object && squad.DeploymentCost > 0) deployTip = "FCMilBtnDeployTipWithCost".Translate(squad.DeploymentCost, FCSettings.deploymentBillLifespan_days);
             else deployTip = "FCMilBtnDeployTip".Translate();
             TooltipHandler.TipRegion(deployRect, deployTip);

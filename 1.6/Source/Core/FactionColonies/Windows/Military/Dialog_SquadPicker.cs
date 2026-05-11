@@ -106,6 +106,11 @@ namespace FactionColonies
          * in this picker's context. */
         protected virtual MercenarySquadFC CurrentSquadIndicator => null;
 
+        /* When true, this row's label text renders in the underfunded amber instead of the
+         * default white / win-chance color. Used by the assign picker to flag squads whose
+         * deploy cost exceeds the destination settlement's max deploy cost. */
+        protected virtual bool RowOverBudget(RowData row) => false;
+
         public override void DoWindowContents(Rect inRect)
         {
             if (rowsDirty) RebuildRows();
@@ -274,7 +279,12 @@ namespace FactionColonies
             Color colorBefore = GUI.color;
 
             // Dim card content when squad is unavailable (busy / cooldown / unassigned).
-            Color baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
+            // Over-budget rows (squad deploy cost > settlement max) recolor labels amber to
+            // match the colony-tab underfunded indicator. Dimmed when unavailable.
+            bool overBudget = RowOverBudget(row);
+            Color baseTint;
+            if (overBudget) baseTint = row.available ? AccentUtil.MilUnderfunded : UIUtil.Dim(AccentUtil.MilUnderfunded);
+            else            baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
 
             /* Right-side column: status badge (top) + Inspect button (bottom), same width.
              * rightColW (180) is the unconditional bump so longer statuses like
@@ -371,7 +381,11 @@ namespace FactionColonies
              * already-assigned candidate without scanning every billet. */
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
+            // Over-budget rows use the amber underfunded tint for the name too, mirroring the
+            // colony-tab slot-row treatment. Otherwise the name follows win-chance color.
+            GUI.color = overBudget
+                ? baseTint
+                : (row.available ? winColor : UIUtil.Dim(winColor));
             bool boxVisible = ShowForceMetrics || ShowWinChance;
             float nameW = boxVisible ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (nameW < 0f) nameW = 0f;

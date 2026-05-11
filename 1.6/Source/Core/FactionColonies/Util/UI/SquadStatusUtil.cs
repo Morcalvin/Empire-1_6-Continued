@@ -39,7 +39,7 @@ namespace FactionColonies.util
             {
                 int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
                 string opLabel = op.kind?.label ?? "?";
-                label = "FCSquadStatusBusyOp".Translate(opLabel, FormatTicks(ticksLeft));
+                label = "FCSquadStatusBusyOp".Translate(opLabel, ticksLeft.ToTimeString());
                 color = AccentUtil.MilActiveMission;
                 return;
             }
@@ -49,7 +49,7 @@ namespace FactionColonies.util
             if (squad.nextAvailableTick > now)
             {
                 int ticksLeft = squad.nextAvailableTick - now;
-                label = "FCSquadStatusTraveling".Translate(FormatTicks(ticksLeft));
+                label = "FCSquadStatusTraveling".Translate(ticksLeft.ToTimeString());
                 color = AccentUtil.MilCooldown;
                 return;
             }
@@ -60,7 +60,7 @@ namespace FactionColonies.util
             int healTicks = SquadHealingEstimator.TicksToFullEffectiveness(squad);
             if (healTicks > 0)
             {
-                label = "FCSquadStatusHealing".Translate(FormatTicks(healTicks));
+                label = "FCSquadStatusHealing".Translate(healTicks.ToTimeString());
                 color = AccentUtil.MilCooldown;
                 return;
             }
@@ -76,19 +76,6 @@ namespace FactionColonies.util
             label = "FCSquadStatusReady".Translate();
             color = AccentUtil.MilReady;
             isReady = true;
-        }
-
-        /// <summary>Compact "Xh" / "X.Yd" timestamp string. Hours under 36, days otherwise.</summary>
-        public static string FormatTicks(int ticks)
-        {
-            if (ticks < GenDate.TicksPerHour) return "<1h";
-            if (ticks < GenDate.TicksPerHour * 36)
-            {
-                int hours = Mathf.Max(1, Mathf.RoundToInt(ticks / (float)GenDate.TicksPerHour));
-                return hours + "h";
-            }
-            float days = ticks / (float)GenDate.TicksPerDay;
-            return days.ToString("0.0") + "d";
         }
     }
 }

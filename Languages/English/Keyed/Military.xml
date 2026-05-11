@@ -88,8 +88,10 @@
 	<FCBattleArchiveCount>{0} reports</FCBattleArchiveCount>
 	<FCBattleArchiveColKind>Kind</FCBattleArchiveColKind>
 	<FCBattleArchiveColTarget>Opposing Faction</FCBattleArchiveColTarget>
+	<FCBattleArchiveColOurForce>Our Force</FCBattleArchiveColOurForce>
 	<FCBattleArchiveColDate>Date</FCBattleArchiveColDate>
 	<FCBattleArchiveColOutcome>Outcome</FCBattleArchiveColOutcome>
+	<FCBattleArchiveForceSuffix> (Force: {0})</FCBattleArchiveForceSuffix>
 	<FCBattleArchiveEmpty>No battles have been recorded yet.</FCBattleArchiveEmpty>
 	<FCBattleArchiveOutcomeVictory>Victory</FCBattleArchiveOutcomeVictory>
 	<FCBattleArchiveOutcomeOverwhelmingVictory>Overwhelming Victory</FCBattleArchiveOutcomeOverwhelmingVictory>
@@ -217,10 +219,10 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCMilBtnFireSupportTip>Call in artillery fire support</FCMilBtnFireSupportTip>
 	<FCMilBtnAutoDefendTip>Automatically send this settlement's forces to defend other settlements under attack</FCMilBtnAutoDefendTip>
 	<FCMilAutoDefendDisabled>This settlement's military level is too low to auto-defend. Upgrade the settlement to increase its military level.</FCMilAutoDefendDisabled>
-	<FCMilBadge>Def {0}  &#x2022;  Max Squad Value: ${1}</FCMilBadge>
+	<FCMilBadge>Def {0}  &#x2022;  Max Deploy Cost: ${1}</FCMilBadge>
 	<FCMilPowerTipSquad>Power from {0}</FCMilPowerTipSquad>
 	<FCMilPowerTipSquadShort>Power source: stationed squad</FCMilPowerTipSquadShort>
-	<FCMilPowerTipAllBusy>All stationed squads are currently busy. Power shown is potential when recalled.</FCMilPowerTipAllBusy>
+	<FCMilPowerTipAllBusy>None of the squads stationed at this settlement are available. Until one becomes available, this settlement will defend at half power.</FCMilPowerTipAllBusy>
 	<FCMilPowerTipGhost>Defending at half power due to not having an assigned squad.</FCMilPowerTipGhost>
 	<FCMilPowerTipNoMilitary>This settlement type has no military capacity.</FCMilPowerTipNoMilitary>
 	<FCMilPowerTipUnderAttack>This settlement is under attack.</FCMilPowerTipUnderAttack>
@@ -250,6 +252,9 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadUpgradeInsufficientSilver>You do not have enough silver ({0} required) to upgrade that squad.</FCSquadUpgradeInsufficientSilver>
 	<FCSquadCapReached>{0} is already at squad capacity ({1}/{2}).</FCSquadCapReached>
 	<FCSquadSizeExceeded>This squad has more mercenaries ({1}) than {0}'s allowed maximum squad size ({2}).</FCSquadSizeExceeded>
+	<FCSquadValueExceeded>{0}'s budget can't cover this squad. Deploy cost ${1} exceeds max deploy cost ${2}.</FCSquadValueExceeded>
+	<FCSquadUnderfunded>{0} is underfunded at {1}: deploy cost ${2} exceeds max deploy cost ${3}. It can't deploy until you downgrade it, dismiss expensive mercs, or upgrade {1}.</FCSquadUnderfunded>
+	<FCMilSlotUnderfundedTip>This squad is underfunded for {0}. Deploy cost ${1} exceeds the settlement's max deploy cost ${2}. It can't take part in military operations until the cost fits.</FCMilSlotUnderfundedTip>
 	<FCUnnamedSquad>Unnamed squad</FCUnnamedSquad>
 
 	<FCRenameSquad>Rename squad</FCRenameSquad>
@@ -309,6 +314,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSettlementMilHireAndAssign>Hire Squad &amp; Assign Here</FCSettlementMilHireAndAssign>
 
 	<FCAssignSquadPickerTitle>Assign squad to {0}</FCAssignSquadPickerTitle>
+	<FCAssignSquadPickerMaxDeploy>Max squad deploy cost: ${0}</FCAssignSquadPickerMaxDeploy>
 	<FCAssignSquadPickerCurrentSlot>Current slot occupant: {0}</FCAssignSquadPickerCurrentSlot>
 	<FCAssignSquadPickerSlotEmpty>Slot is empty</FCAssignSquadPickerSlotEmpty>
 	<FCAssignSquadPickerStationed>Stationed: {0} / {1}</FCAssignSquadPickerStationed>

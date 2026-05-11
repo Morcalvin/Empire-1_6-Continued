@@ -314,68 +314,60 @@ namespace FactionColonies
         }
 
         /// <summary>Settlement-wide military power for UI display. Reflects the strongest
-        /// available stationed squad's projected force (white). Yellow when squads exist
-        /// but all are busy (raid, cooldown, defense). Yellow half-power "ghost" when the
-        /// billet is empty but cap > 0 (still defends — see
-        /// <see cref="MilitaryForce.CreateMilitaryForceFromUnstaffedBillet"/>). Greyed out
-        /// when cap == 0 (structurally non-military). Red UnderAttack overrides everything
-        /// when the settlement is the target of an active defensive op.</summary>
+        /// available stationed squad's projected force (white). When stationed squads
+        /// exist but none are available (all busy in raid/cooldown/defense), returns the
+        /// half-power "ghost" values that battle resolution actually uses via
+        /// <see cref="MilitaryForce.CreateMilitaryForceFromUnstaffedBillet"/> — same
+        /// numbers as the empty-billet Ghost state, differentiated only by the status
+        /// (AllBusy vs Ghost) for color/tooltip purposes. Greyed out when cap == 0
+        /// (structurally non-military). Red UnderAttack overrides the AllBusy/Ghost
+        /// status (but not the numbers) when the settlement is the target of an active
+        /// defensive op.</summary>
         public (double level, double efficiency, SettlementPowerStatus status) GetDisplayedPower()
         {
             int cap = SquadCap;
             if (cap <= 0) return (0, 0, SettlementPowerStatus.NoMilitary);
 
-            // UnderAttack short-circuits the squad-derived state. We still report the
-            // strongest stationed squad's level/eff (or the ghost fallback) so the tooltip
-            // has something meaningful to show — only the *status* (and thus the color)
-            // changes.
             bool underAttack = MilitaryComp?.isUnderAttack ?? false;
 
             List<MercenarySquadFC> stationed = StationedSquads;
-            if (stationed.Count == 0)
-            {
-                // Empty cap-slot — half-power synthetic. Mirrors
-                // CreateMilitaryForceFromUnstaffedBillet's formula so display matches battle.
-                double ghostLevel = Math.Max(1, settlementMilitaryLevel) * 0.5;
-                double ghostEff = 1.0;
-                FactionFC fc = FactionCache.FactionComp;
-                if (fc is object) ghostEff = fc.GetStatValue(FCStatDefOf.militaryCombatEfficiency, this);
-                return (ghostLevel, ghostEff,
-                    underAttack ? SettlementPowerStatus.UnderAttack : SettlementPowerStatus.Ghost);
-            }
 
-            // Pick the strongest squad, preferring available ones. If none are available,
-            // we still report the strongest stationed squad's potential (yellow tint).
+            // Pick the strongest available stationed squad. When none are available
+            // (either no squads stationed, or all stationed squads busy), the settlement
+            // defends through the unstaffed-billet ghost path — that's what we display.
             MercenarySquadFC bestAvailable = null;
             double bestAvailableLevel = -1;
-            MercenarySquadFC bestStationed = null;
-            double bestStationedLevel = -1;
             for (int i = 0; i < stationed.Count; i++)
             {
                 MercenarySquadFC s = stationed[i];
-                if (s is null) continue;
+                if (s is null || !s.IsAvailable) continue;
                 double level = SquadPowerRegistry.Resolve(s).militaryLevel;
-                if (level > bestStationedLevel)
-                {
-                    bestStationed = s;
-                    bestStationedLevel = level;
-                }
-                if (s.IsAvailable && level > bestAvailableLevel)
+                if (level > bestAvailableLevel)
                 {
                     bestAvailable = s;
                     bestAvailableLevel = level;
                 }
             }
 
-            MercenarySquadFC pick = bestAvailable ?? bestStationed;
-            if (pick is null) return (0, 0, SettlementPowerStatus.NoMilitary);
+            if (bestAvailable is null)
+            {
+                // Mirrors CreateMilitaryForceFromUnstaffedBillet's formula so display
+                // matches battle. AllBusy (some squads stationed but busy) and Ghost
+                // (no squads stationed) share the same numbers; only the status differs.
+                double ghostLevel = Math.Max(1, settlementMilitaryLevel) * 0.5;
+                double ghostEff = 1.0;
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is object) ghostEff = fc.GetStatValue(FCStatDefOf.militaryCombatEfficiency, this);
+                SettlementPowerStatus emptyStatus;
+                if (underAttack) emptyStatus = SettlementPowerStatus.UnderAttack;
+                else if (stationed.Count == 0) emptyStatus = SettlementPowerStatus.Ghost;
+                else emptyStatus = SettlementPowerStatus.AllBusy;
+                return (ghostLevel, ghostEff, emptyStatus);
+            }
 
-            SquadPower power = SquadPowerRegistry.Resolve(pick);
-            SettlementPowerStatus status;
-            if (underAttack) status = SettlementPowerStatus.UnderAttack;
-            else if (bestAvailable is object) status = SettlementPowerStatus.Squad;
-            else status = SettlementPowerStatus.AllBusy;
-            return (power.militaryLevel, power.militaryEfficiency, status);
+            SquadPower power = SquadPowerRegistry.Resolve(bestAvailable);
+            return (power.militaryLevel, power.militaryEfficiency,
+                underAttack ? SettlementPowerStatus.UnderAttack : SettlementPowerStatus.Squad);
         }
 
         /// <summary>Maximum number of mercenaries a squad assigned here may have. Base 30 (matches

@@ -133,6 +133,36 @@ namespace FactionColonies
             return 1000 + (500.0 * militaryLevel) + (600.0 * militaryLevel * militaryLevel);
         }
 
+        /* Shared predicate for the assignment validator, the IsUnderfunded computed
+         * property, and the post-hire/post-upgrade notification hook. Compares in
+         * deploy-cost units (squad.DeploymentCost vs the settlement's budget scaled by
+         * the deploy-cost percentage) so the numbers match what the player sees in
+         * deploy windows and on the settlement badge. */
+        public static bool SquadExceedsSettlementBudget(MercenarySquadFC squad,
+            WorldSettlementFC settlement, out int squadDeploy, out int maxDeploy)
+        {
+            squadDeploy = squad.DeploymentCost;
+            double budget = CalculateSquadBudget(settlement.settlementMilitaryLevel);
+            maxDeploy = MilitaryUtil.CalculateDeploymentCost(budget);
+            return squadDeploy > maxDeploy;
+        }
+
+        /* Fires a non-disruptive toast when a hire or upgrade leaves a squad over its
+         * settlement's max deploy cost. Called from FactionFC's OnSquadUpgraded hook
+         * (which covers both UpgradeToTemplate and FillEmptySlots — the two paths that
+         * can raise GetCurrentLoadoutCost). No state tracking: if the upgrade kept an
+         * already-underfunded squad underfunded, we still toast — the player just took
+         * an action whose cost they should re-evaluate. */
+        public static void NotifyIfUnderfunded(MercenarySquadFC squad)
+        {
+            if (squad?.settlement is null) return;
+            if (!SquadExceedsSettlementBudget(squad, squad.settlement,
+                out int squadDeploy, out int maxDeploy)) return;
+            Messages.Message(
+                "FCSquadUnderfunded".Translate(squad.DisplayName, squad.settlement.Name, squadDeploy, maxDeploy),
+                MessageTypeDefOf.NegativeEvent, false);
+        }
+
         public static double CalculateFireSupportBudget(int militaryLevel)
         {
             return 500 + (500.0 * militaryLevel * militaryLevel);

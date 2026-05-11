@@ -13,6 +13,15 @@ namespace FactionColonies
 {
     public static class MilitaryUtil
     {
+        /* Silver deploy-cost for a given equipment value, applying the configured
+         * FCSettings.squadDeploymentCostPercentage. Single source of truth for the
+         * deploy-cost formula — used by the live squad deploy bill, the settlement
+         * max-deploy-cost badge, the design-window deploy preview, and the
+         * over-budget assignment rejection message. */
+        public static int CalculateDeploymentCost(double squadEquipmentCost)
+        {
+            return (int)Math.Round(squadEquipmentCost * FCSettings.squadDeploymentCostPercentage);
+        }
 
         /// <summary>
         /// Internal method used to spawn a <paramref name="settlement"/>'s squad for military deployment

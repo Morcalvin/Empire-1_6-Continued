@@ -256,7 +256,7 @@ namespace FactionColonies
             foreach (MercenarySquadFC squad in settlement.StationedSquads)
             {
                 if (squad is null) continue;
-                if (!squad.IsBusy) return squad;
+                if (squad.IsAvailable) return squad;
             }
             // Fall back to the first stationed squad even if busy (rare: caller manually swapped).
             List<MercenarySquadFC> stationed = settlement.StationedSquads;

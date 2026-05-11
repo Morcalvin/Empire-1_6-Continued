@@ -86,9 +86,12 @@ namespace FactionColonies
         }
 
         [EmpireTest("Registry")]
-        public static void LevelFromCost_AboveThreshold_GreaterThanOne()
+        public static void LevelFromCost_AboveOneBudgetPlateau_GreaterThanOne()
         {
-            TestAssert.GreaterThan(SquadPowerRegistry.LevelFromCost(2000), 1.0);
+            // The early-return at cost<=1000 is just a fast path; the L=1 floor in the math
+            // actually extends up to cost~2100 (the inverse formula yields L<1 there and
+            // Math.Max(1, ...) clamps it). Pick a cost well above the plateau.
+            TestAssert.GreaterThan(SquadPowerRegistry.LevelFromCost(5000), 1.0);
         }
 
         [EmpireTest("Registry")]

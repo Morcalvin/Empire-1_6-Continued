@@ -119,6 +119,7 @@ namespace FactionColonies
             {
                 "FCBattleArchiveColKind".Translate().ToString(),
                 "FCBattleArchiveColTarget".Translate().ToString(),
+                "FCBattleArchiveColOurForce".Translate().ToString(),
                 "FCBattleArchiveColDate".Translate().ToString(),
                 "FCBattleArchiveColOutcome".Translate().ToString()
             };
@@ -144,27 +145,53 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleLeft;
             Text.Font = GameFont.Small;
 
+            BattleViewerSide playerSide = ResolveStoredPlayerSide(report);
+            bool isDefense = report.kind == BattleOperationKind.Defense;
+
             // Kind
             Widgets.Label(new Rect(x, rect.y, colW[0], rect.height), KindLabel(report.kind));
             x += colW[0];
 
-            // Target — for offensive ops, the defender is the target; for defense, attacker is.
-            string target = (report.kind == BattleOperationKind.Defense)
+            // Opposing Faction — for offensive ops, the defender is the opponent; for defense,
+            // the attacker is. Appended with the opponent's initial force figure.
+            string oppName = isDefense
                 ? (report.attackerLabel ?? report.attackerFactionName ?? "?")
                 : (report.defenderLabel ?? report.defenderFactionName ?? "?");
-            Widgets.Label(new Rect(x, rect.y, colW[1], rect.height), target);
+            double oppForce = isDefense ? report.attackerInitialForce : report.defenderInitialForce;
+            string oppText = oppName + (string)"FCBattleArchiveForceSuffix".Translate(oppForce.ToString("F0"));
+            Rect oppRect = new Rect(x, rect.y, colW[1], rect.height);
+            Widgets.Label(oppRect, Text.ClampTextWithEllipsis(oppRect, oppText));
             x += colW[1];
+
+            // Our Force — squad name for offensive ops (attackerLabel is squad-first); the
+            // defending settlement for Defense (defenderLabel is settlement-first, which is
+            // what's actually at stake). NPC-vs-NPC archive rows get a dash.
+            string ourCell;
+            if (playerSide == BattleViewerSide.Neither)
+            {
+                ourCell = "—";
+            }
+            else
+            {
+                string ourName = isDefense
+                    ? (report.defenderLabel ?? report.defenderFactionName ?? "?")
+                    : (report.attackerLabel ?? report.attackerFactionName ?? "?");
+                double ourForce = isDefense ? report.defenderInitialForce : report.attackerInitialForce;
+                ourCell = ourName + (string)"FCBattleArchiveForceSuffix".Translate(ourForce.ToString("F0"));
+            }
+            Rect ourRect = new Rect(x, rect.y, colW[2], rect.height);
+            Widgets.Label(ourRect, Text.ClampTextWithEllipsis(ourRect, ourCell));
+            x += colW[2];
 
             // Date — format absolute tick into "Day N, Year Y" using GenDate at world-zero
             // longitude (no per-tile locale here; world-zero is fine for an archive list).
             string dateStr = GenDate.DateFullStringAt(
                 GenDate.TickGameToAbs(report.recordedTick), Vector2.zero);
-            Widgets.Label(new Rect(x, rect.y, colW[2], rect.height), dateStr);
-            x += colW[2];
+            Widgets.Label(new Rect(x, rect.y, colW[3], rect.height), dateStr);
+            x += colW[3];
 
             // Outcome — Victory if the player won, Defeat if they lost, dash if pure NPC vs NPC.
-            BattleViewerSide playerSide = ResolveStoredPlayerSide(report);
-            Widgets.Label(new Rect(x, rect.y, colW[3], rect.height), OutcomeLabel(report, playerSide));
+            Widgets.Label(new Rect(x, rect.y, colW[4], rect.height), OutcomeLabel(report, playerSide));
 
             if (Widgets.ButtonInvisible(rect))
             {
@@ -224,16 +251,17 @@ namespace FactionColonies
                 : (string)"FCBattleArchiveOutcomeVictory".Translate();
         }
 
-        /// <summary>Column widths: Kind 18%, Target 36%, Date 26%, Outcome 20%.</summary>
+        /// <summary>Column widths: Kind 16%, Opposing Faction 26%, Our Force 24%, Date 18%, Outcome 16%.</summary>
         private static float[] ComputeColumnWidths(float totalWidth)
         {
             float w = totalWidth - 8f;
             return new[]
             {
-                w * 0.18f,
-                w * 0.36f,
+                w * 0.16f,
                 w * 0.26f,
-                w * 0.20f
+                w * 0.24f,
+                w * 0.18f,
+                w * 0.16f
             };
         }
     }

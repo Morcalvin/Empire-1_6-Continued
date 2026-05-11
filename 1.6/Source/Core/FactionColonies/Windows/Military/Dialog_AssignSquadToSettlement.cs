@@ -19,6 +19,7 @@ namespace FactionColonies
     {
         private readonly WorldSettlementFC target;
         private readonly MercenarySquadFC currentSlotSquad;
+        private readonly int maxDeployCost;
         private bool unassignSelected;
 
         /* Travel and win-chance are unused for assignment — hide them. Pow/Eff stay visible so
@@ -34,6 +35,10 @@ namespace FactionColonies
         {
             this.target = target;
             this.currentSlotSquad = currentSlotSquad;
+            // Cache the destination's max deploy cost so the header and the over-budget tint
+            // share one value. Settlement military level doesn't change while the dialog is open.
+            double budget = MilitaryCustomizationUtil.CalculateSquadBudget(target?.settlementMilitaryLevel ?? 0);
+            maxDeployCost = MilitaryUtil.CalculateDeploymentCost(budget);
             // WinChance is the base default but it's pruned from the toolbar here, so seed sort
             // with a mode that's still visible. Power matches what most players will care about
             // when picking a squad to billet.
@@ -66,6 +71,10 @@ namespace FactionColonies
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
 
+            Widgets.Label(new Rect(innerX, y, innerW, lineH),
+                "FCAssignSquadPickerMaxDeploy".Translate(maxDeployCost));
+            y += lineH;
+
             string slotLine = currentSlotSquad is object
                 ? (string)"FCAssignSquadPickerCurrentSlot".Translate(currentSlotSquad.DisplayName)
                 : (string)"FCAssignSquadPickerSlotEmpty".Translate();
@@ -80,6 +89,11 @@ namespace FactionColonies
 
             return y;
         }
+
+        /* Flag squads whose deploy cost exceeds the destination settlement's max deploy cost
+         * so the base renderer paints their labels amber. Matches MainTabWindow_Colony's
+         * underfunded-slot treatment. */
+        protected override bool RowOverBudget(RowData row) => row.deploymentCost > maxDeployCost;
 
         protected override bool CanConfirm()
         {
