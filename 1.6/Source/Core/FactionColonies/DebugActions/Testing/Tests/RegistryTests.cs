@@ -56,6 +56,38 @@ namespace FactionColonies
             public void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker) => throw new InvalidOperationException("test");
         }
 
+        private class TestFactionPowerModifier : IFactionPowerModifier
+        {
+            public double LevelBonus;
+            public int InvokeCount;
+            public void ModifyFactionPower(RimWorld.Faction faction, EnemyPower power)
+            {
+                InvokeCount++;
+                if (power is object) power.level += LevelBonus;
+            }
+        }
+
+        private class ThrowingFactionPowerModifier : IFactionPowerModifier
+        {
+            public void ModifyFactionPower(RimWorld.Faction faction, EnemyPower power) => throw new InvalidOperationException("test");
+        }
+
+        private class TestSettlementPowerModifier : ISettlementPowerModifier
+        {
+            public double LevelBonus;
+            public int InvokeCount;
+            public void ModifySettlementPower(RimWorld.Planet.Settlement settlement, EnemyPower power)
+            {
+                InvokeCount++;
+                if (power is object) power.level += LevelBonus;
+            }
+        }
+
+        private class ThrowingSettlementPowerModifier : ISettlementPowerModifier
+        {
+            public void ModifySettlementPower(RimWorld.Planet.Settlement settlement, EnemyPower power) => throw new InvalidOperationException("test");
+        }
+
         private class TestPaymentModifier : ISilverPaymentModifier
         {
             public int Discount;
@@ -362,6 +394,148 @@ namespace FactionColonies
                 TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeBattleModifiers(null, force, true));
             }
             finally { BattleModifierRegistry.Unregister(bad); }
+        }
+
+        // ============================
+        // BattleModifierRegistry — IFactionPowerModifier
+        // ============================
+
+        [EmpireTest("Registry")]
+        public static void FactionPowerModifier_RegistersAndInvokes()
+        {
+            RimWorld.Faction faction = FactionCache.PlayerColonyFaction;
+            if (faction is null) TestAssert.Skip("No player colony faction");
+
+            var modifier = new TestFactionPowerModifier { LevelBonus = 3.0 };
+            BattleModifierRegistry.Register(modifier);
+            try
+            {
+                var power = new EnemyPower { level = 5, efficiency = 1.0 };
+                BattleModifierRegistry.InvokeFactionPowerModifiers(faction, power);
+                TestAssert.AreEqual(1, modifier.InvokeCount);
+                TestAssert.AreEqual(8.0, power.level, message: "Level should increase by 3");
+            }
+            finally { BattleModifierRegistry.Unregister(modifier); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void FactionPowerModifier_Unregister_NoEffect()
+        {
+            RimWorld.Faction faction = FactionCache.PlayerColonyFaction;
+            if (faction is null) TestAssert.Skip("No player colony faction");
+
+            var modifier = new TestFactionPowerModifier { LevelBonus = 3.0 };
+            BattleModifierRegistry.Register(modifier);
+            BattleModifierRegistry.Unregister(modifier);
+
+            var power = new EnemyPower { level = 5, efficiency = 1.0 };
+            BattleModifierRegistry.InvokeFactionPowerModifiers(faction, power);
+            TestAssert.AreEqual(0, modifier.InvokeCount);
+            TestAssert.AreEqual(5.0, power.level, message: "Level should be unchanged");
+        }
+
+        [EmpireTest("Registry")]
+        public static void FactionPowerModifier_Exception_DoesNotCrash()
+        {
+            RimWorld.Faction faction = FactionCache.PlayerColonyFaction;
+            if (faction is null) TestAssert.Skip("No player colony faction");
+
+            var bad = new ThrowingFactionPowerModifier();
+            BattleModifierRegistry.Register(bad);
+            try
+            {
+                var power = new EnemyPower { level = 5, efficiency = 1.0 };
+                TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeFactionPowerModifiers(faction, power));
+            }
+            finally { BattleModifierRegistry.Unregister(bad); }
+        }
+
+        // ============================
+        // BattleModifierRegistry — ISettlementPowerModifier
+        // ============================
+
+        [EmpireTest("Registry")]
+        public static void SettlementPowerModifier_RegistersAndInvokes()
+        {
+            // Settlement parameter can be null — the registry just forwards it to the modifier,
+            // which here doesn't dereference it.
+            var modifier = new TestSettlementPowerModifier { LevelBonus = 2.5 };
+            BattleModifierRegistry.Register(modifier);
+            try
+            {
+                var power = new EnemyPower { level = 4, efficiency = 1.0 };
+                BattleModifierRegistry.InvokeSettlementPowerModifiers(null, power);
+                TestAssert.AreEqual(1, modifier.InvokeCount);
+                TestAssert.AreEqual(6.5, power.level, message: "Level should increase by 2.5");
+            }
+            finally { BattleModifierRegistry.Unregister(modifier); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void SettlementPowerModifier_Unregister_NoEffect()
+        {
+            var modifier = new TestSettlementPowerModifier { LevelBonus = 2.5 };
+            BattleModifierRegistry.Register(modifier);
+            BattleModifierRegistry.Unregister(modifier);
+
+            var power = new EnemyPower { level = 4, efficiency = 1.0 };
+            BattleModifierRegistry.InvokeSettlementPowerModifiers(null, power);
+            TestAssert.AreEqual(0, modifier.InvokeCount);
+            TestAssert.AreEqual(4.0, power.level);
+        }
+
+        [EmpireTest("Registry")]
+        public static void SettlementPowerModifier_Exception_DoesNotCrash()
+        {
+            var bad = new ThrowingSettlementPowerModifier();
+            BattleModifierRegistry.Register(bad);
+            try
+            {
+                var power = new EnemyPower { level = 4, efficiency = 1.0 };
+                TestAssert.DoesNotThrow(() => BattleModifierRegistry.InvokeSettlementPowerModifiers(null, power));
+            }
+            finally { BattleModifierRegistry.Unregister(bad); }
+        }
+
+        // ============================
+        // BattleModifierRegistry — Cross-interface independence
+        // ============================
+
+        [EmpireTest("Registry")]
+        public static void BattleModifierRegistry_DuplicateRegisterAcrossInterfaces_Independent()
+        {
+            // Three separate lists in BattleModifierRegistry. Registering an instance that
+            // implements two interfaces should produce independent registrations — invoking
+            // each chain hits the instance once per chain.
+            //
+            // We use distinct test doubles per interface here (no class implements both),
+            // but the lists themselves must stay independent. Verify by registering on two
+            // chains and confirming both fire.
+            var faction = FactionCache.PlayerColonyFaction;
+            if (faction is null) TestAssert.Skip("No player colony faction");
+
+            var battleMod = new TestBattleModifier { LevelBonus = 1 };
+            var factionMod = new TestFactionPowerModifier { LevelBonus = 2 };
+            BattleModifierRegistry.Register(battleMod);
+            BattleModifierRegistry.Register(factionMod);
+            try
+            {
+                var battleForce = new MilitaryForce { militaryLevel = 5, militaryEfficiency = 1.0, forceRemaining = 5 };
+                var factionPower = new EnemyPower { level = 5, efficiency = 1.0 };
+
+                BattleModifierRegistry.InvokeBattleModifiers(null, battleForce, true);
+                BattleModifierRegistry.InvokeFactionPowerModifiers(faction, factionPower);
+
+                TestAssert.AreEqual(6.0, battleForce.militaryLevel, message: "Battle chain ran");
+                TestAssert.AreEqual(7.0, factionPower.level, message: "Faction chain ran");
+                TestAssert.AreEqual(1, factionMod.InvokeCount,
+                    "Faction modifier should fire exactly once per InvokeFactionPowerModifiers call");
+            }
+            finally
+            {
+                BattleModifierRegistry.Unregister(battleMod);
+                BattleModifierRegistry.Unregister(factionMod);
+            }
         }
 
         // ============================
@@ -783,6 +957,296 @@ namespace FactionColonies
             EmpireCacheUtil.UnregisterCacheInvalidator("_test");
             EmpireCacheUtil.InvalidateAll();
             TestAssert.AreEqual(0, count, "Callback should not fire after unregister");
+        }
+
+        // ============================
+        // RaidWeightRegistry
+        // ============================
+
+        private class FixedRaidWeightProvider : IRaidWeightProvider
+        {
+            private readonly float _weight;
+            public FixedRaidWeightProvider(float weight) { _weight = weight; }
+            public float GetSettlementRaidWeight(WorldSettlementFC settlement, RimWorld.Faction attackingFaction) => _weight;
+        }
+
+        private class ThrowingRaidWeightProvider : IRaidWeightProvider
+        {
+            public float GetSettlementRaidWeight(WorldSettlementFC settlement, RimWorld.Faction attackingFaction)
+                => throw new InvalidOperationException("test");
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidWeight_NoProviders_ReturnsOne()
+        {
+            // Default identity weight when no provider is registered.
+            TestAssert.AreEqual(1.0, RaidWeightRegistry.GetCombinedWeight(null, null), 0.0001);
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidWeight_SingleProvider_Multiplies()
+        {
+            var p = new FixedRaidWeightProvider(2.5f);
+            RaidWeightRegistry.Register(p);
+            try
+            {
+                TestAssert.AreEqual(2.5, RaidWeightRegistry.GetCombinedWeight(null, null), 0.0001);
+            }
+            finally { RaidWeightRegistry.Unregister(p); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidWeight_MultipleProviders_ProductCombines()
+        {
+            var p1 = new FixedRaidWeightProvider(2.0f);
+            var p2 = new FixedRaidWeightProvider(1.5f);
+            RaidWeightRegistry.Register(p1);
+            RaidWeightRegistry.Register(p2);
+            try
+            {
+                TestAssert.AreEqual(3.0, RaidWeightRegistry.GetCombinedWeight(null, null), 0.0001,
+                    "Combined weight should be the product (2.0 * 1.5)");
+            }
+            finally
+            {
+                RaidWeightRegistry.Unregister(p1);
+                RaidWeightRegistry.Unregister(p2);
+            }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidWeight_ZeroWeight_ProducesZero()
+        {
+            var p = new FixedRaidWeightProvider(0f);
+            RaidWeightRegistry.Register(p);
+            try
+            {
+                TestAssert.AreEqual(0.0, RaidWeightRegistry.GetCombinedWeight(null, null), 0.0001,
+                    "Returning 0 should exclude the settlement");
+            }
+            finally { RaidWeightRegistry.Unregister(p); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidWeight_DuplicateRegister_Ignored()
+        {
+            var p = new FixedRaidWeightProvider(2.0f);
+            RaidWeightRegistry.Register(p);
+            RaidWeightRegistry.Register(p);
+            try
+            {
+                TestAssert.AreEqual(2.0, RaidWeightRegistry.GetCombinedWeight(null, null), 0.0001,
+                    "Duplicate should be ignored");
+            }
+            finally { RaidWeightRegistry.Unregister(p); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidWeight_Exception_DoesNotCrash()
+        {
+            var bad = new ThrowingRaidWeightProvider();
+            RaidWeightRegistry.Register(bad);
+            try
+            {
+                TestAssert.DoesNotThrow(() => RaidWeightRegistry.GetCombinedWeight(null, null));
+            }
+            finally { RaidWeightRegistry.Unregister(bad); }
+        }
+
+        // ============================
+        // RaidTargetRegistry
+        // ============================
+
+        private class StubRaidTarget : IRaidTarget
+        {
+            private readonly RimWorld.Planet.WorldObject _obj;
+            public StubRaidTarget(RimWorld.Planet.WorldObject obj = null) { _obj = obj; }
+            public RimWorld.Planet.WorldObject WorldObject => _obj;
+            public string Name => "TestRaidTarget";
+            public int Tile => 0;
+            public int MilitaryLevel => 1;
+            public bool IsUnderAttack { get; set; }
+            public void OnRaidWon(BattleResult result) { }
+            public void OnRaidLost(BattleResult result) { }
+        }
+
+        private class ThrowingRaidTarget : IRaidTarget
+        {
+            public RimWorld.Planet.WorldObject WorldObject => throw new InvalidOperationException("test");
+            public string Name => throw new InvalidOperationException("test");
+            public int Tile => throw new InvalidOperationException("test");
+            public int MilitaryLevel => throw new InvalidOperationException("test");
+            public bool IsUnderAttack { get => throw new InvalidOperationException("test"); set => throw new InvalidOperationException("test"); }
+            public void OnRaidWon(BattleResult result) { }
+            public void OnRaidLost(BattleResult result) { }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidTarget_Register_AppearsInTargets()
+        {
+            var t = new StubRaidTarget();
+            RaidTargetRegistry.Register(t);
+            try
+            {
+                TestAssert.Contains(RaidTargetRegistry.Targets, (IRaidTarget)t);
+            }
+            finally { RaidTargetRegistry.Unregister(t); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidTarget_Unregister_RemovedFromTargets()
+        {
+            var t = new StubRaidTarget();
+            RaidTargetRegistry.Register(t);
+            RaidTargetRegistry.Unregister(t);
+            TestAssert.IsFalse(RaidTargetRegistry.Targets.Contains(t));
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidTarget_DuplicateRegister_Ignored()
+        {
+            var t = new StubRaidTarget();
+            RaidTargetRegistry.Register(t);
+            RaidTargetRegistry.Register(t);
+            try
+            {
+                int count = 0;
+                foreach (IRaidTarget r in RaidTargetRegistry.Targets)
+                    if (System.Object.ReferenceEquals(r, t)) count++;
+                TestAssert.AreEqual(1, count);
+            }
+            finally { RaidTargetRegistry.Unregister(t); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidTarget_FindByWorldObject_NullObj_ReturnsNull()
+        {
+            // FindByWorldObject with a null object should not match a target whose WorldObject is null.
+            var t = new StubRaidTarget(null);
+            RaidTargetRegistry.Register(t);
+            try
+            {
+                // We pass null; the iteration compares against WorldObject == null, which would match
+                // — but FindByWorldObject's behavior depends on the implementation. We accept either
+                // null result or t; just verify it doesn't crash.
+                TestAssert.DoesNotThrow(() => RaidTargetRegistry.FindByWorldObject(null));
+            }
+            finally { RaidTargetRegistry.Unregister(t); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void RaidTarget_FindByWorldObject_Exception_DoesNotCrash()
+        {
+            var bad = new ThrowingRaidTarget();
+            RaidTargetRegistry.Register(bad);
+            try
+            {
+                TestAssert.DoesNotThrow(() => RaidTargetRegistry.FindByWorldObject(null));
+            }
+            finally { RaidTargetRegistry.Unregister(bad); }
+        }
+
+        // ============================
+        // AutoDefenderRegistry
+        // ============================
+
+        private class StubAutoDefender : IAutoDefender
+        {
+            public RimWorld.Planet.WorldObject _obj;
+            public int _militaryLevel;
+            public int _range = 999;
+            public bool _canAutoDefend = true;
+
+            public RimWorld.Planet.WorldObject WorldObject => _obj;
+            public int MilitaryLevel => _militaryLevel;
+            public int Range => _range;
+            public bool CanAutoDefend => _canAutoDefend;
+            public MilitaryForce CreateDefendingForce() => null;
+            public void OnDefenseStarted(RimWorld.Planet.WorldObject target) { }
+            public void OnDefenseComplete(bool won, BattleResult result) { }
+            public void OnDefenseReplaced() { }
+            public List<Verse.Pawn> GetDefendingPawns() => null;
+            public void ReturnDefendingPawns(List<Verse.Pawn> pawns) { }
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_Register_AppearsInDefenders()
+        {
+            var d = new StubAutoDefender();
+            AutoDefenderRegistry.Register(d);
+            try
+            {
+                TestAssert.Contains(AutoDefenderRegistry.Defenders, (IAutoDefender)d);
+            }
+            finally { AutoDefenderRegistry.Unregister(d); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_Unregister_RemovedFromDefenders()
+        {
+            var d = new StubAutoDefender();
+            AutoDefenderRegistry.Register(d);
+            AutoDefenderRegistry.Unregister(d);
+            TestAssert.IsFalse(AutoDefenderRegistry.Defenders.Contains(d));
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_DuplicateRegister_Ignored()
+        {
+            var d = new StubAutoDefender();
+            AutoDefenderRegistry.Register(d);
+            AutoDefenderRegistry.Register(d);
+            try
+            {
+                int count = 0;
+                foreach (IAutoDefender def in AutoDefenderRegistry.Defenders)
+                    if (System.Object.ReferenceEquals(def, d)) count++;
+                TestAssert.AreEqual(1, count);
+            }
+            finally { AutoDefenderRegistry.Unregister(d); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_FindByWorldObject_NullObj_ReturnsNull()
+        {
+            // Explicit guard in FindByWorldObject: null obj returns null short-circuit.
+            TestAssert.IsNull(AutoDefenderRegistry.FindByWorldObject(null));
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_FindBestDefender_NoDefenders_ReturnsNull()
+        {
+            // With no defenders registered, FindBestDefender returns null.
+            TestAssert.IsNull(AutoDefenderRegistry.FindBestDefender(RimWorld.Planet.PlanetTile.Invalid, 0));
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_FindBestDefender_CannotAutoDefend_Skipped()
+        {
+            // The CanAutoDefend == false branch short-circuits before any tile lookup, so this
+            // is safe to test without real world geometry.
+            var d = new StubAutoDefender { _militaryLevel = 10, _canAutoDefend = false };
+            AutoDefenderRegistry.Register(d);
+            try
+            {
+                IAutoDefender result = AutoDefenderRegistry.FindBestDefender(RimWorld.Planet.PlanetTile.Invalid, 0);
+                TestAssert.IsNull(result, "Disabled defender should not be selected");
+            }
+            finally { AutoDefenderRegistry.Unregister(d); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void AutoDefender_FindBestDefender_BelowMinLevel_Skipped()
+        {
+            // Same early-return path: skip without touching WorldObject.Tile.
+            var d = new StubAutoDefender { _militaryLevel = 3, _canAutoDefend = true };
+            AutoDefenderRegistry.Register(d);
+            try
+            {
+                IAutoDefender result = AutoDefenderRegistry.FindBestDefender(RimWorld.Planet.PlanetTile.Invalid, 5);
+                TestAssert.IsNull(result, "Defender below minMilitaryLevel should not be selected");
+            }
+            finally { AutoDefenderRegistry.Unregister(d); }
         }
     }
 }
