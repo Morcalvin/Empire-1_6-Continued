@@ -166,7 +166,11 @@ namespace FactionColonies
             Widgets.DrawLineHorizontal(x, y, len);
             GUI.color = origColor;
         }
-
+        /// <summary>
+        /// Draws a label. If the string is too long for the given rect, then it is truncated with ellipsis (...).
+        /// </summary>
+        /// <param name="rect"></param>
+        /// <param name="label"></param>
         public static void ClampedLabel(Rect rect, string label)
         {
             string display = Text.ClampTextWithEllipsis(rect, label);
@@ -181,6 +185,16 @@ namespace FactionColonies
         {
             Rect labelRect = new Rect(rect.x + margin, rect.y, rect.width - (margin * 2), rect.height);
             ClampedLabel(labelRect, label);
+        }
+        public static void HighlightedLabel(Rect rect, string label)
+        {
+            Widgets.DrawHighlight(rect);
+            LabelWithMargin(rect, label);
+        }
+        public static void HighlightedClampedLabel(Rect rect, string label, float margin = 5f)
+        {
+            Widgets.DrawHighlight(rect);
+            ClampedLabelWithMargin(rect, label, margin);
         }
 
         public static int GetModifier => 1 * (Event.current.shift ? 5 : 1) * (Event.current.control ? 10 : 1);
