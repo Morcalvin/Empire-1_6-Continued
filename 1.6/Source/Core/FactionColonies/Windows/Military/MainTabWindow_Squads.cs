@@ -248,37 +248,18 @@ namespace FactionColonies
             GUI.color = colorBefore;
         }
 
-        /* Status string for one squad. Lifted out of the old DrawTable so the card draw
-           stays readable. */
+        /* Status + color for one squad. Both delegate to SquadStatusUtil so this tab and
+           the squad pickers stay in lockstep on label priority and time formatting. */
         private static string ComputeStatus(MercenarySquadFC squad, int now)
         {
-            if (!squad.IsAssigned) return "FCSquadStatusUnassigned".Translate();
-            MilitaryOperation op = squad.Operation;
-            if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
-            {
-                int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
-                string opLabel = op.kind?.label ?? "?";
-                return "FCSquadStatusBusyOp".Translate(opLabel,
-                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-            }
-            if (squad.nextAvailableTick > now)
-            {
-                int ticksLeft = squad.nextAvailableTick - now;
-                return "FCSquadStatusCooldown".Translate(
-                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-            }
-            return "FCSquadStatusReady".Translate();
+            SquadStatusUtil.Resolve(squad, out string label, out _, out _);
+            return label;
         }
 
-        /* Status label color: ready = green, cooldown/busy = yellow/orange, unassigned = grey. */
         private static Color ColorForStatus(MercenarySquadFC squad, int now)
         {
-            if (!squad.IsAssigned) return AccentUtil.MilInactive;
-            MilitaryOperation op = squad.Operation;
-            if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
-                return AccentUtil.MilActiveMission;
-            if (squad.nextAvailableTick > now) return AccentUtil.MilCooldown;
-            return AccentUtil.MilReady;
+            SquadStatusUtil.Resolve(squad, out _, out Color c, out _);
+            return c;
         }
     }
 }

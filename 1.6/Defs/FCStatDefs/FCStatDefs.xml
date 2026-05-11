@@ -70,13 +70,12 @@
     </FactionColonies.FCStatDef>
 
     <FactionColonies.FCStatDef>
-        <defName>deadPawnCooldownOffset</defName>
-        <label>dead pawn cooldown offset</label>
+        <defName>mercenaryDeathHappinessPenalty</defName>
+        <label>mercenary death happiness penalty</label>
         <aggregation>Additive</aggregation>
-        <appliesToSettlements>false</appliesToSettlements>
+        <appliesToSettlements>true</appliesToSettlements>
         <invertedForDisplay>true</invertedForDisplay>
-        <descriptionKey>FCTraitDesc_deadPawnCooldownOffset</descriptionKey>
-        <displayDivisor>2500</displayDivisor>
+        <descriptionKey>FCTraitDesc_mercenaryDeathHappinessPenalty</descriptionKey>
     </FactionColonies.FCStatDef>
 
     <FactionColonies.FCStatDef>

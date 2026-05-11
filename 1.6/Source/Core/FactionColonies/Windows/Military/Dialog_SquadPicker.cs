@@ -440,40 +440,13 @@ namespace FactionColonies
          * clear the parallel external-defender selection. */
         protected virtual void OnRowSelected(MercenarySquadFC squad) { selected = squad; }
 
-        /* Mirrors HireSquadsWindow.ComputeStatus / ColorForStatus — kept here so all pickers
-         * stay in lockstep. The isReady out lets callers layer additional ready-state badges
-         * (e.g. "n Injured") without re-deriving the state. */
+        /* Delegates to SquadStatusUtil so the picker, the squads tab, and the settlement card
+         * all derive their status from one place. <paramref name="now"/> kept for source-
+         * compatibility with overrides; the helper reads TicksGame internally. */
         protected static void ComputeStatus(MercenarySquadFC squad, int now,
             out string status, out Color color, out bool isReady)
         {
-            isReady = false;
-            if (!squad.IsAssigned)
-            {
-                status = "FCSquadStatusUnassigned".Translate();
-                color = AccentUtil.MilInactive;
-                return;
-            }
-            MilitaryOperation op = squad.Operation;
-            if (op is object && op.kind != MilitaryJobDefOf.Cooldown && op.phase != MilitaryOperationPhase.CooldownPending)
-            {
-                int ticksLeft = Math.Max(0, op.nextPhaseTick - now);
-                string opLabel = op.kind?.label ?? "?";
-                status = "FCSquadStatusBusyOp".Translate(opLabel,
-                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-                color = AccentUtil.MilActiveMission;
-                return;
-            }
-            if (squad.nextAvailableTick > now)
-            {
-                int ticksLeft = squad.nextAvailableTick - now;
-                status = "FCSquadStatusCooldown".Translate(
-                    (ticksLeft / (float)GenDate.TicksPerDay).ToString("0.0"));
-                color = AccentUtil.MilCooldown;
-                return;
-            }
-            status = "FCSquadStatusReady".Translate();
-            color = AccentUtil.MilReady;
-            isReady = true;
+            SquadStatusUtil.Resolve(squad, out status, out color, out isReady);
         }
 
         protected static string SortLabel(SortMode mode)

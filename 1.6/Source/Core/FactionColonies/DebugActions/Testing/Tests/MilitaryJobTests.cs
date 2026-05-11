@@ -98,39 +98,9 @@ namespace FactionColonies
                 "DefendFriendlySettlement should not occupy target");
         }
 
-        [EmpireTest("MilitaryJob")]
-        public static void CooldownStatDef_CorrectAssignment()
-        {
-            TestAssert.IsNotNull(MilitaryJobDefOf.RaidEnemySettlement.cooldownStatDef,
-                "Raid should have a cooldown stat def");
-            TestAssert.AreEqual((object)FCStatDefOf.raidCooldownOffset,
-                (object)MilitaryJobDefOf.RaidEnemySettlement.cooldownStatDef,
-                "Raid cooldown stat should be raidCooldownOffset");
-
-            TestAssert.IsNotNull(MilitaryJobDefOf.EnslaveEnemySettlement.cooldownStatDef,
-                "Enslave should have a cooldown stat def");
-            TestAssert.AreEqual((object)FCStatDefOf.raidCooldownOffset,
-                (object)MilitaryJobDefOf.EnslaveEnemySettlement.cooldownStatDef,
-                "Enslave cooldown stat should be raidCooldownOffset");
-
-            TestAssert.IsNull(MilitaryJobDefOf.CaptureEnemySettlement.cooldownStatDef,
-                "Capture should have no cooldown stat def");
-        }
-
-        [EmpireTest("MilitaryJob")]
-        public static void DeadPawnCooldown_OnlyDeploy()
-        {
-            TestAssert.IsTrue(MilitaryJobDefOf.Deploy.deadPawnCooldown,
-                "Deploy should have deadPawnCooldown=true");
-
-            // All others should be false
-            foreach (MilitaryJobDef def in DefDatabase<MilitaryJobDef>.AllDefsListForReading)
-            {
-                if (def == MilitaryJobDefOf.Deploy) continue;
-                TestAssert.IsFalse(def.deadPawnCooldown,
-                    $"{def.defName} should have deadPawnCooldown=false");
-            }
-        }
+        // (cooldownStatDef + deadPawnCooldown tests removed: those fields were dropped when the
+        // cooldown system collapsed to travel-only. Travel duration is now computed from
+        // TravelUtil.ReturnTicksToArrive in MilitaryOperation.ComputeCooldownTicks instead.)
 
         // ============================
         // Handler.IsValidTarget

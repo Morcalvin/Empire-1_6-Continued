@@ -20,7 +20,6 @@
         <label>deploy</label>
         <statusLabelKey>FCMilStatusDeployed</statusLabelKey>
         <occupiesTarget>false</occupiesTarget>
-        <deadPawnCooldown>true</deadPawnCooldown>
     </FactionColonies.MilitaryJobDef>
 
     <FactionColonies.MilitaryJobDef>
@@ -29,7 +28,6 @@
         <description>Storm the settlement, plunder what you can carry, and return home. The settlement is left intact.</description>
         <handlerClass>FactionColonies.MilitaryJobHandler_Raid</handlerClass>
         <statusLabelKey>FCMilStatusRaiding</statusLabelKey>
-        <cooldownStatDef>raidCooldownOffset</cooldownStatDef>
         <floatMenuLabelKey>FCRaidSettlement</floatMenuLabelKey>
         <floatMenuDescKey>FCRaidFloatMenuOption</floatMenuDescKey>
         <rewardsDesc>Random loot scaled to the enemy's tech level, with an occasional captured prisoner.</rewardsDesc>
@@ -41,7 +39,6 @@
         <description>Storm the settlement and take what you can, with an eye on the people instead of their goods</description>
         <handlerClass>FactionColonies.MilitaryJobHandler_Enslave</handlerClass>
         <statusLabelKey>FCMilStatusEnslaving</statusLabelKey>
-        <cooldownStatDef>raidCooldownOffset</cooldownStatDef>
         <floatMenuLabelKey>FCEnslavePopulation</floatMenuLabelKey>
         <floatMenuDescKey>FCEnslaveFloatMenuOption</floatMenuDescKey>
         <rewardsDesc>Several prisoners abducted from the settlement's population, delivered as slaves.</rewardsDesc>

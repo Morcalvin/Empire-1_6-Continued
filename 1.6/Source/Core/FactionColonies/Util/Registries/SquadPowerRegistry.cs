@@ -83,7 +83,10 @@ namespace FactionColonies
 
         private static SquadPower ComputeBasePower(MercenarySquadFC squad)
         {
-            double level = LevelFromCost(squad.GetCurrentLoadoutCost());
+            // Use effectiveness-weighted cost so squad combat power scales with pawn health
+            // (downed pawns count as empty slots; injured pawns contribute reduced shares).
+            // Cost displays (deployment / upgrade UI) still call GetCurrentLoadoutCost.
+            double level = LevelFromCost(squad.GetEffectiveLoadoutCost());
             double efficiency = 1.0;
             FactionFC faction = FactionCache.FactionComp;
             if (faction is object && squad.settlement is object)

@@ -652,14 +652,16 @@ namespace FactionColonies
             squad.UpdateSquadStats(op.defender.force.homeSettlement.settlementMilitaryLevel);
             squad.ResetNeeds();
 
+            // SpawnableMercenaryPawns filters downed mercs out of the reinforcement wave —
+            // they stay at base to recover from the previous engagement.
+            List<Pawn> reinforcements = squad.SpawnableMercenaryPawns.ToList();
+
             double efficiency = op.defender.force.militaryEfficiency;
-            foreach (Pawn merc in squad.AllEquippedMercenaryPawns)
+            foreach (Pawn merc in reinforcements)
             {
                 MilitaryEfficiencyUtil.ShiftPawnGearQuality(merc, efficiency);
                 MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(merc, efficiency);
             }
-
-            List<Pawn> reinforcements = squad.AllEquippedMercenaryPawns.ToList();
             Lord defenseLord = defenderPawns.FirstOrDefault()?.GetLord();
             var spawnedReinforcements = new List<Pawn>();
 
@@ -828,14 +830,17 @@ namespace FactionColonies
                     squad.UpdateSquadStats(homeSettlement.settlementMilitaryLevel);
                     squad.ResetNeeds();
 
+                    // SpawnableMercenaryPawns filters downed mercs out of the initial defender
+                    // wave — they stay at base instead of being dropped into a fight they can't
+                    // participate in.
+                    friendlies = squad.SpawnableMercenaryPawns.ToList();
+
                     double efficiency = force.militaryEfficiency;
-                    foreach (Pawn merc in squad.AllEquippedMercenaryPawns)
+                    foreach (Pawn merc in friendlies)
                     {
                         MilitaryEfficiencyUtil.ShiftPawnGearQuality(merc, efficiency);
                         MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(merc, efficiency);
                     }
-
-                    friendlies = squad.AllEquippedMercenaryPawns.ToList();
 
                     foreach (var animal in squad.animals)
                     {

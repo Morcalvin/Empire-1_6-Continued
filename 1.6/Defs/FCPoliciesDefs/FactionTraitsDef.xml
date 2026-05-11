@@ -32,7 +32,7 @@
 		</modExtensions>
 		<statModifiers>
 			<li><stat>militaryCombatEfficiency</stat><value>1.1</value></li>
-			<li><stat>deadPawnCooldownOffset</stat><value>-2000</value></li>
+			<li><stat>mercenaryDeathHappinessPenalty</stat><value>-0.5</value></li>
 			<li><stat>happinessLostBase</stat><value>0.5</value></li>
 		</statModifiers>
 		<enabledActions>
@@ -69,7 +69,7 @@
 			</li>
 		</modExtensions>
 		<statModifiers>
-			<li><stat>deadPawnCooldownOffset</stat><value>2000</value></li>
+			<li><stat>mercenaryDeathHappinessPenalty</stat><value>0.5</value></li>
 		</statModifiers>
 		<blockedActions>
 			<li>DeployMilitary</li>
@@ -105,7 +105,7 @@
 			</li>
 		</modExtensions>
 		<statModifiers>
-			<li><stat>deadPawnCooldownOffset</stat><value>-2000</value></li>
+			<li><stat>mercenaryDeathHappinessPenalty</stat><value>-0.5</value></li>
 		</statModifiers>
 		<enabledMilitaryJobs>
 			<li>EnslaveEnemySettlement</li>

@@ -81,10 +81,10 @@ namespace FactionColonies
         public static FCStatDef militaryEfficiencyBonusDefending;
         public static FCStatDef militaryCooldownOffset;
         public static FCStatDef raidCooldownOffset;
-        public static FCStatDef deadPawnCooldownOffset;
         public static FCStatDef mercHealRateMultiplier;
         public static FCStatDef mercenaryDeathChanceMultiplier;
         public static FCStatDef mercenaryCasualtyRateMultiplier;
+        public static FCStatDef mercenaryDeathHappinessPenalty;
         public static FCStatDef squadCapPerSettlement;
         public static FCStatDef maxSquadSize;
 

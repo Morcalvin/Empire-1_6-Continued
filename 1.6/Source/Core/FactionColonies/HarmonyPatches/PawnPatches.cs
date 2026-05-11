@@ -22,12 +22,12 @@ namespace FactionColonies
                     {
                         if (squad.settlement != null)
                         {
-                            if (FCSettings.deadPawnsIncreaseMilitaryCooldown)
-                            {
-                                squad.dead += 1;
-                            }
-
-                            squad.settlement.GainHappiness(-1d);
+                            const double basePenalty = 1.0;
+                            double offset = FactionCache.FactionComp?
+                                .GetStatValue(FCStatDefOf.mercenaryDeathHappinessPenalty, squad.settlement) ?? 0;
+                            double total = basePenalty + offset;
+                            if (total < 0) total = 0;
+                            squad.settlement.GainHappiness(-total);
                         }
 
                         // Fire death event so submods can react. Auto-replacement was removed by

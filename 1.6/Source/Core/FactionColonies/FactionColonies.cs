@@ -71,7 +71,6 @@ namespace FactionColonies
         public const bool DEFAULT_DISABLE_RANDOM_EVENTS = false;
         public const bool DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS = true;
         public const float DEFAULT_EVENT_OPTION_DELAY_SECONDS = 1.0f;
-        public const bool DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN = true;
         public const bool DEFAULT_USE_THREADED_ROAD_COMPUTATION = true;
         public const int DEFAULT_EDGES_PER_ROAD_TICK = 5;
         public const BattleMode DEFAULT_BATTLE_MODE = BattleMode.Auto;
@@ -110,7 +109,6 @@ namespace FactionColonies
         public static bool disableRandomEvents = DEFAULT_DISABLE_RANDOM_EVENTS;
         public static bool disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
         public static float eventOptionDelaySeconds = DEFAULT_EVENT_OPTION_DELAY_SECONDS;
-        public static bool deadPawnsIncreaseMilitaryCooldown = DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN;
         public static bool useThreadedRoadComputation = DEFAULT_USE_THREADED_ROAD_COMPUTATION;
         public static int edgesPerRoadTick = DEFAULT_EDGES_PER_ROAD_TICK;
         public static BattleMode battleMode = DEFAULT_BATTLE_MODE;
@@ -186,19 +184,25 @@ namespace FactionColonies
         public const float DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD = 0.75f;
         public const float DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION = 0.80f;
         public const bool DEFAULT_APPLY_AUTO_RESOLVE_INJURIES = true;
+        public const bool DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD = true;
         public static float autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
         public static float autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
         public static bool applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
 
+        /* When true, BattleCasualtyApplicator's injury path clamps cumulative Hediff_Injury
+         * severity below vanilla's lethal-damage threshold (150 * HealthScale) so the injury
+         * path can't accidentally tip a pawn over into a vanilla auto-kill. Disable when running
+         * mods (e.g. Death Rattle) that remove or relax vanilla's check and you want the abstract
+         * damage to flow through unmediated. */
+        public static bool respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
+
         /* Crushing Defeat consequences. A "Crushing Defeat" is any battle the empire loses
          * without inflicting a single casualty on the winning side — the mirror of
          * Overwhelming Victory. Settlement-defense penalties (prosperity / happiness /
-         * loyalty / building destruction) are multiplied by crushingDefeatPenaltyMultiplier
-         * and the post-battle cooldown is extended by crushingDefeatCooldownMultiplier. */
+         * loyalty / building destruction) are multiplied by crushingDefeatPenaltyMultiplier.
+         * (Cooldown multiplication was removed when cooldown shrank to travel-time-only.) */
         public const float DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER = 2.0f;
-        public const float DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER = 2.0f;
         public static float crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
-        public static float crushingDefeatCooldownMultiplier = DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER;
 
         /* Battle archive cap. The world-level archive (WorldComponent_Archive) keeps
          * the N most recent battle reports for the player to review via the military
@@ -267,7 +271,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref eventOptionDelaySeconds, "eventOptionDelaySeconds", DEFAULT_EVENT_OPTION_DELAY_SECONDS);
             Scribe_Values.Look(ref forcedTaxDeliveryMode, "forcedTaxDeliveryMode", DEFAULT_TAX_DELIVERY_MODE);
             Scribe_Values.Look(ref taxNotificationMode, "taxNotificationMode", DEFAULT_TAX_NOTIFICATION_MODE);
-            Scribe_Values.Look(ref deadPawnsIncreaseMilitaryCooldown, "deadPawnsIncreaseMilitaryCooldown", DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN);
             Scribe_Values.Look(ref useThreadedRoadComputation, "useThreadedRoadComputation", DEFAULT_USE_THREADED_ROAD_COMPUTATION);
             Scribe_Values.Look(ref edgesPerRoadTick, "edgesPerRoadTick", DEFAULT_EDGES_PER_ROAD_TICK);
             Scribe_Values.Look(ref battleMode, "battleMode", DEFAULT_BATTLE_MODE);
@@ -288,7 +291,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref autoResolveCasualtyMaxDeathFraction, "autoResolveCasualtyMaxDeathFraction", DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION);
             Scribe_Values.Look(ref applyAutoResolveInjuries, "applyAutoResolveInjuries", DEFAULT_APPLY_AUTO_RESOLVE_INJURIES);
             Scribe_Values.Look(ref crushingDefeatPenaltyMultiplier, "crushingDefeatPenaltyMultiplier", DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER);
-            Scribe_Values.Look(ref crushingDefeatCooldownMultiplier, "crushingDefeatCooldownMultiplier", DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER);
+            Scribe_Values.Look(ref respectLethalDamageThreshold, "respectLethalDamageThreshold", DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD);
             Scribe_Values.Look(ref battleArchiveMaxEntries, "battleArchiveMaxEntries", DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES);
             if (Scribe.mode == LoadSaveMode.LoadingVars
                 && (battleArchiveMaxEntries < MIN_BATTLE_ARCHIVE_MAX_ENTRIES
@@ -711,7 +714,6 @@ namespace FactionColonies
                 minDaysTillRandomEvent = DEFAULT_MIN_DAYS_TIL_RANDOM_EVENT;
                 maxDaysTillRandomEvent = DEFAULT_MAX_DAYS_TIL_RANDOM_EVENT;
                 disableRandomEvents = DEFAULT_DISABLE_RANDOM_EVENTS;
-                deadPawnsIncreaseMilitaryCooldown = DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN;
                 useThreadedRoadComputation = DEFAULT_USE_THREADED_ROAD_COMPUTATION;
                 edgesPerRoadTick = DEFAULT_EDGES_PER_ROAD_TICK;
                 battleMode = DEFAULT_BATTLE_MODE;
@@ -724,7 +726,7 @@ namespace FactionColonies
                 autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
                 applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
                 crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
-                crushingDefeatCooldownMultiplier = DEFAULT_CRUSHING_DEFEAT_COOLDOWN_MULTIPLIER;
+                respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
                 mercenaryHealRatePerHour = 1f;
                 squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
                 squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
@@ -852,7 +854,6 @@ namespace FactionColonies
             ls.Begin(listRect);
 
             ls.CheckboxLabeled("FCSettingDisableHostileMilActions".Translate(), ref disableHostileMilitaryActions);
-            ls.CheckboxLabeled("FCSettingDeadPawnsIncreaseMilCooldown".Translate(), ref deadPawnsIncreaseMilitaryCooldown);
             if (ls.ButtonText("FCSettingBattleMode".Translate() + battleMode)) Find.WindowStack.Add(new FloatMenu(BattleModeOptions));
 
             ls.Gap(10f);
@@ -895,8 +896,7 @@ namespace FactionColonies
             ls.Label("FCSettingCrushingDefeatPenaltyMultiplier".Translate() + ": " + crushingDefeatPenaltyMultiplier.ToString("0.00") + "x", -1f, "FCSettingCrushingDefeatPenaltyMultiplierTip".Translate());
             crushingDefeatPenaltyMultiplier = ls.Slider(crushingDefeatPenaltyMultiplier, 1.0f, 5.0f);
 
-            ls.Label("FCSettingCrushingDefeatCooldownMultiplier".Translate() + ": " + crushingDefeatCooldownMultiplier.ToString("0.00") + "x", -1f, "FCSettingCrushingDefeatCooldownMultiplierTip".Translate());
-            crushingDefeatCooldownMultiplier = ls.Slider(crushingDefeatCooldownMultiplier, 1.0f, 5.0f);
+            ls.CheckboxLabeled("FCSettingRespectLethalDamageThreshold".Translate(), ref respectLethalDamageThreshold, "FCSettingRespectLethalDamageThresholdTip".Translate());
 
             ls.Gap(12f);
             ls.GapLine();

@@ -49,7 +49,8 @@ namespace FactionColonies
                 raidStrategy = RaidStrategyDefOf.ImmediateAttackFriendly
             };
 
-            List<Pawn> equippedPawns = squad.AllEquippedMercenaryPawns.ToList();
+            // SpawnableMercenaryPawns filters downed pawns out — they stay at base to recover.
+            List<Pawn> equippedPawns = squad.SpawnableMercenaryPawns.ToList();
 
             if (DropPod)
             {

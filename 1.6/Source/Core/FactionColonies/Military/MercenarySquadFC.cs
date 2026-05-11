@@ -103,6 +103,12 @@ namespace FactionColonies
         public IEnumerable<Pawn> AllEquippedMercenaryPawns =>
             EquippedMercenaries.Select(merc => merc.pawn).Concat(EquippedAnimalMercenaries);
 
+        /// <summary>Equipped mercs and animals that are eligible to be spawned into a battle map,
+        /// excluding pawns that are currently downed.
+        /// Used by Deploy, defense initial spawn, and defense reinforcement.</summary>
+        public IEnumerable<Pawn> SpawnableMercenaryPawns =>
+            AllEquippedMercenaryPawns.Where(p => p is object && !p.Downed);
+
         public IEnumerable<Pawn> AllDeployedMercenaryPawns =>
             DeployedMercenaries.Select(merc => merc.pawn)
                 .Concat(DeployedMercenaryAnimals.Select(merc => merc.pawn));
@@ -193,6 +199,29 @@ namespace FactionColonies
                 MilUnitFC current = merc.EffectiveLoadout;
                 if (current is null) continue;
                 total += current.getTotalCost;
+            }
+            return total;
+        }
+
+        /// <summary>Loadout cost weighted by per-pawn combat effectiveness — a downed pawn
+        /// contributes 0 (effectively an empty slot for power-projection), an injured pawn
+        /// contributes a fraction (worst of consciousness/manipulation/moving), and a healthy
+        /// pawn contributes their full loadout value. Used by
+        /// <see cref="SquadPowerRegistry.ComputeBasePower"/> so squad combat power scales with
+        /// pawn health. Cost displays (deployment / upgrade / inspection) keep using
+        /// <see cref="GetCurrentLoadoutCost"/> — only the power projection cares about health.</summary>
+        public double GetEffectiveLoadoutCost()
+        {
+            double total = 0;
+            if (mercenaries is null) return total;
+            foreach (Mercenary merc in mercenaries)
+            {
+                if (merc is null || merc.IsEmptySlot) continue;
+                MilUnitFC current = merc.EffectiveLoadout;
+                if (current is null) continue;
+                double effectiveness = SquadEffectivenessUtil.PawnEffectiveness(merc.pawn);
+                if (effectiveness <= 0) continue;
+                total += current.getTotalCost * effectiveness;
             }
             return total;
         }

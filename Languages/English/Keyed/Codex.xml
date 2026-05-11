@@ -57,10 +57,9 @@
 
 	<!-- Military Cooldown Provider -->
 	<FCCodexCooldownParams>Current Cooldown Parameters</FCCodexCooldownParams>
-	<FCCodexCooldownBase>Base cooldown: {0} days</FCCodexCooldownBase>
-	<FCCodexCooldownDeadPawn>Dead pawn penalty: {0}</FCCodexCooldownDeadPawn>
-	<FCCodexCooldownDeadPawnCalc>Each death adds ~{0} hours to cooldown</FCCodexCooldownDeadPawnCalc>
-	<FCCodexCooldownExample>Example: {0} deaths → +{1} hours → total ~{2} days</FCCodexCooldownExample>
+	<FCCodexCooldownTravelDefense>Defense ops: 24 hours flat (squad re-organizes locally).</FCCodexCooldownTravelDefense>
+	<FCCodexCooldownTravelOffense>Offense ops: calculated travel time for the squad to return from the target tile to its home settlement.</FCCodexCooldownTravelOffense>
+	<FCCodexCooldownEffectivenessNote>Injured pawns reduce the squad's combat effectiveness until they heal; the squad inspection window shows the estimated healing time. Dead mercenaries leave their slot empty until the player fills it.</FCCodexCooldownEffectivenessNote>
 
 	<!-- Attack Frequency Provider -->
 	<FCCodexFreqParams>Current Attack Frequency Parameters</FCCodexFreqParams>

@@ -26,7 +26,6 @@ By default, this computation runs on a background thread to avoid freezing the g
 		
 Spreading out the computation will reduce the impact on performance, but no roads will build until the MST is fully constructed. So the more you throttle the algorithm, the longer it will take for your roads to start building.</FCSettingRoadBuilderDesc>
 	<FCSettingEnableAllEvents>Enable All Events</FCSettingEnableAllEvents>
-	<FCSettingDeadPawnsIncreaseMilCooldown>Dead Pawns Increase Military Cooldown</FCSettingDeadPawnsIncreaseMilCooldown>
 	<FCSettingForcedPausing>Disable Forced Pausing During Events</FCSettingForcedPausing>
 	<FCSettingEventOptionDelay>Event option misclick protection: {0}s</FCSettingEventOptionDelay>
 	<FCSettingBattleMode>Battle Mode: </FCSettingBattleMode>
@@ -59,13 +58,13 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingApplyAutoResolveInjuries>Apply injuries and deaths from auto-resolved battles</FCSettingApplyAutoResolveInjuries>
 	<FCSettingApplyAutoResolveInjuriesTip>When enabled, the abstract force losses from an auto-resolved battle are converted into real injuries (and potentially deaths) on the participating mercenary pawns. When disabled, auto-resolve never touches squad pawns.</FCSettingApplyAutoResolveInjuriesTip>
 	<FCSettingAutoResolveDeathThreshold>Auto-resolve death threshold</FCSettingAutoResolveDeathThreshold>
-	<FCSettingAutoResolveDeathThresholdTip>The squad casualty rate (lost force fraction) below which no mercenary dies — all casualties are injuries instead. At 75% (default) a squad that loses 75% of its force will start seeing deaths.</FCSettingAutoResolveDeathThresholdTip>
+	<FCSettingAutoResolveDeathThresholdTip>The squad casualty rate (lost force fraction) below which no mercenary dies; all casualties are injuries instead. At 75% (default) a squad that loses 75% of its force will start seeing deaths.</FCSettingAutoResolveDeathThresholdTip>
 	<FCSettingAutoResolveMaxDeathFraction>Auto-resolve max death fraction</FCSettingAutoResolveMaxDeathFraction>
-	<FCSettingAutoResolveMaxDeathFractionTip>The fraction of casualties that die at the worst possible outcome (100% casualty rate — a Crushing Defeat). At 80% (default), roughly 80% of the wiped squad dies and the rest survive gravely injured.</FCSettingAutoResolveMaxDeathFractionTip>
+	<FCSettingAutoResolveMaxDeathFractionTip>The fraction of casualties that die at the worst possible outcome (100% casualty rate). At 80% (default), roughly 80% of the wiped squad dies and the rest survive gravely injured.</FCSettingAutoResolveMaxDeathFractionTip>
 	<FCSettingCrushingDefeatPenaltyMultiplier>Crushing Defeat penalty multiplier</FCSettingCrushingDefeatPenaltyMultiplier>
-	<FCSettingCrushingDefeatPenaltyMultiplierTip>Multiplies the settlement-side penalties (prosperity, happiness, loyalty, building destruction chance) when a settlement is lost in a Crushing Defeat — a defense where your forces failed to inflict a single casualty.</FCSettingCrushingDefeatPenaltyMultiplierTip>
-	<FCSettingCrushingDefeatCooldownMultiplier>Crushing Defeat cooldown multiplier</FCSettingCrushingDefeatCooldownMultiplier>
-	<FCSettingCrushingDefeatCooldownMultiplierTip>Multiplies the post-battle military cooldown after a Crushing Defeat. A devastated squad needs longer to regroup before it can be deployed again.</FCSettingCrushingDefeatCooldownMultiplierTip>
+	<FCSettingCrushingDefeatPenaltyMultiplierTip>Multiplies the settlement-side penalties (prosperity, happiness, loyalty, building destruction chance) when a settlement is lost in a Crushing Defeat: a defense where your forces failed to inflict a single casualty.</FCSettingCrushingDefeatPenaltyMultiplierTip>
+	<FCSettingRespectLethalDamageThreshold>Respect vanilla lethal damage threshold</FCSettingRespectLethalDamageThreshold>
+	<FCSettingRespectLethalDamageThresholdTip>When enabled (default), auto-resolve injuries are capped so cumulative injury severity stays under vanilla's lethal-damage threshold and the injury path can't accidentally kill a pawn. Disable when running mods that remove or relax vanilla's check and you want abstract damage to flow through unmediated.</FCSettingRespectLethalDamageThresholdTip>
 
 	<!-- Squad-first economy sliders -->
 	<FCSettingSquadsHeader>Squads</FCSettingSquadsHeader>

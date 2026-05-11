@@ -453,8 +453,12 @@ namespace FactionColonies
 
         /// <summary>
         /// Move the op into <see cref="MilitaryOperationPhase.CooldownPending"/> and schedule a
-        /// <c>cooldownMilitary</c> FCEvent linked back to this op. Duration: 3-day base + per-job
-        /// stat offset + dead-pawn penalty (see <see cref="ComputeCooldownTicks"/>).
+        /// <c>cooldownMilitary</c> FCEvent linked back to this op. Cooldown duration is now the
+        /// abstract travel time for the squad to return to its home settlement: 24h flat for
+        /// defenses (squad re-organizes locally), or <see cref="TravelUtil.ReturnTicksToArrive"/>
+        /// from the target tile back to the home settlement for offensive ops. The long heal
+        /// cycle that used to be conflated with cooldown is now surfaced as a separate Healing
+        /// status driven by <see cref="SquadHealingEstimator"/>.
         /// </summary>
         public void EnterCooldown()
         {
@@ -469,25 +473,20 @@ namespace FactionColonies
 
             int cooldownTicks = ComputeCooldownTicks();
 
-            // Each participating squad gets its own cooldown gate via squad.nextAvailableTick.
+            // Each participating squad gets its own travel gate via squad.nextAvailableTick.
             // The FCEvent below drives the op's Resolve(); squad availability ("can launch a
             // new op?") reads from the squad directly, so multiple squads at one settlement
-            // hold independent per-squad cooldowns.
+            // hold independent per-squad travel timers.
             int wakeTick = Find.TickManager.TicksGame + cooldownTicks;
             // Mirror onto nextPhaseTick so the busy-status display (which reads
-            // op.nextPhaseTick) shows the cooldown countdown rather than 0.0 d.
+            // op.nextPhaseTick) shows the travel countdown rather than 0.0 d.
             nextPhaseTick = wakeTick;
             if (aggressor?.squad is object) aggressor.squad.nextAvailableTick = wakeTick;
             if (defender?.squad is object && defender.squad != aggressor?.squad)
                 defender.squad.nextAvailableTick = wakeTick;
 
-            // Reset the per-op death counter now that ComputeCooldownTicks has consumed it.
-            // Without this reset, squad.dead accumulates monotonically across ops, so every
-            // future cooldown is extended by the squad's lifetime death count rather than
-            // just the deaths from the most recent op.
-            if (aggressor?.squad is object) aggressor.squad.dead = 0;
-            if (defender?.squad is object && defender.squad != aggressor?.squad)
-                defender.squad.dead = 0;
+            // squad.dead is no longer consumed by the cooldown system but the field stays
+            // for save-compat and future analytics. Don't reset it here.
 
             // Cooldown event fires on the home settlement's tile (or target tile if there's no home
             // — e.g. external defender ops). Aggressor home preferred since that's where the squad
@@ -508,42 +507,29 @@ namespace FactionColonies
 
         private int ComputeCooldownTicks()
         {
-            FactionFC faction = FactionCache.FactionComp;
-            int cooldown = GenDate.TicksPerDay * 3;
-            if (faction is object)
-                cooldown += (int)faction.GetStatValue(FCStatDefOf.militaryCooldownOffset);
-            if (kind is object && kind.cooldownStatDef is object && faction is object)
-                cooldown += (int)faction.GetStatValue(kind.cooldownStatDef);
 
-            // Dead-pawn cooldown: only applies to offensive ops (defensive ops don't track
-            // squad deaths the same way; that work was on the comp's defense flow).
-            if (kind is object && kind.deadPawnCooldown && FCSettings.deadPawnsIncreaseMilitaryCooldown)
+            if (DebugSettings.godMode) return 1;
+
+            // Deploy ops have the same short 24hr timer as foreign defensive deployments.
+            if (kind == MilitaryJobDefOf.Deploy) return GenDate.TicksPerDay;
+
+            // Defensive engagement: when the squad defended its own home, there's no march
+            // back — the cooldown is zero and the squad goes straight to Ready / Healing.
+            // For foreign defenses (squad sent to defend an ally) we use 24h as an abstract
+            // march-home window without forcing a per-defense travel calc.
+            if (IsDefensive)
             {
-                int deaths = aggressor?.squad?.dead ?? 0;
-                if (deaths > 0)
-                {
-                    int deadMultiplier = 10000;
-                    if (faction is object)
-                        deadMultiplier += (int)faction.GetStatValue(FCStatDefOf.deadPawnCooldownOffset);
-                    cooldown += deaths * deadMultiplier;
-                }
-            }
-            // Crushing-defeat cooldown extension: a battle the empire lost without
-            // inflicting a single casualty leaves the squad shattered for longer than a
-            // typical loss. Applies symmetrically to offensive (failed raid) and defensive
-            // (settlement overrun) Crushing Defeats. Skipped on Error results.
-            if (result is object && result.winner != BattleWinner.Error
-                && result.IsCrushingDefeat
-                && ((IsOffensive && result.IsCrushingDefeatForAttacker)
-                    || (IsDefensive && result.IsCrushingDefeatForDefender)))
-            {
-                float mult = FCSettings.crushingDefeatCooldownMultiplier;
-                if (mult > 1f) cooldown = (int)Math.Round(cooldown * mult);
+                bool homeDefense = defender?.squad?.settlement is object
+                                && defender.squad.settlement == defender.homeSettlement;
+                return homeDefense ? 0 : GenDate.TicksPerDay;
             }
 
-            cooldown = Math.Max(cooldown, 0);
-            if (DebugSettings.godMode) cooldown = 1;
-            return cooldown;
+            // Offensive: actual computed return trip from the target tile back to the squad's home.
+            WorldSettlementFC home = aggressor?.homeSettlement;
+            if (home is null) return GenDate.TicksPerDay;
+            PlanetTile from = targetTile.Valid ? targetTile : home.Tile;
+            int travel = TravelUtil.ReturnTicksToArrive(from, home.Tile);
+            return Math.Max(0, travel);
         }
 
         /// <summary>

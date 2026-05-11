@@ -38,7 +38,7 @@
 
 	<FCTraitDesc_militaryLevelBonusDefending>{0} Military Level (Defending)</FCTraitDesc_militaryLevelBonusDefending>
 	<FCTraitDesc_militaryEfficiencyBonusAttacking>{0} Combat Efficiency (Attacking)</FCTraitDesc_militaryEfficiencyBonusAttacking>
-	<FCTraitDesc_deadPawnCooldownOffset>{0}h Dead Pawn Cooldown Per Death</FCTraitDesc_deadPawnCooldownOffset>
+	<FCTraitDesc_mercenaryDeathHappinessPenalty>{0} Happiness Penalty Per Mercenary Death</FCTraitDesc_mercenaryDeathHappinessPenalty>
 	<FCTraitDesc_mercHealRateMultiplier>{0} Mercenary Heal Rate</FCTraitDesc_mercHealRateMultiplier>
 	<FCTraitDesc_mercenaryDeathChanceMultiplier>{0} Mercenary Death Chance (Auto-Resolve)</FCTraitDesc_mercenaryDeathChanceMultiplier>
 	<FCTraitDesc_mercenaryCasualtyRateMultiplier>{0} Mercenary Casualty Rate (Auto-Resolve)</FCTraitDesc_mercenaryCasualtyRateMultiplier>

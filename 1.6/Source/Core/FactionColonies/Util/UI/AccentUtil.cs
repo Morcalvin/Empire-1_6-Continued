@@ -144,7 +144,9 @@ namespace FactionColonies
 
         private static string GetCooldownLabel(WorldSettlementFC settlement)
         {
-            string label = "FCMilStatusCooldown".Translate();
+            // The op-level cooldown is now the squad's travel-home window, not a long heal-out
+            // gate, so the label says "Traveling" to match the squad-level status pipeline.
+            string label = "FCMilStatusTraveling".Translate();
             if (settlement == null) return label;
 
             FCEvent cooldownEvent = FactionCache.FactionComp?.FindEventByDefAndLocation(FCEventDefOf.cooldownMilitary, settlement.Tile);
