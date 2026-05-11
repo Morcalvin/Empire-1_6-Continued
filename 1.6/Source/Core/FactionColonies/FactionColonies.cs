@@ -876,7 +876,7 @@ namespace FactionColonies
             ls.Label("FCSettingEfficiencyDamping".Translate() + ": " + efficiencyDamping.ToString("0.00"), -1f, "FCSettingEfficiencyDampingTooltip".Translate());
             efficiencyDamping = ls.Slider(efficiencyDamping, 0.0f, 1.0f);
 
-            ls.Label("FCSettingMercHealRate".Translate() + ": " + mercenaryHealRatePerHour.ToString("0.0") + " HP/hr", -1f, "FCSettingMercHealRateTip".Translate());
+            ls.Label("FCSettingMercHealRate".Translate() + ": " + mercenaryHealRatePerHour.ToString("0.00") + "x", -1f, "FCSettingMercHealRateTip".Translate());
             mercenaryHealRatePerHour = ls.Slider(mercenaryHealRatePerHour, 0.1f, 100f);
 
             ls.Gap(12f);

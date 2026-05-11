@@ -49,8 +49,8 @@ At 0, military efficiency affects only the effective level of both forces.
 At 1, military efficiency fully affects each round of auto combat. Military forces of lower level but higher efficiency can often beat forces of a higher level, but lower efficiency.
 
 Values in between dampen the effect of military efficiency on the auto combat.</FCSettingEfficiencyDampingTooltip>
-	<FCSettingMercHealRate>Mercenary Heal Rate</FCSettingMercHealRate>
-	<FCSettingMercHealRateTip>Approximate hit points per in-game hour an undeployed mercenary recovers from an untreated wound.</FCSettingMercHealRateTip>
+	<FCSettingMercHealRate>Mercenary Heal Rate Multiplier</FCSettingMercHealRate>
+	<FCSettingMercHealRateTip>Multiplier on the healing rate for off-map mercenaries. At 1.0 (default), an Empire merc heals at roughly the same per-day rate as a vanilla pawn in a basic bed being tended with industrial medicine by an unskilled doctor (~22 HP/day across wounds). Higher values heal faster; lower values heal slower.</FCSettingMercHealRateTip>
 	<FCEmpireMercHealRateStatExplanation>Empire mercenary at base recovering</FCEmpireMercHealRateStatExplanation>
 
 	<!-- Auto-resolve casualties + Crushing Defeat -->

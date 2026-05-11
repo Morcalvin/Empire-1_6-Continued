@@ -17,13 +17,16 @@ namespace FactionColonies
     /// all currently-alive injured pawns: the squad is "fully effective" when the slowest
     /// member finishes healing.</para>
     /// <para>Per-tick heal rate matches the vanilla <c>Pawn_HealthTracker.HealthTickInterval</c>
-    /// formula: <c>8 * HealthScale * 0.01 * InjuryHealingFactor</c> HP per call.
+    /// natural-heal formula: <c>8 * HealthScale * 0.01 * InjuryHealingFactor</c> HP per call.
     /// <see cref="MilitaryCustomizationUtil.TickMercenaryHealing"/> invokes that method once
     /// per in-game hour, so we divide the per-call heal by <see cref="GenDate.TicksPerHour"/>
     /// to get a per-tick rate. The <see cref="StatPart_EmpireMercHealRate"/> stat part is
     /// baked into the pawn's <see cref="StatDefOf.InjuryHealingFactor"/> for off-map registered
-    /// mercs, so this estimate automatically reflects the user's heal-rate slider and any
-    /// per-settlement <c>mercHealRateMultiplier</c> contribution.</para>
+    /// mercs, so this estimate automatically reflects the
+    /// user's heal-rate-multiplier slider and any per-settlement <c>mercHealRateMultiplier</c>
+    /// contribution. The estimate undercounts somewhat because it doesn't account for the
+    /// tended-healing branch firing on top, but that's a conservative bias the player can
+    /// live with (actual recovery will be at least this fast, often faster).</para>
     /// </summary>
     public static class SquadHealingEstimator
     {
