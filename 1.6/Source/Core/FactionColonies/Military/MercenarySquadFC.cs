@@ -198,7 +198,11 @@ namespace FactionColonies
         /// read from each merc's <see cref="Mercenary.EffectiveLoadout"/> (the source of truth
         /// for what's actually equipped, falling back to the blueprint when no equip snapshot
         /// exists yet). Pool-unit mutations after a hire/fill/upgrade are not reflected here
-        /// — only what was applied to the pawn.</summary>
+        /// — only what was applied to the pawn. Dead mercs are excluded from the total; they
+        /// remain in the squad roster (so future revival mechanics have something to hook
+        /// onto) but contribute nothing to the squad's displayed value or deployment cost
+        /// since they are not actually being deployed. Downed/injured but living mercs still
+        /// count at full cost; only <see cref="GetEffectiveLoadoutCost"/> scales by health.</summary>
         public double GetCurrentLoadoutCost()
         {
             double total = 0;
@@ -206,6 +210,7 @@ namespace FactionColonies
             foreach (Mercenary merc in mercenaries)
             {
                 if (merc is null || merc.IsEmptySlot) continue;
+                if (merc.pawn is object && merc.pawn.Dead) continue;
                 MilUnitFC current = merc.EffectiveLoadout;
                 if (current is null) continue;
                 total += current.getTotalCost;

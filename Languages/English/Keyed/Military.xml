@@ -46,7 +46,7 @@
 	<FCCaptureEnemySettlementFailure>{0}'s military forces has failed to capture {1}</FCCaptureEnemySettlementFailure>
 	<FCCaptureBlockedFallbackToRaid>{0}'s military forces overwhelmed {1}'s defenders, but were unable to permanently neutralize the settlement. The squad raided what supplies they could and is returning home.</FCCaptureBlockedFallbackToRaid>
 	<FCOverwhelmingVictory>Overwhelming Victory</FCOverwhelmingVictory>
-	<FCOverwhelmingVictoryDesc>Due to your military force's overwhelming victory, the military force is still available for deployment.</FCOverwhelmingVictoryDesc>
+	<FCOverwhelmingVictoryDesc>Your military force routed the enemy without taking a single casualty.</FCOverwhelmingVictoryDesc>
 	<FCCrushingDefeat>Crushing Defeat</FCCrushingDefeat>
 	<FCCrushingDefeatDesc>Your military force has been routed without inflicting a single casualty. The squad has suffered devastating losses and will require significant time to recover.</FCCrushingDefeatDesc>
 

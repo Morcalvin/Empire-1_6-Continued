@@ -78,12 +78,17 @@ namespace FactionColonies
         public bool AttackerVictory => winner == BattleWinner.Attacker;
         public bool DefenderVictory => winner == BattleWinner.Defender;
 
-        /* True when the winning side took zero casualties. */
+        /* True when the winning side took zero casualties. Suppressed when both sides
+         * started below force 3; at the lowest force levels, the zero-casualty condition
+         * is basically guaranteed (1v1 always ends 1-0 thanks to MilitaryForce's
+         * Math.Max(1, ...) floor), so without this gate OV/CD would fire on every
+         * micro-skirmish. As long as one side opens with 3+ force, OV/CD is eligible. */
         public bool IsOverwhelmingVictory =>
-            (winner == BattleWinner.Attacker && attackerInitialForce > 0
+            (Math.Max(attackerInitialForce, defenderInitialForce) >= 3.0) &&
+            ((winner == BattleWinner.Attacker && attackerInitialForce > 0
                 && attackerForceRemaining >= attackerInitialForce) ||
-            (winner == BattleWinner.Defender && defenderInitialForce > 0
-                && defenderForceRemaining >= defenderInitialForce);
+             (winner == BattleWinner.Defender && defenderInitialForce > 0
+                && defenderForceRemaining >= defenderInitialForce));
 
         /* Crushing Defeat is Overwhelming Victory viewed from the loser's side: the loser
          * inflicted zero casualties on the winner. Mathematically identical to

@@ -425,19 +425,15 @@ namespace FactionColonies
                 }
             }
 
-            // Overwhelming-victory shortcut: any battle the empire wins without taking a single
-            // casualty on the winning side resolves immediately (no cooldown). Applies uniformly
-            // to offensive raid/capture/enslave wins, self-defense, foreign-defender assists, and
-            // external IAutoDefender contributions. Deploy ops are excluded — squad presence on
-            // the player map isn't a discrete battle, so the shortcut isn't meaningful there.
+            // Overwhelming-victory letter: empire won the battle without taking a single
+            // casualty on the winning side. Deploy ops are excluded; squad presence on the
+            // player map isn't a discrete battle, so the OV/CD distinction isn't meaningful there.
             if (victory && kind != MilitaryJobDefOf.Deploy && battleResult.IsOverwhelmingVictory)
             {
                 Find.LetterStack.ReceiveLetter(
                     "FCOverwhelmingVictory".Translate(),
                     "FCOverwhelmingVictoryDesc".Translate(),
                     LetterDefOf.PositiveEvent);
-                Resolve();
-                return;
             }
 
             // Crushing-defeat letter: the loser-side mirror of overwhelming victory. The
