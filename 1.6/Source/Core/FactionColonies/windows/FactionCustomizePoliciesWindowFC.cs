@@ -278,9 +278,9 @@ namespace FactionColonies
             Widgets.DrawMenuSection(cardRect);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleCenter;
-            GUI.color = Color.gray;
-            Widgets.Label(cardRect, (slotIndex + 1) + ". " + "FCSelectANewTrait".Translate());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(cardRect,
+                (slotIndex + 1) + ". " + "FCSelectANewTrait".Translate(),
+                Color.gray);
         }
 
         private void DrawAvailablePolicies(Rect inRect)

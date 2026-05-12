@@ -780,11 +780,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, s.Name);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, s.Name, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect))
@@ -811,10 +808,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = profit >= 0 ? AccentUtil.Income : AccentUtil.Expense;
-                Widgets.Label(new Rect(contentX + contentW - profitDisplayW, topY, profitDisplayW, lineH), profitStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + contentW - profitDisplayW, topY, profitDisplayW, lineH),
+                    profitStr,
+                    profit >= 0 ? AccentUtil.Income : AccentUtil.Expense);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -841,11 +838,11 @@ namespace FactionColonies
                     anchorBefore = Text.Anchor;
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    origColor = GUI.color;
-                    GUI.color = Color.gray;
                     float labelW = 67f;
-                    Widgets.Label(new Rect(upgradeBadgeX, botY, labelW, lineH), "FCSettlementUpgradeInProgress".Translate());
-                    GUI.color = origColor;
+                    UIUtil.DrawColoredLabel(
+                        new Rect(upgradeBadgeX, botY, labelW, lineH),
+                        "FCSettlementUpgradeInProgress".Translate(),
+                        Color.gray);
                     Text.Font = fontBefore;
                     Text.Anchor = anchorBefore;
 
@@ -918,10 +915,7 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = color;
-            Widgets.Label(new Rect(x + iconSz + 2f, y, 28f, lineH), value);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(new Rect(x + iconSz + 2f, y, 28f, lineH), value, color);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
         }
@@ -946,13 +940,12 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
             string taxCountdown = "FCTimeTillTax".Translate() + ": "
                 + Math.Max(0, faction.taxTimeDue - Find.TickManager.TicksGame).ToTimeString();
-            Widgets.Label(new Rect(innerX, rect.y + pad, innerW * 0.6f, summaryH),
-                "FCPendingBillsCount".Translate(bills.Count) + "    |    " + taxCountdown);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, rect.y + pad, innerW * 0.6f, summaryH),
+                "FCPendingBillsCount".Translate(bills.Count) + "    |    " + taxCountdown,
+                Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -962,11 +955,8 @@ namespace FactionColonies
             anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleRight;
-            origColor = GUI.color;
-            GUI.color = Color.gray;
             Rect autoResolveRectLabel = new Rect(autoX, rect.y + pad, 150f, summaryH);
-            Widgets.Label(autoResolveRectLabel, "FCAutoResolve".Translate());
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(autoResolveRectLabel, "FCAutoResolve".Translate(), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
             bool prevAutoResolve = faction.autoResolveBills;
@@ -988,11 +978,8 @@ namespace FactionColonies
             anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleRight;
-            origColor = GUI.color;
-            GUI.color = Color.gray;
             Rect latePaymentRectLabel = new Rect(lateX, lateY, 150f, summaryH);
-            Widgets.Label(latePaymentRectLabel, "FCAllowLatePayments".Translate());
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(latePaymentRectLabel, "FCAllowLatePayments".Translate(), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
             bool prevAllowLate = faction.allowLatePayments;
@@ -1013,11 +1000,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
-                    "FCNoPendingBills".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
+                    "FCNoPendingBills".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1065,12 +1051,9 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 float nameW = contentW - resolveW - 160f;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, headerLabel);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, headerLabel, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect) && bill.settlement != null)
@@ -1086,10 +1069,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = bill.taxes.silverAmount >= 0 ? AccentUtil.Income : AccentUtil.Expense;
-                Widgets.Label(new Rect(silverX, topY, silverW, lineH), silverStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(silverX, topY, silverW, lineH),
+                    silverStr,
+                    bill.taxes.silverAmount >= 0 ? AccentUtil.Income : AccentUtil.Expense);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1133,10 +1116,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = dueColor;
-                Widgets.Label(new Rect(contentX + contentW - resolveW - 166f, botY, 160f, lineH), dueStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + contentW - resolveW - 166f, botY, 160f, lineH),
+                    dueStr,
+                    dueColor);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1254,14 +1237,14 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
             int filteredCount = filtering ? sorted.Count : events.Count;
             string summaryText = filtering
                 ? "FCActiveEventsFiltered".Translate(filteredCount, events.Count)
                 : "FCActiveEventsCount".Translate(events.Count);
-            Widgets.Label(new Rect(innerX, rect.y + pad, innerW, summaryH), summaryText);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, rect.y + pad, innerW, summaryH),
+                summaryText,
+                Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -1276,11 +1259,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
-                    "FCNoActiveEvents".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
+                    "FCNoActiveEvents".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1299,11 +1281,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, listY + viewH * 0.25f, rect.width, 40f),
-                    "FCNoEventsMatchFilter".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x, listY + viewH * 0.25f, rect.width, 40f),
+                    "FCNoEventsMatchFilter".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1337,10 +1318,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = catColor;
-                Widgets.Label(new Rect(contentX, topY, contentW - progressW - 10f, lineH), evt.Label);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX, topY, contentW - progressW - 10f, lineH),
+                    evt.Label,
+                    catColor);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1357,10 +1338,7 @@ namespace FactionColonies
                     float locW = Mathf.Min(Text.CalcSize(locLabel).x + 8f, contentW * 0.4f);
                     locRect = new Rect(contentX + contentW - locW, topY, locW, lineH);
                     hasLocRect = true;
-                    origColor = GUI.color;
-                    GUI.color = new Color(0.7f, 0.8f, 0.9f);
-                    Widgets.Label(locRect, locLabel);
-                    GUI.color = origColor;
+                    UIUtil.DrawColoredLabel(locRect, locLabel, new Color(0.7f, 0.8f, 0.9f));
                     if (Widgets.ButtonInvisible(locRect))
                         HandleLocationClick(evt);
                     if (Mouse.IsOver(locRect))
@@ -1644,16 +1622,16 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
             IReadOnlyList<IMilitaryTabEntry> externalEntries = MilitaryTabRegistry.Entries;
             int totalMilitaryCount = settlements.Count + externalEntries.Count;
 
             string countLabel = externalEntries.Count > 0
                 ? "FCMilitarySettlementCount".Translate(settlements.Count) + " + " + externalEntries.Count
                 : "FCMilitarySettlementCount".Translate(settlements.Count).ToString();
-            Widgets.Label(new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH), countLabel);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH),
+                countLabel,
+                Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -1664,11 +1642,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
-                    "FCNoMilitarySettlements".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
+                    "FCNoMilitarySettlements".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1732,11 +1709,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, settlement.Name);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, settlement.Name, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect))
@@ -1763,10 +1737,10 @@ namespace FactionColonies
                     * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
                     * FCSettings.defenderAdvantage);
                 string badgeStr = "FCMilBadge".Translate(defPower, maxDeploy);
-                Color badgeColorBefore = GUI.color;
-                GUI.color = ColorForPowerStatus(powStatus);
-                Widgets.Label(new Rect(contentX + nameW, topY, badgeW, lineH), badgeStr);
-                GUI.color = badgeColorBefore;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + nameW, topY, badgeW, lineH),
+                    badgeStr,
+                    ColorForPowerStatus(powStatus));
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 Rect badgeRect = new Rect(contentX + nameW, topY, badgeW, lineH);
@@ -1777,13 +1751,13 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                if (settlementCap == 0) GUI.color = Color.gray;
                 string counterStr = settlementCap == 0
                     ? (string)"FCMilitaryTableNoMilitary".Translate()
                     : (string)"FCMilitaryTableSquadsCounter".Translate(stationed.Count, settlementCap);
-                Widgets.Label(new Rect(contentX + nameW + badgeW, topY, counterW, lineH), counterStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + nameW + badgeW, topY, counterW, lineH),
+                    counterStr,
+                    settlementCap == 0 ? Color.gray : GUI.color);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1874,11 +1848,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, entry.Name);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, entry.Name, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect))
@@ -1902,10 +1873,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = accent;
-                Widgets.Label(new Rect(contentX + contentW - statusW, topY, statusW, lineH), entry.StatusLabel);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + contentW - statusW, topY, statusW, lineH),
+                    entry.StatusLabel,
+                    accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1987,10 +1958,8 @@ namespace FactionColonies
             bool slotUnderfunded = squad is object
                 && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(
                     squad, settlement, out underSquadDeploy, out underMaxDeploy);
-            Color nameColorBefore = GUI.color;
-            if (slotUnderfunded) GUI.color = AccentUtil.MilUnderfunded;
-            Widgets.Label(squadNameLabel, squadName);
-            GUI.color = nameColorBefore;
+            UIUtil.DrawColoredLabel(squadNameLabel, squadName,
+                slotUnderfunded ? AccentUtil.MilUnderfunded : GUI.color);
             if (slotUnderfunded)
             {
                 TooltipHandler.TipRegion(squadNameLabel,

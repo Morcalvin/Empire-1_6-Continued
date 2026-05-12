@@ -309,8 +309,7 @@ namespace FactionColonies
                 Color baseColor = player is object
                     ? player.Color
                     : new Color(0.30f, 0.55f, 0.75f);
-                Color dim = UIUtil.Dim(baseColor, 0.5f);
-                return new Color(dim.r, dim.g, dim.b, 0.55f);
+                return ColorUtil.Transform(baseColor, 0.5f, 0.55f);
             }
             return new Color(0.75f, 0.30f, 0.25f, 0.55f);
         }
@@ -323,7 +322,7 @@ namespace FactionColonies
         {
             if (faction is object)
             {
-                return UIUtil.Dim(faction.Color, 0.5f);
+                return ColorUtil.TransformRGB(faction.Color, 0.5f);
             }
             return isAttacker
                 ? new Color(0.75f, 0.30f, 0.25f, 0.35f)
@@ -355,7 +354,7 @@ namespace FactionColonies
             {
                 Text.Anchor = TextAnchor.MiddleCenter;
                 Text.Font = GameFont.Small;
-                UIUtil.DrawColoredLabel(inner, "FCBattleReportNoRoundDetail".Translate(), new Color(0.7f, 0.7f, 0.7f));
+                UIUtil.DrawColoredLabel(inner, "FCBattleReportNoRoundDetail".Translate(), ColorUtil.Gray7);
                 Text.Anchor = TextAnchor.UpperLeft;
                 return;
             }

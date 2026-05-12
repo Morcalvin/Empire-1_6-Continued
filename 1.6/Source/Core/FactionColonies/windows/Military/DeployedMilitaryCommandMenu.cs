@@ -294,9 +294,7 @@ namespace FactionColonies
 
                 // --- Faint separator between info and commands ---
                 curY += 4f;
-                GUI.color = new Color(1f, 1f, 1f, 0.3f);
-                Widgets.DrawLineHorizontal(rect.x + 8f, curY, contentWidth - 16f);
-                GUI.color = prevColor;
+                UIUtil.DrawColoredHorizontalLine(rect.x + 8f, curY, contentWidth - 16f, new Color(1f, 1f, 1f, 0.3f));
                 curY += 4f;
 
                 // --- Command buttons with icons ---

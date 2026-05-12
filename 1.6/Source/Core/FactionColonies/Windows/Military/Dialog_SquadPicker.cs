@@ -260,10 +260,7 @@ namespace FactionColonies
             }
             if (isCurrentCard)
             {
-                Color outlineBefore = GUI.color;
-                GUI.color = new Color(0.6f, 0.9f, 0.6f);
-                Widgets.DrawBox(cardRect, 2);
-                GUI.color = outlineBefore;
+                UIUtil.DrawColoredBox(cardRect, new Color(0.6f, 0.9f, 0.6f), 2);
             }
 
             // Accent strip — driven by win chance, not settlement military state.
@@ -280,8 +277,8 @@ namespace FactionColonies
             // match the colony-tab underfunded indicator. Dimmed when unavailable.
             bool overBudget = RowOverBudget(row);
             Color baseTint;
-            if (overBudget) baseTint = row.available ? AccentUtil.MilUnderfunded : UIUtil.Dim(AccentUtil.MilUnderfunded);
-            else            baseTint = row.available ? Color.white : new Color(0.7f, 0.7f, 0.7f);
+            if (overBudget) baseTint = row.available ? AccentUtil.MilUnderfunded : ColorUtil.TransformA(AccentUtil.MilUnderfunded, 0.7f);
+            else            baseTint = row.available ? Color.white : ColorUtil.Gray7;
 
             /* Right-side column: status badge (top) + Inspect button (bottom), same width.
              * rightColW (180) is the unconditional bump so longer statuses like
@@ -333,9 +330,8 @@ namespace FactionColonies
 
                     // Pow / Eff stacked vertically on the left half (or full width if no win chance).
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    GUI.color = baseTint;
-                    Widgets.Label(new Rect(boxX, boxRect.y,             powEffW, halfBoxH), powLbl);
-                    Widgets.Label(new Rect(boxX, boxRect.y + halfBoxH,  powEffW, halfBoxH), effLbl);
+                    UIUtil.DrawColoredLabel(new Rect(boxX, boxRect.y,            powEffW, halfBoxH), powLbl, baseTint);
+                    UIUtil.DrawColoredLabel(new Rect(boxX, boxRect.y + halfBoxH, powEffW, halfBoxH), effLbl, baseTint);
                 }
 
                 if (ShowWinChance)
@@ -361,12 +357,11 @@ namespace FactionColonies
                     Rect winRect = new Rect(winX, boxRect.y, winW, boxRect.height);
                     const float gradH = 28f;
                     Rect gradRect = new Rect(winRect.x - 10f, winRect.center.y - gradH * 0.5f, winRect.width + 20f, gradH);
-                    Color gradColor = UIUtil.Dim(winColor, 0.3f);
+                    Color gradColor = ColorUtil.TransformRGB(winColor, 0.3f);
                     TexLoad.DrawHorizontalPeakGradient(gradRect, gradColor);
 
-                    GUI.color = row.available ? winColor : UIUtil.Dim(winColor);
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(winRect, winLbl);
+                    UIUtil.DrawColoredLabel(winRect, winLbl, row.available ? winColor : ColorUtil.TransformA(winColor, 0.7f));
                 }
             }
 
@@ -378,14 +373,14 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleLeft;
             // Over-budget rows use the amber underfunded tint for the name too, mirroring the
             // colony-tab slot-row treatment. Otherwise the name follows win-chance color.
-            GUI.color = overBudget
+            Color nameColor = overBudget
                 ? baseTint
-                : (row.available ? winColor : UIUtil.Dim(winColor));
+                : (row.available ? winColor : ColorUtil.TransformA(winColor, 0.7f));
             bool boxVisible = ShowForceMetrics || ShowWinChance;
             float nameW = boxVisible ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (nameW < 0f) nameW = 0f;
             string nameLbl = squad.DisplayName;
-            Widgets.Label(new Rect(contentX, headerY, nameW, CardHeaderH), nameLbl);
+            UIUtil.DrawColoredLabel(new Rect(contentX, headerY, nameW, CardHeaderH), nameLbl, nameColor);
             if (isCurrentCard)
             {
                 // Append "(current)" right after the name, green-tinted, using the existing
@@ -404,7 +399,6 @@ namespace FactionColonies
              * is false, folding its space into Cost. */
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = baseTint;
 
             float labelsW = boxVisible ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (labelsW < 0f) labelsW = 0f;
@@ -419,17 +413,17 @@ namespace FactionColonies
             string costLbl = (string)"FCSquadColDeploymentCost".Translate() + ": $" + row.deploymentCost;
 
             float dx = contentX;
-            Widgets.Label(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl); dx += colSettlement;
+            UIUtil.DrawColoredLabel(new Rect(dx, detailY, colSettlement, CardDetailH), settlementLbl, baseTint); dx += colSettlement;
             if (ShowTravel)
             {
                 string travelLbl = "FCSquadColTravel".Translate() + ": "
                     + (squad.IsAssigned && row.travelTicks > 0
                         ? (row.travelTicks / (float)GenDate.TicksPerDay).ToString("0.0") + " d"
                         : "-");
-                Widgets.Label(new Rect(dx, detailY, colTravel, CardDetailH), travelLbl);
+                UIUtil.DrawColoredLabel(new Rect(dx, detailY, colTravel, CardDetailH), travelLbl, baseTint);
                 dx += colTravel;
             }
-            Widgets.Label(new Rect(dx, detailY, colCost, CardDetailH), costLbl);
+            UIUtil.DrawColoredLabel(new Rect(dx, detailY, colCost, CardDetailH), costLbl, baseTint);
 
             // Whole-card click → select. Drawn last so the Inspect button consumes its click first.
             if (Widgets.ButtonInvisible(cardRect))

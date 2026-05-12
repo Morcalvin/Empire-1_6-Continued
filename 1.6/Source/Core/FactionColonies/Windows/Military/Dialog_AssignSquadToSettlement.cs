@@ -234,19 +234,20 @@ namespace FactionColonies
 
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
-            Color colorBefore = GUI.color;
 
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = accent;
-            Widgets.Label(new Rect(contentX, cardRect.y, cardRect.width - contentX - 8f, CardHeaderH),
-                "FCSquadPickerUnassignSlot".Translate());
+            UIUtil.DrawColoredLabel(
+                new Rect(contentX, cardRect.y, cardRect.width - contentX - 8f, CardHeaderH),
+                "FCSquadPickerUnassignSlot".Translate(),
+                accent);
 
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            Widgets.Label(new Rect(contentX, cardRect.y + CardHeaderH, cardRect.width - contentX - 8f, CardDetailH),
-                "FCAssignSquadPickerCurrentSlot".Translate(currentSlotSquad.DisplayName));
+            UIUtil.DrawColoredLabel(
+                new Rect(contentX, cardRect.y + CardHeaderH, cardRect.width - contentX - 8f, CardDetailH),
+                "FCAssignSquadPickerCurrentSlot".Translate(currentSlotSquad.DisplayName),
+                ColorUtil.Gray7);
 
             if (Widgets.ButtonInvisible(cardRect))
             {
@@ -256,7 +257,6 @@ namespace FactionColonies
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
-            GUI.color = colorBefore;
         }
     }
 }

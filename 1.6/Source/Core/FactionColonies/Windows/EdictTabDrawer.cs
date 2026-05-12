@@ -320,10 +320,10 @@ namespace FactionColonies
 
             // Upkeep
             Rect upkeepRect = new Rect(textX, descRect.yMax, textWidth, 20f);
-            GUI.color = available ? new Color(1f, 0.85f, 0.4f) : Color.gray;
-            Widgets.Label(upkeepRect, "FCEdictUpkeep".Translate(def.upkeepSilver));
+            UIUtil.DrawColoredLabel(upkeepRect,
+                "FCEdictUpkeep".Translate(def.upkeepSilver),
+                available ? new Color(1f, 0.85f, 0.4f) : Color.gray);
 
-            GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
             // Draw radio button visual (not interactive)

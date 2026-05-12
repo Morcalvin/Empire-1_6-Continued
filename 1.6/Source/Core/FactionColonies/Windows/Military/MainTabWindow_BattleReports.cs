@@ -55,26 +55,24 @@ namespace FactionColonies
 
             // Count readout — small/grey, matches the rhythm of MainTabWindow_Squads /
             // DrawMilitarySettlementCards.
-            Color origColor = GUI.color;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = Color.gray;
-            Widgets.Label(new Rect(innerX, rect.y + Pad, innerW * 0.5f, SummaryH),
-                "FCBattleArchiveCount".Translate(count));
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, rect.y + Pad, innerW * 0.5f, SummaryH),
+                "FCBattleArchiveCount".Translate(count),
+                Color.gray);
 
             Rect tableRect = new Rect(rect.x, rect.y + SummaryH + 4f,
                 rect.width, rect.height - SummaryH - 4f);
 
             if (archive is null || count == 0)
             {
-                Color savedColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f,
-                    tableRect.width, 40f), "FCBattleArchiveEmpty".Translate());
+                UIUtil.DrawColoredLabel(
+                    new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
+                    "FCBattleArchiveEmpty".Translate(),
+                    Color.gray);
                 Text.Anchor = anchorBefore;
-                GUI.color = savedColor;
                 Text.Font = fontBefore;
                 return;
             }

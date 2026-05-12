@@ -176,11 +176,8 @@ namespace FactionColonies
             Rect botBox = new Rect(topBox.x, topBox.yMax, topBox.width, topBox.height);
             Rect botBoxInner = new Rect(botBox.x + margin, botBox.y + margin, botBox.width - (margin * 2), botBox.height - (margin * 2));
 
-            Color origColor = GUI.color;
-            GUI.color = accentColor;
-            Widgets.DrawBox(topBox);
-            Widgets.DrawBox(botBox);
-            GUI.color = origColor;
+            UIUtil.DrawColoredBox(topBox, accentColor);
+            UIUtil.DrawColoredBox(botBox, accentColor);
             DrawSettlementStats(topBoxInner);
             DrawMainButtons(botBoxInner);
         }
@@ -550,10 +547,7 @@ namespace FactionColonies
         }
         private void DrawTitheScrollBox(Rect boundingBox, ResourceFC res)
         {
-            Color origColor = GUI.color;
-            GUI.color = accentColor;
-            Widgets.DrawBox(boundingBox);
-            GUI.color = origColor;
+            UIUtil.DrawColoredBox(boundingBox, accentColor);
 
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;

@@ -347,32 +347,31 @@ namespace FactionColonies
             float contentX = cardRect.x + AccentW + 6f;
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
-            Color colorBefore = GUI.color;
 
             // Header row: name (left, win-color) + winLbl on the right
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = winColor;
             float headerY = cardRect.y;
-            Widgets.Label(new Rect(contentX, headerY, cardRect.width - contentX - 110f, CardHeaderH),
-                row.defender.WorldObject.LabelCap);
+            UIUtil.DrawColoredLabel(
+                new Rect(contentX, headerY, cardRect.width - contentX - 110f, CardHeaderH),
+                row.defender.WorldObject.LabelCap,
+                winColor);
 
             Text.Anchor = TextAnchor.MiddleRight;
             string winLbl = row.hasForce
                 ? (string)"FCSquadColWinChance".Translate() + ": " + Math.Round(row.winChance * 100) + "%"
                 : (string)"FCSquadColWinChance".Translate() + ": -";
-            Widgets.Label(new Rect(cardRect.xMax - 110f, headerY, 106f, CardHeaderH), winLbl);
+            UIUtil.DrawColoredLabel(new Rect(cardRect.xMax - 110f, headerY, 106f, CardHeaderH), winLbl, winColor);
 
             // Detail row: power | distance
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = Color.white;
             float detailY = cardRect.y + CardHeaderH;
             string powLbl = (string)"FCSquadColPower".Translate() + ": " + row.power.ToString("0.#");
             string distLbl = (string)"FCSquadColTravel".Translate() + ": "
                 + row.distance + " " + "FCDefenderPickerTiles".Translate();
-            Widgets.Label(new Rect(contentX, detailY, 200f, CardDetailH), powLbl);
-            Widgets.Label(new Rect(contentX + 210f, detailY, 240f, CardDetailH), distLbl);
+            UIUtil.DrawColoredLabel(new Rect(contentX, detailY, 200f, CardDetailH), powLbl, Color.white);
+            UIUtil.DrawColoredLabel(new Rect(contentX + 210f, detailY, 240f, CardDetailH), distLbl, Color.white);
 
             if (Widgets.ButtonInvisible(cardRect))
             {
@@ -382,7 +381,6 @@ namespace FactionColonies
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
-            GUI.color = colorBefore;
         }
     }
 }

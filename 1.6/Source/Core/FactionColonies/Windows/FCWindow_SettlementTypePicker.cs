@@ -73,10 +73,11 @@ namespace FactionColonies
                 // Separator line
                 if (i < allTypes.Count - 1)
                 {
-                    GUI.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
-                    Widgets.DrawLineHorizontal(SettlementCardDrawer.AccentBarWidth + SettlementCardDrawer.margin, curY,
-                        contentWidth - SettlementCardDrawer.AccentBarWidth - SettlementCardDrawer.margin * 2);
-                    GUI.color = Color.white;
+                    UIUtil.DrawColoredHorizontalLine(
+                        SettlementCardDrawer.AccentBarWidth + SettlementCardDrawer.margin,
+                        curY,
+                        contentWidth - SettlementCardDrawer.AccentBarWidth - SettlementCardDrawer.margin * 2,
+                        new Color(0.3f, 0.3f, 0.3f, 0.5f));
                     curY += SeparatorHeight;
                 }
             }
@@ -138,10 +139,11 @@ namespace FactionColonies
 
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.UpperLeft;
-                GUI.color = new Color(0.8f, 0.2f, 0.2f);
                 float reasonHeight = Text.CalcHeight(lockedReason, contentWidth);
-                Widgets.Label(new Rect(xOffset, reasonY, contentWidth, reasonHeight), lockedReason);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(
+                    new Rect(xOffset, reasonY, contentWidth, reasonHeight),
+                    lockedReason,
+                    new Color(0.8f, 0.2f, 0.2f));
             }
 
             // Click handling
