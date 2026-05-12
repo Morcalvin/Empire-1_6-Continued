@@ -63,6 +63,8 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingAutoResolveMaxDeathFractionTip>The fraction of casualties that die at the worst possible outcome (100% casualty rate). At 80% (default), roughly 80% of the wiped squad dies and the rest survive gravely injured.</FCSettingAutoResolveMaxDeathFractionTip>
 	<FCSettingCrushingDefeatPenaltyMultiplier>Crushing Defeat penalty multiplier</FCSettingCrushingDefeatPenaltyMultiplier>
 	<FCSettingCrushingDefeatPenaltyMultiplierTip>Multiplies the settlement-side penalties (prosperity, happiness, loyalty, building destruction chance) when a settlement is lost in a Crushing Defeat: a defense where your forces failed to inflict a single casualty.</FCSettingCrushingDefeatPenaltyMultiplierTip>
+	<FCSettingOverwhelmingVictoryRewardMultiplier>Overwhelming Victory reward multiplier</FCSettingOverwhelmingVictoryRewardMultiplier>
+	<FCSettingOverwhelmingVictoryRewardMultiplierTip>Multiplies the happiness/loyalty bonus granted to the winning squad's home settlement after an Overwhelming Victory: a battle won without taking a single casualty. Set to 0 to disable the reward (the flavor letter still appears).</FCSettingOverwhelmingVictoryRewardMultiplierTip>
 	<FCSettingRespectLethalDamageThreshold>Respect vanilla lethal damage threshold</FCSettingRespectLethalDamageThreshold>
 	<FCSettingRespectLethalDamageThresholdTip>When enabled (default), auto-resolve injuries are capped so cumulative injury severity stays under vanilla's lethal-damage threshold and the injury path can't accidentally kill a pawn. Disable when running mods that remove or relax vanilla's check and you want abstract damage to flow through unmediated.</FCSettingRespectLethalDamageThresholdTip>
 

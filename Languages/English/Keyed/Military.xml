@@ -47,6 +47,7 @@
 	<FCCaptureBlockedFallbackToRaid>{0}'s military forces overwhelmed {1}'s defenders, but were unable to permanently neutralize the settlement. The squad raided what supplies they could and is returning home.</FCCaptureBlockedFallbackToRaid>
 	<FCOverwhelmingVictory>Overwhelming Victory</FCOverwhelmingVictory>
 	<FCOverwhelmingVictoryDesc>Your military force routed the enemy without taking a single casualty.</FCOverwhelmingVictoryDesc>
+	<FCOverwhelmingVictoryRewardLine>News of the victory reached {0}, granting +{1} happiness and +{2} loyalty.</FCOverwhelmingVictoryRewardLine>
 	<FCCrushingDefeat>Crushing Defeat</FCCrushingDefeat>
 	<FCCrushingDefeatDesc>Your military force has been routed without inflicting a single casualty. The squad has suffered devastating losses and will require significant time to recover.</FCCrushingDefeatDesc>
 

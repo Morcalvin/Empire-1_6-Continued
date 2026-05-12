@@ -199,10 +199,18 @@ namespace FactionColonies
         /* Crushing Defeat consequences. A "Crushing Defeat" is any battle the empire loses
          * without inflicting a single casualty on the winning side — the mirror of
          * Overwhelming Victory. Settlement-defense penalties (prosperity / happiness /
-         * loyalty / building destruction) are multiplied by crushingDefeatPenaltyMultiplier.
-         * (Cooldown multiplication was removed when cooldown shrank to travel-time-only.) */
+         * loyalty / building destruction) are multiplied by crushingDefeatPenaltyMultiplier. */
         public const float DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER = 2.0f;
         public static float crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+
+        /* Overwhelming Victory rewards. The mirror of Crushing Defeat: any battle the
+         * empire wins without taking a single casualty on the winning side grants the
+         * winning squad's home settlement a small happiness/loyalty bonus, scaled by
+         * overwhelmingVictoryRewardMultiplier. Set to 0 to disable. External
+         * IAutoDefender wins skip the reward (no empire home settlement to credit).
+         * Base reward magnitudes live in SettlementFormulas.CalculateBattleVictoryRewards. */
+        public const float DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER = 1.0f;
+        public static float overwhelmingVictoryRewardMultiplier = DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER;
 
         /* Battle archive cap. The world-level archive (WorldComponent_Archive) keeps
          * the N most recent battle reports for the player to review via the military
@@ -291,6 +299,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref autoResolveCasualtyMaxDeathFraction, "autoResolveCasualtyMaxDeathFraction", DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION);
             Scribe_Values.Look(ref applyAutoResolveInjuries, "applyAutoResolveInjuries", DEFAULT_APPLY_AUTO_RESOLVE_INJURIES);
             Scribe_Values.Look(ref crushingDefeatPenaltyMultiplier, "crushingDefeatPenaltyMultiplier", DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER);
+            Scribe_Values.Look(ref overwhelmingVictoryRewardMultiplier, "overwhelmingVictoryRewardMultiplier", DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER);
             Scribe_Values.Look(ref respectLethalDamageThreshold, "respectLethalDamageThreshold", DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD);
             Scribe_Values.Look(ref battleArchiveMaxEntries, "battleArchiveMaxEntries", DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES);
             if (Scribe.mode == LoadSaveMode.LoadingVars
@@ -726,6 +735,7 @@ namespace FactionColonies
                 autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
                 applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
                 crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+                overwhelmingVictoryRewardMultiplier = DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER;
                 respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
                 mercenaryHealRatePerHour = 1f;
                 squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
@@ -895,6 +905,9 @@ namespace FactionColonies
 
             ls.Label("FCSettingCrushingDefeatPenaltyMultiplier".Translate() + ": " + crushingDefeatPenaltyMultiplier.ToString("0.00") + "x", -1f, "FCSettingCrushingDefeatPenaltyMultiplierTip".Translate());
             crushingDefeatPenaltyMultiplier = ls.Slider(crushingDefeatPenaltyMultiplier, 1.0f, 5.0f);
+
+            ls.Label("FCSettingOverwhelmingVictoryRewardMultiplier".Translate() + ": " + overwhelmingVictoryRewardMultiplier.ToString("0.00") + "x", -1f, "FCSettingOverwhelmingVictoryRewardMultiplierTip".Translate());
+            overwhelmingVictoryRewardMultiplier = ls.Slider(overwhelmingVictoryRewardMultiplier, 0.0f, 5.0f);
 
             ls.CheckboxLabeled("FCSettingRespectLethalDamageThreshold".Translate(), ref respectLethalDamageThreshold, "FCSettingRespectLethalDamageThresholdTip".Translate());
 

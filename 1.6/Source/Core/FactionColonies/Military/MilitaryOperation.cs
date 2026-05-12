@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -425,14 +426,34 @@ namespace FactionColonies
                 }
             }
 
-            // Overwhelming-victory letter: empire won the battle without taking a single
-            // casualty on the winning side. Deploy ops are excluded; squad presence on the
-            // player map isn't a discrete battle, so the OV/CD distinction isn't meaningful there.
+            // Overwhelming-victory letter + reward: empire won the battle without taking a
+            // single casualty on the winning side. The squad still has to travel home, so
+            // the normal travel timer applies; the reward is a small happiness/loyalty
+            // bonus to the winning squad's home settlement, scaled by
+            // FCSettings.overwhelmingVictoryRewardMultiplier (set to 0 to disable).
+            // External IAutoDefender wins skip the reward (no empire home settlement to
+            // credit). Deploy ops are excluded; squad presence on the player map isn't a
+            // discrete battle, so the OV/CD distinction isn't meaningful there.
             if (victory && kind != MilitaryJobDefOf.Deploy && battleResult.IsOverwhelmingVictory)
             {
+                string body = "FCOverwhelmingVictoryDesc".Translate();
+
+                WorldSettlementFC ovHome = aggressor?.homeSettlement ?? defender?.homeSettlement;
+                float ovMult = FCSettings.overwhelmingVictoryRewardMultiplier;
+                if (ovHome is object && ovMult > 0f)
+                {
+                    var (hap, loy) = SettlementFormulas.CalculateBattleVictoryRewards();
+                    double gainedHap = ovHome.GainHappiness(hap * ovMult);
+                    double gainedLoy = ovHome.GainLoyalty(loy * ovMult);
+                    body += "\n\n" + "FCOverwhelmingVictoryRewardLine".Translate(
+                        ovHome.Name,
+                        ((int)Math.Round(gainedHap)).ToString(),
+                        ((int)Math.Round(gainedLoy)).ToString());
+                }
+
                 Find.LetterStack.ReceiveLetter(
                     "FCOverwhelmingVictory".Translate(),
-                    "FCOverwhelmingVictoryDesc".Translate(),
+                    body,
                     LetterDefOf.PositiveEvent);
             }
 
