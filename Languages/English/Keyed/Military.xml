@@ -31,6 +31,9 @@
 	<FCMilitarySentRaid>The military forces of {0} have been sent to raid {1}</FCMilitarySentRaid>
 	<FCMilitarySentEnslave>The military forces of {0} have been sent to enslave the population of {1}</FCMilitarySentEnslave>
 	<FCMilitaryForcesReorganizing>{0}'s military forces are re-organizing after their last mission.</FCMilitaryForcesReorganizing>
+	<FCSquadTraveling>Squad {0} is returning to {1} after their last mission.</FCSquadTraveling>
+	<FCSquadCooldown>Squad {0} is re-organizing at {1} after their last mission.</FCSquadCooldown>
+	<FCTravelingSquadLabel>Traveling squad</FCTravelingSquadLabel>
 	<FCMilitaryCooldown>The military forces of {0} are ready to be used again</FCMilitaryCooldown>
 	<FCNoFactionForMilitary>You cannot make a military without a faction!</FCNoFactionForMilitary>
 

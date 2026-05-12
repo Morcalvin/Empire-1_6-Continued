@@ -24,6 +24,13 @@ namespace FactionColonies
         public List<Thing> goods = new List<Thing>();
         public bool hasCustomDescription;
         public string customDescription = "";
+        public bool hasCustomLabel;
+        public string customLabel = "";
+
+        /* User-facing event label. Falls back to the def's label when no per-event
+         * override was set. Centralized so display call sites stay in lockstep. */
+        public string Label =>
+            hasCustomLabel && !customLabel.NullOrEmpty() ? customLabel : def?.label;
 
         //Delivery things
         public Message msg = null;
@@ -138,6 +145,8 @@ namespace FactionColonies
 
             Scribe_Values.Look(ref hasCustomDescription, "hasCustomDescription");
             Scribe_Values.Look(ref customDescription, "customDescription");
+            Scribe_Values.Look(ref hasCustomLabel, "hasCustomLabel");
+            Scribe_Values.Look(ref customLabel, "customLabel");
 
             Scribe_Deep.Look(ref msg, "msg");
             Scribe_Deep.Look(ref let, "let");

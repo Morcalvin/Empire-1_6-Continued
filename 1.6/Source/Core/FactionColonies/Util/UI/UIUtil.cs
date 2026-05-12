@@ -174,7 +174,7 @@ namespace FactionColonies
         public static void ClampedLabel(Rect rect, string label)
         {
             string display = Text.ClampTextWithEllipsis(rect, label);
-            Widgets.Label(rect, label);
+            Widgets.Label(rect, display);
         }
         public static void LabelWithMargin(Rect rect, string label, float margin = 5f)
         {

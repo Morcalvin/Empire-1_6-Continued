@@ -114,7 +114,7 @@ namespace FactionColonies
         /// cooldown wakeups.
         /// </summary>
         public FCEvent ScheduleEvent(FCEventDef eventDef, PlanetTile location, int ticksFromNow,
-            string customDescription = null)
+            string customDescription = null, string customLabel = null)
         {
             FactionFC factionFC = FactionCache.FactionComp;
             if (factionFC is null)
@@ -128,6 +128,11 @@ namespace FactionColonies
             {
                 evt.hasCustomDescription = true;
                 evt.customDescription = customDescription;
+            }
+            if (!customLabel.NullOrEmpty())
+            {
+                evt.hasCustomLabel = true;
+                evt.customLabel = customLabel;
             }
             evt.DefineEvent(factionFC, location, ticksFromNow);
             sourceEvents.Add(evt);
@@ -488,6 +493,16 @@ namespace FactionColonies
             // squad.dead is no longer consumed by the cooldown system but the field stays
             // for save-compat and future analytics. Don't reset it here.
 
+            /* Ghost-only defenses have nothing to wait on. Skip the event and terminate the op
+             * directly; without this, the op would sit in CooldownPending forever since Resolve()
+             * is normally driven by the cooldown event firing. */
+            MercenarySquadFC squad = aggressor?.squad ?? defender?.squad;
+            if (squad is null)
+            {
+                Resolve();
+                return;
+            }
+
             // Cooldown event fires on the home settlement's tile (or target tile if there's no home
             // — e.g. external defender ops). Aggressor home preferred since that's where the squad
             // returns; falls back to defender home for purely-defensive ops.
@@ -496,13 +511,23 @@ namespace FactionColonies
                                    ?? targetTile;
             if (!cooldownTile.Valid) cooldownTile = targetTile;
 
-            // Defensive ops have null aggressor.homeSettlement (the aggressor is the enemy faction);
-            // use the defender's home so the cooldown letter still names a settlement.
-            WorldSettlementFC cooldownHome = aggressor?.homeSettlement ?? defender?.homeSettlement;
-            string desc = cooldownHome is object
-                ? "FCMilitaryForcesReorganizing".Translate(cooldownHome.Name).ToString()
-                : null;
-            ScheduleEvent(FCEventDefOf.cooldownMilitary, cooldownTile, cooldownTicks, desc);
+            /* Travel vs recovery: the squad is traveling whenever the cooldown represents physical
+             * movement (offensive return, foreign defense return, deploy). The one non-travel case
+             * is a real-squad home defense — squad fought at its own billet, no return trip. */
+            bool homeDefense = IsDefensive
+                            && defender?.squad?.settlement is object
+                            && defender.squad.settlement == defender.homeSettlement;
+            bool isTraveling = !homeDefense;
+
+            WorldSettlementFC home = aggressor?.homeSettlement
+                                  ?? defender?.homeSettlement
+                                  ?? squad.settlement;
+            string homeName = home?.Name ?? "";
+            string desc = isTraveling
+                ? "FCSquadTraveling".Translate(squad.DisplayName, homeName).ToString()
+                : "FCSquadCooldown".Translate(squad.DisplayName, homeName).ToString();
+            string label = isTraveling ? "FCTravelingSquadLabel".Translate().ToString() : null;
+            ScheduleEvent(FCEventDefOf.cooldownMilitary, cooldownTile, cooldownTicks, desc, label);
         }
 
         private int ComputeCooldownTicks()

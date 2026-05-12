@@ -1347,7 +1347,7 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleLeft;
                 origColor = GUI.color;
                 GUI.color = catColor;
-                Widgets.Label(new Rect(contentX, topY, contentW - progressW - 10f, lineH), evt.def.label);
+                Widgets.Label(new Rect(contentX, topY, contentW - progressW - 10f, lineH), evt.Label);
                 GUI.color = origColor;
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
@@ -1491,7 +1491,7 @@ namespace FactionColonies
 
         private string GetEventFullTooltip(FCEvent evt)
         {
-            return $"{evt.def.label}\n\n{FCEventMaker.BuildEventLetterBody(evt)}";
+            return $"{evt.Label}\n\n{FCEventMaker.BuildEventLetterBody(evt)}";
         }
 
         private void HandleLocationClick(FCEvent evt)
