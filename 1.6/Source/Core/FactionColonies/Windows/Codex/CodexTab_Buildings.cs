@@ -224,13 +224,10 @@ namespace FactionColonies
             RebuildFilteredCache();
             if (searchTerm.NullOrEmpty())
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
-                    "FCCodexSearchBuildings".Translate());
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
+                    "FCCodexSearchBuildings".Translate(), Color.gray);
             }
             ResetText();
 
@@ -607,8 +604,7 @@ namespace FactionColonies
             bool isHover = Mouse.IsOver(rowRect);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = isHover ? HighlightColor : Color.white;
-            Widgets.Label(new Rect(textX, curY, width - textX - Margin, UpgradeRowHeight), prefix + building.LabelCap);
+            UIUtil.DrawColoredLabel(new Rect(textX, curY, width - textX - Margin, UpgradeRowHeight), prefix + building.LabelCap, isHover ? HighlightColor : Color.white);
             ResetText();
 
             if (isHover)

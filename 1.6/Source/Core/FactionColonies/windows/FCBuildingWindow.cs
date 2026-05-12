@@ -417,14 +417,11 @@ namespace FactionColonies
                 ApplyFilter();
             if (string.IsNullOrEmpty(buildingSearchTerm))
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(SearchBarArea.x + 5f, SearchBarArea.y,
+                UIUtil.DrawColoredLabel(new Rect(SearchBarArea.x + 5f, SearchBarArea.y,
                     SearchBarArea.width - 10f, SearchBarArea.height),
-                    "FCSearchBuildings".Translate());
-                GUI.color = prevColor;
+                    "FCSearchBuildings".Translate(), Color.gray);
             }
 
             // Locked building toggle

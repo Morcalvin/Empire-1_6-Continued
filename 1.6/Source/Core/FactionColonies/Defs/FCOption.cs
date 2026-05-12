@@ -232,9 +232,7 @@ namespace FactionColonies
             // === Description ===
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
-            GUI.color = new Color(0.85f, 0.85f, 0.85f);
-            Widgets.Label(new Rect(inRect.x + Padding, curY, textWidth, cachedDescHeight), desc);
-            GUI.color = colorBefore;
+            UIUtil.DrawColoredLabel(new Rect(inRect.x + Padding, curY, textWidth, cachedDescHeight), desc, new Color(0.85f, 0.85f, 0.85f));
             curY += cachedDescHeight;
 
             // === Affected settlements (clickable buttons) ===
@@ -244,9 +242,7 @@ namespace FactionColonies
 
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                Widgets.Label(new Rect(inRect.x + Padding, curY, 60f, 16f), "FCEventAffecting".Translate());
-                GUI.color = colorBefore;
+                UIUtil.DrawColoredLabel(new Rect(inRect.x + Padding, curY, 60f, 16f), "FCEventAffecting".Translate(), new Color(0.6f, 0.6f, 0.6f));
                 curY += 16f + 2f;
 
                 float btnX = inRect.x + Padding;
@@ -334,9 +330,7 @@ namespace FactionColonies
                 }
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.UpperLeft;
-                GUI.color = available ? Color.white : new Color(0.5f, 0.5f, 0.5f);
-                Widgets.Label(new Rect(innerX, innerY, innerW, cachedOptionLabelHeights[i]), displayLabel);
-                GUI.color = colorBefore;
+                UIUtil.DrawColoredLabel(new Rect(innerX, innerY, innerW, cachedOptionLabelHeights[i]), displayLabel, available ? Color.white : new Color(0.5f, 0.5f, 0.5f));
                 innerY += cachedOptionLabelHeights[i] + 6f;
 
                 // Metadata row: success hint (left) + cost (right)
@@ -355,9 +349,7 @@ namespace FactionColonies
                 }
                 GetSuccessHint(displayChance, out successLabel, out successColor);
                 if (!available) successColor = new Color(successColor.r * 0.5f, successColor.g * 0.5f, successColor.b * 0.5f);
-                GUI.color = successColor;
-                Widgets.Label(new Rect(metaRect.x, metaRect.y, metaRect.width * 0.6f, metaRect.height), successLabel);
-                GUI.color = colorBefore;
+                UIUtil.DrawColoredLabel(new Rect(metaRect.x, metaRect.y, metaRect.width * 0.6f, metaRect.height), successLabel, successColor);
 
                 // Policy tag (always visible)
                 if (opt.requiredPolicies != null && opt.requiredPolicies.Count > 0)
@@ -390,11 +382,7 @@ namespace FactionColonies
                     string fullTagText = "[" + policyTag + "]";
                     string clampedTag = Text.ClampTextWithEllipsis(tagRect, fullTagText);
 
-                    GUI.color = available
-                        ? new Color(0.6f, 0.75f, 0.9f)
-                        : new Color(0.4f, 0.4f, 0.4f);
-                    Widgets.Label(tagRect, clampedTag);
-                    GUI.color = colorBefore;
+                    UIUtil.DrawColoredLabel(tagRect, clampedTag, available ? new Color(0.6f, 0.75f, 0.9f) : new Color(0.4f, 0.4f, 0.4f));
 
                     TooltipHandler.TipRegion(tagRect, fullTagText);
                 }
@@ -404,9 +392,7 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleRight;
                 if (isFree)
                 {
-                    GUI.color = available ? AccentUtil.Income : new Color(0.3f, 0.5f, 0.3f);
-                    Widgets.Label(metaRect, "FCEventOptionFree".Translate());
-                    GUI.color = colorBefore;
+                    UIUtil.DrawColoredLabel(metaRect, "FCEventOptionFree".Translate(), available ? AccentUtil.Income : new Color(0.3f, 0.5f, 0.3f));
                 }
                 else
                 {
@@ -443,11 +429,7 @@ namespace FactionColonies
                     innerY += MetadataRowHeight + EffectPreviewSpacing;
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.UpperLeft;
-                    GUI.color = available ? new Color(0.7f, 0.7f, 0.7f) : new Color(0.4f, 0.4f, 0.4f);
-                    Widgets.Label(
-                        new Rect(innerX, innerY, innerW, cachedEffectPreviewHeights[i]),
-                        cachedEffectPreviews[i]);
-                    GUI.color = colorBefore;
+                    UIUtil.DrawColoredLabel(new Rect(innerX, innerY, innerW, cachedEffectPreviewHeights[i]), cachedEffectPreviews[i], available ? new Color(0.7f, 0.7f, 0.7f) : new Color(0.4f, 0.4f, 0.4f));
                 }
 
                 // Hover effect

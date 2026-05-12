@@ -247,10 +247,7 @@ namespace FactionColonies
                 string conflictText = "FCConflictsWith".Translate(names);
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.UpperLeft;
-                Color savedColor = GUI.color;
-                GUI.color = isPreview ? new Color(1f, 1f, 0f, 0.45f) : Color.yellow;
-                Widgets.Label(new Rect(inner.x, y, inner.width, 18f), conflictText);
-                GUI.color = savedColor;
+                UIUtil.DrawColoredLabel(new Rect(inner.x, y, inner.width, 18f), conflictText, isPreview ? new Color(1f, 1f, 0f, 0.45f) : Color.yellow);
                 y += 20f;
             }
 

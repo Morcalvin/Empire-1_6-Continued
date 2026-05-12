@@ -152,9 +152,7 @@ namespace FactionColonies
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleCenter;
                 Rect lockedRect = new Rect(rect.x + Margin, contentY, rect.width - Margin * 2, 40f);
-                GUI.color = Color.gray;
-                Widgets.Label(lockedRect, "FCEdictLockedUntilLevel".Translate(requiredLevel));
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(lockedRect, "FCEdictLockedUntilLevel".Translate(requiredLevel), Color.gray);
                 Text.Anchor = TextAnchor.UpperLeft;
                 return;
             }
@@ -176,9 +174,7 @@ namespace FactionColonies
                     contentY = statusRect.yMax;
                     Rect activatingRect = new Rect(rect.x + CategoryPadding, contentY, rect.width - CategoryPadding * 2, 22f);
                     float daysRemaining = (activeEdict.def.enactDuration - (Find.TickManager.TicksGame - activeEdict.timeEnacted)) / 60000f;
-                    GUI.color = Color.yellow;
-                    Widgets.Label(activatingRect, "FCEdictActivating".Translate(daysRemaining.ToString("F1")));
-                    GUI.color = Color.white;
+                    UIUtil.DrawColoredLabel(activatingRect, "FCEdictActivating".Translate(daysRemaining.ToString("F1")), Color.yellow);
                     contentY = activatingRect.yMax;
                 }
                 else

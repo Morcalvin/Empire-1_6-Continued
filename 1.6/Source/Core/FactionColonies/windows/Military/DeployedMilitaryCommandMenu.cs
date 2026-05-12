@@ -249,9 +249,7 @@ namespace FactionColonies
 
                 string settlementFullName = selectedSquad.getSettlement?.Name ?? "Unknown";
                 string settlementTruncated = settlementFullName.Truncate(contentWidth - 10f, truncateCache);
-                GUI.color = settlementHovered ? Color.white : new Color(0.8f, 0.8f, 0.8f);
-                Widgets.Label(settlementRect, settlementTruncated);
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(settlementRect, settlementTruncated, settlementHovered ? Color.white : new Color(0.8f, 0.8f, 0.8f));
 
                 if (settlementTruncated != settlementFullName)
                 {

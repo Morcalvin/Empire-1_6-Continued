@@ -186,13 +186,10 @@ namespace FactionColonies
         {
             if (rows.Count == 0 && ExtraRowsHeight <= 0f)
             {
-                Color colorBefore = GUI.color;
                 TextAnchor anchorBefore = Text.Anchor;
-                GUI.color = Color.gray;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(new Rect(listRect.x, listRect.y + listRect.height * 0.35f,
-                    listRect.width, 40f), "FCHireSquadsEmpty".Translate());
-                GUI.color = colorBefore;
+                UIUtil.DrawColoredLabel(new Rect(listRect.x, listRect.y + listRect.height * 0.35f,
+                    listRect.width, 40f), "FCHireSquadsEmpty".Translate(), Color.gray);
                 Text.Anchor = anchorBefore;
                 return;
             }
@@ -303,12 +300,10 @@ namespace FactionColonies
             // Status badge — top of right column, centered.
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleCenter;
-            GUI.color = row.statusColor;
-            Widgets.Label(new Rect(rightColX, headerY, rightColW, CardHeaderH), row.status);
+            UIUtil.DrawColoredLabel(new Rect(rightColX, headerY, rightColW, CardHeaderH), row.status, row.statusColor);
 
             // Inspect button — bottom of right column, same width as the status badge above.
             // Drawn *before* the whole-card invisible button so its click is consumed first.
-            GUI.color = colorBefore;
             MercenarySquadFC capturedSquad = squad;
             Rect inspectRect = new Rect(rightColX, detailY + 1f, rightColW, btnH);
             if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate(), highlighted: isHighlighted))
@@ -400,10 +395,7 @@ namespace FactionColonies
                 float suffixW = Math.Max(0f, contentX + nameW - suffixX);
                 if (suffixW > 0f)
                 {
-                    Color colorBefore2 = GUI.color;
-                    GUI.color = new Color(0.6f, 0.9f, 0.6f);
-                    Widgets.Label(new Rect(suffixX, headerY, suffixW, CardHeaderH), "FCSetSquadCurrent".Translate());
-                    GUI.color = colorBefore2;
+                    UIUtil.DrawColoredLabel(new Rect(suffixX, headerY, suffixW, CardHeaderH), "FCSetSquadCurrent".Translate(), new Color(0.6f, 0.9f, 0.6f));
                 }
             }
 

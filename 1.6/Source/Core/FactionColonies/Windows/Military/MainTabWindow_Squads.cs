@@ -60,25 +60,19 @@ namespace FactionColonies
             float innerW = rect.width - Pad * 2f;
 
             // Count readout — small/grey, matches DrawMilitarySettlementCards' "# settlements".
-            Color origColor = GUI.color;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = Color.gray;
-            Widgets.Label(new Rect(innerX, rect.y + Pad, innerW * 0.5f, SummaryH),
-                "FCHireSquadsCount".Translate(pool.Count));
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(new Rect(innerX, rect.y + Pad, innerW * 0.5f, SummaryH),
+                "FCHireSquadsCount".Translate(pool.Count), Color.gray);
 
             Rect tableRect = new Rect(rect.x, rect.y + SummaryH + 4f,
                 rect.width, rect.height - SummaryH - 4f);
 
             if (pool.Count == 0)
             {
-                Color savedColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f,
-                    tableRect.width, 40f), "FCHireSquadsEmpty".Translate());
-                GUI.color = savedColor;
+                UIUtil.DrawColoredLabel(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f,
+                    tableRect.width, 40f), "FCHireSquadsEmpty".Translate(), Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -143,19 +137,15 @@ namespace FactionColonies
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
             float statusW = 240f;
-            GUI.color = statusColor;
-            Widgets.Label(new Rect(cardRect.xMax - statusW - 4f, headerY, statusW, CardHeaderH), statusText);
-            GUI.color = colorBefore;
+            UIUtil.DrawColoredLabel(new Rect(cardRect.xMax - statusW - 4f, headerY, statusW, CardHeaderH), statusText, statusColor);
 
             // Squad name (clickable to open inspection — kept as a fallback alongside the
             // explicit Inspect button below).
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = accent;
             float nameW = contentW - statusW - 6f;
             Rect nameRect = new Rect(contentX, headerY, nameW, CardHeaderH);
-            Widgets.Label(nameRect, squad.DisplayName);
-            GUI.color = colorBefore;
+            UIUtil.DrawColoredLabel(nameRect, squad.DisplayName, accent);
             if (Mouse.IsOver(nameRect)) Widgets.DrawHighlight(nameRect);
             if (Widgets.ButtonInvisible(nameRect))
                 Find.WindowStack.Add(new Dialog_SquadInspection(squad));

@@ -160,7 +160,7 @@ namespace FactionColonies
             double oppForce = isDefense ? report.attackerInitialForce : report.defenderInitialForce;
             string oppText = oppName + (string)"FCBattleArchiveForceSuffix".Translate(oppForce.ToString("F0"));
             Rect oppRect = new Rect(x, rect.y, colW[1], rect.height);
-            Widgets.Label(oppRect, Text.ClampTextWithEllipsis(oppRect, oppText));
+            UIUtil.ClampedLabel(oppRect, oppText);
             x += colW[1];
 
             // Our Force — squad name for offensive ops (attackerLabel is squad-first); the
@@ -180,7 +180,7 @@ namespace FactionColonies
                 ourCell = ourName + (string)"FCBattleArchiveForceSuffix".Translate(ourForce.ToString("F0"));
             }
             Rect ourRect = new Rect(x, rect.y, colW[2], rect.height);
-            Widgets.Label(ourRect, Text.ClampTextWithEllipsis(ourRect, ourCell));
+            UIUtil.ClampedLabel(ourRect, ourCell);
             x += colW[2];
 
             // Date — format absolute tick into "Day N, Year Y" using GenDate at world-zero

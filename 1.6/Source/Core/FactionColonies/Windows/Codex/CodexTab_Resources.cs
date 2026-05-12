@@ -555,13 +555,10 @@ namespace FactionColonies
             titheSearchTerm = Widgets.TextField(searchRect, titheSearchTerm);
             if (titheSearchTerm.NullOrEmpty())
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
-                    "FCCodexResourceSearchTithe".Translate());
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
+                    "FCCodexResourceSearchTithe".Translate(), Color.gray);
             }
             ResetText();
             curY += SearchBarHeight + SmallMargin;

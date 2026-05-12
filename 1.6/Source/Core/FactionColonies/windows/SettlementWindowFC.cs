@@ -920,10 +920,7 @@ namespace FactionColonies
             string label = powStatus == SettlementPowerStatus.NoMilitary
                 ? "—"
                 : ((int)Math.Round(totalLevel)).ToString();
-            Color colorBefore = GUI.color;
-            GUI.color = ColorForPowerStatus(powStatus);
-            Widgets.Label(labelBox, label);
-            GUI.color = colorBefore;
+            UIUtil.DrawColoredLabel(labelBox, label, ColorForPowerStatus(powStatus));
 
             string statusLine = StatusLineForPower(powStatus);
             string tooltip = "FCSettlementMilitaryLevel".Translate() + "\n-----\n"

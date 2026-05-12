@@ -330,10 +330,7 @@ namespace FactionColonies
 
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Color origStatColor = GUI.color;
-                GUI.color = AccentUtil.GetStatColor(statVal, inverted);
-                Widgets.Label(valueBox, value);
-                GUI.color = origStatColor;
+                UIUtil.DrawColoredLabel(valueBox, value, AccentUtil.GetStatColor(statVal, inverted));
 
                 TooltipHandler.TipRegion(statBox, tooltip);
 
@@ -706,13 +703,11 @@ namespace FactionColonies
             // Summary header — left: count
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
+            Color origColor = GUI.color;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
-            Widgets.Label(new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH),
-                "FCSettlementCount".Translate(faction.settlements.Count));
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH),
+                "FCSettlementCount".Translate(faction.settlements.Count), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -741,11 +736,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
-                    "FCNoSettlements".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
+                    "FCNoSettlements".Translate(), Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1384,8 +1376,7 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleLeft;
                 float descW = contentW - progressW - 10f;
                 Rect descRect = new Rect(contentX, botY, descW, lineH);
-                string desc = Text.ClampTextWithEllipsis(descRect, TextUtil.CleaveAtNewline(GetEventDescription(evt)));
-                Widgets.Label(descRect, desc);
+                UIUtil.ClampedLabel(descRect, TextUtil.CleaveAtNewline(GetEventDescription(evt)));
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
