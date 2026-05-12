@@ -14,8 +14,11 @@ namespace FactionColonies
     /// Drives the "Healing X" UI label that replaced the multi-day cooldown countdown.
     /// <para>Empty / dead slots are ignored — only the player can refill those, and the
     /// healing system can't bring them back. The squad-level estimate is the max across
-    /// all currently-alive injured pawns: the squad is "fully effective" when the slowest
-    /// member finishes healing.</para>
+    /// all currently-alive injured mercenary pawns: the squad is "fully effective" when
+    /// the slowest member finishes healing. Animals are excluded; injured/downed/dead
+    /// animals are auto-replaced with fresh pawns on the heal tick (see
+    /// <see cref="MilitaryCustomizationUtil.TickAnimalReplacement"/>), so they never sit
+    /// in a "healing" state long enough to delay the squad.</para>
     /// <para>Per-tick heal rate matches the vanilla <c>Pawn_HealthTracker.HealthTickInterval</c>
     /// natural-heal formula: <c>8 * HealthScale * 0.01 * InjuryHealingFactor</c> HP per call.
     /// <see cref="MilitaryCustomizationUtil.TickMercenaryHealing"/> invokes that method once
@@ -35,8 +38,10 @@ namespace FactionColonies
         /// <c>Pawn_HealthTracker.HealthTickInterval</c>.</summary>
         private const float VanillaBaseHealPerCall = 8f * 0.01f;
 
-        /// <summary>Ticks until every currently-alive injured pawn in <paramref name="squad"/>
-        /// reaches full health. Returns 0 if the squad is null, empty, or has no injuries.</summary>
+        /// <summary>Ticks until every currently-alive injured mercenary pawn in
+        /// <paramref name="squad"/> reaches full health. Animals are excluded; they're
+        /// auto-replaced rather than healed. Returns 0 if the squad is null, empty, or
+        /// has no mercenary injuries.</summary>
         public static int TicksToFullEffectiveness(MercenarySquadFC squad)
         {
             if (squad?.mercenaries is null) return 0;
@@ -45,14 +50,6 @@ namespace FactionColonies
             {
                 int t = TicksToFullHealth(m?.pawn);
                 if (t > worst) worst = t;
-            }
-            if (squad.animals != null)
-            {
-                foreach (Mercenary m in squad.animals)
-                {
-                    int t = TicksToFullHealth(m?.pawn);
-                    if (t > worst) worst = t;
-                }
             }
             return worst;
         }

@@ -238,6 +238,68 @@ namespace FactionColonies
         }
 
         /// <summary>
+        /// Swap any injured / downed / dead animal in an undeployed squad with a freshly
+        /// generated pawn of the same <see cref="PawnKindDef"/>. Animals are not part of
+        /// the merc healing pipeline (see <see cref="SquadHealingEstimator"/>), so without
+        /// this pass an animal wounded in battle would sit injured forever. Replacement is
+        /// free; animals are treated as disposable companions for now. The handler bond
+        /// (<see cref="Mercenary.handler"/> / <see cref="Mercenary.animal"/>) is preserved
+        /// since only the <see cref="Mercenary.pawn"/> field is swapped.
+        /// </summary>
+        public void TickAnimalReplacement()
+        {
+            bool anyReplaced = false;
+            foreach (MercenarySquadFC squad in mercenarySquads)
+            {
+                if (squad?.animals is null || squad.animals.Count == 0) continue;
+                if (squad.IsPhysicallyDeployed()) continue; // never swap a pawn mid-battle
+
+                for (int i = 0; i < squad.animals.Count; i++)
+                {
+                    Mercenary animalMerc = squad.animals[i];
+                    if (animalMerc is null || animalMerc.IsEmptySlot) continue;
+                    Pawn oldPawn = animalMerc.pawn;
+                    if (oldPawn is null) continue;
+                    if (!NeedsAnimalReplacement(oldPawn)) continue;
+
+                    PawnKindDef race = oldPawn.kindDef;
+                    if (race is null)
+                    {
+                        LogUtil.Warning($"Animal merc in squad {squad.DisplayName} has null kindDef; skipping replacement.");
+                        continue;
+                    }
+
+                    try
+                    {
+                        squad.CreateNewAnimal(ref animalMerc, race);
+                    }
+                    catch (Exception e)
+                    {
+                        LogUtil.Error($"Exception replacing animal in squad {squad.DisplayName}: {e}");
+                        continue;
+                    }
+
+                    if (mercenaryPawnSet != null) mercenaryPawnSet.Remove(oldPawn);
+                    if (injuredMercsByPawn != null) injuredMercsByPawn.Remove(oldPawn);
+                    anyReplaced = true;
+                }
+            }
+            if (anyReplaced) RebuildMercenaryPawnSet();
+        }
+
+        private static bool NeedsAnimalReplacement(Pawn pawn)
+        {
+            if (pawn.Dead || pawn.Destroyed || pawn.Downed) return true;
+            List<Hediff> hediffs = pawn.health?.hediffSet?.hediffs;
+            if (hediffs is null) return false;
+            for (int i = 0; i < hediffs.Count; i++)
+            {
+                if (hediffs[i] is Hediff_Injury inj && !inj.IsPermanent()) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Full scan of all undeployed squads to populate the injured mercs index.
         /// Called lazily on first tick or after load.
         /// </summary>
