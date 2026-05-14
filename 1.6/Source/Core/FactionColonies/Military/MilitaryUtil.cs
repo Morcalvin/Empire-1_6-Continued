@@ -256,5 +256,24 @@ namespace FactionColonies
             if (op.IsDefensive) return BattleViewerSide.Defender;
             return BattleViewerSide.Neither;
         }
+
+        /// <summary>Runs <see cref="MercenarySquadFC.UpgradeToTemplate"/>, first prompting for
+        /// confirmation when the re-template would fire (destroy) a pawn the player has
+        /// personalized via the per-pawn loadout editor. Shared by every Upgrade-All entry
+        /// point (squad inspection, military tab, settlement squad menu) so the warning is
+        /// consistent. Window-layer helper — the model never opens dialogs itself.</summary>
+        public static void ConfirmAndUpgradeAll(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            if (squad.UpgradeWouldFirePersonalized)
+            {
+                MercenarySquadFC captured = squad;
+                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                    "FCSquadUpgradeFirePersonalizedConfirm".Translate(),
+                    delegate { captured.UpgradeToTemplate(); }));
+                return;
+            }
+            squad.UpgradeToTemplate();
+        }
     }
 }

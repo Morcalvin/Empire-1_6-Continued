@@ -178,7 +178,11 @@ namespace FactionColonies
             string powerLbl    = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
             string costLbl     = "FCDeployCost".Translate(squad.DeploymentCost);
             int upgrade        = squad.UpgradeCost;
-            string upgradeLbl  = (string)"FCSquadColUpgrade".Translate() + ": " + (upgrade > 0 ? "$" + upgrade : "-");
+            bool hasUpgradeWork = squad.HasUpgradeWork;
+            /* Show "$0" for a zero-net but real upgrade (a reassignment / same-price re-equip);
+               "-" only when there is genuinely nothing to do. */
+            string upgradeLbl  = (string)"FCSquadColUpgrade".Translate() + ": "
+                + (upgrade > 0 ? "$" + upgrade : (hasUpgradeWork ? "$0" : "-"));
 
             Widgets.Label(new Rect(dx, detailY, colTemplate, CardDetailH), templateLbl); dx += colTemplate;
             Widgets.Label(new Rect(dx, detailY, colBillet,   CardDetailH), billetLbl);   dx += colBillet;
@@ -210,11 +214,11 @@ namespace FactionColonies
             bx += btnW + btnGap;
 
             // Upgrade
-            bool canUpgrade = upgrade > 0 && !squad.IsBusy;
+            bool canUpgrade = hasUpgradeWork && !squad.IsBusy;
             Rect upgradeRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(upgradeRect, "FCSquadActUpgrade".Translate(), highlighted: isHighlighted, disabled: !canUpgrade))
             {
-                capturedSquad.UpgradeToTemplate();
+                MilitaryUtil.ConfirmAndUpgradeAll(capturedSquad);
             }
             if (squad.IsBusy)
                 TooltipHandler.TipRegion(upgradeRect, "FCSquadCannotModifyBusyTip".Translate());

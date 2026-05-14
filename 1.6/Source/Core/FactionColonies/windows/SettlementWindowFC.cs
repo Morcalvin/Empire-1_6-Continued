@@ -1214,10 +1214,10 @@ namespace FactionColonies
                 }));
 
             int upgrade = squad.UpgradeCost;
-            if (upgrade > 0)
+            if (squad.HasUpgradeWork)
             {
                 list.Add(new FloatMenuOption("FCSquadMenuUpgrade".Translate(upgrade),
-                    squad.IsBusy ? (Action)null : (Action)delegate { squad.UpgradeToTemplate(); }));
+                    squad.IsBusy ? (Action)null : (Action)delegate { MilitaryUtil.ConfirmAndUpgradeAll(squad); }));
             }
 
             list.Add(new FloatMenuOption("FCSquadMenuDismiss".Translate(),

@@ -257,6 +257,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSquadCannotUpgradeBusy>The squad is busy and cannot be upgraded right now.</FCSquadCannotUpgradeBusy>
 	<FCSquadCannotModifyBusyTip>Squad cannot be modified while it is busy.</FCSquadCannotModifyBusyTip>
 	<FCSquadUpgradeInsufficientSilver>You do not have enough silver ({0} required) to upgrade that squad.</FCSquadUpgradeInsufficientSilver>
+	<FCSquadUpgradeFirePersonalizedConfirm>Upgrading this squad to its template will dismiss one or more pawns with a personalized loadout, since their race or xenotype no longer matches any template slot. Their custom loadouts will be lost. Continue?</FCSquadUpgradeFirePersonalizedConfirm>
 	<FCSquadCapReached>{0} is already at squad capacity ({1}/{2}).</FCSquadCapReached>
 	<FCSquadSizeExceeded>This squad has more mercenaries ({1}) than {0}'s allowed maximum squad size ({2}).</FCSquadSizeExceeded>
 	<FCSquadValueExceeded>{0}'s budget can't cover this squad. Deploy cost ${1} exceeds max deploy cost ${2}.</FCSquadValueExceeded>

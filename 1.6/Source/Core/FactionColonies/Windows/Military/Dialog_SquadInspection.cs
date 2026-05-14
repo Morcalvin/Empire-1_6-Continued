@@ -327,9 +327,9 @@ namespace FactionColonies
 
             int upgradeNet = squad.UpgradeCost;
             (int upgrade, int hire) = squad.UpgradeCostBreakdown;
-            /* Allow Upgrade All any time the breakdown has nonzero components — there might
-               be reassignments to apply even if the net is zero. */
-            bool hasUpgradeWork = upgrade != 0 || hire != 0;
+            /* Gate on HasUpgradeWork, not cost: a same-price-or-cheaper re-equip (or a
+               reassignment after a template swap) is real work that nets zero silver. */
+            bool hasUpgradeWork = squad.HasUpgradeWork;
             bool canUpgradeAll = squad.outfit != null && !squad.IsBusy && hasUpgradeWork;
 
             float gap = 8f;
@@ -354,7 +354,7 @@ namespace FactionColonies
                     : (string)"FCSquadInspectionUpgradeAllUpToDate".Translate());
             if (UIUtil.ButtonFlat(upgradeRect, upgradeLabel, disabled: !canUpgradeAll))
             {
-                squad.UpgradeToTemplate();
+                MilitaryUtil.ConfirmAndUpgradeAll(squad);
             }
 
             /* Tooltip: busy takes precedence; otherwise show the cost breakdown when there's work. */
@@ -624,34 +624,16 @@ namespace FactionColonies
 
         /*-*-*-*-* Per-pawn upgrade *-*-*-*-*/
 
-        /// <summary>Equipment-only market value for a loadout (apparel + weapons). Race
-        /// base cost is excluded so a pawnKind mismatch between assigned and equipped
-        /// snapshots doesn't leak a phantom race-cost diff (the pawn doesn't change race
-        /// on per-pawn Upgrade).</summary>
-        private static double SumEquipmentCost(MilUnitFC unit)
-        {
-            if (unit is null) return 0;
-            double total = 0;
-            if (unit.apparel != null)
-                foreach (SavedThing a in unit.apparel) total += a.MarketValue;
-            if (unit.weapons != null)
-                foreach (SavedThing w in unit.weapons) total += w.MarketValue;
-            return total;
-        }
-
         /// <summary>Cost to bring the pawn's currently-equipped gear in line with the
         /// merc's assigned loadout (<see cref="Mercenary.BlueprintLoadout"/> = ownedLoadout
         /// ?? loadout). Returns 0 when the assigned loadout costs the same or less than
         /// the equipped one, in which case the upgrade still applies (re-equips), it's
-        /// just free. Use <see cref="PerPawnUpgradeNeeded"/> to gate the button.</summary>
-        private int ComputePerPawnUpgradeCost(Mercenary merc)
+        /// just free. Use <see cref="PerPawnUpgradeNeeded"/> to gate the button. Shares
+        /// <see cref="LoadoutUpgradeUtil"/> with the bulk Upgrade-All path so the two never drift.</summary>
+        private static int ComputePerPawnUpgradeCost(Mercenary merc)
         {
             if (merc is null) return 0;
-            double targetCost = SumEquipmentCost(merc.BlueprintLoadout);
-            double equippedCost = SumEquipmentCost(merc.currentLoadout);
-            double diff = targetCost - equippedCost;
-            if (diff <= 0) return 0;
-            return (int)Math.Round(diff * FCSettings.squadUpgradeCostMultiplier);
+            return LoadoutUpgradeUtil.UpgradeCostDiff(merc.BlueprintLoadout, merc.currentLoadout);
         }
 
         /// <summary>True when the merc's assigned loadout (<see cref="Mercenary.BlueprintLoadout"/>)
@@ -660,48 +642,7 @@ namespace FactionColonies
         private static bool PerPawnUpgradeNeeded(Mercenary merc)
         {
             if (merc is null) return false;
-            MilUnitFC target = merc.BlueprintLoadout;
-            if (target is null) return false;
-            MilUnitFC equipped = merc.currentLoadout;
-            if (equipped is null) return true;
-            if (target.animal != equipped.animal) return true;
-            if (!ApparelEquivalent(target.apparel, equipped.apparel)) return true;
-            if (!WeaponsEquivalent(target.weapons, equipped.weapons)) return true;
-            return false;
-        }
-
-        private static bool ApparelEquivalent(List<SavedThing> a, List<SavedThing> b)
-        {
-            int an = a == null ? 0 : a.Count(x => x.thing != null);
-            int bn = b == null ? 0 : b.Count(x => x.thing != null);
-            if (an != bn) return false;
-            if (an == 0) return true;
-            List<SavedThing> sa = a.Where(x => x.thing != null).OrderBy(x => x.thing.defName).ToList();
-            List<SavedThing> sb = b.Where(x => x.thing != null).OrderBy(x => x.thing.defName).ToList();
-            for (int i = 0; i < an; i++)
-            {
-                if (!SavedThingEquivalent(sa[i], sb[i])) return false;
-            }
-            return true;
-        }
-
-        private static bool WeaponsEquivalent(List<SavedThing> a, List<SavedThing> b)
-        {
-            SavedThing? wa = a == null ? (SavedThing?)null : a.Where(x => x.thing != null).Select(x => (SavedThing?)x).FirstOrDefault();
-            SavedThing? wb = b == null ? (SavedThing?)null : b.Where(x => x.thing != null).Select(x => (SavedThing?)x).FirstOrDefault();
-            if (wa.HasValue != wb.HasValue) return false;
-            if (!wa.HasValue) return true;
-            return SavedThingEquivalent(wa.Value, wb.Value);
-        }
-
-        private static bool SavedThingEquivalent(SavedThing a, SavedThing b)
-        {
-            if (a.thing != b.thing) return false;
-            if (a.stuff != b.stuff) return false;
-            if (a.quality != b.quality) return false;
-            if (a.hasColor != b.hasColor) return false;
-            if (a.hasColor && a.color != b.color) return false;
-            return true;
+            return LoadoutUpgradeUtil.LoadoutsDiffer(merc.BlueprintLoadout, merc.currentLoadout);
         }
 
         private void PerPawnUpgrade(Mercenary merc, int cost)
@@ -721,6 +662,9 @@ namespace FactionColonies
             merc.currentLoadout = target.Clone();
             squad.StripPawn(merc);
             squad.EquipPawn(merc, merc.currentLoadout);
+            // EquipPawn handles apparel + weapons only — sync the companion animal too so
+            // an animal-only personalization actually takes effect.
+            squad.ReconcileAnimal(merc, target);
         }
 
         private void FillSingleSlot(Mercenary merc, int cost, MilUnitFC blueprint)

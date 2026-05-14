@@ -274,7 +274,8 @@ namespace FactionColonies
         private struct SlotDecision
         {
             public int slotIndex;
-            public MilUnitFC slotUnit;
+            public MilUnitFC slotUnit;     // the (possibly newly-swapped) template's slot unit
+            public MilUnitFC target;       // resolved gear target: claim.ownedLoadout ?? slotUnit
             public Mercenary claim;        // null when this is a fresh-hire
         }
 
@@ -286,6 +287,15 @@ namespace FactionColonies
             public List<Mercenary> Fires;      // mercs to be fired (unclaimed by any slot)
             public int UpgradeSilver;          // sum of positive diffs on claims (× upgradeMult)
             public int FreshHireSilver;        // sum of fresh-hire costs (× hireMult)
+            public int ReassignCount;          // claimed slots whose target differs from the merc's currentLoadout
+
+            /* True when committing the plan would actually do something — re-equip a claimed
+               merc, fresh-hire a slot, or fire an unclaimed merc — even when the net silver
+               cost rounds to zero (a same-price-or-cheaper re-equip still needs applying). */
+            public bool HasWork =>
+                ReassignCount > 0
+                || (Fires != null && Fires.Count > 0)
+                || (Slots != null && Slots.Any(s => s.claim is null));
         }
 
         private UpgradePlan BuildUpgradePlan()
@@ -318,15 +328,29 @@ namespace FactionColonies
                 {
                     Mercenary picked = claimable[idx];
                     claimable.RemoveAt(idx);
-                    plan.Slots.Add(new SlotDecision { slotIndex = i, slotUnit = slotUnit, claim = picked });
 
-                    double oldCost = picked.EffectiveLoadout?.getTotalCost ?? 0;
-                    double newCost = slotUnit.getTotalCost;
-                    if (newCost > oldCost) upgradeSum += (newCost - oldCost);
+                    /* Personalization wins; otherwise conform to the live template slot.
+                       This is the merc's BlueprintLoadout with its (possibly stale, post-
+                       SwapTemplate) `loadout` pointer replaced by the current slot unit. */
+                    MilUnitFC target = picked.ownedLoadout ?? slotUnit;
+                    plan.Slots.Add(new SlotDecision
+                    {
+                        slotIndex = i, slotUnit = slotUnit, target = target, claim = picked
+                    });
+
+                    /* Accumulate the UNSCALED diff; squadUpgradeCostMultiplier is applied
+                       once at the end so the bulk total stays round-of-sum, and the
+                       difference test mirrors the per-pawn button exactly. */
+                    upgradeSum += LoadoutUpgradeUtil.RawEquipmentDiff(target, picked.currentLoadout);
+                    if (LoadoutUpgradeUtil.LoadoutsDiffer(target, picked.currentLoadout))
+                        plan.ReassignCount++;
                 }
                 else
                 {
-                    plan.Slots.Add(new SlotDecision { slotIndex = i, slotUnit = slotUnit, claim = null });
+                    plan.Slots.Add(new SlotDecision
+                    {
+                        slotIndex = i, slotUnit = slotUnit, target = slotUnit, claim = null
+                    });
                     freshHireSum += slotUnit.getTotalCost;
                 }
             }
@@ -363,6 +387,31 @@ namespace FactionColonies
                     return (0, 0);
                 UpgradePlan plan = BuildUpgradePlan();
                 return (plan.UpgradeSilver, plan.FreshHireSilver);
+            }
+        }
+
+        /// <summary>True when <see cref="UpgradeToTemplate"/> would actually do something —
+        /// re-equip a claimed merc, fresh-hire a slot, or fire an unclaimed merc — even when
+        /// the net silver cost rounds to zero. Gate the Upgrade-All button on this, not on
+        /// <see cref="UpgradeCost"/>: a same-price-or-cheaper re-equip is real work at zero cost.</summary>
+        public bool HasUpgradeWork
+        {
+            get
+            {
+                if (outfit is null || outfit.Units is null || mercenaries is null) return false;
+                return BuildUpgradePlan().HasWork;
+            }
+        }
+
+        /// <summary>True when <see cref="UpgradeToTemplate"/> would fire (destroy) at least one
+        /// merc the player has personalized via the per-pawn loadout editor. Lets the UI warn
+        /// before a re-template silently discards a personalized pawn.</summary>
+        public bool UpgradeWouldFirePersonalized
+        {
+            get
+            {
+                if (outfit is null || outfit.Units is null || mercenaries is null) return false;
+                return BuildUpgradePlan().Fires.Any(m => m?.ownedLoadout is object);
             }
         }
 
@@ -417,6 +466,7 @@ namespace FactionColonies
             }
 
             UpgradePlan plan = BuildUpgradePlan();
+            if (!plan.HasWork) return false;
             int net = plan.UpgradeSilver + plan.FreshHireSilver;
 
             if (net > 0 && PaymentUtil.GetSilver() < net)
@@ -441,8 +491,12 @@ namespace FactionColonies
                 StripPawn(m);
                 if (m.pawn != null && !m.pawn.Destroyed) m.pawn.Destroy();
                 m.pawn = null;
-                if (m.animal?.pawn != null && !m.animal.pawn.Destroyed) m.animal.pawn.Destroy();
-                m.animal = null;
+                if (m.animal != null)
+                {
+                    if (m.animal.pawn != null && !m.animal.pawn.Destroyed) m.animal.pawn.Destroy();
+                    animals?.Remove(m.animal);   // drop the orphan instead of leaking it
+                    m.animal = null;
+                }
             }
 
             // Slot pass: re-equip claims, fresh-hire fresh slots. The slot order in
@@ -452,13 +506,19 @@ namespace FactionColonies
             foreach (SlotDecision dec in plan.Slots)
             {
                 MilUnitFC slotUnit = dec.slotUnit;
+                MilUnitFC target = dec.target;
                 Mercenary merc;
 
                 if (dec.claim != null)
                 {
                     merc = dec.claim;
                     StripPawn(merc);
-                    EquipPawn(merc, slotUnit);
+                    EquipPawn(merc, target);
+                    /* Re-sync the pool pointer to the live template slot (repairs a stale
+                       'loadout' after a SwapTemplate). ownedLoadout is deliberately left
+                       intact — a bulk upgrade APPLIES personalization, it doesn't discard it. */
+                    merc.loadout = slotUnit;
+                    merc.currentLoadout = target.Clone();
                 }
                 else
                 {
@@ -469,28 +529,15 @@ namespace FactionColonies
                         LogUtil.Warning($"UpgradeToTemplate: failed to generate fresh pawn for slot {dec.slotIndex}");
                         continue;
                     }
-                    EquipPawn(merc, slotUnit);
+                    EquipPawn(merc, target);
                     merc.squad = this;
                     merc.settlement = settlement;
+                    merc.loadout = slotUnit;
+                    merc.ownedLoadout = null;            // fresh pawn — no personalization
+                    merc.currentLoadout = target.Clone();
                 }
 
-                merc.loadout = slotUnit;
-                merc.ownedLoadout = null;
-                merc.currentLoadout = slotUnit.Clone();
-
-                if (slotUnit.animal != null)
-                {
-                    Mercenary animal = new Mercenary(true);
-                    CreateNewAnimal(ref animal, slotUnit.animal);
-                    animal.handler = merc;
-                    merc.animal = animal;
-                    if (animals == null) animals = new List<Mercenary>();
-                    animals.Add(animal);
-                }
-                else
-                {
-                    merc.animal = null;
-                }
+                ReconcileAnimal(merc, target);
 
                 if (merc.pawn?.equipment?.AllEquipmentListForReading != null)
                     UsedWeaponList.AddRange(merc.pawn.equipment.AllEquipmentListForReading);
@@ -504,6 +551,49 @@ namespace FactionColonies
             FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(this);
             return true;
+        }
+
+        /// <summary>Syncs a merc's companion animal to <paramref name="target"/>'s animal:
+        /// creates, replaces, or destroys the animal-merc as needed and keeps
+        /// <see cref="animals"/> consistent (no orphaned entries). Shared by the per-pawn
+        /// Upgrade path and the bulk <see cref="UpgradeToTemplate"/> — <c>EquipPawn</c> only
+        /// touches apparel + weapons, so the animal has to be reconciled separately. A
+        /// fresh-hire merc (<c>animal == null</c>) is handled too: it just creates the
+        /// animal when the target has one.</summary>
+        public void ReconcileAnimal(Mercenary merc, MilUnitFC target)
+        {
+            if (merc is null) return;
+            PawnKindDef wanted = target?.animal;
+
+            /* No animal wanted — drop any existing one. */
+            if (wanted is null)
+            {
+                if (merc.animal != null)
+                {
+                    if (merc.animal.pawn != null && !merc.animal.pawn.Destroyed) merc.animal.pawn.Destroy();
+                    animals?.Remove(merc.animal);
+                    merc.animal = null;
+                }
+                return;
+            }
+
+            /* Correct animal already present — leave it. */
+            if (merc.animal?.pawn?.kindDef == wanted) return;
+
+            /* Wrong / missing animal — destroy the old one (if any), create the wanted one. */
+            if (merc.animal != null)
+            {
+                if (merc.animal.pawn != null && !merc.animal.pawn.Destroyed) merc.animal.pawn.Destroy();
+                animals?.Remove(merc.animal);
+                merc.animal = null;
+            }
+
+            Mercenary animal = new Mercenary(true);
+            CreateNewAnimal(ref animal, wanted);
+            animal.handler = merc;
+            merc.animal = animal;
+            if (animals is null) animals = new List<Mercenary>();
+            animals.Add(animal);
         }
 
         /* The squad's billet. settlement is the canonical source of truth in the squad-first
