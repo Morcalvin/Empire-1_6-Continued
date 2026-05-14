@@ -160,7 +160,8 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSelectedPosOutOfBounds>The position you selected is out of bounds for this map!</FCSelectedPosOutOfBounds>
 	<FCSelectedPosTooCloseToEdge>The position you selected is to close to the map edge!</FCSelectedPosTooCloseToEdge>
 	<FCDeploymentSuccessLabel>Military Deployed</FCDeploymentSuccessLabel>
-	<FCDeploymentSuccessDesc>The military forces of {0} have been deployed to {1}</FCDeploymentSuccessDesc>
+	<FCDeploymentSuccessDesc>Squad {0} from {1} has been deployed to {2}.\n\nThe deployment cost {3} silver. A bill for this amount has been issued and must be paid within {4} days.</FCDeploymentSuccessDesc>
+	<FCDeploymentSuccessDescNoBill>Squad {0} from {1} has been deployed to {2}.</FCDeploymentSuccessDescNoBill>
 	<FCMilitaryPawnsLeavingTimeOut>A squad is leaving, because it's available time ran out!</FCMilitaryPawnsLeavingTimeOut>
 	<FCDeployCost>Deploy Cost: ${0}</FCDeployCost>
 

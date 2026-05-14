@@ -221,21 +221,23 @@ namespace FactionColonies
         /// player for <c>squad.DeploymentCost</c> silver, due in
         /// <c>FCSettings.deploymentBillLifespan_days</c> days. No-op when cost is zero
         /// (slider at 0%) or godMode is on.</summary>
-        public static void CreateDeploymentCostBill(MercenarySquadFC squad)
+        /// <returns>The created <see cref="BillFC"/>, or <c>null</c> when no bill was
+        /// created (no squad, zero cost, godMode, no home settlement, or no faction).</returns>
+        public static BillFC CreateDeploymentCostBill(MercenarySquadFC squad)
         {
-            if (squad is null) return;
+            if (squad is null) return null;
             int cost = squad.DeploymentCost;
-            if (cost <= 0 || DebugSettings.godMode) return;
+            if (cost <= 0 || DebugSettings.godMode) return null;
 
             WorldSettlementFC home = squad.settlement;
             if (home is null)
             {
                 LogUtil.Warning($"CreateDeploymentCostBill: squad {squad.GetUniqueLoadID()} has no home settlement; skipping bill.");
-                return;
+                return null;
             }
 
             FactionFC fc = FactionCache.FactionComp;
-            if (fc is null) return;
+            if (fc is null) return null;
 
             int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
             BillFC bill = new BillFC(home, lifespanTicks);
@@ -248,6 +250,7 @@ namespace FactionColonies
             bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Unrest, 4);
             bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Happiness, 4);
             fc.Bills.Add(bill);
+            return bill;
         }
 
         public static int GetSilver()

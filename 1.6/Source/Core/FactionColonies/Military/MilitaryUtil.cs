@@ -30,7 +30,10 @@ namespace FactionColonies
         /// <param name="squad"></param>
         /// <param name="dropPosition"></param>
         /// <param name="DropPod"></param>
-        private static void SpawnSquad(WorldSettlementFC settlement, MercenarySquadFC squad, IntVec3 dropPosition, bool DropPod)
+        /// <param name="bill">The deployment-cost bill created for this deployment, or
+        /// <c>null</c> if none was created (zero cost / godMode). Controls whether the
+        /// deployment letter mentions the cost and payment deadline.</param>
+        private static void SpawnSquad(WorldSettlementFC settlement, MercenarySquadFC squad, IntVec3 dropPosition, bool DropPod, BillFC bill)
         {
             if (settlement.MilitaryComp == null)
             {
@@ -83,7 +86,13 @@ namespace FactionColonies
 
             equippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
             squad.orderLocation = dropPosition;
-            Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), "FCDeploymentSuccessDesc".Translate(settlement.Name, currentMap.Parent.LabelCap), LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
+            // Squad-first: name the deployed squad and its home settlement. When a deployment-cost
+            // bill was created, also surface the cost and payment deadline; otherwise omit that
+            // sentence (no bill when cost is 0% or godMode is on).
+            string deploymentDesc = bill is object
+                ? "FCDeploymentSuccessDesc".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap, squad.DeploymentCost, FCSettings.deploymentBillLifespan_days)
+                : "FCDeploymentSuccessDescNoBill".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap);
+            Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), deploymentDesc, LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
 
             // Deploy is a manager op: CreateDeployOp registers the squad, sets phase=Engaged,
             // and fires LifecycleRegistry.InvokeOnOperationCreated. Squad-first: pass the squad,
@@ -132,8 +141,8 @@ namespace FactionColonies
                     return;
                 }
 
-                PaymentUtil.CreateDeploymentCostBill(squad);
-                SpawnSquad(settlement, squad, dropPosition, DropPod);
+                BillFC deploymentBill = PaymentUtil.CreateDeploymentCostBill(squad);
+                SpawnSquad(settlement, squad, dropPosition, DropPod, deploymentBill);
                 DebugTools.curTool = null;
             });
             DebugTools.curTool = tool;
