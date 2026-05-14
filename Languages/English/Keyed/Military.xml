@@ -104,6 +104,8 @@
 	<FCBattleArchiveSettingsHeader>Battle Archive</FCBattleArchiveSettingsHeader>
 	<FCBattleArchiveMaxEntriesLabel>Max battle reports archived</FCBattleArchiveMaxEntriesLabel>
 	<FCBattleArchiveMaxEntriesTip>How many of the most recent battle reports to keep around. Older reports are evicted when the cap is reached. Letters that reference an evicted report show a "no longer available" message on click.</FCBattleArchiveMaxEntriesTip>
+	<FCBattleArchiveUnlimited>Unlimited battle reports</FCBattleArchiveUnlimited>
+	<FCBattleArchiveUnlimitedTip>Keep every battle report instead of capping the archive. Older reports are never evicted. May grow your save file over a long playthrough.</FCBattleArchiveUnlimitedTip>
 	<FCNewWaveArrived>New Wave at {0}</FCNewWaveArrived>
 	<FCNewWaveArrivedDesc>A new wave of attackers from {1} has arrived at {0}! Reinforcements may be on the way.</FCNewWaveArrivedDesc>
 	<FCDefendColony>Defend</FCDefendColony>
@@ -157,7 +159,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCSelectDeploymentPosition>Select Deployment Position</FCSelectDeploymentPosition>
 	<FCSelectedPosOutOfBounds>The position you selected is out of bounds for this map!</FCSelectedPosOutOfBounds>
 	<FCSelectedPosTooCloseToEdge>The position you selected is to close to the map edge!</FCSelectedPosTooCloseToEdge>
-	<FCDeploymentSuccessLabel>Military deployed</FCDeploymentSuccessLabel>
+	<FCDeploymentSuccessLabel>Military Deployed</FCDeploymentSuccessLabel>
 	<FCDeploymentSuccessDesc>The military forces of {0} have been deployed to {1}</FCDeploymentSuccessDesc>
 	<FCMilitaryPawnsLeavingTimeOut>A squad is leaving, because it's available time ran out!</FCMilitaryPawnsLeavingTimeOut>
 	<FCDeployCost>Deploy Cost: ${0}</FCDeployCost>

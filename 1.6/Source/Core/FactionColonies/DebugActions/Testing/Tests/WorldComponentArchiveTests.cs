@@ -158,6 +158,7 @@ namespace FactionColonies
         {
             WorldComponent_Archive archive = WorldComponent_Archive.Get();
             if (archive is null) TestAssert.Skip("No world archive component");
+            if (FCSettings.battleArchiveUnlimited) TestAssert.Skip("Archive cap disabled");
 
             int before = archive.BattleReportCount;
             archive.RecordBattleReport(MakeTestResult("count_1"));
@@ -179,6 +180,7 @@ namespace FactionColonies
         {
             WorldComponent_Archive archive = WorldComponent_Archive.Get();
             if (archive is null) TestAssert.Skip("No world archive component");
+            if (FCSettings.battleArchiveUnlimited) TestAssert.Skip("Archive cap disabled");
 
             int cap = FCSettings.battleArchiveMaxEntries;
             // Insert cap+5 entries; the archive should stay at <= cap entries afterward.
@@ -188,6 +190,24 @@ namespace FactionColonies
             }
             TestAssert.LessThanOrEqual(archive.BattleReportCount, cap,
                 "Archive should not exceed configured cap after over-fill");
+        }
+
+        [EmpireTest("Military")]
+        public static void RecordBattleReport_Unlimited_DoesNotEvict()
+        {
+            WorldComponent_Archive archive = WorldComponent_Archive.Get();
+            if (archive is null) TestAssert.Skip("No world archive component");
+            // Only meaningful when the user has opted into unlimited archiving.
+            if (!FCSettings.battleArchiveUnlimited) TestAssert.Skip("Archive cap enabled");
+
+            int before = archive.BattleReportCount;
+            const int inserted = 25;
+            for (int i = 0; i < inserted; i++)
+            {
+                archive.RecordBattleReport(MakeTestResult($"unlimited_{i}"));
+            }
+            TestAssert.AreEqual(before + inserted, archive.BattleReportCount,
+                "Unlimited archive should keep every recorded report (no eviction)");
         }
     }
 }

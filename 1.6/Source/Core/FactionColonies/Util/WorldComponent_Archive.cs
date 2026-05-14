@@ -38,7 +38,10 @@ namespace FactionColonies
         /// Insert <paramref name="result"/> into the battle archive, assigning a stable
         /// <see cref="BattleResult.reportId"/> and stamping <see cref="BattleResult.recordedTick"/>
         /// to the current game tick. Evicts the oldest entry if the archive is at the
-        /// user-configured cap (<see cref="FCSettings.battleArchiveMaxEntries"/>).
+        /// user-configured cap (<see cref="FCSettings.battleArchiveMaxEntries"/>). When
+        /// <see cref="FCSettings.battleArchiveUnlimited"/> is set, the cap is ignored and
+        /// nothing is ever evicted. If the user later turns the cap back on, the next
+        /// insertion trims the archive back down to the cap.
         /// </summary>
         /// <returns>The id assigned to the inserted report, or 0 if <paramref name="result"/> was null.</returns>
         public int RecordBattleReport(BattleResult result)
@@ -48,10 +51,13 @@ namespace FactionColonies
             result.reportId = nextReportId++;
             result.recordedTick = Find.TickManager.TicksGame;
 
-            int cap = System.Math.Max(1, FCSettings.battleArchiveMaxEntries);
-            // Evict oldest until we're at cap-1 (we're about to add one).
-            while (battleArchive.Count >= cap)
-                battleArchive.RemoveAt(0);
+            if (!FCSettings.battleArchiveUnlimited)
+            {
+                int cap = System.Math.Max(1, FCSettings.battleArchiveMaxEntries);
+                // Evict oldest until we're at cap-1 (we're about to add one).
+                while (battleArchive.Count >= cap)
+                    battleArchive.RemoveAt(0);
+            }
 
             battleArchive.Add(result);
             return result.reportId;

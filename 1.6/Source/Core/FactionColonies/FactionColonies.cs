@@ -221,6 +221,12 @@ namespace FactionColonies
         public const int MAX_BATTLE_ARCHIVE_MAX_ENTRIES = 500;
         public static int battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
 
+        /* When true, the battle archive keeps every report and never evicts. The
+         * battleArchiveMaxEntries cap is ignored. May grow the save file over a long
+         * playthrough. */
+        public const bool DEFAULT_BATTLE_ARCHIVE_UNLIMITED = false;
+        public static bool battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
+
         public static int maxPolicyCount = 2;
 
         /* Flag for debug/verbose logging. */
@@ -309,6 +315,7 @@ namespace FactionColonies
                 LogUtil.Warning($"Loaded out-of-range battleArchiveMaxEntries={battleArchiveMaxEntries}; resetting to {DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES}.");
                 battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
             }
+            Scribe_Values.Look(ref battleArchiveUnlimited, "battleArchiveUnlimited", DEFAULT_BATTLE_ARCHIVE_UNLIMITED);
             Scribe_Values.Look(ref mercenaryHealRatePerHour, "mercenaryHealRatePerHour", 1f);
             Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
             Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
@@ -503,6 +510,13 @@ namespace FactionColonies
         private Vector2 scrollVectorMilitary = new Vector2();
         private Vector2 scrollVectorRoadBuilder = new Vector2();
 
+        /* Per-tab content heights, measured from the previous frame's Listing_Standard and
+         * fed back into the scroll view so the scrollbar matches the real content length. */
+        private float contentHeightGeneral;
+        private float contentHeightEvents;
+        private float contentHeightMilitary;
+        private float contentHeightRoadBuilder;
+
         /// <summary>
         /// Creates an option for the list of ForcedTaxDeliveryOptions. Shuttles may not be used if royality is inactive
         /// </summary>
@@ -594,7 +608,7 @@ namespace FactionColonies
             minMaxDaysTillMilitaryAction = new IntRange(minDaysTillMilitaryAction, maxDaysTillMilitaryAction);
             minMaxDaysTillRandomEvent = new IntRange(minDaysTillRandomEvent, maxDaysTillRandomEvent);
 
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorGeneral, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorGeneral, contentHeightGeneral);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -744,6 +758,7 @@ namespace FactionColonies
                 squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
                 deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
                 battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
+                battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
@@ -754,6 +769,7 @@ namespace FactionColonies
                 LogUtil.Message($"Settings reset: timeBetweenTaxes_days={timeBetweenTaxes_days}");
             }
 
+            contentHeightGeneral = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
@@ -761,7 +777,7 @@ namespace FactionColonies
 
         private void DoEventsTab(Rect rect)
         {
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorEvents, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorEvents, contentHeightEvents);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -849,6 +865,7 @@ namespace FactionColonies
                 }
             }
 
+            contentHeightEvents = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
@@ -858,7 +875,7 @@ namespace FactionColonies
         {
             minMaxDaysTillMilitaryAction = new IntRange(minDaysTillMilitaryAction, maxDaysTillMilitaryAction);
 
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorMilitary, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorMilitary, contentHeightMilitary);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -889,6 +906,20 @@ namespace FactionColonies
             ls.Label("FCSettingMercHealRate".Translate() + ": " + mercenaryHealRatePerHour.ToString("0.00") + "x", -1f, "FCSettingMercHealRateTip".Translate());
             mercenaryHealRatePerHour = ls.Slider(mercenaryHealRatePerHour, 0.1f, 100f);
 
+            DrawSectionResetButton(ls, delegate
+            {
+                disableHostileMilitaryActions = DEFAULT_DISABLE_HOSTILE_MILITARY_ACTIONS;
+                battleMode = DEFAULT_BATTLE_MODE;
+                minDaysTillMilitaryAction = DEFAULT_MIN_DAYS_TIL_MILITARY_ACTION;
+                maxDaysTillMilitaryAction = DEFAULT_MAX_DAYS_TIL_MILITARY_ACTION;
+                minMaxDaysTillMilitaryAction = new IntRange(minDaysTillMilitaryAction, maxDaysTillMilitaryAction);
+                maxThreatMultiplier = DEFAULT_MAX_THREAT_MULTIPLIER;
+                defenderAdvantage = DEFAULT_DEFENDER_ADVANTAGE;
+                maxConcurrentBattleMaps = 0;
+                efficiencyDamping = DEFAULT_EFFICIENCY_DAMPING;
+                mercenaryHealRatePerHour = 1f;
+            });
+
             ls.Gap(12f);
             ls.GapLine();
             Text.Font = GameFont.Medium;
@@ -911,6 +942,16 @@ namespace FactionColonies
 
             ls.CheckboxLabeled("FCSettingRespectLethalDamageThreshold".Translate(), ref respectLethalDamageThreshold, "FCSettingRespectLethalDamageThresholdTip".Translate());
 
+            DrawSectionResetButton(ls, delegate
+            {
+                applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
+                autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
+                autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
+                crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+                overwhelmingVictoryRewardMultiplier = DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER;
+                respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
+            });
+
             ls.Gap(12f);
             ls.GapLine();
             Text.Font = GameFont.Medium;
@@ -932,15 +973,29 @@ namespace FactionColonies
             ls.Label("FCSettingDeploymentBillLifespan".Translate() + ": " + deploymentBillLifespan_days.ToString() + " d", -1f, "FCSettingDeploymentBillLifespanTip".Translate());
             deploymentBillLifespan_days = (int)ls.Slider(deploymentBillLifespan_days, 1f, 60f);
 
+            DrawSectionResetButton(ls, delegate
+            {
+                maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+                squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
+                squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
+                squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
+                deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+            });
+
             ls.Gap(12f);
             ls.GapLine();
             Text.Font = GameFont.Medium;
             ls.Label("FCBattleArchiveSettingsHeader".Translate());
             Text.Font = GameFont.Small;
 
-            ls.Label("FCBattleArchiveMaxEntriesLabel".Translate() + ": " + battleArchiveMaxEntries.ToString(), -1f, "FCBattleArchiveMaxEntriesTip".Translate());
-            battleArchiveMaxEntries = (int)ls.Slider(battleArchiveMaxEntries, MIN_BATTLE_ARCHIVE_MAX_ENTRIES, MAX_BATTLE_ARCHIVE_MAX_ENTRIES);
+            ls.CheckboxLabeled("FCBattleArchiveUnlimited".Translate(), ref battleArchiveUnlimited, "FCBattleArchiveUnlimitedTip".Translate());
+            if (!battleArchiveUnlimited)
+            {
+                ls.Label("FCBattleArchiveMaxEntriesLabel".Translate() + ": " + battleArchiveMaxEntries.ToString(), -1f, "FCBattleArchiveMaxEntriesTip".Translate());
+                battleArchiveMaxEntries = (int)ls.Slider(battleArchiveMaxEntries, MIN_BATTLE_ARCHIVE_MAX_ENTRIES, MAX_BATTLE_ARCHIVE_MAX_ENTRIES);
+            }
 
+            contentHeightMilitary = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
@@ -948,7 +1003,7 @@ namespace FactionColonies
 
         private void DoRoadBuilderTab(Rect rect)
         {
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorRoadBuilder, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorRoadBuilder, contentHeightRoadBuilder);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -978,9 +1033,22 @@ namespace FactionColonies
                 queue.FlushCache();
             }
 
+            contentHeightRoadBuilder = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
+        }
+
+        /// <summary>
+        /// Draws a compact, left-aligned "Reset Section to Defaults" button into the given
+        /// listing and invokes <paramref name="resetAction"/> when clicked.
+        /// </summary>
+        private void DrawSectionResetButton(Listing_Standard ls, Action resetAction)
+        {
+            ls.Gap(4f);
+            Rect row = ls.GetRect(28f);
+            Rect btn = new Rect(row.x, row.y, Mathf.Min(240f, row.width), row.height);
+            if (Widgets.ButtonText(btn, "FCSettingResetSection".Translate())) resetAction();
         }
     }
 
