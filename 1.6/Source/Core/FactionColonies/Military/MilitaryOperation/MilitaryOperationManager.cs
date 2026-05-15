@@ -361,8 +361,11 @@ namespace FactionColonies
         /// <summary>Picks the strongest <see cref="MercenarySquadFC.IsAvailable"/> squad stationed
         /// at <paramref name="settlement"/> as the primary defender, ranked by
         /// <see cref="SquadPowerRegistry"/> projected power. Returns null if no squad qualifies
-        /// (all busy / cooldown / no squads stationed).</summary>
-        private static MercenarySquadFC PickPrimaryDefendingSquad(WorldSettlementFC settlement)
+        /// (all busy / cooldown / no squads stationed).
+        /// <para>Internal so <see cref="MilitaryMigrationUtil"/> can wire the defender squad onto
+        /// reconstructed defensive ops the same way <see cref="CreateDefensiveOp"/> does on fresh
+        /// ops.</para></summary>
+        internal static MercenarySquadFC PickPrimaryDefendingSquad(WorldSettlementFC settlement)
         {
             if (settlement is null) return null;
             MercenarySquadFC best = null;

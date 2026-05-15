@@ -333,6 +333,15 @@ namespace FactionColonies
             op.defender.homeSettlement = warning.militaryForceDefending?.homeSettlement;
             op.defender.force = warning.militaryForceDefending;
             op.externalDefenderSource = warning.externalDefenderSource;
+
+            /* Wire the defender squad the same way CreateDefensiveOp does. Without this,
+             * GenerateFriendlies sees op.defender.squad == null and falls into the random-pawn
+             * branch instead of using the player's stationed mercs; SpawnReinforcementsForOp
+             * for foreign-defender saves bails because squad is null. Skip when an external
+             * auto-defender owns the defense (no Empire squad on that path). */
+            if (op.externalDefenderSource is null && op.defender.homeSettlement is object)
+                op.defender.squad = MilitaryOperationManager.PickPrimaryDefendingSquad(op.defender.homeSettlement);
+
             manager.Register(op);
             return op;
         }
@@ -367,6 +376,12 @@ namespace FactionColonies
             op.defender.homeSettlement = wave.defenderForce?.homeSettlement ?? settlement;
             op.defender.force = wave.defenderForce;
             op.externalDefenderSource = wave.externalDefenderSource;
+
+            // Mirror ReconstructDefensiveOp: wire the defender squad so post-battle reinforcement
+            // paths and op-lifecycle code see the same shape as a fresh CreateDefensiveOp.
+            if (op.externalDefenderSource is null && op.defender.homeSettlement is object)
+                op.defender.squad = MilitaryOperationManager.PickPrimaryDefendingSquad(op.defender.homeSettlement);
+
             manager.Register(op);
             return op;
         }
