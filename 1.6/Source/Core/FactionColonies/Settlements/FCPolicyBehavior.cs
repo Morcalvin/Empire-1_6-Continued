@@ -107,7 +107,7 @@ namespace FactionColonies
         public virtual void OnSquadDismissed(FactionFC faction, MercenarySquadFC squad) { }
 
         /// <summary>Called after a hired squad's loadout has been brought up to its source
-        /// template via <see cref="MercenarySquadFC.UpgradeToTemplate"/>. Silver has been paid.</summary>
+        /// template via <see cref="SquadUpgradeUtil.UpgradeToTemplate"/>. Silver has been paid.</summary>
         public virtual void OnSquadUpgraded(FactionFC faction, MercenarySquadFC squad) { }
 
         /// <summary>Called after a battle has been resolved, before the squad enters cooldown.</summary>

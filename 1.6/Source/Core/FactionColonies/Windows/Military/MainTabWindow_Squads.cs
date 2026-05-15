@@ -177,8 +177,8 @@ namespace FactionColonies
             string billetLbl = (string)"FCSquadColBillet".Translate() + ": " + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
             string powerLbl = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
             string costLbl = "FCDeployCost".Translate(SquadCostCalculator.DeploymentCost(squad));
-            int upgrade = squad.UpgradeCost;
-            bool hasUpgradeWork = squad.HasUpgradeWork;
+            int upgrade = SquadUpgradeUtil.UpgradeCost(squad);
+            bool hasUpgradeWork = SquadUpgradeUtil.HasUpgradeWork(squad);
             /* Show "$0" for a zero-net but real upgrade (a reassignment / same-price re-equip);
                "-" only when there is genuinely nothing to do. */
             string upgradeLbl = (string)"FCSquadColUpgrade".Translate() + ": "

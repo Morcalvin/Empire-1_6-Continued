@@ -256,7 +256,7 @@ namespace FactionColonies
             return BattleViewerSide.Neither;
         }
 
-        /// <summary>Runs <see cref="MercenarySquadFC.UpgradeToTemplate"/>, first prompting for
+        /// <summary>Runs <see cref="SquadUpgradeUtil.UpgradeToTemplate"/>, first prompting for
         /// confirmation when the re-template would fire (destroy) a pawn the player has
         /// personalized via the per-pawn loadout editor. Shared by every Upgrade-All entry
         /// point (squad inspection, military tab, settlement squad menu) so the warning is
@@ -264,15 +264,15 @@ namespace FactionColonies
         public static void ConfirmAndUpgradeAll(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            if (squad.UpgradeWouldFirePersonalized)
+            if (SquadUpgradeUtil.UpgradeWouldFirePersonalized(squad))
             {
                 MercenarySquadFC captured = squad;
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                     "FCSquadUpgradeFirePersonalizedConfirm".Translate(),
-                    delegate { captured.UpgradeToTemplate(); }));
+                    delegate { SquadUpgradeUtil.UpgradeToTemplate(captured); }));
                 return;
             }
-            squad.UpgradeToTemplate();
+            SquadUpgradeUtil.UpgradeToTemplate(squad);
         }
     }
 }

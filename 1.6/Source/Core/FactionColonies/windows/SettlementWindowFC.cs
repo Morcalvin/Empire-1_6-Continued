@@ -1214,8 +1214,8 @@ namespace FactionColonies
                     Find.WindowStack.Add(new Dialog_SquadAssignment(squad));
                 }));
 
-            int upgrade = squad.UpgradeCost;
-            if (squad.HasUpgradeWork)
+            int upgrade = SquadUpgradeUtil.UpgradeCost(squad);
+            if (SquadUpgradeUtil.HasUpgradeWork(squad))
             {
                 list.Add(new FloatMenuOption("FCSquadMenuUpgrade".Translate(upgrade),
                     squad.IsBusy ? (Action)null : (Action)delegate { MilitaryUtil.ConfirmAndUpgradeAll(squad); }));

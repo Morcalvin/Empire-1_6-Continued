@@ -162,7 +162,7 @@ namespace FactionColonies
         void OnSquadDismissed(MercenarySquadFC squad);
         /// <summary>
         /// Called after a squad's loadout is brought up to its source template via
-        /// <see cref="MercenarySquadFC.UpgradeToTemplate"/>. Silver has already been paid.
+        /// <see cref="SquadUpgradeUtil.UpgradeToTemplate"/>. Silver has already been paid.
         /// </summary>
         void OnSquadUpgraded(MercenarySquadFC squad);
     }

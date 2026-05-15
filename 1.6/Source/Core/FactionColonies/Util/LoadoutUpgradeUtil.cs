@@ -7,7 +7,7 @@ namespace FactionColonies
     /// <summary>
     /// Shared loadout-upgrade math used by BOTH the per-pawn Upgrade button
     /// (<see cref="Dialog_SquadInspection"/>) and the bulk Upgrade All path
-    /// (<see cref="MercenarySquadFC.BuildUpgradePlan"/> / <see cref="MercenarySquadFC.UpgradeToTemplate"/>).
+    /// (<see cref="SquadUpgradeUtil.UpgradeToTemplate"/>).
     /// Keeping the cost and equivalence logic in one place is load-bearing: the two callers
     /// must agree on what "needs upgrading" and "costs what" or the UI desyncs (the bug this
     /// class was extracted to fix).

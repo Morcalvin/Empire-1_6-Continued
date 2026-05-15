@@ -312,7 +312,7 @@ namespace FactionColonies
             Rect clearRect = new Rect(rect.x + ActionButtonWidth + SmallGap, y, ActionButtonWidth, buttonsH);
             if (UIUtil.ButtonFlat(clearRect, "FCSquadInspectionClearTemplate".Translate(), disabled: !hasTemplate || squad.IsBusy))
             {
-                squad.SwapTemplate(null);
+                SquadUpgradeUtil.SwapTemplate(squad, null);
             }
             if (squad.IsBusy)
                 TooltipHandler.TipRegion(clearRect, "FCSquadCannotModifyBusyTip".Translate());
@@ -324,11 +324,11 @@ namespace FactionColonies
             int emptyCount = squad.EmptySlotCount;
             bool canFill = emptyCount > 0;
 
-            int upgradeNet = squad.UpgradeCost;
-            (int upgrade, int hire) = squad.UpgradeCostBreakdown;
+            int upgradeNet = SquadUpgradeUtil.UpgradeCost(squad);
+            (int upgrade, int hire) = SquadUpgradeUtil.UpgradeCostBreakdown(squad);
             /* Gate on HasUpgradeWork, not cost: a same-price-or-cheaper re-equip (or a
                reassignment after a template swap) is real work that nets zero silver. */
-            bool hasUpgradeWork = squad.HasUpgradeWork;
+            bool hasUpgradeWork = SquadUpgradeUtil.HasUpgradeWork(squad);
             bool canUpgradeAll = squad.outfit != null && !squad.IsBusy && hasUpgradeWork;
 
             float gap = 8f;
@@ -690,11 +690,11 @@ namespace FactionColonies
             MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
             if (util?.squads is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
-            options.Add(new FloatMenuOption("FCNone".Translate(), delegate { squad.SwapTemplate(null); }));
+            options.Add(new FloatMenuOption("FCNone".Translate(), delegate { SquadUpgradeUtil.SwapTemplate(squad, null); }));
             foreach (MilSquadFC template in util.squads)
             {
                 MilSquadFC captured = template;
-                options.Add(new FloatMenuOption(template.name ?? "(?)", delegate { squad.SwapTemplate(captured); }));
+                options.Add(new FloatMenuOption(template.name ?? "(?)", delegate { SquadUpgradeUtil.SwapTemplate(squad, captured); }));
             }
             Find.WindowStack.Add(new FloatMenu(options));
         }
@@ -764,7 +764,7 @@ namespace FactionColonies
             if (slot.pawn != null) squad.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
 
-            if (squad.outfit != null) squad.SwapTemplate(null);
+            if (squad.outfit != null) SquadUpgradeUtil.SwapTemplate(squad, null);
 
             FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
         }
