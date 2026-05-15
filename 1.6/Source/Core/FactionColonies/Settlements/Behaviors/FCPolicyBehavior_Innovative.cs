@@ -1,5 +1,5 @@
-using System;
 using RimWorld;
+using System;
 using Verse;
 
 namespace FactionColonies

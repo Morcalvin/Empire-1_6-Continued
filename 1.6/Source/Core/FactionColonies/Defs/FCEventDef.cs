@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using RimWorld;
+﻿using RimWorld;
+using System.Collections.Generic;
 using Verse;
 
 namespace FactionColonies
@@ -168,7 +168,7 @@ namespace FactionColonies
                 yield return $"{defName}: timeTillTriggerMax ({timeTillTriggerMax}) < timeTillTrigger ({timeTillTrigger})";
         }
     }
-    
+
     [DefOf]
     public class FCEventDefOf
     {

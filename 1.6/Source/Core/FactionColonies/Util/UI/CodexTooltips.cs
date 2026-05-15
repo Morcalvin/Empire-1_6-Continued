@@ -1,8 +1,8 @@
+using RimWorld;
 using System;
 using System.Linq;
 using UnityEngine;
 using Verse;
-using RimWorld;
 
 namespace FactionColonies.util
 {

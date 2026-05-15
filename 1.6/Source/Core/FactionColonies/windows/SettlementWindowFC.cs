@@ -1163,7 +1163,8 @@ namespace FactionColonies
                 roomForHire ? (Action)delegate
                 {
                     Find.WindowStack.Add(new Dialog_HireSquad(settlement));
-                } : (Action)null));
+                }
+            : (Action)null));
 
             if (settlement.MilitaryComp.isUnderAttack)
             {
@@ -1185,7 +1186,7 @@ namespace FactionColonies
                 list.Add(new FloatMenuOption("FCChangeDefendingForce".Translate(),
                     capturedEvt is object
                         ? (Action)delegate { Find.WindowStack.Add(new Dialog_DefendSettlement(capturedEvt)); }
-                        : null));
+                : null));
             }
 
             Find.WindowStack.Add(new FloatMenu(list));

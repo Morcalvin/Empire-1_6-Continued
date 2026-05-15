@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Verse;
-using Verse.Noise;
 using Verse.Sound;
 
 namespace FactionColonies
@@ -159,7 +158,7 @@ namespace FactionColonies
             Widgets.DrawLineVertical(x, y, len);
             GUI.color = origColor;
         }
-        
+
         public static void DrawColoredHorizontalLine(float x, float y, float len, Color color)
         {
             Color origColor = GUI.color;

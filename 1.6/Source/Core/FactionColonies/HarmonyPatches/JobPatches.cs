@@ -1,7 +1,7 @@
-using System.Linq;
 using FactionColonies.util;
 using HarmonyLib;
 using RimWorld;
+using System.Linq;
 using Verse;
 using Verse.AI;
 

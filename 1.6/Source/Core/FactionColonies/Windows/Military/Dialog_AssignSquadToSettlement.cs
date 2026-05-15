@@ -1,4 +1,3 @@
-using FactionColonies.util;
 using RimWorld;
 using System.Collections.Generic;
 using UnityEngine;
@@ -24,7 +23,7 @@ namespace FactionColonies
 
         /* Travel and win-chance are unused for assignment — hide them. Pow/Eff stay visible so
          * the player can compare squad strength while picking. */
-        protected override bool ShowTravel    => false;
+        protected override bool ShowTravel => false;
         protected override bool ShowWinChance => false;
 
         /* Flag the slot's existing occupant so the player can see what they'd be displacing

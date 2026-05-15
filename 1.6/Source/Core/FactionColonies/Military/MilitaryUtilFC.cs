@@ -1,7 +1,6 @@
-using System.Collections.Generic;
-using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
+using System.Collections.Generic;
 using Verse;
 
 namespace FactionColonies

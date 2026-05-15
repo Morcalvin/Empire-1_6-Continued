@@ -1,3 +1,4 @@
+using FactionColonies.util;
 using LudeonTK;
 using RimWorld;
 using System;
@@ -5,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml;
-using FactionColonies.util;
 using UnityEngine;
 using Verse;
 

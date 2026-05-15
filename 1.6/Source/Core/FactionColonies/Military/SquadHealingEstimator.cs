@@ -1,6 +1,6 @@
+using RimWorld;
 using System;
 using System.Collections.Generic;
-using RimWorld;
 using Verse;
 
 namespace FactionColonies
@@ -12,13 +12,15 @@ namespace FactionColonies
     /// <summary>
     /// Estimates how long it will take an injured squad to heal back to full effectiveness.
     /// Drives the "Healing X" UI label that replaced the multi-day cooldown countdown.
-    /// <para>Empty / dead slots are ignored — only the player can refill those, and the
+    /// 
+    /// <para>Empty / dead slots are ignored. Only the player can refill those, and the
     /// healing system can't bring them back. The squad-level estimate is the max across
     /// all currently-alive injured mercenary pawns: the squad is "fully effective" when
     /// the slowest member finishes healing. Animals are excluded; injured/downed/dead
     /// animals are auto-replaced with fresh pawns on the heal tick (see
     /// <see cref="MilitaryCustomizationUtil.TickAnimalReplacement"/>), so they never sit
     /// in a "healing" state long enough to delay the squad.</para>
+    /// 
     /// <para>Per-tick heal rate matches the vanilla <c>Pawn_HealthTracker.HealthTickInterval</c>
     /// natural-heal formula: <c>8 * HealthScale * 0.01 * InjuryHealingFactor</c> HP per call.
     /// <see cref="MilitaryCustomizationUtil.TickMercenaryHealing"/> invokes that method once

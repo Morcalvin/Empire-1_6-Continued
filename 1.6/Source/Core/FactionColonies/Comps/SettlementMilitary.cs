@@ -370,7 +370,7 @@ namespace FactionColonies
             MilitaryOperationManager mgr = FactionCache.MilitaryManager;
             if (mgr is null) return null;
             IReadOnlyList<MilitaryOperation> active = mgr.active;
-            foreach(MilitaryOperation op in active)
+            foreach (MilitaryOperation op in active)
             {
                 if (op?.battleResult is null) continue;
                 if (op.phase != MilitaryOperationPhase.Engaged) continue;
@@ -698,14 +698,14 @@ namespace FactionColonies
         {
             // Tile-less deploy: SendMilitary sets job + location together, so this is broken state.
             if (militaryLocation == PlanetTile.Invalid) return true;
-            
+
             // Active warning event for the target; defense is actually in progress.
             if (MilitaryUtilFC.ReturnMilitaryEventByLocation(militaryLocation) is object) return false;
-            
+
             // Target world object is gone (settlement destroyed, outpost despawned, etc.): stale.
             var targetComp = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(militaryLocation)?.MilitaryComp;
             if (targetComp is null) return true;
-            
+
             // Target exists, no event, not under attack: stale.
             return !targetComp.isUnderAttack;
         }

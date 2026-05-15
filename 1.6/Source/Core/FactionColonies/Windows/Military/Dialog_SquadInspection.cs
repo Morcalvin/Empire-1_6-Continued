@@ -1,4 +1,3 @@
-using FactionColonies.util;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -100,7 +99,7 @@ namespace FactionColonies
             Rect actionsRect = new Rect(inRect.x, y, inRect.width, ActionBarHeight);
             DrawActionBar(actionsRect);
             y = actionsRect.yMax + (BandGap / 2f);
-            
+
             Rect barBelowActions = new Rect(inRect.x + 4f, y, inRect.width - 8f, 1f);
             TexLoad.DrawHorizontalPeakGradient(barBelowActions, Color.gray);
             y = barBelowActions.yMax + (BandGap / 2f);
@@ -372,8 +371,8 @@ namespace FactionColonies
             /* Add unit: pick from saved blueprints, fill an empty slot, break template association. */
             MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
             bool hasBlueprints = util?.units != null && util.units.Any(u => u != null && !u.isBlank);
-            bool hasFreeSlot   = squad.mercenaries != null && squad.mercenaries.Any(m => m != null && m.pawn is null);
-            bool canAddUnit    = !squad.IsBusy && hasBlueprints && hasFreeSlot;
+            bool hasFreeSlot = squad.mercenaries != null && squad.mercenaries.Any(m => m != null && m.pawn is null);
+            bool canAddUnit = !squad.IsBusy && hasBlueprints && hasFreeSlot;
 
             Rect addRect = new Rect(bx, rect.y, btnW, rect.height);
             if (UIUtil.ButtonFlat(addRect, "FCSquadInspectionAddUnit".Translate(), disabled: !canAddUnit))
@@ -382,10 +381,10 @@ namespace FactionColonies
             }
 
             string addTip;
-            if (squad.IsBusy)        addTip = "FCSquadInspectionAddUnitBusy".Translate();
+            if (squad.IsBusy) addTip = "FCSquadInspectionAddUnitBusy".Translate();
             else if (!hasBlueprints) addTip = "FCSquadInspectionAddUnitNoBlueprints".Translate();
-            else if (!hasFreeSlot)   addTip = "FCSquadInspectionAddUnitFull".Translate();
-            else                     addTip = "FCSquadInspectionAddUnitTip".Translate();
+            else if (!hasFreeSlot) addTip = "FCSquadInspectionAddUnitFull".Translate();
+            else addTip = "FCSquadInspectionAddUnitTip".Translate();
             TooltipHandler.TipRegion(addRect, addTip);
         }
 
@@ -416,7 +415,7 @@ namespace FactionColonies
 
             /* Background — highlight even rows for readability */
             if (slotIndex % 2 == 0) Widgets.DrawHighlight(cardRect);
-            
+
             float leftx = cardRect.x;
 
             /* Accent bar (3px on the left edge) — health-driven */
@@ -505,7 +504,7 @@ namespace FactionColonies
             string statusText = "FCSquadInspectionStatusLabel".Translate(ComputeMercStatus(merc));
             Rect statusRect = new Rect(rect.x, y, rect.width, lineH);
             UIUtil.DrawColoredLabel(statusRect, statusText, GetSlotAccent(merc));
-            
+
 
             /* Action buttons (right-aligned, vertically centered) */
             float actionsW = ActionButtonWidth * 3 + SmallGap * 2 + CardOuterPad;

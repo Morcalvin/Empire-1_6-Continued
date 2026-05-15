@@ -21,17 +21,17 @@ namespace FactionColonies
         public override Vector2 InitialSize => new Vector2(820f, 600f);
 
         /* Card layout constants — mirror HireSquadsWindow so all squad-listing surfaces share rhythm. */
-        protected const float Pad         = 4f;
-        protected const float RowGap      = 2f;
+        protected const float Pad = 4f;
+        protected const float RowGap = 2f;
         protected const float CardHeaderH = 24f;
         protected const float CardDetailH = 22f;
-        protected const float CardH       = CardHeaderH + CardDetailH;
-        protected const float AccentW     = 4f;
+        protected const float CardH = CardHeaderH + CardDetailH;
+        protected const float AccentW = 4f;
 
         /* Header layout constants */
-        protected const float TitleH       = 32f;
+        protected const float TitleH = 32f;
         protected const float HeaderColGap = 12f;
-        protected const float SubHeaderH   = 28f;
+        protected const float SubHeaderH = 28f;
 
         protected const float margin = 5f;
         protected const float smallMargin = 3f;
@@ -98,9 +98,9 @@ namespace FactionColonies
          * predict) but keeps Pow/Eff so the player can compare squad strength. When hidden, the
          * freed horizontal space goes to the squad name / status / Inspect / cost columns and
          * the corresponding sort modes are pruned from the toolbar. */
-        protected virtual bool ShowTravel        => true;
-        protected virtual bool ShowForceMetrics  => true;
-        protected virtual bool ShowWinChance     => true;
+        protected virtual bool ShowTravel => true;
+        protected virtual bool ShowForceMetrics => true;
+        protected virtual bool ShowWinChance => true;
 
         /* Returns a squad that should be flagged as the "current" / "already-assigned" candidate
          * in this picker's context. */
@@ -150,9 +150,9 @@ namespace FactionColonies
                 if (ShowWinChance)
                     opts.Add(new FloatMenuOption(SortLabel(SortMode.WinChance), () => { sort = SortMode.WinChance; rowsDirty = true; }));
                 if (ShowTravel)
-                    opts.Add(new FloatMenuOption(SortLabel(SortMode.Travel),    () => { sort = SortMode.Travel;    rowsDirty = true; }));
-                opts.Add(new FloatMenuOption(SortLabel(SortMode.Power),         () => { sort = SortMode.Power;     rowsDirty = true; }));
-                opts.Add(new FloatMenuOption(SortLabel(SortMode.Name),          () => { sort = SortMode.Name;      rowsDirty = true; }));
+                    opts.Add(new FloatMenuOption(SortLabel(SortMode.Travel), () => { sort = SortMode.Travel; rowsDirty = true; }));
+                opts.Add(new FloatMenuOption(SortLabel(SortMode.Power), () => { sort = SortMode.Power; rowsDirty = true; }));
+                opts.Add(new FloatMenuOption(SortLabel(SortMode.Name), () => { sort = SortMode.Name; rowsDirty = true; }));
                 Find.WindowStack.Add(new FloatMenu(opts));
             }
 
@@ -278,7 +278,7 @@ namespace FactionColonies
             bool overBudget = RowOverBudget(row);
             Color baseTint;
             if (overBudget) baseTint = row.available ? AccentUtil.MilUnderfunded : ColorUtil.TransformA(AccentUtil.MilUnderfunded, 0.7f);
-            else            baseTint = row.available ? Color.white : ColorUtil.Gray7;
+            else baseTint = row.available ? Color.white : ColorUtil.Gray7;
 
             /* Right-side column: status badge (top) + Inspect button (bottom), same width.
              * rightColW (180) is the unconditional bump so longer statuses like
@@ -330,7 +330,7 @@ namespace FactionColonies
 
                     // Pow / Eff stacked vertically on the left half (or full width if no win chance).
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    UIUtil.DrawColoredLabel(new Rect(boxX, boxRect.y,            powEffW, halfBoxH), powLbl, baseTint);
+                    UIUtil.DrawColoredLabel(new Rect(boxX, boxRect.y, powEffW, halfBoxH), powLbl, baseTint);
                     UIUtil.DrawColoredLabel(new Rect(boxX, boxRect.y + halfBoxH, powEffW, halfBoxH), effLbl, baseTint);
                 }
 
@@ -403,10 +403,10 @@ namespace FactionColonies
             float labelsW = boxVisible ? (boxX - contentX - boxGap) : (rightColX - contentX - 4f);
             if (labelsW < 0f) labelsW = 0f;
             float colSettlement = Math.Min(220f, labelsW * 0.5f);
-            float colTravel     = ShowTravel
+            float colTravel = ShowTravel
                 ? Math.Min(90f, Math.Max(0f, (labelsW - colSettlement) * 0.4f))
                 : 0f;
-            float colCost       = Math.Max(0f, labelsW - colSettlement - colTravel);
+            float colCost = Math.Max(0f, labelsW - colSettlement - colTravel);
 
             string settlementLbl = "FCSquadColBillet".Translate() + ": "
                 + (squad.settlement?.Name ?? "FCMilitaryTableSlotEmpty".Translate());
@@ -454,9 +454,9 @@ namespace FactionColonies
             switch (mode)
             {
                 case SortMode.WinChance: return "FCSquadColWinChance".Translate();
-                case SortMode.Travel:    return "FCSquadColTravel".Translate();
-                case SortMode.Power:     return "FCSquadColPower".Translate();
-                case SortMode.Name:      return "FCSquadColName".Translate();
+                case SortMode.Travel: return "FCSquadColTravel".Translate();
+                case SortMode.Power: return "FCSquadColPower".Translate();
+                case SortMode.Name: return "FCSquadColName".Translate();
             }
             return "?";
         }
@@ -468,9 +468,9 @@ namespace FactionColonies
                 /* Sort by midpoint so a row with a wider but higher-on-average range still
                  * outranks a narrower lower-average row. */
                 case SortMode.WinChance: rows = rows.OrderByDescending(r => (r.winChanceMin + r.winChanceMax) * 0.5).ToList(); break;
-                case SortMode.Travel:    rows = rows.OrderBy(r => r.travelTicks).ToList(); break;
-                case SortMode.Power:     rows = rows.OrderByDescending(r => r.ourPower).ToList(); break;
-                case SortMode.Name:      rows = rows.OrderBy(r => r.squad.DisplayName).ToList(); break;
+                case SortMode.Travel: rows = rows.OrderBy(r => r.travelTicks).ToList(); break;
+                case SortMode.Power: rows = rows.OrderByDescending(r => r.ourPower).ToList(); break;
+                case SortMode.Name: rows = rows.OrderBy(r => r.squad.DisplayName).ToList(); break;
             }
         }
     }

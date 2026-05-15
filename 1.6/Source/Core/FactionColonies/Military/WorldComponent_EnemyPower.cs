@@ -1,8 +1,7 @@
-using System.Collections.Generic;
-using System.Linq;
-using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
+using System.Collections.Generic;
+using System.Linq;
 using Verse;
 
 namespace FactionColonies
@@ -317,9 +316,9 @@ namespace FactionColonies
                 EnemyPowerFactionDef factionDef = GetFactionDef(faction.def);
                 if (factionDef is object)
                 {
-                    if (factionDef.level.HasValue)              level              = factionDef.level.Value;
-                    if (factionDef.efficiency.HasValue)         efficiency         = factionDef.efficiency.Value;
-                    if (factionDef.levelVariance.HasValue)      levelVariance      = factionDef.levelVariance.Value;
+                    if (factionDef.level.HasValue) level = factionDef.level.Value;
+                    if (factionDef.efficiency.HasValue) efficiency = factionDef.efficiency.Value;
+                    if (factionDef.levelVariance.HasValue) levelVariance = factionDef.levelVariance.Value;
                     if (factionDef.efficiencyVariance.HasValue) efficiencyVariance = factionDef.efficiencyVariance.Value;
                 }
 

@@ -1,6 +1,5 @@
-﻿using System;
-using RimWorld;
-using RimWorld.Planet;
+﻿using RimWorld;
+using System;
 using Verse;
 
 namespace FactionColonies

@@ -1,6 +1,3 @@
-using Verse;
-using RimWorld;
-
 namespace FactionColonies
 {
     public class FCPolicyBehaviorExt_Expansionist : FCPolicyBehaviorExtension

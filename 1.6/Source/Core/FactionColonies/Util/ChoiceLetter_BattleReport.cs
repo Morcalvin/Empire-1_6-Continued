@@ -1,7 +1,7 @@
-using System.Collections.Generic;
-using RimWorld;
-using Verse;
 using FactionColonies.util;
+using RimWorld;
+using System.Collections.Generic;
+using Verse;
 
 namespace FactionColonies
 {

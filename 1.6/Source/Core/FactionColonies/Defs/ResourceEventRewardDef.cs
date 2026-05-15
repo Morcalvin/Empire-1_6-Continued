@@ -166,7 +166,7 @@ namespace FactionColonies
             }
         }
     }
-    
+
     [DefOf]
     public class ResourceEventRewardDefOf
     {

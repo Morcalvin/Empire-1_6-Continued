@@ -1,7 +1,7 @@
+using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
-using FactionColonies.util;
 
 namespace FactionColonies
 {

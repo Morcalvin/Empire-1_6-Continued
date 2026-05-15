@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
+using System;
+using System.Collections.Generic;
 
 namespace FactionColonies
 {
@@ -32,9 +32,9 @@ namespace FactionColonies
             if (modifier is object && !_battleModifiers.Contains(modifier)) _battleModifiers.Add(modifier);
         }
 
-        public static void Unregister(IFactionPowerModifier modifier)   => _factionModifiers.Remove(modifier);
+        public static void Unregister(IFactionPowerModifier modifier) => _factionModifiers.Remove(modifier);
         public static void Unregister(ISettlementPowerModifier modifier) => _settlementModifiers.Remove(modifier);
-        public static void Unregister(IBattleModifier modifier)          => _battleModifiers.Remove(modifier);
+        public static void Unregister(IBattleModifier modifier) => _battleModifiers.Remove(modifier);
 
         public static void ClearAll()
         {
@@ -43,9 +43,9 @@ namespace FactionColonies
             _battleModifiers.Clear();
         }
 
-        public static IReadOnlyList<IFactionPowerModifier>    FactionModifiers    => _factionModifiers;
+        public static IReadOnlyList<IFactionPowerModifier> FactionModifiers => _factionModifiers;
         public static IReadOnlyList<ISettlementPowerModifier> SettlementModifiers => _settlementModifiers;
-        public static IReadOnlyList<IBattleModifier>          BattleModifiers     => _battleModifiers;
+        public static IReadOnlyList<IBattleModifier> BattleModifiers => _battleModifiers;
 
         /* === Invocation (worldcomp-only) === */
 

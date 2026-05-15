@@ -1,4 +1,3 @@
-using FactionColonies.util;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
@@ -467,7 +466,7 @@ namespace FactionColonies
             Find.WindowStack.Add(new FCWindow_ColorPicker(
                 header,
                 current,
-                delegate(Color color)
+                delegate (Color color)
                 {
                     if (primary)
                     {

@@ -1,10 +1,10 @@
+using FactionColonies.util;
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using RimWorld;
 using UnityEngine;
 using Verse;
-using FactionColonies.util;
 
 namespace FactionColonies
 {
@@ -63,7 +63,7 @@ namespace FactionColonies
                     {
                         Color current = FactionCache.FactionComp?.hasFactionColor == true
                             ? FactionCache.FactionComp.factionColorPrimary : Color.white;
-                        OpenColorPicker(current, delegate(Color c)
+                        OpenColorPicker(current, delegate (Color c)
                         {
                             MilUnitFC target = opts.getEditTarget?.Invoke();
                             if (target != null) target.SetAllApparelColors(c);
@@ -138,7 +138,7 @@ namespace FactionColonies
                 if (opts.canEdit && Widgets.ButtonInvisible(swatchRect))
                 {
                     ThingDef capturedDef = item.thing;
-                    OpenColorPicker(resolvedColor, delegate(Color c)
+                    OpenColorPicker(resolvedColor, delegate (Color c)
                     {
                         MilUnitFC target = opts.getEditTarget?.Invoke();
                         if (target != null) target.SetApparelColor(capturedDef, c);

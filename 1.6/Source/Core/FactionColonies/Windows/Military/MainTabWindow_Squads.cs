@@ -36,13 +36,13 @@ namespace FactionColonies
         /* Draw layout constants. cardH = cardHeaderH + cardDetailH; cards stack with rowGap.
            SummaryH matches DrawMilitarySettlementCards' "# settlements" readout so the two
            subtabs share the same top-of-content rhythm. */
-        private const float SummaryH     = 24f;
-        private const float Pad          = 4f;
-        private const float RowGap       = 2f;
-        private const float CardHeaderH  = 24f;
-        private const float CardDetailH  = 22f;
-        private const float CardH        = CardHeaderH + CardDetailH;
-        private const float AccentW      = 4f;
+        private const float SummaryH = 24f;
+        private const float Pad = 4f;
+        private const float RowGap = 2f;
+        private const float CardHeaderH = 24f;
+        private const float CardDetailH = 22f;
+        private const float CardH = CardHeaderH + CardDetailH;
+        private const float AccentW = 4f;
 
         /// <summary>Draws the squad pool list directly into <paramref name="rect"/>. Used both
         /// standalone (this Window's DoWindowContents) and embedded inside the main military
@@ -78,8 +78,8 @@ namespace FactionColonies
                 return;
             }
 
-            float listY  = tableRect.y + Pad;
-            float viewH  = tableRect.yMax - listY - Pad;
+            float listY = tableRect.y + Pad;
+            float viewH = tableRect.yMax - listY - Pad;
             float totalH = pool.Count * (CardH + RowGap);
 
             Rect viewRect = new Rect(innerX, listY, innerW, viewH);
@@ -167,28 +167,28 @@ namespace FactionColonies
             if (labelsW < 0f) labelsW = 0f;
 
             float colTemplate = Math.Min(190f, labelsW * 0.28f);
-            float colBillet   = Math.Min(220f, labelsW * 0.30f);
-            float colPower    = Math.Min(80f,  labelsW * 0.14f);
-            float colCost     = Math.Min(130f, labelsW * 0.16f);
-            float colUpgrade  = Math.Max(0f, labelsW - colTemplate - colBillet - colPower - colCost);
+            float colBillet = Math.Min(220f, labelsW * 0.30f);
+            float colPower = Math.Min(80f, labelsW * 0.14f);
+            float colCost = Math.Min(130f, labelsW * 0.16f);
+            float colUpgrade = Math.Max(0f, labelsW - colTemplate - colBillet - colPower - colCost);
 
-            double powerLevel  = SquadPowerRegistry.Resolve(squad).militaryLevel;
+            double powerLevel = SquadPowerRegistry.Resolve(squad).militaryLevel;
             string templateLbl = (string)"FCSquadColTemplate".Translate() + ": " + (squad.outfit?.name ?? "-");
-            string billetLbl   = (string)"FCSquadColBillet".Translate() + ": " + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
-            string powerLbl    = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
-            string costLbl     = "FCDeployCost".Translate(squad.DeploymentCost);
-            int upgrade        = squad.UpgradeCost;
+            string billetLbl = (string)"FCSquadColBillet".Translate() + ": " + (squad.settlement?.Name ?? (string)"FCMilitaryTableSlotEmpty".Translate());
+            string powerLbl = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
+            string costLbl = "FCDeployCost".Translate(squad.DeploymentCost);
+            int upgrade = squad.UpgradeCost;
             bool hasUpgradeWork = squad.HasUpgradeWork;
             /* Show "$0" for a zero-net but real upgrade (a reassignment / same-price re-equip);
                "-" only when there is genuinely nothing to do. */
-            string upgradeLbl  = (string)"FCSquadColUpgrade".Translate() + ": "
+            string upgradeLbl = (string)"FCSquadColUpgrade".Translate() + ": "
                 + (upgrade > 0 ? "$" + upgrade : (hasUpgradeWork ? "$0" : "-"));
 
             Widgets.Label(new Rect(dx, detailY, colTemplate, CardDetailH), templateLbl); dx += colTemplate;
-            Widgets.Label(new Rect(dx, detailY, colBillet,   CardDetailH), billetLbl);   dx += colBillet;
-            Widgets.Label(new Rect(dx, detailY, colPower,    CardDetailH), powerLbl);    dx += colPower;
-            Widgets.Label(new Rect(dx, detailY, colCost,     CardDetailH), costLbl);     dx += colCost;
-            Widgets.Label(new Rect(dx, detailY, colUpgrade,  CardDetailH), upgradeLbl);
+            Widgets.Label(new Rect(dx, detailY, colBillet, CardDetailH), billetLbl); dx += colBillet;
+            Widgets.Label(new Rect(dx, detailY, colPower, CardDetailH), powerLbl); dx += colPower;
+            Widgets.Label(new Rect(dx, detailY, colCost, CardDetailH), costLbl); dx += colCost;
+            Widgets.Label(new Rect(dx, detailY, colUpgrade, CardDetailH), upgradeLbl);
 
             // Action buttons (right-aligned)
             MercenarySquadFC capturedSquad = squad;

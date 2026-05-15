@@ -1,5 +1,5 @@
-using System;
 using RimWorld.Planet;
+using System;
 
 namespace FactionColonies
 {

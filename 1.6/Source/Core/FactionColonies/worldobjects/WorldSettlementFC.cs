@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Security.Permissions;
 using System.Text;
 using UnityEngine;
 using Verse;
@@ -403,7 +402,7 @@ namespace FactionColonies
             get
             {
                 if (dirtyStatsCache) RecomputeStats();
-                
+
                 return MilitaryComp?.settlementMilitaryLevel ?? 0;
             }
             set
@@ -714,7 +713,7 @@ namespace FactionColonies
 
             //Prisoners
             Scribe_Collections.Look(ref prisonerList, "prisonerList", LookMode.Deep);
-            
+
             // We never want permanentModifiers to be null. So just always check it here.
             if (permanentModifiers is null) permanentModifiers = new List<PermanentStatModifier>();
 
@@ -734,7 +733,7 @@ namespace FactionColonies
                 LogUtil.Error($"Settlement {Name} attempted to call PostLoadInit during Scribe mode {Scribe.mode}. Bailing out.");
                 return;
             }
-            
+
             // Safety net: if trader is null or wrong type (e.g., loading old save), recreate it
             if (!(trader is SettlementTraderTracker_Empire))
                 trader = new SettlementTraderTracker_Empire(this);

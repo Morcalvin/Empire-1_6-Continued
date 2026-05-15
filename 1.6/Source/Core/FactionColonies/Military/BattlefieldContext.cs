@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
-using Verse.AI;
 using Verse.AI.Group;
 using Verse.Sound;
 
@@ -1384,7 +1383,7 @@ namespace FactionColonies
 
                 bool landed = false;
                 Find.Targeter.BeginTargeting(targetParams,
-                    delegate(LocalTargetInfo target)
+                    delegate (LocalTargetInfo target)
                     {
                         landed = true;
                         shuttleLandingPending = false;
@@ -1392,11 +1391,11 @@ namespace FactionColonies
                         transportShip.ArriveAt(target.Cell, settlement);
                         transportShip.AddJobs(ShipJobDefOf.Unload, ShipJobDefOf.WaitForever);
                     },
-                    delegate(LocalTargetInfo target)
+                    delegate (LocalTargetInfo target)
                     {
                         RoyalTitlePermitWorker_CallShuttle.DrawShuttleGhost(target, battleMap, shuttleDef, shuttleRotation);
                     },
-                    delegate(LocalTargetInfo target)
+                    delegate (LocalTargetInfo target)
                     {
                         return RoyalTitlePermitWorker_CallShuttle.ShuttleCanLandHere(target, battleMap, shuttleDef, shuttleRotation);
                     },
@@ -1411,7 +1410,7 @@ namespace FactionColonies
                         transportShip.AddJobs(ShipJobDefOf.Unload, ShipJobDefOf.WaitForever);
                     },
                     null, true, null,
-                    delegate(LocalTargetInfo target)
+                    delegate (LocalTargetInfo target)
                     {
                         if (!shuttleDef.rotatable) return;
                         if (KeyBindingDefOf.Designator_RotateRight.KeyDownEvent)

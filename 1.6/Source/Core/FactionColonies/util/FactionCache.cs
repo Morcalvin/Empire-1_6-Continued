@@ -501,9 +501,9 @@ namespace FactionColonies
                 return _cachedRequiredByMap;
             }
         }
-        public static List<FCEventCategoryDef> FCEventCategoryDefs =>_cachedEventCategoryDefs ??
+        public static List<FCEventCategoryDef> FCEventCategoryDefs => _cachedEventCategoryDefs ??
                                     (_cachedEventCategoryDefs = DefDatabase<FCEventCategoryDef>.AllDefsListForReading);
-        
+
         /// <summary>
         /// MilitaryJobDefs that have a floatMenuLabelKey, i.e. hostile operations shown in the world gizmo menu.
         /// </summary>

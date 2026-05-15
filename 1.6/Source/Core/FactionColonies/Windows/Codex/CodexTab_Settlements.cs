@@ -1,5 +1,4 @@
-﻿using FactionColonies.util;
-using RimWorld;
+﻿using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -391,7 +390,7 @@ namespace FactionColonies
         {
             float x = AccentBarWidth + Margin;
             float textW = width - x - Margin;
-            
+
             curY = DrawStatLine(curY, x, textW, "FCCodexSettlementWorkers".Translate(
                 selectedDef.workersMaxBase.ToString(), selectedDef.workersMaxMult.ToString()));
 

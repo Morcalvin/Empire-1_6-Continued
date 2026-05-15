@@ -1957,7 +1957,7 @@ namespace FactionColonies
         public void AddResourcePool(ResourcePool pool)
         {
             if (pool is null || pool.pool == 0) return;
-            
+
             /* If the pool wants to do any pre-adding-to-global-pool shenanigans, let it do so now. */
             pool.pool = pool.resource.PreAddToGlobalPool(pool.pool);
 

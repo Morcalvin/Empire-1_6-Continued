@@ -163,10 +163,10 @@ namespace FactionColonies
 
             // Two-column body
             float colW = (inRect.width - HeaderColGap) * 0.5f;
-            Rect leftCol  = new Rect(0,                   bodyTop, colW, 0);
+            Rect leftCol = new Rect(0, bodyTop, colW, 0);
             Rect rightCol = new Rect(colW + HeaderColGap, bodyTop, colW, 0);
 
-            float leftBottom  = DrawHeaderLeftColumn(leftCol);
+            float leftBottom = DrawHeaderLeftColumn(leftCol);
             float rightBottom = DrawHeaderRightColumn(rightCol);
 
             // Vertical divider between columns, sized to the taller column

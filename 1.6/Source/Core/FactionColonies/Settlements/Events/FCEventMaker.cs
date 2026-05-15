@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using FactionColonies.util;
+﻿using FactionColonies.util;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Verse;
-using Verse.AI.Group;
 
 namespace FactionColonies
 {
@@ -461,262 +460,262 @@ namespace FactionColonies
             {
                 try
                 {
-                // Guard against accidental re-fires
-                if (!evt.IsQueued)
-                {
-                    LogUtil.Error($"ProcessEvents: event '{evt.def?.defName ?? "NULL"}' (loadID={evt.loadID}) not in Queued phase ({evt.phase}). Skipping.");
-                    continue;
-                }
-                evt.phase = FCEventPhase.Fired;     // tentative; mid-processing only. Handlers wanting persistence transition to Resolving during their run.
-
-                // Record cooldown for events that define one
-                if (evt.def != null && evt.def.cooldownTicks > 0)
-                {
-                    faction.RecordEventCooldown(evt.def);
-                }
-
-                // Track fire count for events with a max
-                if (evt.def?.maxFireCount > 0)
-                {
-                    faction.RecordEventFired(evt.def);
-                }
-
-                if (evt.def == null)
-                {
-                    LogUtil.Warning($"Skipping event with null def (loadID={evt.loadID}). Likely corrupted save data.");
-                    continue;
-                }
-
-                WorldSettlementFC settlement;
-
-                LogUtil.Message($"Processing event {evt.def.defName}");
-
-                FCEventHandlerExtension handler = evt.def.GetModExtension<FCEventHandlerExtension>();
-                bool handled = handler != null && handler.ResolveEvent(evt, faction);
-
-                if (!handled)
-                {
-                    // Op-aware dispatch: military events scheduled by MilitaryOperationManager
-                    // carry a linkedOperation back-reference. Route them through the op's phase
-                    // machine. An orphan op-linked event (linkedOperation null because the op was
-                    // unregistered while events still pointed at it) is a silent no-op — the
-                    // correct behavior on the dispatch side.
-                    if (evt.HasLinkedOperation)
+                    // Guard against accidental re-fires
+                    if (!evt.IsQueued)
                     {
-                        try { evt.linkedOperation.OnEventFired(evt); }
-                        catch (Exception e)
+                        LogUtil.Error($"ProcessEvents: event '{evt.def?.defName ?? "NULL"}' (loadID={evt.loadID}) not in Queued phase ({evt.phase}). Skipping.");
+                        continue;
+                    }
+                    evt.phase = FCEventPhase.Fired;     // tentative; mid-processing only. Handlers wanting persistence transition to Resolving during their run.
+
+                    // Record cooldown for events that define one
+                    if (evt.def != null && evt.def.cooldownTicks > 0)
+                    {
+                        faction.RecordEventCooldown(evt.def);
+                    }
+
+                    // Track fire count for events with a max
+                    if (evt.def?.maxFireCount > 0)
+                    {
+                        faction.RecordEventFired(evt.def);
+                    }
+
+                    if (evt.def == null)
+                    {
+                        LogUtil.Warning($"Skipping event with null def (loadID={evt.loadID}). Likely corrupted save data.");
+                        continue;
+                    }
+
+                    WorldSettlementFC settlement;
+
+                    LogUtil.Message($"Processing event {evt.def.defName}");
+
+                    FCEventHandlerExtension handler = evt.def.GetModExtension<FCEventHandlerExtension>();
+                    bool handled = handler != null && handler.ResolveEvent(evt, faction);
+
+                    if (!handled)
+                    {
+                        // Op-aware dispatch: military events scheduled by MilitaryOperationManager
+                        // carry a linkedOperation back-reference. Route them through the op's phase
+                        // machine. An orphan op-linked event (linkedOperation null because the op was
+                        // unregistered while events still pointed at it) is a silent no-op — the
+                        // correct behavior on the dispatch side.
+                        if (evt.HasLinkedOperation)
                         {
-                            LogUtil.Error($"FCEventMaker: op id={evt.linkedOperation.id} threw in OnEventFired for '{evt.def.defName}': {e}");
+                            try { evt.linkedOperation.OnEventFired(evt); }
+                            catch (Exception e)
+                            {
+                                LogUtil.Error($"FCEventMaker: op id={evt.linkedOperation.id} threw in OnEventFired for '{evt.def.defName}': {e}");
+                            }
+                        }
+                        else
+                        {
+                            switch (evt.def.defName)
+                            {
+                                case "settleNewColony":
+                                    {
+                                        try
+                                        {
+                                            //Settle new colony event
+                                            faction.AddExperienceToFactionLevel(10f);
+
+                                            ColonyUtil.CreatePlayerColonySettlement(evt.location, evt.settlementToCreate);
+
+                                            faction.settlementCaravansList.Remove(evt.location);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            LogUtil.Error($"Exception processing event '{evt.def?.defName ?? "NULL"}' (loadID={evt.loadID}): {e}");
+
+                                            faction.settlementCaravansList.Remove(evt.location);
+                                        }
+                                        break;
+                                    }
+                                case "taxColony":
+                                    {
+                                        settlement = faction.ReturnSettlementByLocation(evt.source);
+                                        if (settlement is null)
+                                        {
+                                            LogUtil.Warning($"taxColony event references missing settlement at tile {evt.source}. Skipping delivery.");
+                                            break;
+                                        }
+
+                                        // Let registered interceptors try to handle delivery first
+                                        TaxDeliveryContext deliveryCtx = new TaxDeliveryContext(evt, settlement);
+                                        if (!TaxDeliveryRegistry.InvokeTryDeliverGoods(deliveryCtx))
+                                        {
+                                            // No interceptor handled it — default delivery
+                                            string str = "FCTaxesFrom".Translate() + " " + settlement.Name + " " + "FCHaveBeenDelivered".Translate() + "!";
+                                            Message msg = new Message(str, MessageTypeDefOf.PositiveEvent);
+                                            PaymentUtil.DeliverThings(evt, LetterMaker.MakeLetter("FCTaxesHaveArrived".Translate(), str + "\n" + evt.goods.ToLetterString(), LetterDefOf.PositiveEvent), msg);
+                                        }
+                                        break;
+                                    }
+                                case "constructBuilding":
+                                    //Create building
+                                    settlement = faction.ReturnSettlementByLocation(evt.source);
+                                    if (settlement != null)
+                                    {
+                                        settlement.ConstructBuilding(evt.building, evt.buildingSlot);
+                                        Messages.Message("FCBuildingEventCompletedMsg".Translate(evt.building.LabelCap, settlement.Name), MessageTypeDefOf.PositiveEvent);
+                                    }
+                                    else
+                                    {
+                                        LogUtil.Error($"Attempted to resolve a constructBuilding event for an invalid settlement");
+                                    }
+                                    break;
+                                case "upgradeSettlement":
+                                    {
+                                        if (faction.ReturnSettlementByLocation(evt.location) != null)
+                                        {
+                                            //if settlement is not null
+                                            settlement = faction.ReturnSettlementByLocation(evt.location);
+                                            settlement.UpgradeSettlement(setFlags: true);
+                                            Find.LetterStack.ReceiveLetter("FCUpgradeSettlement".Translate(),
+                                                "FCUpgradeEventCompletedDesc".Translate(settlement.Name, settlement.settlementLevel, "FCUpgradeColonyDesc".Translate()),
+                                                LetterDefOf.PositiveEvent);
+                                        }
+
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        // Undefined event: optionally awards a random thing reward.
+                                        if (evt.def.randomThingValue > 0 && evt.def.randomThingRewardDef != null)
+                                        {
+                                            List<Thing> list = PaymentUtil.GenerateRewardThings(evt.def.randomThingValue, evt.def.randomThingRewardDef);
+
+                                            string str = "FCGoodsReceivedFollowing".Translate(evt.def.label);
+
+                                            str = list.Aggregate(str, (before, after) => before + "\n" + after.LabelCap);
+
+                                            evt.goods.AddRange(list);
+
+                                            evt.let = LetterMaker.MakeLetter("FCGoodsReceived".Translate(), str, LetterDefOf.PositiveEvent);
+                                            if (list.Count > 0)
+                                            {
+                                                if (!evt.source.IsValidTile())
+                                                {
+                                                    if (evt.settlementTraitLocations.Any())
+                                                    {
+                                                        evt.source = evt.settlementTraitLocations.First().Tile;
+                                                    }
+                                                    else
+                                                    {
+                                                        evt.source = FactionCache.FactionComp.capitalLocation;
+                                                    }
+                                                }
+                                                DeliveryEvent.CreateDeliveryEvent(evt);
+                                            }
+                                        }
+                                        break;
+                                    }
+                            }
+                        } // end of unlinked-event else
+                    }
+
+                    //If has loot to give
+                    if (evt.def.loot.Any())
+                    {
+                        List<Thing> list = evt.def.loot.Select(thing => ThingMaker.MakeThing(thing)).ToList();
+                        PaymentUtil.DeliverThings(list, evt.source);
+                    }
+
+
+                    //check if event has a location, if does, remove stat modifiers from that specific location;
+                    if (evt.settlementTraitLocations.Any()) //if has specific locations
+                    {
+                        evt.settlementTraitLocations.RemoveAll(s => s == null);
+
+                        foreach (WorldSettlementFC location in evt.settlementTraitLocations)
+                        {
+                            if (location != null)
+                            {
+                                location.RemoveStatModifiers(evt.def.statModifiers, "event_" + evt.def.defName);
+
+                                //prosperity loss calculation
+                                location.prosperity -= evt.def.prosperityLost;
+                            }
                         }
                     }
                     else
                     {
-                    switch (evt.def.defName)
+                        //if no specific location then faction wide
+                        foreach (WorldSettlementFC worldsettlement in faction.settlements)
+                        {
+                            worldsettlement.RemoveStatModifiers(evt.def.statModifiers, "event_" + evt.def.defName);
+                            worldsettlement.prosperity -= evt.def.prosperityLost;
+                        }
+                    }
+
+                    faction.InvalidateFactionStatCache();
+
+                    //if have options
+                    if (evt.def != null && evt.def.options.Count > 0 && evt.def.activateAtStart == false)
                     {
-                        case "settleNewColony":
+                        Find.WindowStack.Add(new FCOptionWindow(evt.def, evt));
+                    }
+
+                    //if has following event
+                    if (evt.def.eventFollows)
+                    {
+                        FCEvent tempEvent = new FCEvent(true);
+                        if (evt.def.splitEventFollows) //if a split event
                         {
-                            try
+                            //remove null settlement references
+                            float baseChance = evt.def.splitEventChance;
+                            int roll = Rand.Range(1, 100);
+                            if (evt.def.settlementsCarryOver)
                             {
-                                //Settle new colony event
-                                faction.AddExperienceToFactionLevel(10f);
-
-                                ColonyUtil.CreatePlayerColonySettlement(evt.location, evt.settlementToCreate);
-
-                                faction.settlementCaravansList.Remove(evt.location);
-                            }
-                            catch (Exception e)
-                            {
-                                LogUtil.Error($"Exception processing event '{evt.def?.defName ?? "NULL"}' (loadID={evt.loadID}): {e}");
-
-                                faction.settlementCaravansList.Remove(evt.location);
-                            }
-                            break;
-                        }
-                        case "taxColony":
-                        {
-                            settlement = faction.ReturnSettlementByLocation(evt.source);
-                            if (settlement is null)
-                            {
-                                LogUtil.Warning($"taxColony event references missing settlement at tile {evt.source}. Skipping delivery.");
-                                break;
-                            }
-
-                            // Let registered interceptors try to handle delivery first
-                            TaxDeliveryContext deliveryCtx = new TaxDeliveryContext(evt, settlement);
-                            if (!TaxDeliveryRegistry.InvokeTryDeliverGoods(deliveryCtx))
-                            {
-                                // No interceptor handled it — default delivery
-                                string str = "FCTaxesFrom".Translate() + " " + settlement.Name + " " + "FCHaveBeenDelivered".Translate() + "!";
-                                Message msg = new Message(str, MessageTypeDefOf.PositiveEvent);
-                                PaymentUtil.DeliverThings(evt, LetterMaker.MakeLetter("FCTaxesHaveArrived".Translate(), str + "\n" + evt.goods.ToLetterString(), LetterDefOf.PositiveEvent), msg);
-                            }
-                            break;
-                        }
-                        case "constructBuilding":
-                            //Create building
-                            settlement = faction.ReturnSettlementByLocation(evt.source);
-                            if (settlement != null)
-                            {
-                                settlement.ConstructBuilding(evt.building, evt.buildingSlot);
-                                Messages.Message("FCBuildingEventCompletedMsg".Translate(evt.building.LabelCap, settlement.Name), MessageTypeDefOf.PositiveEvent);
+                                //if settlements carry
+                                if (roll <= baseChance)
+                                {
+                                    //first event
+                                    tempEvent = MakeRandomEvent(evt.def.followingEvent, evt.settlementTraitLocations);
+                                }
+                                else
+                                {
+                                    //if second event
+                                    tempEvent = MakeRandomEvent(evt.def.followingEvent2, evt.settlementTraitLocations);
+                                }
                             }
                             else
                             {
-                                LogUtil.Error($"Attempted to resolve a constructBuilding event for an invalid settlement");
-                            }
-                            break;
-                        case "upgradeSettlement":
-                        {
-                            if (faction.ReturnSettlementByLocation(evt.location) != null)
-                            {
-                                //if settlement is not null
-                                settlement = faction.ReturnSettlementByLocation(evt.location);
-                                settlement.UpgradeSettlement(setFlags: true);
-                                Find.LetterStack.ReceiveLetter("FCUpgradeSettlement".Translate(),
-                                    "FCUpgradeEventCompletedDesc".Translate(settlement.Name, settlement.settlementLevel, "FCUpgradeColonyDesc".Translate()),
-                                    LetterDefOf.PositiveEvent);
-                            }
-
-                            break;
-                        }
-                        default:
-                        {
-                            // Undefined event: optionally awards a random thing reward.
-                            if (evt.def.randomThingValue > 0 && evt.def.randomThingRewardDef != null)
-                            {
-                                List<Thing> list = PaymentUtil.GenerateRewardThings(evt.def.randomThingValue, evt.def.randomThingRewardDef);
-
-                                string str = "FCGoodsReceivedFollowing".Translate(evt.def.label);
-
-                                str = list.Aggregate(str, (before, after) => before + "\n" + after.LabelCap);
-
-                                evt.goods.AddRange(list);
-
-                                evt.let = LetterMaker.MakeLetter("FCGoodsReceived".Translate(), str, LetterDefOf.PositiveEvent);
-                                if (list.Count > 0)
+                                if (roll <= baseChance)
                                 {
-                                    if (!evt.source.IsValidTile())
-                                    {
-                                        if (evt.settlementTraitLocations.Any())
-                                        {
-                                            evt.source = evt.settlementTraitLocations.First().Tile;
-                                        }
-                                        else
-                                        {
-                                            evt.source = FactionCache.FactionComp.capitalLocation;
-                                        }
-                                    }
-                                    DeliveryEvent.CreateDeliveryEvent(evt);
+                                    //first event
+                                    tempEvent = MakeRandomEvent(evt.def.followingEvent, null);
+                                }
+                                else
+                                {
+                                    //if second event
+                                    tempEvent = MakeRandomEvent(evt.def.followingEvent2, null);
                                 }
                             }
-                            break;
                         }
-                    }
-                    } // end of unlinked-event else
-                }
-
-                //If has loot to give
-                if (evt.def.loot.Any())
-                {
-                    List<Thing> list = evt.def.loot.Select(thing => ThingMaker.MakeThing(thing)).ToList();
-                    PaymentUtil.DeliverThings(list, evt.source);
-                }
-
-
-                //check if event has a location, if does, remove stat modifiers from that specific location;
-                if (evt.settlementTraitLocations.Any()) //if has specific locations
-                {
-                    evt.settlementTraitLocations.RemoveAll(s => s == null);
-
-                    foreach (WorldSettlementFC location in evt.settlementTraitLocations)
-                    {
-                        if (location != null)
+                        else
                         {
-                            location.RemoveStatModifiers(evt.def.statModifiers, "event_" + evt.def.defName);
-
-                            //prosperity loss calculation
-                            location.prosperity -= evt.def.prosperityLost;
-                        }
-                    }
-                }
-                else
-                {
-                    //if no specific location then faction wide
-                    foreach (WorldSettlementFC worldsettlement in faction.settlements)
-                    {
-                        worldsettlement.RemoveStatModifiers(evt.def.statModifiers, "event_" + evt.def.defName);
-                        worldsettlement.prosperity -= evt.def.prosperityLost;
-                    }
-                }
-
-                faction.InvalidateFactionStatCache();
-
-                //if have options
-                if (evt.def != null && evt.def.options.Count > 0 && evt.def.activateAtStart == false)
-                {
-                    Find.WindowStack.Add(new FCOptionWindow(evt.def, evt));
-                }
-
-                //if has following event
-                if (evt.def.eventFollows)
-                {
-                    FCEvent tempEvent = new FCEvent(true);
-                    if (evt.def.splitEventFollows) //if a split event
-                    {
-                        //remove null settlement references
-                        float baseChance = evt.def.splitEventChance;
-                        int roll = Rand.Range(1, 100);
-                        if (evt.def.settlementsCarryOver)
-                        {
-                            //if settlements carry
-                            if (roll <= baseChance)
+                            if (evt.def.settlementsCarryOver)
                             {
-                                //first event
+                                //if settlements carry
                                 tempEvent = MakeRandomEvent(evt.def.followingEvent, evt.settlementTraitLocations);
                             }
                             else
                             {
-                                //if second event
-                                tempEvent = MakeRandomEvent(evt.def.followingEvent2, evt.settlementTraitLocations);
-                            }
-                        }
-                        else
-                        {
-                            if (roll <= baseChance)
-                            {
-                                //first event
                                 tempEvent = MakeRandomEvent(evt.def.followingEvent, null);
                             }
-                            else
-                            {
-                                //if second event
-                                tempEvent = MakeRandomEvent(evt.def.followingEvent2, null);
-                            }
                         }
-                    }
-                    else
-                    {
-                        if (evt.def.settlementsCarryOver)
+
+
+                        if (tempEvent != null)
                         {
-                            //if settlements carry
-                            tempEvent = MakeRandomEvent(evt.def.followingEvent, evt.settlementTraitLocations);
-                        }
-                        else
-                        {
-                            tempEvent = MakeRandomEvent(evt.def.followingEvent, null);
+                            faction.AddEvent(tempEvent);
+
+                            Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
                         }
                     }
 
-
-                    if (tempEvent != null)
-                    {
-                        faction.AddEvent(tempEvent);
-
-                        Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
-                    }
-                }
-
-                evt.RunAction();
+                    evt.RunAction();
                 }
                 catch (Exception ex)
                 {

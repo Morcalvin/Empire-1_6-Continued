@@ -36,7 +36,7 @@ namespace FactionColonies
                 return stat.invertedForDisplay ? value < 1.0 : value > 1.0;
             return stat.invertedForDisplay ? value < 0.0 : value > 0.0;
         }
-        
+
         public double DisplayValue => stat.displayDivisor > 0 ? Math.Round(value / stat.displayDivisor, 1) : value;
 
         /// <summary>

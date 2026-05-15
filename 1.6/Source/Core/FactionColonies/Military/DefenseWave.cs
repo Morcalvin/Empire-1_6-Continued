@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
+using System;
+using System.Collections.Generic;
 using Verse;
 
 // DefenseWave is itself [Obsolete]; the class also reads [Obsolete] FCEvent.externalDefenderSource

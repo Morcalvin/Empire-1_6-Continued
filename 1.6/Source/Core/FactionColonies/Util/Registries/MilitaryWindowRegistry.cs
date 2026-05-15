@@ -1,5 +1,5 @@
-using System;
 using FactionColonies.util;
+using System;
 
 namespace FactionColonies
 {

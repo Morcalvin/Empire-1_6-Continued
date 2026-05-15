@@ -51,7 +51,7 @@ namespace FactionColonies
                 LogUtil.Warning($"IsAnimalAndAllowed: detected null race or race.race for pawnKindDef {pawnKindDef.LabelCap} ({pawnKindDef.defName})");
                 return false;
             }
-            
+
             var config = AnimalFilterConfig;
             return pawnKindDef.race.race.Animal
                 && pawnKindDef.RaceProps.IsFlesh
@@ -77,13 +77,13 @@ namespace FactionColonies
         /// </summary>
         public static bool IsPackAnimal(this PawnKindDef pawnKindDef)
         {
-            return pawnKindDef.IsAnimalAndAllowed() 
+            return pawnKindDef.IsAnimalAndAllowed()
                 && pawnKindDef.RaceProps.packAnimal;
         }
 
 
         public static int GetReasonableMercenaryAge(this PawnKindDef pawnKindDef) =>
-            Rand.Range((int)Math.Ceiling((pawnKindDef.race?.race?.lifeExpectancy ?? 18) * 0.2625d), 
+            Rand.Range((int)Math.Ceiling((pawnKindDef.race?.race?.lifeExpectancy ?? 18) * 0.2625d),
                        (int)Math.Floor((pawnKindDef.race?.race?.lifeExpectancy ?? 100) * 0.625d));
 
         /// <summary>

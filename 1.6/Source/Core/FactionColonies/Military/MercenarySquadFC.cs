@@ -333,7 +333,10 @@ namespace FactionColonies
                     MilUnitFC target = picked.ownedLoadout ?? slotUnit;
                     plan.Slots.Add(new SlotDecision
                     {
-                        slotIndex = i, slotUnit = slotUnit, target = target, claim = picked
+                        slotIndex = i,
+                        slotUnit = slotUnit,
+                        target = target,
+                        claim = picked
                     });
 
                     /* Accumulate the UNSCALED diff; squadUpgradeCostMultiplier is applied
@@ -347,7 +350,10 @@ namespace FactionColonies
                 {
                     plan.Slots.Add(new SlotDecision
                     {
-                        slotIndex = i, slotUnit = slotUnit, target = slotUnit, claim = null
+                        slotIndex = i,
+                        slotUnit = slotUnit,
+                        target = slotUnit,
+                        claim = null
                     });
                     freshHireSum += slotUnit.getTotalCost;
                 }

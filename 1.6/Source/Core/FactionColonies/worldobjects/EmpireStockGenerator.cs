@@ -35,7 +35,7 @@ namespace FactionColonies
         {
             if (settlement is null)
                 yield break;
-            
+
             LogUtil.Message($"Generating stock for settlement {settlement.Name}");
 
             float levelScale = settlement.settlementLevel / AnchorLevel;
@@ -166,14 +166,14 @@ namespace FactionColonies
                     case TechLevel.Archotech: extraScale *= 10f; break;
                 }
             }
-            
+
             // The stock generator currently assumes 1 production = 100 silver. If the player has set something different,
             //   we should normalize.
             if (FCSettings.silverPerResource != 100 && FCSettings.silverPerResource != 0)
             {
                 extraScale *= 100 / (float)(FCSettings.silverPerResource);
             }
-            
+
             return extraScale;
         }
     }

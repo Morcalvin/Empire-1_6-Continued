@@ -58,7 +58,8 @@ namespace FactionColonies
                     LetterDefOf.PositiveEvent,
                     new LookTargets(pawn));
                 pawn.SetFaction(Faction.OfPlayer);
-            });
+            }
+            );
         }
 
         public override void ExposeData()

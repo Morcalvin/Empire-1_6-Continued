@@ -16,7 +16,7 @@ namespace FactionColonies
         public TileEdgeKey(int a, int b)
         {
             if (a < b) { lo = a; hi = b; }
-            else       { lo = b; hi = a; }
+            else { lo = b; hi = a; }
         }
 
         public bool Equals(TileEdgeKey other) => lo == other.lo && hi == other.hi;

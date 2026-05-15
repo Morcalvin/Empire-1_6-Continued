@@ -21,7 +21,8 @@ namespace FactionColonies
                 {
                     LogUtil.Error("Couldn't find any colonists to trade with");
                 }
-            });
+            }
+            );
         }
     }
 }

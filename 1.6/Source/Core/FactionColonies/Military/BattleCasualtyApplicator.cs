@@ -1,8 +1,7 @@
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using FactionColonies.util;
-using RimWorld;
 using UnityEngine;
 using Verse;
 

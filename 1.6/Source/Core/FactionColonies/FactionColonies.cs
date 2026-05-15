@@ -1060,7 +1060,7 @@ namespace FactionColonies
         public FactionColoniesMod(ModContentPack content) : base(content)
         {
             settings = GetSettings<FCSettings>();
-            
+
             string modVersion = content?.ModMetaData?.ModVersion;
             if (modVersion.NullOrEmpty())
             {

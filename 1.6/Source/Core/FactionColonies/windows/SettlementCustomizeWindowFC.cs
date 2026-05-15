@@ -1,5 +1,4 @@
-﻿using FactionColonies.util;
-using UnityEngine;
+﻿using UnityEngine;
 using Verse;
 
 namespace FactionColonies

@@ -67,7 +67,7 @@ namespace FactionColonies.util
 
         public static bool RequiresEnable(FCActionType action) => requiresEnable.Contains(action);
     }
-    
+
 
     public enum TaxDeliveryMode
     {
@@ -96,7 +96,7 @@ namespace FactionColonies.util
         MessageOnly,// Only show Message (top-screen text)
         None        // Hide all tax delivery notifications
     }
-    
+
     public enum FCPolicyCategory : byte
     {
         Undefined = 0,
