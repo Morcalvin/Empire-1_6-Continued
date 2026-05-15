@@ -8,8 +8,7 @@ namespace FactionColonies
     /// <summary>
     /// Per-squad on-map deployment state. Owns the fields that
     /// <see cref="LordJob_DeployMilitary"/> reads and writes during a deploy
-    /// (lord ref, current map, player-issued orderLocation/militaryOrder) plus
-    /// the post-battle <see cref="HitMap"/> flag.
+    /// (lord ref, current map, player-issued orderLocation/militaryOrder).
     /// </summary>
     public class SquadDeploymentState : IExposable
     {
@@ -18,7 +17,6 @@ namespace FactionColonies
         public Lord Lord;
         public bool HasLord => Lord is object;
         public Map Map;
-        public bool HitMap;
         /// <summary>Player-issued behavior order for the squad's deployment lord.
         /// <see cref="MilitaryOrder.Undefined"/> until the player issues a command (Attack /
         /// Move / Leave). Read by <c>LordJob_DeployMilitary</c>'s state-graph triggers.</summary>
@@ -39,7 +37,6 @@ namespace FactionColonies
         {
             Scribe_References.Look(ref Lord, "lord");
             Scribe_References.Look(ref Map, "map");
-            Scribe_Values.Look(ref HitMap, "hitMap");
             Scribe_Values.Look(ref MilitaryOrder, "militaryOrder", MilitaryOrder.Undefined);
             Scribe_Values.Look(ref OrderLocation, "orderLocation");
         }
@@ -53,15 +50,13 @@ namespace FactionColonies
             return squad?.mercenaries?.Any(m => m?.pawn?.Map != null) ?? false;
         }
 
-        /// <summary>Migration drain — adopts the six legacy top-level fields from a pre-refactor
+        /// <summary>Migration drain — adopts the legacy top-level fields from a pre-refactor
         /// save into this sub-object. Always-drains: passing all defaults is a no-op since the
         /// sub-object's own defaults match.</summary>
-        internal void AdoptLegacyValues(Lord lord, Map map, bool hitMap,
-                                        MilitaryOrder order, IntVec3 orderLoc)
+        internal void AdoptLegacyValues(Lord lord, Map map, MilitaryOrder order, IntVec3 orderLoc)
         {
             Lord = lord;
             Map = map;
-            HitMap = hitMap;
             MilitaryOrder = order;
             OrderLocation = orderLoc;
         }

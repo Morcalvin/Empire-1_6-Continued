@@ -34,7 +34,7 @@ public interface ILifecycleParticipant
 }
 ```
 
-`OnMercenaryDeath` is called before auto-replacement of killed mercenaries. Set `evt.CancelReplacement = true` to prevent the squad from auto-filling the empty slot.
+`OnMercenaryDeath` is a notification fired when a mercenary is killed. There is no built-in auto-replacement to gate — refilling empty slots is a player-driven action via `MercenarySquadFC.FillEmptySlots`.
 
 **Convenience base class**: `LifecycleParticipantBase` — all methods are empty virtuals. Extend this to avoid stubbing unused methods.
 

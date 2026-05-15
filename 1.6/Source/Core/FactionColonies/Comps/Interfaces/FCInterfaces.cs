@@ -145,8 +145,9 @@ namespace FactionColonies
         void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result);
         void OnResearchCompleted(ResearchProjectDef project);
         /// <summary>
-        /// Called when a mercenary is killed, before the default auto-replacement.
-        /// Set <see cref="MercenaryDeathEvent.CancelReplacement"/> to prevent auto-replacement.
+        /// Called when a mercenary is killed. Notification only. No built-in replacement
+        /// behavior is gated by listeners (auto-replacement was removed; refilling empty
+        /// slots is a player-driven action via <see cref="MercenarySquadFC.FillEmptySlots"/>).
         /// </summary>
         void OnMercenaryDeath(MercenaryDeathEvent evt);
         /// <summary>

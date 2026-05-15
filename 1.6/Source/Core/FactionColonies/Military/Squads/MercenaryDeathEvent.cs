@@ -2,8 +2,9 @@ namespace FactionColonies
 {
     /// <summary>
     /// Event data passed to <see cref="ILifecycleParticipant.OnMercenaryDeath"/> when a mercenary is killed.
-    /// Listeners can inspect the dying mercenary's data and optionally set <see cref="CancelReplacement"/>
-    /// to prevent the default auto-replacement behavior.
+    /// Pure notification: listeners observe the death but do not gate any built-in replacement
+    /// behavior (auto-replacement was removed by the strict-manual outfit refactor; refilling
+    /// empty slots is now a player-driven action via <see cref="MercenarySquadFC.FillEmptySlots"/>).
     /// </summary>
     public class MercenaryDeathEvent
     {
@@ -16,19 +17,11 @@ namespace FactionColonies
         /// <summary>The settlement the squad is assigned to (may be null if squad has no settlement).</summary>
         public WorldSettlementFC Settlement { get; private set; }
 
-        /// <summary>
-        /// Set to true to prevent the default auto-replacement of the dead mercenary.
-        /// When true, <see cref="MercenarySquadFC.PassPawnToDeadMercenaries"/> will NOT be called,
-        /// and the listener is responsible for handling the empty slot.
-        /// </summary>
-        public bool CancelReplacement { get; set; }
-
         public MercenaryDeathEvent(Mercenary mercenary, MercenarySquadFC squad, WorldSettlementFC settlement)
         {
             Mercenary = mercenary;
             Squad = squad;
             Settlement = settlement;
-            CancelReplacement = false;
         }
     }
 }

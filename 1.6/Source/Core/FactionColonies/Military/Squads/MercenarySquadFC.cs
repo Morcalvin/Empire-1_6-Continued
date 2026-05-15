@@ -38,7 +38,6 @@ namespace FactionColonies
         [Unsaved] private List<Apparel> _legacyUsedApparelList;
         [Unsaved] private Lord _legacyLord;
         [Unsaved] private Map _legacyMap;
-        [Unsaved] private bool _legacyHitMap;
         [Unsaved] private MilitaryOrder _legacyMilitaryOrder = MilitaryOrder.Undefined;
         [Unsaved] private IntVec3 _legacyOrderLocation;
 
@@ -88,7 +87,6 @@ namespace FactionColonies
                 Scribe_Collections.Look(ref _legacyUsedApparelList, "UsedApparelList", LookMode.Reference);
                 Scribe_References.Look(ref _legacyLord, "lord");
                 Scribe_References.Look(ref _legacyMap, "map");
-                Scribe_Values.Look(ref _legacyHitMap, "hitMap");
                 Scribe_Values.Look(ref _legacyMilitaryOrder, "militaryOrder", MilitaryOrder.Undefined);
                 Scribe_Values.Look(ref _legacyOrderLocation, "orderLocation");
             }
@@ -103,10 +101,10 @@ namespace FactionColonies
                 if (Deployment is null) Deployment = CreateDeployment();
                 /* Always-drain: a fresh-hire squad has all-default legacy buffers, which
                    match SquadDeploymentState's own defaults — adopting is a no-op. */
-                Deployment.AdoptLegacyValues(_legacyLord, _legacyMap, _legacyHitMap,
+                Deployment.AdoptLegacyValues(_legacyLord, _legacyMap,
                                              _legacyMilitaryOrder, _legacyOrderLocation);
                 _legacyLord = null;
-                _legacyMap = null; _legacyHitMap = false;
+                _legacyMap = null;
                 _legacyMilitaryOrder = MilitaryOrder.Undefined;
                 _legacyOrderLocation = default(IntVec3);
             }
@@ -368,23 +366,16 @@ namespace FactionColonies
             return true;
         }
 
-        /// <summary>Vestigial. Auto-replacement was removed by the strict-manual outfit
-        /// refactor — the player explicitly uses <see cref="FillEmptySlots"/> instead. This
-        /// method is kept only so submods that previously called it (typically with
-        /// <see cref="MercenaryDeathEvent.CancelReplacement"/> set) still link. Calling it
-        /// is a no-op apart from a warning log.</summary>
-        [System.Obsolete("Auto-replacement removed by the strict-manual outfit refactor; player must use FillEmptySlots.")]
-        public void PassPawnToDeadMercenaries(Mercenary merc)
-        {
-            LogUtil.Warning("MercenarySquadFC.PassPawnToDeadMercenaries was called but is a no-op. " +
-                            "Use FillEmptySlots to refill empty slots after a death.");
-        }
-
         public void DebugMercenarySquad()
         {
             LogUtil.MessageForce("Debug Mercenary Squad");
             foreach (Mercenary merc in mercenaries)
             {
+                if (merc?.pawn == null)
+                {
+                    LogUtil.MessageForce("\t[empty]");
+                    continue;
+                }
                 LogUtil.MessageForce($"\t{merc.pawn} \t{merc.pawn.health.Dead.ToString()} \t{merc.pawn.apparel.WornApparelCount} \t{merc.pawn.equipment.AllEquipmentListForReading.Count()}");
             }
         }
@@ -393,12 +384,8 @@ namespace FactionColonies
         {
             foreach (Mercenary merc in mercenaries)
             {
-                if (merc.pawn == pawn)
-                {
-                    return merc;
-                }
+                if (merc?.pawn == pawn) return merc;
             }
-
             return null;
         }
 
