@@ -426,49 +426,14 @@ namespace FactionColonies
                 }
             }
 
-            // Overwhelming-victory letter + reward: empire won the battle without taking a
-            // single casualty on the winning side. The squad still has to travel home, so
-            // the normal travel timer applies; the reward is a small happiness/loyalty
-            // bonus to the winning squad's home settlement, scaled by
-            // FCSettings.overwhelmingVictoryRewardMultiplier (set to 0 to disable).
-            // External IAutoDefender wins skip the reward (no empire home settlement to
-            // credit). Deploy ops are excluded; squad presence on the player map isn't a
-            // discrete battle, so the OV/CD distinction isn't meaningful there.
-            if (victory && kind != MilitaryJobDefOf.Deploy && battleResult.IsOverwhelmingVictory)
-            {
-                string body = "FCOverwhelmingVictoryDesc".Translate();
-
-                WorldSettlementFC ovHome = aggressor?.homeSettlement ?? defender?.homeSettlement;
-                float ovMult = FCSettings.overwhelmingVictoryRewardMultiplier;
-                if (ovHome is object && ovMult > 0f)
-                {
-                    var (hap, loy) = SettlementFormulas.CalculateBattleVictoryRewards();
-                    double gainedHap = ovHome.GainHappiness(hap * ovMult);
-                    double gainedLoy = ovHome.GainLoyalty(loy * ovMult);
-                    body += "\n\n" + "FCOverwhelmingVictoryRewardLine".Translate(
-                        ovHome.Name,
-                        ((int)Math.Round(gainedHap)).ToString(),
-                        ((int)Math.Round(gainedLoy)).ToString());
-                }
-
-                Find.LetterStack.ReceiveLetter(
-                    "FCOverwhelmingVictory".Translate(),
-                    body,
-                    LetterDefOf.PositiveEvent);
-            }
-
-            // Crushing-defeat letter: the loser-side mirror of overwhelming victory. The
-            // squad was wiped without scoring a single kill on the enemy. Defensive settlement
-            // penalty multiplication is applied inside MilitaryJobHandler_Defend.ApplyResult;
-            // the squad wipe is applied by BattleCasualtyApplicator above; the cooldown
-            // extension is applied inside EnterCooldown by checking result.IsCrushingDefeat.
-            if (!victory && kind != MilitaryJobDefOf.Deploy && battleResult.IsOverwhelmingVictory)
-            {
-                Find.LetterStack.ReceiveLetter(
-                    "FCCrushingDefeat".Translate(),
-                    "FCCrushingDefeatDesc".Translate(),
-                    LetterDefOf.NegativeEvent);
-            }
+            // Overwhelming-victory / crushing-defeat letters + the OV happiness/loyalty reward
+            // are handler-owned, not generic: each handler folds the OV/CD flavor into its own
+            // single outcome letter (offensive handlers append it to their loot/capture letter;
+            // MilitaryJobHandler_Defend folds it into the condensed defense letter). This keeps
+            // CompleteBattle free of letter logic — consistent with loot/prisoners already
+            // living in ApplyResult. Deploy ops are handler-less, so they naturally get no
+            // OV/CD letter. The crushing-defeat cooldown extension still lives in EnterCooldown
+            // (it reads result.IsCrushingDefeat directly).
 
             EnterCooldown();
         }

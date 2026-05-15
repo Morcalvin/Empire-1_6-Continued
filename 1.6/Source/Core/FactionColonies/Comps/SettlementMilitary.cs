@@ -560,8 +560,8 @@ namespace FactionColonies
         {
             var faction = FactionCache.FactionComp;
 
-            // Reset before per-op dispatch so the fallback emitter at the end of this method can
-            // detect whether any handler successfully sent a result letter.
+            // Reset before per-op dispatch so the post-flush check below can detect whether the
+            // accumulator flush (or an immediate-emit fallback) successfully sent a result letter.
             DefensiveBattleEffects.letterEmitted = false;
 
             LogUtil.Message("WorldSettlementFC.EndBattle: Handling combat resolution...");
@@ -572,19 +572,6 @@ namespace FactionColonies
             MilitaryOperationManager manager = FactionCache.MilitaryManager;
             if (manager is object)
             {
-                // Manual-battle path constructs the BattleResult here from on-map pawn counts;
-                // the auto-resolve path arrives with battleResult already populated by
-                // SimulateBattleFc.FightBattle. Either way, op.CompleteBattle uses
-                // result.defenderForceRemaining vs defenderInitialForce to detect overwhelming
-                // victory (>= all defenders survived) for the FCOverwhelmingVictory letter +
-                // foreign-defender cooldown skip.
-                BattleResult resultForOps = battleResult ?? new BattleResult
-                {
-                    winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
-                    defenderInitialForce = Battlefield?.initialDefenderCount ?? remaining,
-                    defenderForceRemaining = remaining,
-                    wasManualBattle = true
-                };
                 var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
                 if (opsAtTile.Count == 0)
                 {
@@ -592,34 +579,69 @@ namespace FactionColonies
                 }
                 else
                 {
-                    // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
-                    var snapshot = new List<MilitaryOperation>(opsAtTile);
-                    foreach (MilitaryOperation op in snapshot)
+                    int defenderInitial = Battlefield?.initialDefenderCount ?? remaining;
+
+                    // Open the condensed-letter accumulator: each op's CompleteBattle ->
+                    // MilitaryJobHandler_Defend.ApplyResult appends its outcome fragment instead
+                    // of emitting a letter; FlushAccumulator below sends one condensed letter
+                    // holding every concurrent attack's result, with one report button per attack.
+                    DefensiveBattleEffects.activeAccumulator =
+                        new DefenseLetterAccumulator(WorldSettlement, won);
+                    try
                     {
-                        if (op is null) continue;
-                        if (!op.IsDefensive) continue;
-                        if (op.phase == MilitaryOperationPhase.CooldownPending
-                            || op.phase == MilitaryOperationPhase.Resolved) continue;
-                        try { op.CompleteBattle(resultForOps); }
-                        catch (Exception innerEx)
+                        // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
+                        var snapshot = new List<MilitaryOperation>(opsAtTile);
+                        foreach (MilitaryOperation op in snapshot)
                         {
-                            LogUtil.Error($"EndBattle: op id={op.id} threw in CompleteBattle: {innerEx}");
+                            if (op is null) continue;
+                            if (!op.IsDefensive) continue;
+                            if (op.phase == MilitaryOperationPhase.CooldownPending
+                                || op.phase == MilitaryOperationPhase.Resolved) continue;
+
+                            // Manual-battle path: each concurrent attack gets its OWN BattleResult
+                            // so it archives independently (WorldComponent_Archive.RecordBattleReport
+                            // stamps reportId in place — a shared object can't carry N distinct ids)
+                            // and its battle report shows that attack's own attacker context
+                            // (filled from the op by BattleArchiveUtil). Defender-side / force-count
+                            // fields mirror the original synthetic stub, so overwhelming-victory /
+                            // crushing-defeat detection is unchanged. The auto-resolve path arrives
+                            // with battleResult already populated by SimulateBattleFc.FightBattle.
+                            BattleResult resultForOp = battleResult ?? new BattleResult
+                            {
+                                winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
+                                defenderInitialForce = defenderInitial,
+                                defenderForceRemaining = remaining,
+                                wasManualBattle = true
+                            };
+                            try { op.CompleteBattle(resultForOp); }
+                            catch (Exception innerEx)
+                            {
+                                LogUtil.Error($"EndBattle: op id={op.id} threw in CompleteBattle: {innerEx}");
+                            }
                         }
+                    }
+                    finally
+                    {
+                        // Always flush — FlushAccumulator clears activeAccumulator itself, so the
+                        // context never leaks into the next battle even if the loop threw.
+                        DefensiveBattleEffects.FlushAccumulator();
                     }
                 }
             }
 
-            // Settlement-side effects (letters, building destruction, stat changes) now run inside
+            // Settlement-side effects (building destruction, stat changes) run inside
             // op.CompleteBattle via MilitaryJobHandler_Defend.ApplyResult — once per op. Multi-op
             // battles apply one full penalty set per concurrent attacker, treating each op as a
-            // logically distinct attack on the settlement.
+            // logically distinct attack on the settlement. The result LETTER, however, is
+            // condensed: every op appends a fragment to DefensiveBattleEffects.activeAccumulator
+            // and FlushAccumulator (above) sends a single letter for the whole battle.
             // isUnderAttack is computed from manager state; the op completing already drove it.
             // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
 
-            // Every battle resolution should produce a result letter via the per-op handler
-            // (ApplyWin / ApplyLoss). If none did, then the upstream pipeline has a silent-skip bug;
-            // log as an error. Earlier log lines ("ignoring re-entry on op id=N in phase X",
-            // "no manager ops at tile", etc.) identify which skip point fired.
+            // Every battle resolution should produce a result letter via the accumulator flush
+            // (or an immediate-emit fallback). If none did, then the upstream pipeline has a
+            // silent-skip bug; log as an error. Earlier log lines ("ignoring re-entry on op id=N
+            // in phase X", "no manager ops at tile", etc.) identify which skip point fired.
             if (!DefensiveBattleEffects.letterEmitted)
             {
                 LogUtil.Error($"EndBattle: no per-op handler sent a result letter at tile {WorldSettlement?.Tile} (won={won}). ");

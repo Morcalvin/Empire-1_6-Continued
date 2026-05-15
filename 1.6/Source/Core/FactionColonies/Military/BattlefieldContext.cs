@@ -593,8 +593,17 @@ namespace FactionColonies
                     parms.faction, PawnGroupKindDefOf.Combat,
                     parms.target),
                 300f);
-            parms.raidArrivalMode = ResolveRaidArriveMode(parms) ?? PawnsArrivalModeDefOf.EdgeWalkIn;
-            parms.raidArrivalMode.Worker.TryResolveRaidSpawnCenter(parms);
+            parms.raidArrivalMode = ResolveRaidArriveMode(parms);
+            // TryResolveRaidSpawnCenter can fail (e.g. EdgeWalkIn when no Empire pawn on the map
+            // can path to an edge cell). A failed resolve leaves parms.spawnCenter invalid, which
+            // degenerates Arrive() into a raw mid-map GenSpawn. Fall back to a guaranteed edge
+            // walk-in anchored on a valid edge cell.
+            if (!parms.raidArrivalMode.Worker.TryResolveRaidSpawnCenter(parms))
+            {
+                parms.raidArrivalMode = PawnsArrivalModeDefOf.EdgeWalkIn;
+                parms.spawnCenter = FindNearEdgeCell(map);
+                parms.spawnRotation = Rot4.FromAngleFlat((map.Center - parms.spawnCenter).AngleFlat);
+            }
 
             List<Pawn> newAttackers = PawnGroupMakerUtility.GeneratePawns(
                 IncidentParmsUtility.GetDefaultPawnGroupMakerParms(

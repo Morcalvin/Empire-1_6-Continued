@@ -50,11 +50,15 @@ namespace FactionColonies
 
             if (result.AttackerVictory)
             {
-                ApplyCaptureSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement, op.targetTile, target, op);
+                ApplyCaptureSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement, op.targetTile, target, op, result);
             }
             else if (result.DefenderVictory)
             {
                 string body = "FCCaptureEnemySettlementFailure".Translate(op.aggressor.homeSettlement.Name, target.Name);
+                // Fold the crushing-defeat flavor into this single failure letter rather than
+                // sending a separate Crushing Defeat letter.
+                if (MilitaryLetterUtil.IsCrushingLoss(result, playerWon: false))
+                    body += "\n\n" + "FCCrushingDefeatDesc".Translate();
                 int reportId = BattleArchiveUtil.ArchiveAndGetId(op, result, BattleOperationKind.Capture);
                 MilitaryLetterUtil.SendBattleReportLetter("FCCaptureSettlement".Translate(),
                     body, FCLetterDefOf.FCBattleReportLetterNegative,
@@ -63,9 +67,10 @@ namespace FactionColonies
         }
 
         /* Shared capture-victory side effects: destroy the target settlement, replace it with a
-         * player-owned WorldSettlementFC, and configure starting prosperity/loyalty. */
+         * player-owned WorldSettlementFC, and configure starting prosperity/loyalty. The
+         * overwhelming-victory flavor + reward is folded into the success letter. */
         private static void ApplyCaptureSuccess(FactionFC faction, WorldSettlementFC home,
-            PlanetTile capturedTile, Settlement target, MilitaryOperation op = null)
+            PlanetTile capturedTile, Settlement target, MilitaryOperation op = null, BattleResult result = null)
         {
             string tmpName = target.LabelCap;
             TechLevel tech = target.Faction.def.techLevel;
@@ -82,7 +87,7 @@ namespace FactionColonies
             {
                 LogUtil.Warning($"Capture: target settlement at {capturedTile} survived Destroy(); " +
                                 "likely destruction-protected. Falling back to raid rewards.");
-                ApplyCaptureFallbackToRaid(faction, home, tempFactionLink, target, op);
+                ApplyCaptureFallbackToRaid(faction, home, tempFactionLink, target, op, result);
                 return;
             }
 
@@ -128,6 +133,15 @@ namespace FactionColonies
             }
 
             string body = "FCCaptureEnemySettlementSuccess".Translate(home.Name, worldsettlement.Name, worldsettlement.settlementLevel);
+
+            // Fold the overwhelming-victory flavor + happiness/loyalty reward into this single
+            // letter rather than sending a separate Overwhelming Victory letter.
+            if (MilitaryLetterUtil.IsOverwhelmingWin(result, playerWon: true))
+            {
+                body += "\n\n" + "FCOverwhelmingVictoryDesc".Translate();
+                MilitaryLetterUtil.ApplyOverwhelmingVictoryReward(home, ref body);
+            }
+
             int reportId = BattleArchiveUtil.ArchiveAndGetId(op, op?.result, BattleOperationKind.Capture);
             MilitaryLetterUtil.SendBattleReportLetter("FCCaptureSettlement".Translate(),
                 body, FCLetterDefOf.FCBattleReportLetterPositive,
@@ -138,16 +152,16 @@ namespace FactionColonies
          * won the battle. Send a "couldn't permanently neutralize, raided supplies instead" letter
          * and route through Raid's victory side effects (loot + optional prisoner + delivery). */
         private static void ApplyCaptureFallbackToRaid(FactionFC faction, WorldSettlementFC home,
-            Faction enemyFaction, Settlement target, MilitaryOperation op = null)
+            Faction enemyFaction, Settlement target, MilitaryOperation op = null, BattleResult result = null)
         {
             // The fallback letter doesn't archive — it's a one-line "fallback" notice. The
             // raid victory below archives via Raid.ApplyVictoryToTarget's letter, which
-            // is the one with the meaningful battle report context.
+            // is the one with the meaningful battle report context (and folds in OV flavor).
             Find.LetterStack.ReceiveLetter(
                 "FCCaptureSettlement".Translate(),
                 "FCCaptureBlockedFallbackToRaid".Translate(home.Name, target.LabelCap),
                 LetterDefOf.NeutralEvent, new LookTargets(target));
-            MilitaryJobHandler_Raid.ApplyVictoryToTarget(faction, home, enemyFaction, target, op);
+            MilitaryJobHandler_Raid.ApplyVictoryToTarget(faction, home, enemyFaction, target, op, result);
         }
     }
 }

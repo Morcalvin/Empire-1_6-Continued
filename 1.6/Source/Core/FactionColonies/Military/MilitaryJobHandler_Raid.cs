@@ -56,11 +56,15 @@ namespace FactionColonies
             if (result.AttackerVictory)
             {
                 ApplyVictoryToTarget(FactionCache.FactionComp, op.aggressor.homeSettlement,
-                    op.defender?.faction, target, op);
+                    op.defender?.faction, target, op, result);
             }
             else
             {
                 string body = "FCRaidEnemySettlementFailure".Translate(target.LabelCap);
+                // Fold the crushing-defeat flavor into this single failure letter rather than
+                // sending a separate Crushing Defeat letter.
+                if (MilitaryLetterUtil.IsCrushingLoss(result, playerWon: false))
+                    body += "\n\n" + "FCCrushingDefeatDesc".Translate();
                 int reportId = BattleArchiveUtil.ArchiveAndGetId(op, result, BattleOperationKind.Raid);
                 MilitaryLetterUtil.SendBattleReportLetter("FCRaidFailure".Translate(),
                     body, FCLetterDefOf.FCBattleReportLetterNegative,
@@ -99,8 +103,9 @@ namespace FactionColonies
         }
 
         /* Shared victory side effects: loot, prisoners, XP, delivery event. Called from ApplyResult,
-         * and from MilitaryJobHandler_Capture's failed-destruction fallback. */
-        internal static void ApplyVictoryToTarget(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target, MilitaryOperation op = null)
+         * and from MilitaryJobHandler_Capture's failed-destruction fallback. The overwhelming-
+         * victory flavor + reward is folded into this letter rather than sent separately. */
+        internal static void ApplyVictoryToTarget(FactionFC faction, WorldSettlementFC home, Faction enemyFaction, Settlement target, MilitaryOperation op = null, BattleResult result = null)
         {
             faction.AddExperienceToFactionLevel(5f);
 
@@ -125,6 +130,15 @@ namespace FactionColonies
             }
 
             string body = "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text;
+
+            // Fold the overwhelming-victory flavor + happiness/loyalty reward into this single
+            // letter rather than sending a separate Overwhelming Victory letter.
+            if (MilitaryLetterUtil.IsOverwhelmingWin(result, playerWon: true))
+            {
+                body += "\n\n" + "FCOverwhelmingVictoryDesc".Translate();
+                MilitaryLetterUtil.ApplyOverwhelmingVictoryReward(home, ref body);
+            }
+
             int reportId = BattleArchiveUtil.ArchiveAndGetId(op, op?.result, BattleOperationKind.Raid);
             MilitaryLetterUtil.SendBattleReportLetter("FCRaidLoot".Translate(),
                 body, FCLetterDefOf.FCBattleReportLetterPositive,
