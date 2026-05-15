@@ -43,7 +43,6 @@ namespace FactionColonies
         {
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
-            Color origColor = GUI.color;
 
             // Title bar
             Rect titleRect = new Rect(inRect.x, inRect.y, inRect.width, titleHeight);
@@ -54,17 +53,12 @@ namespace FactionColonies
             if (prisoners.Count > 0)
             {
                 Text.Anchor = TextAnchor.MiddleRight;
-                GUI.color = Color.gray;
-                Widgets.Label(titleRect, "(" + prisoners.Count + ")");
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(titleRect, "(" + prisoners.Count + ")", Color.gray);
             }
 
             // Divider
             float contentY = titleRect.yMax + dividerGap;
-            Color divColor = GUI.color;
-            GUI.color = Color.gray;
-            Widgets.DrawLineHorizontal(inRect.x, titleRect.yMax + (dividerGap / 2f), inRect.width);
-            GUI.color = divColor;
+            UIUtil.DrawColoredHorizontalLine(inRect.x, titleRect.yMax + (dividerGap / 2f), inRect.width, Color.gray);
 
             float contentHeight = inRect.height - contentY;
 
@@ -73,10 +67,10 @@ namespace FactionColonies
                 // Empty state
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(inRect.x, contentY + contentHeight * 0.35f, inRect.width, 40f),
-                    "FCNoPrisoners".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(inRect.x, contentY + contentHeight * 0.35f, inRect.width, 40f),
+                    "FCNoPrisoners".Translate(),
+                    Color.gray);
             }
             else
             {
@@ -89,7 +83,7 @@ namespace FactionColonies
                 int i = 0;
                 foreach (FCPrisoner prisoner in prisoners)
                 {
-                    DrawPrisonerRow(ls, prisoner, i, origColor);
+                    DrawPrisonerRow(ls, prisoner, i);
                     i++;
                 }
                 ls.End();
@@ -100,7 +94,7 @@ namespace FactionColonies
             Text.Anchor = anchorBefore;
         }
 
-        private void DrawPrisonerRow(Listing_Standard ls, FCPrisoner prisoner, int index, Color origColor)
+        private void DrawPrisonerRow(Listing_Standard ls, FCPrisoner prisoner, int index)
         {
             Rect box = ls.GetRect(optionHeight);
 
@@ -191,9 +185,7 @@ namespace FactionColonies
             Rect trendRect = new Rect(workloadRect.xMax + 4f, workloadRect.y, 60f, 22f);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = trendColor;
-            Widgets.Label(trendRect, trendText);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(trendRect, trendText, trendColor);
 
             // Right column
             float rx = box.xMax - rightColW - pad;

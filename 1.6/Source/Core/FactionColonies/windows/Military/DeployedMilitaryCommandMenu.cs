@@ -1,8 +1,8 @@
-using System;
 using FactionColonies.util;
 using LudeonTK;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -19,8 +19,6 @@ namespace FactionColonies
         private List<MercenarySquadFC> squads = new List<MercenarySquadFC>();
         public string squadText;
 
-        public Dictionary<MercenarySquadFC, IntVec3> currentOrderPositionDic = new Dictionary<MercenarySquadFC, IntVec3>();
-        public Dictionary<MercenarySquadFC, MilitaryOrder> squadMilitaryOrderDic = new Dictionary<MercenarySquadFC, MilitaryOrder>();
         private Dictionary<string, string> truncateCache = new Dictionary<string, string>();
 
         public DeployedMilitaryCommandMenu()
@@ -36,7 +34,9 @@ namespace FactionColonies
             preventCameraMotion = false;
             faction = FactionCache.FactionComp;
 
-            selectedSquad = faction.militaryCustomizationUtil.DeployedSquads.Where(squad => squad.getSettlement != null).RandomElementWithFallback();
+            // Use the op-driven source so the freshly-deployed squad is visible immediately,
+            // even while its pawns are still inside drop pods (pawn.Map is null pre-pod-open).
+            selectedSquad = faction.militaryCustomizationUtil.SquadsInDeployOp.Where(squad => squad.getSettlement != null).RandomElementWithFallback();
         }
 
         public override Vector2 InitialSize => new Vector2(216f, 300f);
@@ -54,11 +54,11 @@ namespace FactionColonies
         private void DoSelectSquadCommand()
         {
             List<FloatMenuOption> list = new List<FloatMenuOption>();
-            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.DeployedSquads)
+            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.SquadsInDeployOp)
             {
                 if (squad.getSettlement != null)
                 {
-                    list.Add(new FloatMenuOption("FCSelectedDeployedSquad".Translate(squad.getSettlement.Name, squad.outfit.name), () => selectedSquad = squad));
+                    list.Add(new FloatMenuOption("FCSelectedDeployedSquad".Translate(squad.getSettlement.Name, squad.DisplayName), () => selectedSquad = squad));
                 }
             }
             if (!list.Any())
@@ -79,8 +79,8 @@ namespace FactionColonies
         {
             if (selectedSquad != null)
             {
-                squadMilitaryOrderDic.SetOrAdd(selectedSquad, MilitaryOrder.Hunt);
-                Messages.Message("FCAttackSuccess".Translate(selectedSquad.outfit.name), MessageTypeDefOf.NeutralEvent);
+                selectedSquad.Deployment.MilitaryOrder = MilitaryOrder.Hunt;
+                Messages.Message("FCAttackSuccess".Translate(selectedSquad.DisplayName), MessageTypeDefOf.NeutralEvent);
             }
         }
 
@@ -97,9 +97,9 @@ namespace FactionColonies
                 {
                     Position = UI.MouseCell();
 
-                    squadMilitaryOrderDic.SetOrAdd(selectedSquad, MilitaryOrder.DefendPoint);
-                    currentOrderPositionDic.SetOrAdd(selectedSquad, Position);
-                    Messages.Message("FCMoveSuccess".Translate(selectedSquad.outfit.name), MessageTypeDefOf.NeutralEvent);
+                    selectedSquad.Deployment.OrderLocation = Position;
+                    selectedSquad.Deployment.MilitaryOrder = MilitaryOrder.DefendPoint;
+                    Messages.Message("FCMoveSuccess".Translate(selectedSquad.DisplayName), MessageTypeDefOf.NeutralEvent);
 
                     DebugTools.curTool = null;
                 });
@@ -114,8 +114,8 @@ namespace FactionColonies
         {
             if (selectedSquad != null)
             {
-                squadMilitaryOrderDic.SetOrAdd(selectedSquad, MilitaryOrder.RecoverWoundedAndLeave);
-                Messages.Message("FCCommandLeave".Translate(selectedSquad.outfit.name, selectedSquad.dead), MessageTypeDefOf.NeutralEvent);
+                selectedSquad.Deployment.MilitaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
+                Messages.Message("FCCommandLeave".Translate(selectedSquad.DisplayName, selectedSquad.dead), MessageTypeDefOf.NeutralEvent);
             }
         }
 
@@ -124,7 +124,7 @@ namespace FactionColonies
         /// </summary>
         private void DoDebugCommand()
         {
-            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.DeployedSquads)
+            foreach (MercenarySquadFC squad in faction.militaryCustomizationUtil.SquadsInDeployOp.ToList())
             {
                 DespawnSquad(squad);
             }
@@ -153,8 +153,10 @@ namespace FactionColonies
                 LogUtil.Error($"Error when destroying pawns in DespawnSquad: {e}");
             }
 
-            squad.InitiateCooldownEvent();
-            squad.isDeployed = false;
+            // Resolve the squad's op directly. Skip cooldown — debug action wants the squad
+            // immediately freed.
+            MilitaryOperation op = squad.Operation;
+            if (op is object) FactionCache.MilitaryManager?.Unregister(op);
             FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(squad);
         }
 
@@ -189,15 +191,15 @@ namespace FactionColonies
 
         public override void DoWindowContents(Rect rect)
         {
-            if (!faction.militaryCustomizationUtil.DeployedSquads.Any())
+            if (!faction.militaryCustomizationUtil.SquadsInDeployOp.Any())
             {
                 Close();
                 return;
             }
 
-            if (selectedSquad is null || !selectedSquad.isDeployed)
+            if (selectedSquad is null || !MilitaryCustomizationUtil.IsInDeployOp(selectedSquad))
             {
-                selectedSquad = faction.militaryCustomizationUtil.DeployedSquads.FirstOrDefault();
+                selectedSquad = faction.militaryCustomizationUtil.SquadsInDeployOp.FirstOrDefault();
             }
 
             GameFont prevFont = Text.Font;
@@ -247,9 +249,7 @@ namespace FactionColonies
 
                 string settlementFullName = selectedSquad.getSettlement?.Name ?? "Unknown";
                 string settlementTruncated = settlementFullName.Truncate(contentWidth - 10f, truncateCache);
-                GUI.color = settlementHovered ? Color.white : new Color(0.8f, 0.8f, 0.8f);
-                Widgets.Label(settlementRect, settlementTruncated);
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(settlementRect, settlementTruncated, settlementHovered ? Color.white : new Color(0.8f, 0.8f, 0.8f));
 
                 if (settlementTruncated != settlementFullName)
                 {
@@ -272,7 +272,7 @@ namespace FactionColonies
                 Widgets.DrawHighlight(squadNameRect);
                 if (squadHovered) Widgets.DrawHighlight(squadNameRect);
 
-                string squadFullName = selectedSquad.outfit.name;
+                string squadFullName = selectedSquad.DisplayName;
                 string squadTruncated = squadFullName.Truncate(contentWidth - 10f, truncateCache);
                 Widgets.Label(squadNameRect, squadTruncated);
 
@@ -294,9 +294,7 @@ namespace FactionColonies
 
                 // --- Faint separator between info and commands ---
                 curY += 4f;
-                GUI.color = new Color(1f, 1f, 1f, 0.3f);
-                Widgets.DrawLineHorizontal(rect.x + 8f, curY, contentWidth - 16f);
-                GUI.color = prevColor;
+                UIUtil.DrawColoredHorizontalLine(rect.x + 8f, curY, contentWidth - 16f, new Color(1f, 1f, 1f, 0.3f));
                 curY += 4f;
 
                 // --- Command buttons with icons ---

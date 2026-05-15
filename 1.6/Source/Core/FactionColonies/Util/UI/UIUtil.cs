@@ -1,6 +1,6 @@
-﻿using System;
+﻿using RimWorld;
+using System;
 using System.Collections.Generic;
-using RimWorld;
 using UnityEngine;
 using Verse;
 using Verse.Sound;
@@ -135,6 +135,14 @@ namespace FactionColonies
             GUI.color = origColor;
         }
 
+        public static void DrawColoredBox(Rect rect, Color color, int thickness)
+        {
+            Color origColor = GUI.color;
+            GUI.color = color;
+            Widgets.DrawBox(rect, thickness);
+            GUI.color = origColor;
+        }
+
         public static void DrawColoredLabel(Rect rect, string text, Color color)
         {
             Color origColor = GUI.color;
@@ -150,13 +158,43 @@ namespace FactionColonies
             Widgets.DrawLineVertical(x, y, len);
             GUI.color = origColor;
         }
-        
+
         public static void DrawColoredHorizontalLine(float x, float y, float len, Color color)
         {
             Color origColor = GUI.color;
             GUI.color = color;
             Widgets.DrawLineHorizontal(x, y, len);
             GUI.color = origColor;
+        }
+        /// <summary>
+        /// Draws a label. If the string is too long for the given rect, then it is truncated with ellipsis (...).
+        /// </summary>
+        /// <param name="rect"></param>
+        /// <param name="label"></param>
+        public static void ClampedLabel(Rect rect, string label)
+        {
+            string display = Text.ClampTextWithEllipsis(rect, label);
+            Widgets.Label(rect, display);
+        }
+        public static void LabelWithMargin(Rect rect, string label, float margin = 5f)
+        {
+            Rect labelRect = new Rect(rect.x + margin, rect.y, rect.width - (margin * 2), rect.height);
+            Widgets.Label(labelRect, label);
+        }
+        public static void ClampedLabelWithMargin(Rect rect, string label, float margin = 5f)
+        {
+            Rect labelRect = new Rect(rect.x + margin, rect.y, rect.width - (margin * 2), rect.height);
+            ClampedLabel(labelRect, label);
+        }
+        public static void HighlightedLabel(Rect rect, string label)
+        {
+            Widgets.DrawHighlight(rect);
+            LabelWithMargin(rect, label);
+        }
+        public static void HighlightedClampedLabel(Rect rect, string label, float margin = 5f)
+        {
+            Widgets.DrawHighlight(rect);
+            ClampedLabelWithMargin(rect, label, margin);
         }
 
         public static int GetModifier => 1 * (Event.current.shift ? 5 : 1) * (Event.current.control ? 10 : 1);

@@ -199,7 +199,7 @@ namespace FactionColonies.util
         public void AddCustomXenotypeWithWeight(CustomXenotype xenotype, float weight)
         {
             if (xenotype is null) return;
-            
+
             customXenotypeWeights[xenotype.name] = weight;
             dirtyCustomXenotypeTotalWeight = true;
             checkedForNonViolent = false;
@@ -1175,7 +1175,7 @@ namespace FactionColonies.util
         {
             XenotypeDef chosenXenotype = null;
             CustomXenotype chosenCustomXenotype = null;
-            
+
             if (!ModsConfig.BiotechActive)
             {
                 LogUtil.Message($"Biotech inactive or not installed. Returning null from GetRandomXenotypeForRequest");

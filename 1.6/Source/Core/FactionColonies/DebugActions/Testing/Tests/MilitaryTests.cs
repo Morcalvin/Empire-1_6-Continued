@@ -1,65 +1,7 @@
-using RimWorld;
-
 namespace FactionColonies
 {
     public static class MilitaryTests
     {
-        // --- GetMilitaryLevelAndEfficiencyFromTechLevel ---
-
-        private static void AssertTechLevel(TechLevel techLevel, double expectedLevel, double expectedEfficiency)
-        {
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(techLevel, out double level, out double efficiency);
-            TestAssert.AreEqual(expectedLevel, level, message: $"Military level for {techLevel}");
-            TestAssert.AreEqual(expectedEfficiency, efficiency, message: $"Efficiency for {techLevel}");
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Undefined_Returns1_05()
-        {
-            AssertTechLevel(TechLevel.Undefined, 1, 0.5);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Animal_Returns1_05()
-        {
-            AssertTechLevel(TechLevel.Animal, 1, 0.5);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Neolithic_Returns1_1()
-        {
-            AssertTechLevel(TechLevel.Neolithic, 2, 0.9);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Medieval_Returns2_12()
-        {
-            AssertTechLevel(TechLevel.Medieval, 3, 1.0);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Industrial_Returns3_12()
-        {
-            AssertTechLevel(TechLevel.Industrial, 5, 1.1);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Spacer_Returns3_13()
-        {
-            AssertTechLevel(TechLevel.Spacer, 6, 1.2);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Ultra_Returns3_13()
-        {
-            AssertTechLevel(TechLevel.Ultra, 7, 1.3);
-        }
-
-        [EmpireTest("Military")]
-        public static void TechLevel_Archotech_Returns4_15()
-        {
-            AssertTechLevel(TechLevel.Archotech, 9, 1.5);
-        }
 
         // --- CalculateAccuracyCostPercentage ---
 
@@ -111,6 +53,47 @@ namespace FactionColonies
         {
             float cost = MilitaryFireSupport.CalculateTotalCost(15f, new float[] { });
             TestAssert.AreEqual(0f, cost, 0.01f);
+        }
+
+        // --- SquadHealingEstimator ---
+        // Narrow surface: most of the formula reads real Pawn state (HealthScale, stats).
+        // These tests exercise only the null/empty defensive paths.
+
+        [EmpireTest("Military")]
+        public static void Healing_TicksToFullHealth_NullPawn_ReturnsZero()
+        {
+            TestAssert.AreEqual(0, SquadHealingEstimator.TicksToFullHealth(null));
+        }
+
+        [EmpireTest("Military")]
+        public static void Healing_TicksToFullEffectiveness_NullSquad_ReturnsZero()
+        {
+            TestAssert.AreEqual(0, SquadHealingEstimator.TicksToFullEffectiveness(null));
+        }
+
+        [EmpireTest("Military")]
+        public static void Healing_TicksToFullEffectiveness_EmptySquad_ReturnsZero()
+        {
+            // Squad with mercenaries=null. The estimator iterates safely without throwing.
+            var squad = new MercenarySquadFC();
+            squad.mercenaries = null;
+            squad.animals = null;
+            TestAssert.AreEqual(0, SquadHealingEstimator.TicksToFullEffectiveness(squad));
+        }
+
+        [EmpireTest("Military")]
+        public static void Healing_TicksToFullEffectiveness_SquadWithNoLivePawns_ReturnsZero()
+        {
+            // Squad with empty-slot mercenaries (all pawn=null). TicksToFullHealth(null) == 0,
+            // so the squad-level worst-case stays at 0.
+            var squad = new MercenarySquadFC();
+            squad.mercenaries = new System.Collections.Generic.List<Mercenary>
+            {
+                new Mercenary(),
+                new Mercenary()
+            };
+            squad.animals = new System.Collections.Generic.List<Mercenary>();
+            TestAssert.AreEqual(0, SquadHealingEstimator.TicksToFullEffectiveness(squad));
         }
     }
 }

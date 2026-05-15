@@ -9,10 +9,9 @@ namespace FactionColonies
         public string statusLabelKey;
         public bool occupiesTarget = true;
         public bool isState;
-        public FCStatDef cooldownStatDef;
-        public bool deadPawnCooldown;
         public string floatMenuLabelKey;
         public string floatMenuDescKey;
+        public string rewardsDesc;
         public bool defaultEnabled = true;
 
         [Unsaved] private MilitaryJobHandler cachedHandler;

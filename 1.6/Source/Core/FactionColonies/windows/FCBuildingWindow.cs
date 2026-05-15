@@ -164,10 +164,11 @@ namespace FactionColonies
             Widgets.DrawHighlight(headerRect);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = new Color(1f, 1f, 1f, 0.7f);
             string arrow = expanded ? "▼ " : "▶ ";
-            Widgets.Label(new Rect(x + margin, curY, width - margin * 2, collapsibleHeaderHeight), arrow + label);
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(
+                new Rect(x + margin, curY, width - margin * 2, collapsibleHeaderHeight),
+                arrow + label,
+                new Color(1f, 1f, 1f, 0.7f));
             if (Widgets.ButtonInvisible(headerRect))
             {
                 expanded = !expanded;
@@ -417,14 +418,11 @@ namespace FactionColonies
                 ApplyFilter();
             if (string.IsNullOrEmpty(buildingSearchTerm))
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(SearchBarArea.x + 5f, SearchBarArea.y,
+                UIUtil.DrawColoredLabel(new Rect(SearchBarArea.x + 5f, SearchBarArea.y,
                     SearchBarArea.width - 10f, SearchBarArea.height),
-                    "FCSearchBuildings".Translate());
-                GUI.color = prevColor;
+                    "FCSearchBuildings".Translate(), Color.gray);
             }
 
             // Locked building toggle
@@ -637,9 +635,7 @@ namespace FactionColonies
                 ? "Empire_BuildingWindow_EmptySlot".Translate()
                 : "Empire_BuildingWindow_CurrentBuilding".Translate();
             Rect labelRect = new Rect(contentX, rect.y + margin, contentWidth, 18f);
-            GUI.color = new Color(1f, 1f, 1f, 0.7f);
-            Widgets.Label(labelRect, slotLabel);
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(labelRect, slotLabel, new Color(1f, 1f, 1f, 0.7f));
 
             // Icon
             float iconY = labelRect.yMax + smallMargin;
@@ -669,9 +665,9 @@ namespace FactionColonies
             {
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                GUI.color = new Color(1f, 1f, 1f, 0.5f);
-                Widgets.Label(rect, "Empire_BuildingWindow_SelectBuilding".Translate());
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(rect,
+                    "Empire_BuildingWindow_SelectBuilding".Translate(),
+                    new Color(1f, 1f, 1f, 0.5f));
                 return;
             }
 
@@ -751,10 +747,10 @@ namespace FactionColonies
                     bool isSlotBuilding = req == buildingDef;
                     bool satisfied = has && !isSlotBuilding;
                     Rect statusRect = new Rect(scrollViewRect.x + margin, curY, w - margin * 2, 18f);
-                    GUI.color = satisfied ? Color.green : Color.red;
                     string checkmark = satisfied ? "✓ " : "✗ ";
-                    Widgets.Label(statusRect, checkmark + "Empire_BuildingWindow_Requires".Translate(req.LabelCap));
-                    GUI.color = Color.white;
+                    UIUtil.DrawColoredLabel(statusRect,
+                        checkmark + "Empire_BuildingWindow_Requires".Translate(req.LabelCap),
+                        satisfied ? Color.green : Color.red);
                     curY += 18f;
                 }
                 curY += smallMargin;
@@ -767,14 +763,14 @@ namespace FactionColonies
                 Rect lockIconRect = new Rect(scrollViewRect.x + margin, curY + 2f, lockIconSize, lockIconSize);
                 GUI.DrawTexture(lockIconRect, TexLoad.buildingLocked);
 
-                GUI.color = new Color(1f, 0.7f, 0.2f, 1f);
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
                 string researchName = GetResearchRequirementForTechLevel(selectedBuilding.techLevel);
                 Rect techTextRect = new Rect(lockIconRect.xMax + smallMargin, curY, w - lockIconSize - margin * 2 - smallMargin, 22f);
-                Widgets.Label(techTextRect, "Empire_BuildingWindow_TechLocked".Translate(
-                    selectedBuilding.techLevel.ToStringHuman(), researchName));
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(techTextRect,
+                    "Empire_BuildingWindow_TechLocked".Translate(
+                        selectedBuilding.techLevel.ToStringHuman(), researchName),
+                    new Color(1f, 0.7f, 0.2f, 1f));
                 curY += 22f + smallMargin;
             }
 
@@ -860,10 +856,10 @@ namespace FactionColonies
             Rect headerRect = new Rect(x, curY, width, 22f);
             Widgets.DrawHighlight(headerRect);
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = new Color(1f, 1f, 1f, 0.7f);
-            Widgets.Label(new Rect(x + smallMargin, curY, contentWidth, 22f),
-                "Empire_BuildingWindow_Modifiers".Translate());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(
+                new Rect(x + smallMargin, curY, contentWidth, 22f),
+                "Empire_BuildingWindow_Modifiers".Translate(),
+                new Color(1f, 1f, 1f, 0.7f));
             curY = headerRect.yMax + smallMargin;
 
             // Content
@@ -908,9 +904,10 @@ namespace FactionColonies
                 Widgets.DrawHighlight(headerRect);
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                GUI.color = new Color(1f, 1f, 1f, 0.7f);
-                Widgets.Label(new Rect(x + smallMargin, curY, contentWidth, 22f), section.SectionLabel);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(
+                    new Rect(x + smallMargin, curY, contentWidth, 22f),
+                    section.SectionLabel,
+                    new Color(1f, 1f, 1f, 0.7f));
 
                 Rect contentRect = new Rect(x + smallMargin, headerRect.yMax + smallMargin, contentWidth, contentHeight);
                 section.DrawSection(selectedBuilding, contentRect);
@@ -971,10 +968,10 @@ namespace FactionColonies
             Rect headerRect = new Rect(x, curY, width, 22f);
             Widgets.DrawHighlight(headerRect);
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = new Color(1f, 1f, 1f, 0.7f);
-            Widgets.Label(new Rect(x + smallMargin, curY, width - smallMargin * 2, 22f),
-                "Empire_BuildingWindow_SettlementImpact".Translate());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(
+                new Rect(x + smallMargin, curY, width - smallMargin * 2, 22f),
+                "Empire_BuildingWindow_SettlementImpact".Translate(),
+                new Color(1f, 1f, 1f, 0.7f));
             curY = headerRect.yMax + smallMargin;
 
             // Draw each affected resource
@@ -1039,9 +1036,7 @@ namespace FactionColonies
                 // Draw delta with color
                 float labelWidth = Text.CalcSize(label).x;
                 Rect deltaRect = new Rect(textRect.x + labelWidth, curY, Text.CalcSize(deltaStr).x, 22f);
-                GUI.color = deltaColor;
-                Widgets.Label(deltaRect, deltaStr);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(deltaRect, deltaStr, deltaColor);
 
                 Rect closeParenRect = new Rect(deltaRect.xMax, curY, 20f, 22f);
                 Widgets.Label(closeParenRect, ")");
@@ -1111,10 +1106,10 @@ namespace FactionColonies
                 {
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    GUI.color = new Color(1f, 1f, 1f, 0.5f);
                     Rect reqRect = new Rect(x + indent + margin, curY, cardWidth, 18f);
-                    Widgets.Label(reqRect, "Empire_BuildingWindow_Requires".Translate(entry.parent.LabelCap));
-                    GUI.color = Color.white;
+                    UIUtil.DrawColoredLabel(reqRect,
+                        "Empire_BuildingWindow_Requires".Translate(entry.parent.LabelCap),
+                        new Color(1f, 1f, 1f, 0.5f));
                     curY += 18f;
                 }
 
@@ -1215,10 +1210,9 @@ namespace FactionColonies
                     {
                         bool has = settlement.BuildingsComp?.HasBuildingOrUpgrade(req) == true;
                         Rect statusRect = new Rect(x + margin * 2, curY, width - margin * 4, 18f);
-                        GUI.color = has ? Color.green : Color.red;
                         string checkmark = has ? "✓ " : "✗ ";
-                        Widgets.Label(statusRect, checkmark + req.LabelCap);
-                        GUI.color = Color.white;
+                        UIUtil.DrawColoredLabel(statusRect, checkmark + req.LabelCap,
+                            has ? Color.green : Color.red);
                         curY += 18f;
                     }
                 }

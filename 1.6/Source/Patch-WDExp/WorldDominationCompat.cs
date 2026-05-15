@@ -27,7 +27,7 @@ namespace FactionColonies.WDExp
         static WorldDominationCompatInit()
         {
             new Harmony("com.Matathias.Empire.WDExp").PatchAll(Assembly.GetExecutingAssembly());
-            BattleModifierRegistry.Register(new WDStrengthBattleModifier());
+            BattleModifierRegistry.Register(new WDStrengthSettlementModifier());
             LogUtil.MessageForce("World Domination (Experimental) compatibility module loaded.");
         }
     }
@@ -63,18 +63,22 @@ namespace FactionColonies.WDExp
         private static bool Prefix(WorldObject_Traveler traveler, WorldComponent_SpreadManager manager)
         {
             WorldSettlementFC empireSettlement = traveler.targetObject as WorldSettlementFC;
-            if (empireSettlement == null) return true;
+            if (empireSettlement is null) return true;
+            if (traveler.Faction is null) return true;
 
-            if (traveler.Faction == null) return true;
+            // Sample the baseline through the worldcomp so faction-level efficiency modifiers apply.
+            // WD's traveler strength dictates militaryLevel, so we override the sampled level with it.
+            EnemyPower entry = FactionCache.EnemyPower?.GetOrCompute(traveler.Faction);
+            MilitaryForce attackingForce = entry?.SampleBattleForce(traveler.Faction);
+            if (attackingForce is null)
+            {
+                MilitaryUtil.GetTechLevelBaseline(traveler.Faction.def.techLevel, out double _, out double efficiency);
+                attackingForce = new MilitaryForce(1, efficiency, null, traveler.Faction);
+            }
 
-            // Convert WD traveler strength to Empire military force
-            double techLevel;
-            double efficiency;
-            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(
-                traveler.Faction.def.techLevel, out techLevel, out efficiency);
-
-            double wdMilitaryLevel = traveler.travelerStrength / WDStrengthBattleModifier.SCALE_FACTOR;
-            MilitaryForce attackingForce = new MilitaryForce(wdMilitaryLevel, efficiency, null, traveler.Faction);
+            double wdMilitaryLevel = traveler.travelerStrength / WDStrengthSettlementModifier.SCALE_FACTOR;
+            attackingForce.militaryLevel = wdMilitaryLevel;
+            attackingForce.forceRemaining = Math.Max(1, Math.Round(attackingForce.militaryLevel * attackingForce.militaryEfficiency));
 
             // Route through Empire's defense system (1-day warning + auto-battle/manual)
             bool queued = MilitaryUtilFC.AttackPlayerSettlement(attackingForce, empireSettlement, traveler.Faction);
@@ -88,7 +92,7 @@ namespace FactionColonies.WDExp
             else
             {
                 LogUtil.Message("WD raid on Empire settlement " + empireSettlement.Name +
-                    " dropped (settlement already under attack).");
+                    " dropped (helper rejected — likely missing MilitaryComp or MilitaryManager).");
             }
 
             return false;
@@ -114,54 +118,28 @@ namespace FactionColonies.WDExp
     }
 
     // ================================================================
-    // Patch 4: Scale enemy force based on WD settlement strength
-    // Uses IBattleModifier so it integrates with Empire's existing
-    // battle modifier pipeline. When Empire attacks a settlement that
-    // has CompViralSpread, the defender's force is scaled from WD
-    // strength instead of just tech level.
-    //
-    // BattleModifierRegistry calls modifiers in order:
-    //   InvokeModifyForce(MFA, isAttacker=true)  <- attacker first
-    //   InvokeModifyForce(MFB, isAttacker=false) <- defender second
-    // We capture the attacker on the first call to find the target.
+    // Patch 4: Scale enemy settlement power based on WDExp local defense.
+    // Implements ISettlementPowerModifier so the override is baked into
+    // the cached EnemyPower entry at recompute time — squad-attack window
+    // and actual battle agree without per-engagement work.
     // ================================================================
-    public class WDStrengthBattleModifier : IBattleModifier
+    public class WDStrengthSettlementModifier : SettlementPowerModifierBase
     {
         public const double SCALE_FACTOR = 100.0;
 
-        private MilitaryForce lastAttacker;
+        protected override string LogLabel => "WD defense power";
 
-        public void ModifyForce(MilitaryForce force, bool isAttacker)
+        protected override bool TryGetLevel(Settlement settlement, out double level)
         {
-            if (isAttacker)
-            {
-                lastAttacker = force;
-                return;
-            }
-
-            // Defender side — look up target settlement via the attacker's military comp
-            MilitaryForce attacker = lastAttacker;
-            lastAttacker = null;
-
-            if (attacker == null || attacker.homeSettlement == null) return;
-
-            WorldObjectComp_SettlementMilitary milComp = attacker.homeSettlement.MilitaryComp;
-            if (milComp == null || !milComp.militaryLocation.Valid) return;
-
-            Settlement target = Find.WorldObjects.SettlementAt(milComp.militaryLocation);
-            if (target == null) return;
-
-            CompViralSpread comp = target.GetComponent<CompViralSpread>();
-            if (comp == null) return;
+            level = 0;
+            CompViralSpread comp = settlement.GetComponent<CompViralSpread>();
+            if (comp == null) return false;
 
             float totalDefense = comp.GetTotalLocalDefensePower();
-            if (totalDefense <= 0f) return;
+            if (totalDefense <= 0f) return false;
 
-            double wdForce = totalDefense / SCALE_FACTOR;
-            force.militaryLevel = wdForce;
-            force.forceRemaining = Math.Round(wdForce * force.militaryEfficiency);
-
-            LogUtil.Message("WD defense power " + totalDefense.ToString("F0") + " (tier " + comp.tier + ") -> Empire defender force " + force.forceRemaining);
+            level = totalDefense / SCALE_FACTOR;
+            return true;
         }
     }
 

@@ -1,5 +1,5 @@
-using RimWorld.Planet;
 using RimWorld;
+using RimWorld.Planet;
 
 namespace FactionColonies
 {
@@ -16,7 +16,7 @@ namespace FactionColonies
         protected override void RegenerateStock()
         {
             WorldSettlementFC worldSettlement = settlement as WorldSettlementFC;
-            
+
             LogUtil.Message($"SettlementTraderTracker_Empire: Regenerating Stock");
 
             // Set settlement reference on each EmpireStockGenerator

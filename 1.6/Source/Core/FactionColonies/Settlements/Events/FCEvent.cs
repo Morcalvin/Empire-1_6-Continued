@@ -1,9 +1,9 @@
-﻿using RimWorld;
+﻿using FactionColonies.util;
+using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using Verse;
-using FactionColonies.util;
 
 namespace FactionColonies
 {
@@ -24,6 +24,13 @@ namespace FactionColonies
         public List<Thing> goods = new List<Thing>();
         public bool hasCustomDescription;
         public string customDescription = "";
+        public bool hasCustomLabel;
+        public string customLabel = "";
+
+        /* User-facing event label. Falls back to the def's label when no per-event
+         * override was set. Centralized so display call sites stay in lockstep. */
+        public string Label =>
+            hasCustomLabel && !customLabel.NullOrEmpty() ? customLabel : def?.label;
 
         //Delivery things
         public Message msg = null;
@@ -31,19 +38,37 @@ namespace FactionColonies
         public bool isDelayed = false;
         public TaxDeliveryMode deliveryMode;
 
-        //Military Force stuff
+        //Military Force stuff — drained into MilitaryOperation by MilitaryMigrationUtil on
+        // PostLoadInit. Kept declared (and scribed) so pre-refactor saves load cleanly; new
+        // code reads/writes the corresponding MilitaryOperationParticipant fields instead.
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public MilitaryForce militaryForceAttacking;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public Faction militaryForceAttackingFaction;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public MilitaryForce militaryForceDefending;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public Faction militaryForceDefendingFaction;
+        [Obsolete("Drained into MilitaryOperation by MilitaryMigrationUtil. Will be removed in a future version.")]
         public WorldObject settlementFCDefending;
         /// <summary>
         /// If the defending force was provided by an external <see cref="IAutoDefender"/> (not an Empire settlement),
         /// this references the defender's world object so it can be notified on battle completion.
         /// </summary>
+        [Obsolete("Drained into MilitaryOperation.externalDefenderSource by MilitaryMigrationUtil. Will be removed in a future version.")]
         public WorldObject externalDefenderSource;
 
         public WorldSettlementDef settlementToCreate = null;
+
+        /// <summary>
+        /// Back-reference to a <see cref="MilitaryOperation"/> in the
+        /// <see cref="FactionFC.militaryOperationManager"/> when this event is a wakeup primitive
+        /// for that op (arrival, cooldown, warning, etc.). Null when unlinked. <see cref="FCEventMaker"/>
+        /// dispatches op-linked events through <see cref="MilitaryOperation.OnEventFired"/>.
+        /// </summary>
+        public MilitaryOperation linkedOperation;
+
+        public bool HasLinkedOperation => linkedOperation is object;
 
         /// <summary>Lifecycle phase.
         /// <para> - Queued: in queue, awaiting timer.</para>
@@ -120,6 +145,8 @@ namespace FactionColonies
 
             Scribe_Values.Look(ref hasCustomDescription, "hasCustomDescription");
             Scribe_Values.Look(ref customDescription, "customDescription");
+            Scribe_Values.Look(ref hasCustomLabel, "hasCustomLabel");
+            Scribe_Values.Look(ref customLabel, "customLabel");
 
             Scribe_Deep.Look(ref msg, "msg");
             Scribe_Deep.Look(ref let, "let");
@@ -127,15 +154,19 @@ namespace FactionColonies
             Scribe_Values.Look(ref deliveryMode, "deliveryMode");
             Scribe_Values.Look(ref phase, "phase", FCEventPhase.Queued);
 
-            //Military stuff
+            //Military stuff — legacy save-format fields drained by MilitaryMigrationUtil.
+#pragma warning disable 0618
             Scribe_Deep.Look(ref militaryForceAttacking, "militaryForceAttacking");
             Scribe_References.Look(ref militaryForceAttackingFaction, "militaryForceAttackingFaction");
             Scribe_Deep.Look(ref militaryForceDefending, "militaryForceDefending");
             Scribe_References.Look(ref militaryForceDefendingFaction, "militaryForceDefendingFaction");
             Scribe_References.Look(ref settlementFCDefending, "SettlementFCDefending");
             Scribe_References.Look(ref externalDefenderSource, "externalDefenderSource");
+#pragma warning restore 0618
 
             Scribe_Defs.Look(ref settlementToCreate, "settlementToCreate");
+
+            Scribe_References.Look(ref linkedOperation, "linkedOperation");
         }
 
         public string GetUniqueLoadID()

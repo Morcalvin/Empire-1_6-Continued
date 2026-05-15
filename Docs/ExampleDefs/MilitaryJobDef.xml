@@ -18,6 +18,9 @@
 	<floatMenuLabelKey>FCMilJob_Example_Label</floatMenuLabelKey>
 	<!-- Translation key for the description tooltip shown in the float menu. -->
 	<floatMenuDescKey>FCMilJob_Example_Desc</floatMenuDescKey>
+	<!-- Per-job rewards summary shown in the Squad Source Picker right column, prefixed -->
+	<!-- with "Rewards: ". Translatable via DefInjections (no separate key needed). Optional. -->
+	<rewardsDesc>A short prose summary of what the player gets when this operation succeeds.</rewardsDesc>
 	<!-- If true, the target settlement/location is "occupied" while this job is active, -->
 	<!-- preventing other jobs from targeting the same location. Default: true -->
 	<occupiesTarget>true</occupiesTarget>

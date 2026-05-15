@@ -1,49 +1,99 @@
 using FactionColonies.util;
 using System;
-using System.Collections.Generic;
 
 namespace FactionColonies
 {
     public class SimulateBattleFc
     {
-        public static BattleResult FightBattle(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
+        /// <summary>Applies <see cref="FCSettings.defenderAdvantage"/> to the defending force in
+        /// place. The single source of truth for the defender bonus; applied once when an
+        /// auto-resolve battle is seeded (op-driven or synchronous), never per round.</summary>
+        public static void ApplyDefenderAdvantage(MilitaryForce defender)
+        {
+            if (defender is null) return;
+            defender.forceRemaining = Math.Round(defender.forceRemaining * FCSettings.defenderAdvantage);
+        }
+
+        /// <summary>
+        /// Resolves one battle round in place: rolls via <see cref="SimulateRound"/>, decrements the
+        /// losing side on both the live <see cref="MilitaryForce"/> objects and <paramref name="result"/>'s
+        /// force counters, and appends a <see cref="RoundEntry"/>. On the round that depletes a side it
+        /// also sets <paramref name="result"/>'s <c>winner</c>, <c>totalRounds</c>, and <c>subPhase</c>.
+        /// This is the single per-round implementation, shared by the per-round op engine
+        /// (<see cref="MilitaryOperation.AdvanceBattleProgress"/>) and the synchronous resolver
+        /// (<see cref="ResolveSynchronously"/>).
+        /// </summary>
+        public static void ResolveOneRound(BattleResult result, MilitaryForce atk, MilitaryForce def,
+            IRandProvider rand = null)
+        {
+            RoundOutcome outcome = SimulateRound(atk, def, rand);
+            if (outcome.attackerWonRound)
+            {
+                def.forceRemaining -= 1;
+                result.defenderForceRemaining -= 1;
+            }
+            else
+            {
+                atk.forceRemaining -= 1;
+                result.attackerForceRemaining -= 1;
+            }
+
+            result.rounds.Add(new RoundEntry
+            {
+                roundNumber = result.rounds.Count + 1,
+                attackerRawRoll = outcome.attackerRawRoll,
+                defenderRawRoll = outcome.defenderRawRoll,
+                attackerScore = outcome.attackerScore,
+                defenderScore = outcome.defenderScore,
+                attackerWonRound = outcome.attackerWonRound,
+                attackerForceAfter = result.attackerForceRemaining,
+                defenderForceAfter = result.defenderForceRemaining
+            });
+
+            if (result.IsComplete)
+            {
+                result.winner = result.attackerForceRemaining <= 0
+                    ? BattleWinner.Defender : BattleWinner.Attacker;
+                result.totalRounds = result.rounds.Count;
+                result.subPhase = BattleSubPhase.Resolved;
+            }
+        }
+
+        /// <summary>
+        /// Synchronous full-battle resolution. Seeds a <see cref="BattleResult"/> (applying the
+        /// defender advantage), then loops <see cref="ResolveOneRound"/> to completion. Actual
+        /// battles run through the per-round op engine
+        /// (<see cref="MilitaryOperation.BeginAutoResolveProgress"/>); this function shares the same
+        /// <see cref="ResolveOneRound"/> primitive and only exists for tests, which need a deterministic,
+        /// one-shot result.
+        /// </summary>
+        internal static BattleResult ResolveSynchronously(MilitaryForce atk, MilitaryForce def,
+            IRandProvider rand = null)
         {
             var result = new BattleResult();
             try
             {
-                BattleModifierRegistry.InvokeModifyForce(MFA, true);
-                BattleModifierRegistry.InvokeModifyForce(MFB, false);
+                ApplyDefenderAdvantage(def);
 
-                // Defender advantage: defenders are inherently harder to dislodge
-                MFB.forceRemaining = Math.Round(MFB.forceRemaining * FCSettings.defenderAdvantage);
+                result.attackerInitialForce = atk.forceRemaining;
+                result.defenderInitialForce = def.forceRemaining;
+                result.attackerForceRemaining = atk.forceRemaining;
+                result.defenderForceRemaining = def.forceRemaining;
+                result.attackerEfficiency = atk.militaryEfficiency;
+                result.defenderEfficiency = def.militaryEfficiency;
+                result.subPhase = BattleSubPhase.RollsInProgress;
 
-                result.attackerInitialForce = MFA.forceRemaining;
-                result.defenderInitialForce = MFB.forceRemaining;
-                result.roundLog = new List<bool>();
+                while (!result.IsComplete)
+                    ResolveOneRound(result, atk, def, rand);
 
-                LogUtil.Message("SimulateBattleFc.FightBattle: Starting battle");
-                while (MFA.forceRemaining > 0 && MFB.forceRemaining > 0)
+                if (result.rounds.Count == 0)
                 {
-                    double prevDefender = MFB.forceRemaining;
-                    FightRound(MFA, MFB, rand);
-                    // If defender lost force this round, attacker won the round
-                    result.roundLog.Add(MFB.forceRemaining < prevDefender);
+                    // A side started at zero force — battle decided with no rounds rolled.
+                    result.winner = result.attackerForceRemaining <= 0
+                        ? BattleWinner.Defender : BattleWinner.Attacker;
                 }
-
-                result.attackerRemainingForce = MFA.forceRemaining;
-                result.defenderRemainingForce = MFB.forceRemaining;
-                result.totalRounds = result.roundLog.Count;
-
-                if (MFA.forceRemaining <= 0)
-                {
-                    LogUtil.Message("SimulateBattleFc.FightBattle: Defending Force has won.");
-                    result.winner = BattleWinner.Defender;
-                }
-                else
-                {
-                    LogUtil.Message("SimulateBattleFc.FightBattle: Attacking Force has won.");
-                    result.winner = BattleWinner.Attacker;
-                }
+                result.totalRounds = result.rounds.Count;
+                result.subPhase = BattleSubPhase.Resolved;
             }
             catch (Exception e)
             {
@@ -54,13 +104,56 @@ namespace FactionColonies
             return result;
         }
 
-        public static void FightRound(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
+        /// <summary>
+        /// Per-round outcome detail. Returned by <see cref="SimulateRound"/> so callers can
+        /// record both the raw d20 roll (1..20) and the dampening-applied final score for
+        /// both sides. The round winner is determined by score comparison; force decrement
+        /// is the caller's responsibility (see <see cref="FightRound"/> or
+        /// <c>MilitaryOperation.AdvanceBattleProgress</c>).
+        /// </summary>
+        public struct RoundOutcome
+        {
+            public int attackerRawRoll;
+            public int defenderRawRoll;
+            public double attackerDampenedEfficiency;
+            public double defenderDampenedEfficiency;
+            public double attackerScore;
+            public double defenderScore;
+            public bool attackerWonRound;
+        }
+
+        /// <summary>
+        /// Roll one round without mutating either force. True d20 (1..20 inclusive) rolled for
+        /// each side, multiplied by their dampened efficiency. The higher score wins the round.
+        /// On ties the defender wins.
+        /// </summary>
+        public static RoundOutcome SimulateRound(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
         {
             rand = rand ?? new RimWorldRandProvider();
-            var randA = rand.Range(0, 20) * DampenEfficiency(MFA.militaryEfficiency);
-            var randB = rand.Range(0, 20) * DampenEfficiency(MFB.militaryEfficiency);
+            // True d20: 1..20 inclusive. rand.Range(int, int) follows Verse.Rand semantics
+            // (max-exclusive), so pass (1, 21).
+            int rawA = rand.Range(1, 21);
+            int rawB = rand.Range(1, 21);
+            double effA = DampenEfficiency(MFA.militaryEfficiency);
+            double effB = DampenEfficiency(MFB.militaryEfficiency);
+            double scoreA = rawA * effA;
+            double scoreB = rawB * effB;
+            return new RoundOutcome
+            {
+                attackerRawRoll = rawA,
+                defenderRawRoll = rawB,
+                attackerDampenedEfficiency = effA,
+                defenderDampenedEfficiency = effB,
+                attackerScore = scoreA,
+                defenderScore = scoreB,
+                attackerWonRound = scoreA > scoreB
+            };
+        }
 
-            if (randA > randB)
+        public static void FightRound(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
+        {
+            RoundOutcome outcome = SimulateRound(MFA, MFB, rand);
+            if (outcome.attackerWonRound)
             {
                 MFB.forceRemaining -= 1;
             }
@@ -73,6 +166,15 @@ namespace FactionColonies
         private static double DampenEfficiency(double efficiency)
         {
             return 1.0 + (efficiency - 1.0) * FCSettings.efficiencyDamping;
+        }
+
+        /// <summary>Mirror of <see cref="CalculateDefenderWinChance"/> from the attacker's side.
+        /// Returns the probability that the attacker depletes the defender's HP before being
+        /// depleted itself. Stable across calls (deterministic given the two force snapshots).</summary>
+        public static double CalculateAttackerWinChance(MilitaryForce attacker, MilitaryForce defender)
+        {
+            if (attacker is null || defender is null) return 0.0;
+            return 1.0 - CalculateDefenderWinChance(attacker, defender);
         }
 
         /// <summary>

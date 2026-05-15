@@ -19,8 +19,6 @@ namespace FactionColonies
         private Vector2 squadListScrollPos;
         private string squadSearchTerm = "";
         private Vector2 unitListScrollPos;
-        private bool isSelectedSquadDeployed;
-        private string selectedSquadDeployReason = "";
 
         // Layout constants (matching DesignUnitsWindow)
         private const float SidebarWidth = 250f;
@@ -53,9 +51,6 @@ namespace FactionColonies
 
         public override void DrawTab(Rect rect)
         {
-            isSelectedSquadDeployed = selectedSquad != null
-                && IsSquadDeployed(selectedSquad, out selectedSquadDeployReason);
-
             Widgets.DrawLineHorizontal(rect.x, rect.y + 45, rect.width);
 
             GameFont fontBefore = Text.Font;
@@ -77,8 +72,7 @@ namespace FactionColonies
             if (selectedSquad != null)
             {
                 // Header
-                float headerHeight = 60f + (isSelectedSquadDeployed ? 22f : 0f);
-                Rect headerRect = new Rect(contentLeft, contentTop, contentWidth, headerHeight);
+                Rect headerRect = new Rect(contentLeft, contentTop, contentWidth, 60f);
                 DrawSquadHeader(headerRect);
 
                 // Bottom bar
@@ -133,22 +127,15 @@ namespace FactionColonies
                 Rect row = new Rect(scrollViewRect.x, scrollViewRect.y + i * RowHeight,
                     scrollViewRect.width, RowHeight);
 
-                bool isDeployed = IsSquadDeployed(squad, out _);
-
                 if (squad == selectedSquad)
                     Widgets.DrawHighlightSelected(row);
                 else if (i % 2 == 0)
                     Widgets.DrawHighlight(row);
 
-                Color colorBefore = GUI.color;
-                if (isDeployed) GUI.color = Color.gray;
-
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
                 Rect labelRect = new Rect(row.x + 4f, row.y, row.width - 6f, RowHeight);
                 Widgets.Label(labelRect, squad.name);
-
-                GUI.color = colorBefore;
 
                 if (Widgets.ButtonInvisible(row))
                 {
@@ -203,7 +190,9 @@ namespace FactionColonies
                         "FCConfirmDeleteSquad".Translate((NamedArgument)squadToDelete.name),
                         delegate
                         {
-                            squadToDelete.DeleteSquad();
+                            // Routes through DeleteTemplate so any mercenary squad referencing
+                            // the template gets its outfit cleared (mercs keep their gear).
+                            util.DeleteTemplate(squadToDelete);
                             util.CheckMilitaryUtilForErrors();
                             if (selectedSquad == squadToDelete)
                             {
@@ -246,35 +235,33 @@ namespace FactionColonies
             Rect pencilRect = new Rect(
                 rect.x + Mathf.Min(nameTextWidth + 8f + margin, rect.width - 22f),
                 rect.y + 4f, 22f, 22f);
-            if (!isSelectedSquadDeployed && Widgets.ButtonImage(pencilRect, TexButton.Rename))
+            if (Widgets.ButtonImage(pencilRect, TexButton.Rename))
             {
                 Find.WindowStack.Add(new FCWindow_Rename(selectedSquad.name, "FCRenameSquad", name => selectedSquad.name = name));
             }
 
-            // Cost line
+            // Cost line: design equipment cost on the left, recurring deploy cost on the right.
+            // Both anchor the player's mental model — upfront hire price vs the ongoing
+            // deploy fee shown everywhere else in the UI.
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Rect costRect = new Rect(rect.x, highlightBar.yMax + margin, rect.width, 20f);
+            float costY = highlightBar.yMax + margin;
 
-            if (settlementPointReference != null)
-            {
-                Widgets.Label(costRect, "FCTotalSquadEquipmentCost".Translate(
+            string equipLabel = settlementPointReference != null
+                ? (string)"FCTotalSquadEquipmentCost".Translate(
                     selectedSquad.GetEquipmentTotalCost(),
-                    MilitaryCustomizationUtil.CalculateSquadBudget(settlementPointReference.settlementMilitaryLevel)));
-            }
-            else
-            {
-                Widgets.Label(costRect, "FCTotalSquadEquipmentCostNoRef".Translate(selectedSquad.GetEquipmentTotalCost()));
-            }
+                    MilitaryCustomizationUtil.CalculateSquadBudget(settlementPointReference.settlementMilitaryLevel))
+                : (string)"FCTotalSquadEquipmentCostNoRef".Translate(selectedSquad.GetEquipmentTotalCost());
 
-            if (isSelectedSquadDeployed)
-            {
-                Color colorBefore = GUI.color;
-                GUI.color = Color.yellow;
-                Rect viewOnlyRect = new Rect(rect.x, costRect.yMax + 2f, rect.width, 23f);
-                Widgets.Label(viewOnlyRect, "FCCantBeModified".Translate(selectedSquad.name, selectedSquadDeployReason));
-                GUI.color = colorBefore;
-            }
+            float equipWidth = Text.CalcSize(equipLabel).x;
+            Widgets.Label(new Rect(rect.x, costY, equipWidth, 20f), equipLabel);
+
+            int deployCost = MilitaryUtil.CalculateDeploymentCost(selectedSquad.GetEquipmentTotalCost());
+            const float gap = 20f;
+            float deployX = rect.x + equipWidth + gap;
+            Widgets.Label(
+                new Rect(deployX, costY, rect.width - (deployX - rect.x), 20f),
+                "FCSquadDesignDeployCost".Translate(deployCost));
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
@@ -370,16 +357,12 @@ namespace FactionColonies
             float btnSize = 24f;
             float btnY = row.y + (UnitRowHeight - btnSize) / 2f;
             float controlX = row.xMax - 141f;
-            bool canEdit = !isSelectedSquadDeployed;
 
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleCenter;
 
-            Color colorBefore2 = GUI.color;
-            if (!canEdit) GUI.color = Color.gray;
-
             // [-] button
-            if (Widgets.ButtonText(new Rect(controlX, btnY, btnSize, btnSize), "-", true, true, canEdit))
+            if (Widgets.ButtonText(new Rect(controlX, btnY, btnSize, btnSize), "-", true, true, true))
             {
                 DecrementUnit(unit);
             }
@@ -389,19 +372,17 @@ namespace FactionColonies
             Widgets.Label(countRect, count.ToString());
 
             // [+] button
-            if (Widgets.ButtonText(new Rect(countRect.xMax + 2f, btnY, btnSize, btnSize), "+", true, true, canEdit))
+            if (Widgets.ButtonText(new Rect(countRect.xMax + 2f, btnY, btnSize, btnSize), "+", true, true, true))
             {
                 IncrementUnit(unit);
             }
 
             // [X] remove-all button
             Rect removeRect = new Rect(row.xMax - 54f, btnY, 22f, 22f);
-            if (!isSelectedSquadDeployed && Widgets.ButtonImage(removeRect, TexLoad.deleteX))
+            if (Widgets.ButtonImage(removeRect, TexLoad.deleteX))
             {
                 RemoveAllOfUnit(unit);
             }
-
-            GUI.color = colorBefore2;
 
             // Gear icon — open unit in editor
             Rect gearRect = new Rect(row.xMax - 28f, btnY, 22f, 22f);
@@ -438,19 +419,15 @@ namespace FactionColonies
 
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleCenter;
-            bool canEdit = !isSelectedSquadDeployed;
 
-            float btnW = (rect.width - margin * 3) / 4f;
+            float btnW = (rect.width - margin * 4) / 5f;
 
             // Add Unit button
             Rect addUnitBtn = new Rect(rect.x, rect.y, btnW, ButtonHeight);
-            Color colorBefore = GUI.color;
-            if (!canEdit) GUI.color = Color.gray;
-            if (Widgets.ButtonText(addUnitBtn, "FCAddUnit".Translate(), true, true, canEdit))
+            if (Widgets.ButtonText(addUnitBtn, "FCAddUnit".Translate()))
             {
                 Find.WindowStack.Add(new FCWindow_UnitPicker(util, AddUnitToSquad));
             }
-            GUI.color = colorBefore;
 
             // Set Point Ref button
             Rect pointRefBtn = new Rect(addUnitBtn.xMax + margin, rect.y, btnW, ButtonHeight);
@@ -477,20 +454,33 @@ namespace FactionColonies
 
             // Reset button
             Rect resetBtn = new Rect(pointRefBtn.xMax + margin, rect.y, btnW, ButtonHeight);
-            colorBefore = GUI.color;
-            if (!canEdit) GUI.color = Color.gray;
-            if (Widgets.ButtonText(resetBtn, "FCResetToDefault".Translate(), true, true, canEdit))
+            if (Widgets.ButtonText(resetBtn, "FCResetToDefault".Translate()))
             {
                 selectedSquad.NewSquad();
                 selectedSquad.UpdateEquipmentTotalCost();
                 selectedSquad.ChangeTick();
             }
+
+            // Hire button — pays the squad's hire cost and adds an unassigned hired squad
+            // to the faction pool. Squad assignment to a settlement happens elsewhere
+            // (HireSquadsWindow / settlement window).
+            int hireCost = (int)Math.Round((selectedSquad?.GetEquipmentTotalCost() ?? 0) * FCSettings.squadHireCostMultiplier);
+            float silver = PaymentUtil.GetSilver();
+            bool canAffordHire = silver >= hireCost;
+            Rect hireBtn = new Rect(resetBtn.xMax + margin, rect.y, btnW, ButtonHeight);
+            Color colorBefore = GUI.color;
+            if (!canAffordHire) GUI.color = Color.gray;
+            if (Widgets.ButtonText(hireBtn, "FCHireSquadButton".Translate(hireCost), true, true, canAffordHire))
+            {
+                util.HireSquad(selectedSquad);
+            }
+            TooltipHandler.TipRegion(hireBtn, "FCHireSquadButtonTip".Translate(hireCost));
             GUI.color = colorBefore;
 
             // Unit count label
             int totalUnits = selectedSquad.Units.Count(u => !u.isBlank);
             Text.Anchor = TextAnchor.MiddleRight;
-            Rect countLabel = new Rect(resetBtn.xMax + margin, rect.y, btnW, ButtonHeight);
+            Rect countLabel = new Rect(hireBtn.xMax + margin, rect.y, btnW, ButtonHeight);
             Widgets.Label(countLabel, "FCSquadUnitCount".Translate(totalUnits));
 
             Text.Font = fontBefore;
@@ -563,33 +553,6 @@ namespace FactionColonies
                     selectedSquad.SetUnit(i, util.blankUnit);
                 }
             }
-        }
-
-        // --- Deployment Check ---
-
-        private bool IsSquadDeployed(MilSquadFC squad, out string reason)
-        {
-            reason = "";
-            FactionFC factionFC = FactionCache.FactionComp;
-            List<WorldSettlementFC> settlementsWithSquad = factionFC?.settlements
-                ?.FindAll(settlement => settlement?.MilitaryComp?.militarySquad?.outfit == squad);
-
-            if (settlementsWithSquad == null || settlementsWithSquad.Count == 0) return false;
-
-            if (settlementsWithSquad.Any(s => s.MilitaryComp.militarySquad.isDeployed))
-            {
-                reason = "FCReasonDeployedSquad".Translate();
-                return true;
-            }
-
-            if (settlementsWithSquad.Any(s => s.MilitaryComp.isUnderAttack
-                && settlementsWithSquad.Contains(s.MilitaryComp.defenderForce.homeSettlement)))
-            {
-                reason = "FCReasonDefendingSquad".Translate();
-                return true;
-            }
-
-            return false;
         }
     }
 }

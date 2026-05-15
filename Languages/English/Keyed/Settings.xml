@@ -26,7 +26,6 @@ By default, this computation runs on a background thread to avoid freezing the g
 		
 Spreading out the computation will reduce the impact on performance, but no roads will build until the MST is fully constructed. So the more you throttle the algorithm, the longer it will take for your roads to start building.</FCSettingRoadBuilderDesc>
 	<FCSettingEnableAllEvents>Enable All Events</FCSettingEnableAllEvents>
-	<FCSettingDeadPawnsIncreaseMilCooldown>Dead Pawns Increase Military Cooldown</FCSettingDeadPawnsIncreaseMilCooldown>
 	<FCSettingForcedPausing>Disable Forced Pausing During Events</FCSettingForcedPausing>
 	<FCSettingEventOptionDelay>Event option misclick protection: {0}s</FCSettingEventOptionDelay>
 	<FCSettingBattleMode>Battle Mode: </FCSettingBattleMode>
@@ -50,8 +49,37 @@ At 0, military efficiency affects only the effective level of both forces.
 At 1, military efficiency fully affects each round of auto combat. Military forces of lower level but higher efficiency can often beat forces of a higher level, but lower efficiency.
 
 Values in between dampen the effect of military efficiency on the auto combat.</FCSettingEfficiencyDampingTooltip>
-	<FCSettingMercHealRate>Mercenary Heal Rate</FCSettingMercHealRate>
-	<FCSettingMercHealRateTip>How fast undeployed mercenary pawns heal their injuries, in hit points per in-game hour. Only one injury heals at a time.</FCSettingMercHealRateTip>
+	<FCSettingMercHealRate>Mercenary Heal Rate Multiplier</FCSettingMercHealRate>
+	<FCSettingMercHealRateTip>Multiplier on the healing rate for off-map mercenaries. At 1.0 (default), an Empire merc heals at roughly the same per-day rate as a vanilla pawn in a basic bed being tended with industrial medicine by an unskilled doctor. Higher values heal faster; lower values heal slower.</FCSettingMercHealRateTip>
+	<FCEmpireMercHealRateStatExplanation>Empire mercenary at base recovering</FCEmpireMercHealRateStatExplanation>
+
+	<!-- Auto-resolve casualties + Crushing Defeat -->
+	<FCSettingAutoResolveCasualtiesHeader>Auto-Resolve Casualties</FCSettingAutoResolveCasualtiesHeader>
+	<FCSettingApplyAutoResolveInjuries>Apply injuries and deaths from auto-resolved battles</FCSettingApplyAutoResolveInjuries>
+	<FCSettingApplyAutoResolveInjuriesTip>When enabled, the abstract force losses from an auto-resolved battle are converted into real injuries (and potentially deaths) on the participating mercenary pawns. When disabled, auto-resolve never touches squad pawns.</FCSettingApplyAutoResolveInjuriesTip>
+	<FCSettingAutoResolveDeathThreshold>Auto-resolve death threshold</FCSettingAutoResolveDeathThreshold>
+	<FCSettingAutoResolveDeathThresholdTip>If the squad's casualty rate is below this threshold, then no members of the squad will die. At 75% (default), only squads that lose 75% or more of their force will see deaths.</FCSettingAutoResolveDeathThresholdTip>
+	<FCSettingAutoResolveMaxDeathFraction>Auto-resolve max death fraction</FCSettingAutoResolveMaxDeathFraction>
+	<FCSettingAutoResolveMaxDeathFractionTip>The fraction of casualties that become deaths. At 80% (default), roughly 80% the squad's injured pawns will die.</FCSettingAutoResolveMaxDeathFractionTip>
+	<FCSettingCrushingDefeatPenaltyMultiplier>Crushing Defeat penalty multiplier</FCSettingCrushingDefeatPenaltyMultiplier>
+	<FCSettingCrushingDefeatPenaltyMultiplierTip>Multiplies the settlement-side penalties (prosperity, happiness, loyalty, building destruction chance) when a settlement suffers a Crushing Defeat: a defense where your forces failed to inflict a single casualty.</FCSettingCrushingDefeatPenaltyMultiplierTip>
+	<FCSettingOverwhelmingVictoryRewardMultiplier>Overwhelming Victory reward multiplier</FCSettingOverwhelmingVictoryRewardMultiplier>
+	<FCSettingOverwhelmingVictoryRewardMultiplierTip>Multiplies the happiness/loyalty bonus granted to the winning squad's home settlement after an Overwhelming Victory: a battle won without taking a single casualty. Set to 0 to disable the reward (the flavor letter still appears).</FCSettingOverwhelmingVictoryRewardMultiplierTip>
+	<FCSettingRespectLethalDamageThreshold>Respect vanilla lethal damage threshold</FCSettingRespectLethalDamageThreshold>
+	<FCSettingRespectLethalDamageThresholdTip>When enabled (default), auto-resolve injuries are capped so cumulative injury severity stays under vanilla's lethal-damage threshold and the injury path can't accidentally kill a pawn. Disable when running mods that remove or relax vanilla's check.</FCSettingRespectLethalDamageThresholdTip>
+
+	<!-- Squad-first economy sliders -->
+	<FCSettingSquadsHeader>Squads</FCSettingSquadsHeader>
+	<FCSettingMaxSquadSize>Max Squad Size</FCSettingMaxSquadSize>
+	<FCSettingMaxSquadSizeTip>Hard cap on mercenaries per squad. Existing templates retain their existing slot count when this is changed; only newly-created templates and new hires use the new value. Per-settlement bonuses (from buildings/policies) still stack on top.</FCSettingMaxSquadSizeTip>
+	<FCSettingSquadHireCostMultiplier>Squad Hire Cost Multiplier</FCSettingSquadHireCostMultiplier>
+	<FCSettingSquadHireCostMultiplierTip>Multiplier applied to a template's full equipment cost when the player hires a fresh squad. 1.0 = sticker price; 0.0 = free; higher values make hiring more expensive.</FCSettingSquadHireCostMultiplierTip>
+	<FCSettingSquadUpgradeCostMultiplier>Squad Upgrade Cost Multiplier</FCSettingSquadUpgradeCostMultiplier>
+	<FCSettingSquadUpgradeCostMultiplierTip>Multiplier applied to the diff between a hired squad's current loadout and its source template when the player upgrades the squad to match.</FCSettingSquadUpgradeCostMultiplierTip>
+	<FCSettingSquadDeploymentCostPercentage>Squad Deployment Cost</FCSettingSquadDeploymentCostPercentage>
+	<FCSettingSquadDeploymentCostPercentageTip>Percentage of a squad's current equipment value billed in silver each time it is deployed (sent to a player map or on an offensive operation). Defensive operations are free. The cost becomes a bill against the squad's home settlement, due after the lifespan setting expires. 0% disables the cost.</FCSettingSquadDeploymentCostPercentageTip>
+	<FCSettingDeploymentBillLifespan>Deployment Bill Lifespan</FCSettingDeploymentBillLifespan>
+	<FCSettingDeploymentBillLifespanTip>Number of days a deployment-cost bill remains payable before it expires and the settlement takes the late- or unpaid-bill penalty. Independent of the tax cycle.</FCSettingDeploymentBillLifespanTip>
 	<FCSettingMinMaxRandomEvent>Min/Max Days Until Random Event</FCSettingMinMaxRandomEvent>
 	<FCSettingShowSettleConfirm>Show confirmation when founding settlements</FCSettingShowSettleConfirm>
 	<FCSettingUseThreadedRoadComputation>Use threaded road computation</FCSettingUseThreadedRoadComputation>
@@ -60,6 +88,7 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingFlushRoadCache>Flush Road Path Cache</FCSettingFlushRoadCache>
 	<FCSettingEnableDebugLogging>Enable Verbose Logging</FCSettingEnableDebugLogging>
 	<FCSettingResetButton>Reset Settings</FCSettingResetButton>
+	<FCSettingResetSection>Reset Section to Defaults</FCSettingResetSection>
 	<FCOpenPatchNotes>Open Patch Notes Window</FCOpenPatchNotes>
 
 	<FCMedievalTechOnly>Medieval Tech Only</FCMedievalTechOnly>

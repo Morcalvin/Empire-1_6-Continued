@@ -355,7 +355,7 @@ namespace FactionColonies
             Rect button = new Rect((InitialSize.x - 32 - buttonLength) / 2f, curHeight + verticalMargins, buttonLength, button_height);
             if (Widgets.ButtonText(button, currentSettlementType.LabelCap))
             {
-                Find.WindowStack.Add(new FCWindow_SettlementTypePicker(delegate(WorldSettlementDef selected)
+                Find.WindowStack.Add(new FCWindow_SettlementTypePicker(delegate (WorldSettlementDef selected)
                 {
                     currentSettlementType = selected;
                     FactionCache.FactionComp.layersForTilePicker = selected.planetLayers;

@@ -11,6 +11,23 @@ using Verse;
 
 namespace FactionColonies
 {
+    /// <summary>Display state for a settlement's squad-derived military power.
+    /// Drives text color and tooltip in the settlement window and main military tab.
+    /// UnderAttack takes precedence over the squad-derived states — red is reserved for it.</summary>
+    public enum SettlementPowerStatus
+    {
+        /// <summary>At least one stationed squad is available (white text).</summary>
+        Squad,
+        /// <summary>Squads are stationed but all are busy in ops/cooldown (yellow text).</summary>
+        AllBusy,
+        /// <summary>SquadCap > 0 but no squad stationed — defending at half power (yellow text).</summary>
+        Ghost,
+        /// <summary>SquadCap == 0 — settlement type has no military capacity (greyed out).</summary>
+        NoMilitary,
+        /// <summary>Settlement is the target of an active defensive op (red text). Overrides Squad/AllBusy/Ghost.</summary>
+        UnderAttack
+    }
+
     /// <summary>
     ///     WorldObject that in many ways re-implements Settlement.cs from Rimworld.Planet. May cause compatibility issues with
     ///     other mods that rely on finding Settlement objects on the world map. Recommend testing this extensively with mods
@@ -240,6 +257,148 @@ namespace FactionColonies
                 return cachedMilitaryComp;
             }
         }
+
+        /// <summary>Squads currently assigned to this settlement (their billet).
+        /// Lazily filtered from the faction-wide mercenary pool — pool sizes are small enough
+        /// that a per-call scan is cheap. Add a cache only if profiling shows hot paths.</summary>
+        public List<MercenarySquadFC> StationedSquads
+        {
+            get
+            {
+                List<MercenarySquadFC> result = new List<MercenarySquadFC>();
+                List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+                if (pool is null) return result;
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC s = pool[i];
+                    if (s is object && s.settlement == this) result.Add(s);
+                }
+                return result;
+            }
+        }
+
+        /// <summary>The first stationed squad, or null. Use for read-only queries that just
+        /// need any squad reference (loadout outfit, status icon, cost basis). For deploy /
+        /// reinforcement / actions that consume a squad, prefer
+        /// <see cref="FirstAvailableStationedSquad"/>.</summary>
+        public MercenarySquadFC PrimaryStationedSquad
+        {
+            get
+            {
+                List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+                if (pool is null) return null;
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC s = pool[i];
+                    if (s is object && s.settlement == this) return s;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>The first stationed squad with <see cref="MercenarySquadFC.IsAvailable"/> true
+        /// (assigned, not in any active op, past cooldown), or null. Use for deploy / foreign-
+        /// defender reinforcement / extra-deployment paths that need a squad ready to act.</summary>
+        public MercenarySquadFC FirstAvailableStationedSquad
+        {
+            get
+            {
+                List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+                if (pool is null) return null;
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC s = pool[i];
+                    if (s is object && s.settlement == this && s.IsAvailable) return s;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>Number of squads this settlement can simultaneously host. Base 1, modified by
+        /// the <c>squadCapPerSettlement</c> stat (buildings, policies, settlement-type extensions).
+        /// Floored at 0 — settlements can have no squad capacity at all (e.g. structurally
+        /// non-military settlement types). Fire support remains independent of cap (gated only
+        /// by the artillery building).</summary>
+        public int SquadCap
+        {
+            get
+            {
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is null) return 1;
+                int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.squadCapPerSettlement, this));
+                return Math.Max(0, 1 + bonus);
+            }
+        }
+
+        /// <summary>Settlement-wide military power for UI display. Reflects the strongest
+        /// available stationed squad's projected force (white). When stationed squads
+        /// exist but none are available (all busy in raid/cooldown/defense), returns the
+        /// half-power "ghost" values that battle resolution actually uses via
+        /// <see cref="MilitaryForce.CreateMilitaryForceFromUnstaffedBillet"/> — same
+        /// numbers as the empty-billet Ghost state, differentiated only by the status
+        /// (AllBusy vs Ghost) for color/tooltip purposes. Greyed out when cap == 0
+        /// (structurally non-military). Red UnderAttack overrides the AllBusy/Ghost
+        /// status (but not the numbers) when the settlement is the target of an active
+        /// defensive op.</summary>
+        public (double level, double efficiency, SettlementPowerStatus status) GetDisplayedPower()
+        {
+            int cap = SquadCap;
+            if (cap <= 0) return (0, 0, SettlementPowerStatus.NoMilitary);
+
+            bool underAttack = MilitaryComp?.isUnderAttack ?? false;
+
+            List<MercenarySquadFC> stationed = StationedSquads;
+
+            // Pick the strongest available stationed squad. When none are available
+            // (either no squads stationed, or all stationed squads busy), the settlement
+            // defends through the unstaffed-billet ghost path — that's what we display.
+            MercenarySquadFC bestAvailable = null;
+            double bestAvailableLevel = -1;
+            for (int i = 0; i < stationed.Count; i++)
+            {
+                MercenarySquadFC s = stationed[i];
+                if (s is null || !s.IsAvailable) continue;
+                double level = SquadPowerRegistry.Resolve(s).militaryLevel;
+                if (level > bestAvailableLevel)
+                {
+                    bestAvailable = s;
+                    bestAvailableLevel = level;
+                }
+            }
+
+            if (bestAvailable is null)
+            {
+                // Mirrors CreateMilitaryForceFromUnstaffedBillet's formula so display
+                // matches battle. AllBusy (some squads stationed but busy) and Ghost
+                // (no squads stationed) share the same numbers; only the status differs.
+                double ghostLevel = Math.Max(1, settlementMilitaryLevel) * 0.5;
+                double ghostEff = 1.0;
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is object) ghostEff = fc.GetStatValue(FCStatDefOf.militaryCombatEfficiency, this);
+                SettlementPowerStatus emptyStatus;
+                if (underAttack) emptyStatus = SettlementPowerStatus.UnderAttack;
+                else if (stationed.Count == 0) emptyStatus = SettlementPowerStatus.Ghost;
+                else emptyStatus = SettlementPowerStatus.AllBusy;
+                return (ghostLevel, ghostEff, emptyStatus);
+            }
+
+            SquadPower power = SquadPowerRegistry.Resolve(bestAvailable);
+            return (power.militaryLevel, power.militaryEfficiency,
+                underAttack ? SettlementPowerStatus.UnderAttack : SettlementPowerStatus.Squad);
+        }
+
+        /// <summary>Maximum number of mercenaries a squad assigned here may have. Base 30 (matches
+        /// <c>MilSquadFC.MaxSquadSize</c>), modified by the <c>maxSquadSize</c> stat. Floored at 1.</summary>
+        public int MaxSquadSize
+        {
+            get
+            {
+                FactionFC fc = FactionCache.FactionComp;
+                if (fc is null) return MilSquadFC.MaxSquadSize;
+                int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.maxSquadSize, this));
+                return Math.Max(1, MilSquadFC.MaxSquadSize + bonus);
+            }
+        }
         public WorldObjectComp_SettlementBuildings BuildingsComp
         {
             get
@@ -261,7 +420,7 @@ namespace FactionColonies
             get
             {
                 if (dirtyStatsCache) RecomputeStats();
-                
+
                 return MilitaryComp?.settlementMilitaryLevel ?? 0;
             }
             set
@@ -575,7 +734,7 @@ namespace FactionColonies
 
             //Prisoners
             Scribe_Collections.Look(ref prisonerList, "prisonerList", LookMode.Deep);
-            
+
             // We never want permanentModifiers to be null. So just always check it here.
             if (permanentModifiers is null) permanentModifiers = new List<PermanentStatModifier>();
 
@@ -595,7 +754,7 @@ namespace FactionColonies
                 LogUtil.Error($"Settlement {Name} attempted to call PostLoadInit during Scribe mode {Scribe.mode}. Bailing out.");
                 return;
             }
-            
+
             // Safety net: if trader is null or wrong type (e.g., loading old save), recreate it
             if (!(trader is SettlementTraderTracker_Empire))
                 trader = new SettlementTraderTracker_Empire(this);
@@ -913,19 +1072,39 @@ namespace FactionColonies
             }
         }
 
-        public void GainUnrestWithReason(Message message, double amount)
+        public double GainUnrestWithReason(Message message, double amount)
         {
             Messages.Message(message);
-            unrest += amount * GetStatValue(FCStatDefOf.unrestGainedMultiplier);
+            return GainUnrest(amount);
         }
-        public void GainUnrest(double amount)
+        public double GainUnrest(double amount)
         {
-            unrest += amount * GetStatValue(FCStatDefOf.unrestGainedMultiplier);
+            double gain = amount * GetStatValue(FCStatDefOf.unrestGainedMultiplier);
+            unrest += gain;
+            return gain;
         }
 
-        public void GainHappiness(double amount)
+        public double GainHappiness(double amount)
         {
-            happiness += amount * GetStatValue(FCStatDefOf.happinessGainedMultiplier);
+            double gain = amount * GetStatValue(FCStatDefOf.happinessGainedMultiplier);
+            happiness += gain;
+            return gain;
+        }
+
+        public double GainLoyalty(double amount)
+        {
+            // When or if we add a loyaltyGainedMultiplier, we'd refer to it here
+            double gain = amount;
+            loyalty += gain;
+            return gain;
+        }
+
+        public double GainProsperity(double amount)
+        {
+            // When or if we add a prosperityGainedMultiplier, we'd refer to it here
+            double gain = amount;
+            prosperity += gain;
+            return gain;
         }
 
         /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*

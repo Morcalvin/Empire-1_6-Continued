@@ -1,6 +1,6 @@
-using Verse;
-using RimWorld;
 using FactionColonies.util;
+using RimWorld;
+using Verse;
 
 namespace FactionColonies
 {

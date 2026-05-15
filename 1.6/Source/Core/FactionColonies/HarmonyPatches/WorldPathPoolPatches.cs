@@ -1,7 +1,7 @@
-using System;
-using System.Threading;
 using HarmonyLib;
 using RimWorld.Planet;
+using System;
+using System.Threading;
 
 namespace FactionColonies
 {

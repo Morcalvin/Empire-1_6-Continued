@@ -22,25 +22,28 @@ namespace FactionColonies
                     {
                         if (squad.settlement != null)
                         {
-                            if (FCSettings.deadPawnsIncreaseMilitaryCooldown)
-                            {
-                                squad.dead += 1;
-                            }
-
-                            squad.settlement.GainHappiness(-1d);
+                            const double basePenalty = 1.0;
+                            double offset = FactionCache.FactionComp?
+                                .GetStatValue(FCStatDefOf.mercenaryDeathHappinessPenalty, squad.settlement) ?? 0;
+                            double total = basePenalty + offset;
+                            if (total < 0) total = 0;
+                            squad.settlement.GainHappiness(-total);
                         }
 
-                        // Fire death event before replacement — listeners can cancel auto-replacement
+                        // Fire death event so submods can react. Auto-replacement was removed by
+                        // the strict-manual outfit refactor; the merc's slot is left as an empty
+                        // placeholder (pawn = null) and the player must explicitly use
+                        // "Fill Empty Slots" in the inspection window to refill it.
                         MercenaryDeathEvent deathEvt = new MercenaryDeathEvent(merc, squad, squad.settlement);
                         LifecycleRegistry.InvokeOnMercenaryDeath(deathEvt);
 
-                        if (!deathEvt.CancelReplacement)
-                        {
-                            squad.PassPawnToDeadMercenaries(merc);
-                        }
+                        // Mark the slot empty — keep the Mercenary entry so its loadout reference
+                        // survives for Fill, but null its pawn.
+                        merc.pawn = null;
+                        FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
                     }
 
-                    squad.RemoveDroppedEquipment();
+                    squad.Equipment.RemoveDroppedEquipment();
                 }
                 else
                 {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Verse;
 
@@ -91,40 +91,44 @@ namespace FactionColonies
         }
 
         /* Military */
-        public static void InvokeOnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad = false)
+
+        public static void InvokeOnOperationCreated(MilitaryOperation op)
         {
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             foreach (ILifecycleParticipant p in _participants)
             {
-                try { p.OnSquadDeployed(settlement, job, isExtraSquad); }
-                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadDeployed: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
+                try { p.OnOperationCreated(op); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnOperationCreated: {e}"); }
+                if (settlement is object) settlement.InvalidateStatCache();
             }
-            settlement.InvalidateStatCache();
+            if (settlement is object) settlement.InvalidateStatCache();
         }
 
-        public static void InvokeOnSquadRecalled(WorldSettlementFC settlement)
+        public static void InvokeOnOperationResolved(MilitaryOperation op)
         {
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             foreach (ILifecycleParticipant p in _participants)
             {
-                try { p.OnSquadRecalled(settlement); }
-                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadRecalled: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
+                try { p.OnOperationResolved(op); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnOperationResolved: {e}"); }
+                if (settlement is object) settlement.InvalidateStatCache();
             }
-            settlement.InvalidateStatCache();
+            if (settlement is object) settlement.InvalidateStatCache();
         }
 
-        public static void InvokeOnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result)
+        public static void InvokeOnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
         {
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             foreach (ILifecycleParticipant p in _participants)
             {
-                try { p.OnBattleResolved(settlement, job, victory, result); }
+                try { p.OnBattleResolved(op, victory, result); }
                 catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnBattleResolved: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
+                if (settlement is object) settlement.InvalidateStatCache();
             }
-            settlement.InvalidateStatCache();
+            if (settlement is object) settlement.InvalidateStatCache();
         }
 
         /* Mercenary */
@@ -134,6 +138,37 @@ namespace FactionColonies
             {
                 try { p.OnMercenaryDeath(evt); }
                 catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnMercenaryDeath: {e}"); }
+            }
+        }
+
+        /* Squad lifecycle */
+        public static void InvokeOnSquadHired(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            foreach (ILifecycleParticipant p in _participants)
+            {
+                try { p.OnSquadHired(squad); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadHired: {e}"); }
+            }
+        }
+
+        public static void InvokeOnSquadDismissed(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            foreach (ILifecycleParticipant p in _participants)
+            {
+                try { p.OnSquadDismissed(squad); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadDismissed: {e}"); }
+            }
+        }
+
+        public static void InvokeOnSquadUpgraded(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            foreach (ILifecycleParticipant p in _participants)
+            {
+                try { p.OnSquadUpgraded(squad); }
+                catch (Exception e) { LogUtil.Error($"ILifecycleParticipant {p.GetType().Name} threw in OnSquadUpgraded: {e}"); }
             }
         }
 

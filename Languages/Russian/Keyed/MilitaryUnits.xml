@@ -20,11 +20,6 @@
   <!-- Настройка юнитов -->
   <FCExportUnit>Экспортированный юнит</FCExportUnit>
   <FCExportSquad>Экспортированный отряд</FCExportSquad>
-  <FCCantBeModified>{0} нельзя изменить: {1}</FCCantBeModified>
-  <FCReasonDeployed>Отряд, содержащий его, развернут</FCReasonDeployed>
-  <FCReasonDefending>Отряд, содержащий его, защищает поселение</FCReasonDefending>
-  <FCReasonDeployedSquad>Отряд в данный момент развернут</FCReasonDeployedSquad>
-  <FCReasonDefendingSquad>Отряд в данный момент защищает поселение</FCReasonDefendingSquad>
   <FCImportUnit>Импортировать юнит</FCImportUnit>
   <FCClearUnitSlot>Очистить слот юнита</FCClearUnitSlot>
   <FCDegraded>Деградирован</FCDegraded>

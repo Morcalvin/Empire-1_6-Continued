@@ -1,4 +1,5 @@
-﻿using RimWorld.Planet;
+﻿using RimWorld;
+using RimWorld.Planet;
 using System.Collections.Generic;
 using UnityEngine;
 using Verse;
@@ -133,26 +134,132 @@ namespace FactionColonies
         void OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef);
         void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
         void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
-        void OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad);
-        void OnSquadRecalled(WorldSettlementFC settlement);
-        void OnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result);
+        /// <summary>Called immediately after a <see cref="MilitaryOperation"/> is created and registered.
+        /// Fires for every op (offensive, defensive, deploy). For defensive ops the defending squad
+        /// is reachable via <c>op.defender.squad</c> when an Empire settlement is the defender.</summary>
+        void OnOperationCreated(MilitaryOperation op);
+        /// <summary>Called when an op resolves. Any squads referenced by <c>op.aggressor.squad</c>
+        /// or <c>op.defender.squad</c> are freed at this point.</summary>
+        void OnOperationResolved(MilitaryOperation op);
+        /// <summary>Called after the battle simulation / manual battle has produced a result.</summary>
+        void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result);
         void OnResearchCompleted(ResearchProjectDef project);
         /// <summary>
-        /// Called when a mercenary is killed, before the default auto-replacement.
-        /// Set <see cref="MercenaryDeathEvent.CancelReplacement"/> to prevent auto-replacement.
+        /// Called when a mercenary is killed. Notification only. No built-in replacement
+        /// behavior is gated by listeners (auto-replacement was removed; refilling empty
+        /// slots is a player-driven action via <see cref="MercenarySquadFC.FillEmptySlots"/>).
         /// </summary>
         void OnMercenaryDeath(MercenaryDeathEvent evt);
+        /// <summary>
+        /// Called immediately after a fresh <see cref="MercenarySquadFC"/> is hired (silver paid,
+        /// squad created from a template, added to <c>mercenarySquads</c>) and before the player
+        /// has assigned it to a settlement. <c>squad.settlement</c> is null at this point.
+        /// </summary>
+        void OnSquadHired(MercenarySquadFC squad);
+        /// <summary>
+        /// Called when a squad is dismissed by the player. The squad has been removed from
+        /// <c>mercenarySquads</c>.
+        /// </summary>
+        void OnSquadDismissed(MercenarySquadFC squad);
+        /// <summary>
+        /// Called after a squad's loadout is brought up to its source template via
+        /// <see cref="SquadUpgradeUtil.UpgradeToTemplate"/>. Silver has already been paid.
+        /// </summary>
+        void OnSquadUpgraded(MercenarySquadFC squad);
     }
     /// <summary>
-    /// Defines an interface to let classes modify military forces before a battle is resolved.
+    /// Snapshot of the data a force modifier needs about a pending or simulated battle.
+    /// Built either from a real <see cref="MilitaryOperation"/> at engagement time, or
+    /// constructed directly by the squad-attack window for the displayed-power estimate.
+    /// Both code paths run modifiers through the same registry; modifiers therefore see the
+    /// same shape of input regardless of whether the battle is real.
+    /// </summary>
+    public class BattleForceContext
+    {
+        /// <summary>The military job (raid, capture, enslave, ...). May be null in synthetic contexts.</summary>
+        public MilitaryJobDef kind;
+        /// <summary>The world tile the battle resolves on.</summary>
+        public PlanetTile targetTile;
+        /// <summary>The world object being attacked (typically a Settlement).</summary>
+        public WorldObject targetObject;
+        /// <summary>Attacker side: faction, force, squad, homeSettlement.</summary>
+        public MilitaryOperationParticipant aggressor;
+        /// <summary>Defender side: faction, force, squad, homeSettlement.</summary>
+        public MilitaryOperationParticipant defender;
+    }
+
+    /// <summary>
+    /// Cache-time, faction-level modifier. Mutates the cached <see cref="EnemyPower"/> baseline
+    /// after <see cref="WorldComponent_EnemyPower"/> derives it from tech level + ETL +
+    /// threat adaptation, and BEFORE any settlement entry mirrors it. Use for faction-wide
+    /// effects (e.g. a Diplomacy submod that weakens a faction whose leader is sick).
+    /// <para>Pure transformation: read <paramref name="faction"/>, mutate <paramref name="power"/>.
+    /// No side effects.</para>
+    /// </summary>
+    public interface IFactionPowerModifier
+    {
+        void ModifyFactionPower(Faction faction, EnemyPower power);
+    }
+
+    /// <summary>
+    /// Cache-time, settlement-level modifier. Runs after a settlement entry is mirrored from
+    /// its faction's baseline. Use for settlement-attribute-derived effects — e.g. reading
+    /// a settlement's <c>CompViralSpread</c> or <c>RimWarSettlementComp</c> to write a
+    /// settlement-specific level. Cached, so the squad-attack window's displayed range and
+    /// the actual battle agree.
+    /// <para>Pure transformation: read <paramref name="settlement"/>, mutate
+    /// <paramref name="power"/>. No side effects.</para>
+    /// </summary>
+    public interface ISettlementPowerModifier
+    {
+        void ModifySettlementPower(Settlement settlement, EnemyPower power);
+    }
+
+    /// <summary>
+    /// Convenience base for <see cref="ISettlementPowerModifier"/> implementations that derive a
+    /// settlement's <see cref="EnemyPower.level"/> from a mod-specific settlement component. Handles
+    /// the shared null-guards, the <c>power.level</c> assignment, and the debug log line; subclasses
+    /// supply only <see cref="TryGetLevel"/> and <see cref="LogLabel"/>. Used by the RimWar / World
+    /// Domination compat assemblies.
+    /// </summary>
+    public abstract class SettlementPowerModifierBase : ISettlementPowerModifier
+    {
+        /// <summary>Reads <paramref name="settlement"/>'s mod component and produces an
+        /// <see cref="EnemyPower.level"/>. Return false to leave the power unchanged (component
+        /// missing, or strength not yet meaningful).</summary>
+        protected abstract bool TryGetLevel(Settlement settlement, out double level);
+
+        /// <summary>Short tag for the debug log line (typically the mod name).</summary>
+        protected abstract string LogLabel { get; }
+
+        public void ModifySettlementPower(Settlement settlement, EnemyPower power)
+        {
+            if (settlement is null || power is null) return;
+            if (!TryGetLevel(settlement, out double level)) return;
+            power.level = level;
+            LogUtil.Message($"{LogLabel}: {settlement.Name} -> EnemyPower level {level:0.0}");
+        }
+    }
+
+    /// <summary>
+    /// Attack-time modifier. Mutates a force snapshot at engagement / display. Use for
+    /// battle-context effects that depend on the attacker as well as the defender — terrain,
+    /// fortification at the battle tile, traveling fatigue, weather, defensive artillery.
+    /// Effects that are properties of the settlement alone belong in
+    /// <see cref="ISettlementPowerModifier"/> instead so they cache.
     /// </summary>
     public interface IBattleModifier
     {
         /// <summary>
-        /// Called before the battle loop begins. Modify the force's militaryLevel, militaryEfficiency,
-        /// or forceRemaining to affect the outcome.
+        /// Pure transformation: read <paramref name="ctx"/> (participants, target, kind) and
+        /// mutate <paramref name="force"/>'s <see cref="MilitaryForce.militaryLevel"/>,
+        /// <see cref="MilitaryForce.militaryEfficiency"/>, or
+        /// <see cref="MilitaryForce.forceRemaining"/>. Must NOT touch any state outside
+        /// <paramref name="force"/> — the same modifier may be invoked from the squad-picker UI
+        /// for an estimate display, where side effects (logging, history, persistence) would
+        /// be incorrect. Op lifecycle hooks are the place for those.
         /// </summary>
-        void ModifyForce(MilitaryForce force, bool isAttacker);
+        void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker);
     }
     /// <summary>
     /// Allows submods to veto or filter defense assignments. Called when a settlement
@@ -168,8 +275,10 @@ namespace FactionColonies
         bool CanDefend(WorldSettlementFC defender, WorldSettlementFC target);
     }
     /// <summary>
-    /// Allows submods to veto squad assignments. Called before a squad loadout is
-    /// assigned to a settlement. Register implementations via <see cref="SquadAssignmentRegistry"/>.
+    /// Allows submods to veto squad assignments. Called before a squad is assigned to a
+    /// settlement. Receives the actual <see cref="MercenarySquadFC"/> instance so validators
+    /// can read per-squad state (current loadout cost, mercenary count, cooldown, etc.) rather
+    /// than just the source template. Register implementations via <see cref="SquadAssignmentRegistry"/>.
     /// </summary>
     public interface ISquadAssignmentValidator
     {
@@ -177,7 +286,41 @@ namespace FactionColonies
         /// Returns true if <paramref name="squad"/> can be assigned to <paramref name="settlement"/>.
         /// If false, <paramref name="reason"/> is shown to the player as a rejection message.
         /// </summary>
-        bool CanAssign(WorldSettlementFC settlement, MilSquadFC squad, out string reason);
+        bool CanAssign(WorldSettlementFC settlement, MercenarySquadFC squad, out string reason);
+    }
+    /// <summary>
+    /// Lets submods compose adjustments to a squad's projected combat power
+    /// (veterancy bonuses, specialist multipliers, augmentations, etc.). Modifiers
+    /// chain: each receives the running <see cref="SquadPower"/> (initially the
+    /// base computed from loadout cost + settlement efficiency) and returns the
+    /// modified value. Higher <see cref="Priority"/> runs first.
+    /// <para>Submods that don't want to apply in a given case should return
+    /// <paramref name="currentPower"/> unchanged.</para>
+    /// Register via <see cref="SquadPowerRegistry"/>.
+    /// </summary>
+    public interface ISquadPowerModifier
+    {
+        /// <summary>Higher priorities run first. Modifiers see the power after all
+        /// higher-priority modifiers have run.</summary>
+        int Priority { get; }
+        /// <summary>Returns the squad's adjusted power. Implementations may consult
+        /// <c>squad.outfit</c>, mercs, custom data, etc. Throw-safe: exceptions are
+        /// logged and the modifier is skipped (running power is preserved).</summary>
+        SquadPower ModifyPower(MercenarySquadFC squad, SquadPower currentPower);
+    }
+    /// <summary>Squad-projected combat power. <see cref="militaryLevel"/> is on the same
+    /// 1-9 scale as <see cref="WorldSettlementFC.settlementMilitaryLevel"/>.
+    /// <see cref="militaryEfficiency"/> is a multiplier (typical range 0.5-1.5, dampened
+    /// by <see cref="FCSettings.efficiencyDamping"/> in <see cref="SimulateBattleFc"/>).</summary>
+    public struct SquadPower
+    {
+        public double militaryLevel;
+        public double militaryEfficiency;
+        public SquadPower(double level, double efficiency)
+        {
+            militaryLevel = level;
+            militaryEfficiency = efficiency;
+        }
     }
     /// <summary>
     /// Allows submods to add custom validation, display additional costs, and perform
@@ -279,7 +422,7 @@ namespace FactionColonies
     /// <summary>
     /// Allows external mods to register world objects as raid targets for Empire's military system.
     /// Registered targets are included in the attack target pool alongside Empire settlements,
-    /// receive the same 24-hour warning, and auto-resolve via <see cref="SimulateBattleFc.FightBattle"/>.
+    /// receive the same 24-hour warning, and auto-resolve via the per-round battle engine.
     /// Register implementations via <see cref="RaidTargetRegistry"/>.
     /// </summary>
     public interface IRaidTarget
@@ -402,6 +545,26 @@ namespace FactionColonies
         bool IsVisible(WorldSettlementFC settlement);
     }
     /// <summary>
+    /// Allows submods to add sections to the squad inspection window (below the per-pawn rows).
+    /// Register implementations via <see cref="SquadInspectionRegistry"/>.
+    /// </summary>
+    public interface ISquadInspectionSection
+    {
+        /// <summary>Header label for the section.</summary>
+        string SectionLabel { get; }
+
+        /// <summary>Total height needed for the section (excluding the header drawn by the caller).
+        /// Return 0 to hide the section entirely.</summary>
+        float GetSectionHeight(MercenarySquadFC squad, float width);
+
+        /// <summary>Draws the section content into <paramref name="contentRect"/>. The header is
+        /// drawn by the caller — only draw below it.</summary>
+        void DrawSection(MercenarySquadFC squad, Rect contentRect);
+
+        /// <summary>Lower values render earlier; ties broken by registration order.</summary>
+        int Order { get; }
+    }
+    /// <summary>
     /// A WorldObjectComp interface for contributing additional upkeep or income to a settlement's
     /// cost breakdown.
     /// <para>Queried during profit recomputation (<see cref="WorldSettlementFC.RecomputeProfit"/>).
@@ -434,5 +597,27 @@ namespace FactionColonies
         /// Return null or empty to add no tooltip line.
         /// </summary>
         string GetIncomeContributionDesc();
+    }
+    /// <summary>
+    /// Allows submods to influence the auto-tending of off-map mercenary pawns. Each registered
+    /// provider can supply a doctor pawn (whose <c>MedicalTendQuality</c> stat is read by vanilla
+    /// <c>TendUtility.DoTend</c>) and/or override the medicine ThingDef chosen by the base mod's
+    /// tech-level mapping. Register implementations via <see cref="MercAutoTendRegistry"/>.
+    /// </summary>
+    public interface IMercAutoTendProvider
+    {
+        /// <summary>
+        /// Returns a pawn to act as the tending doctor, or null to defer to other providers /
+        /// the base default (no doctor). The doctor does not need to be spawned — vanilla only
+        /// reads the doctor's stats. First non-null return wins; later providers do not run.
+        /// </summary>
+        Pawn ProvideTendingDoctor(Mercenary patient, WorldSettlementFC settlement);
+
+        /// <summary>
+        /// Override the medicine ThingDef. Receives the running choice as <paramref name="currentChoice"/>
+        /// (initially the base mod's tech-level pick); return that to defer or any other ThingDef
+        /// to override. Return null to force no-medicine tending. Chains across all providers.
+        /// </summary>
+        ThingDef OverrideTendingMedicine(Mercenary patient, WorldSettlementFC settlement, ThingDef currentChoice);
     }
 }

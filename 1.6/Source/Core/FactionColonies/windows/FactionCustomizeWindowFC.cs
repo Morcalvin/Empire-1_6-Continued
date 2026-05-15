@@ -1,4 +1,3 @@
-using FactionColonies.util;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
@@ -224,9 +223,7 @@ namespace FactionColonies
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.UpperCenter;
             Rect primaryLabelRect = new Rect(primarySwatchRect.x - 10f, primarySwatchRect.yMax + 2f, swatchSize + 20f, 18f);
-            GUI.color = new Color(0.6f, 0.6f, 0.6f);
-            Widgets.Label(primaryLabelRect, "fcPrimaryColor".Translate());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(primaryLabelRect, "fcPrimaryColor".Translate(), ColorUtil.Gray6);
 
             if (tempHasPrimaryColor)
             {
@@ -245,9 +242,7 @@ namespace FactionColonies
             else
             {
                 Rect notSetRect = new Rect(primarySwatchRect.x - 8f, primaryLabelRect.yMax, swatchSize + 16f, 18f);
-                GUI.color = new Color(0.5f, 0.5f, 0.5f);
-                Widgets.Label(notSetRect, "fcColorNotSet".Translate());
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(notSetRect, "fcColorNotSet".Translate(), ColorUtil.Gray5);
             }
 
             TooltipHandler.TipRegion(primarySwatchRect, "fcPrimaryColorDesc".Translate());
@@ -275,9 +270,7 @@ namespace FactionColonies
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.UpperCenter;
             Rect secondaryLabelRect = new Rect(secondarySwatchRect.x - 12f, secondarySwatchRect.yMax + 2f, swatchSize + 24f, 18f);
-            GUI.color = new Color(0.6f, 0.6f, 0.6f);
-            Widgets.Label(secondaryLabelRect, "fcSecondaryColor".Translate());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(secondaryLabelRect, "fcSecondaryColor".Translate(), ColorUtil.Gray6);
 
             if (tempHasSecondaryColor)
             {
@@ -293,9 +286,7 @@ namespace FactionColonies
             else
             {
                 Rect notSetRect = new Rect(secondarySwatchRect.x - 8f, secondaryLabelRect.yMax, swatchSize + 16f, 18f);
-                GUI.color = new Color(0.5f, 0.5f, 0.5f);
-                Widgets.Label(notSetRect, "fcColorNotSet".Translate());
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(notSetRect, "fcColorNotSet".Translate(), ColorUtil.Gray5);
             }
 
             if (secondaryDisabled)
@@ -318,9 +309,9 @@ namespace FactionColonies
                     Widgets.DrawBoxSolid(infoRect, new Color(0.18f, 0.14f, 0.10f, 0.6f));
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    GUI.color = new Color(0.72f, 0.53f, 0.04f);
-                    Widgets.Label(infoRect.ContractedBy(4f), "fcColorsRandomInfo".Translate());
-                    GUI.color = Color.white;
+                    UIUtil.DrawColoredLabel(infoRect.ContractedBy(4f),
+                        "fcColorsRandomInfo".Translate(),
+                        new Color(0.72f, 0.53f, 0.04f));
                 }
             }
         }
@@ -345,9 +336,7 @@ namespace FactionColonies
             {
                 // Checkerboard with gray border
                 GUI.DrawTexture(rect, TexLoad.checkerboard);
-                GUI.color = new Color(0.4f, 0.4f, 0.4f);
-                Widgets.DrawBox(rect, 2);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredBox(rect, new Color(0.4f, 0.4f, 0.4f), 2);
             }
         }
 
@@ -423,9 +412,10 @@ namespace FactionColonies
                 string policyNames = string.Join(" \u00b7 ", faction.policies.Select(p => p.def.LabelCap.ToString()));
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.UpperCenter;
-                GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                Widgets.Label(new Rect(rect.x + cardPadding, contentY + 34f, rect.width - cardPadding * 2, 16f), policyNames);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x + cardPadding, contentY + 34f, rect.width - cardPadding * 2, 16f),
+                    policyNames,
+                    ColorUtil.Gray6);
             }
             else
             {
@@ -441,21 +431,19 @@ namespace FactionColonies
                 for (int i = 0; i < slotCount; i++)
                 {
                     Rect slotRect = new Rect(startX + i * (slotSize + 5f), contentY, slotSize, slotSize);
-                    GUI.color = new Color(0.3f, 0.3f, 0.3f);
-                    Widgets.DrawBox(slotRect, 2);
-                    GUI.color = new Color(0.4f, 0.4f, 0.4f);
+                    UIUtil.DrawColoredBox(slotRect, ColorUtil.Gray3, 2);
                     Text.Font = GameFont.Small;
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(slotRect, "?");
-                    GUI.color = Color.white;
+                    UIUtil.DrawColoredLabel(slotRect, "?", ColorUtil.Gray4);
                 }
 
                 // "Click to select" label
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.UpperCenter;
-                GUI.color = new Color(0.5f, 0.5f, 0.5f);
-                Widgets.Label(new Rect(rect.x + cardPadding, contentY + slotSize + 4f, rect.width - cardPadding * 2, 16f), "fcClickToSelect".Translate());
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x + cardPadding, contentY + slotSize + 4f, rect.width - cardPadding * 2, 16f),
+                    "fcClickToSelect".Translate(),
+                    ColorUtil.Gray5);
 
                 // Clicking anywhere in the card opens the policy window
                 if (Widgets.ButtonInvisible(rect))
@@ -478,7 +466,7 @@ namespace FactionColonies
             Find.WindowStack.Add(new FCWindow_ColorPicker(
                 header,
                 current,
-                delegate(Color color)
+                delegate (Color color)
                 {
                     if (primary)
                     {

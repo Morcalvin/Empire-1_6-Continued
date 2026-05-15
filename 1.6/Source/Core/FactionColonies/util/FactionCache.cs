@@ -19,6 +19,8 @@ namespace FactionColonies
         private static Faction _cachedColonyFaction = null;
         private static Faction _cachedPlayerFaction = null;
         private static FactionFC _cachedFactionWorldComp = null;
+        private static MilitaryOperationManager _cachedMilitaryManager = null;
+        private static WorldComponent_EnemyPower _cachedEnemyPower = null;
         private static FactionDef _cachedFactionDef = null;
         private static List<PawnKindDef> _cachedPawnKindDefs = null;
         private static Dictionary<(Type, string), FieldInfo> _cachedFields = new Dictionary<(Type, string), FieldInfo>();
@@ -46,6 +48,22 @@ namespace FactionColonies
         private static ResearchProjectDef _cachedTransportPods = null;
 
         public static FactionFC FactionComp => _cachedFactionWorldComp ?? (_cachedFactionWorldComp = Find.World?.GetComponent<FactionFC>());
+
+        /// <summary>
+        /// Shortcut to <see cref="FactionFC.militaryOperationManager"/>. Returns null if the
+        /// faction component itself is not yet loaded.
+        /// </summary>
+        public static MilitaryOperationManager MilitaryManager
+            => _cachedMilitaryManager ?? (_cachedMilitaryManager = FactionComp?.militaryOperationManager);
+        /// <summary>
+        /// Per-world cache of enemy-faction and enemy-settlement power baselines, plus the
+        /// only sanctioned site for invoking <see cref="BattleModifierRegistry"/>. Used by
+        /// the squad-attack window (range display), battle engagement (variance roll +
+        /// modifier pass), and AI-attack force generation.
+        /// </summary>
+        public static WorldComponent_EnemyPower EnemyPower =>
+            _cachedEnemyPower ??
+            (_cachedEnemyPower = Find.World?.GetComponent<WorldComponent_EnemyPower>());
         /// <summary>
         /// The NPC Empire faction that the player created and controls.
         /// </summary>
@@ -492,9 +510,9 @@ namespace FactionColonies
                 return _cachedRequiredByMap;
             }
         }
-        public static List<FCEventCategoryDef> FCEventCategoryDefs =>_cachedEventCategoryDefs ??
+        public static List<FCEventCategoryDef> FCEventCategoryDefs => _cachedEventCategoryDefs ??
                                     (_cachedEventCategoryDefs = DefDatabase<FCEventCategoryDef>.AllDefsListForReading);
-        
+
         /// <summary>
         /// MilitaryJobDefs that have a floatMenuLabelKey, i.e. hostile operations shown in the world gizmo menu.
         /// </summary>
@@ -522,6 +540,8 @@ namespace FactionColonies
             _cachedPlayerFaction = null;
             _cachedPawnKindDefs = null;
             _cachedFactionWorldComp = null;
+            _cachedMilitaryManager = null;
+            _cachedEnemyPower = null;
             _cachedFactionDef = null;
             _cachedFields.Clear();
             _cachedRaceList = null;

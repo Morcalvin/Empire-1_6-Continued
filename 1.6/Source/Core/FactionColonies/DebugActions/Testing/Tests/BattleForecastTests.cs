@@ -232,10 +232,10 @@ namespace FactionColonies
             int defenderWins = 0;
             for (int i = 0; i < trials; i++)
             {
-                // Create fresh copies each trial (FightBattle mutates the forces)
+                // Create fresh copies each trial (ResolveSynchronously mutates the forces)
                 var mfa = CreateForce(baseAttacker.militaryLevel, baseAttacker.militaryEfficiency, baseAttacker.forceRemaining);
                 var mfb = CreateForce(baseDefender.militaryLevel, baseDefender.militaryEfficiency, baseDefender.forceRemaining);
-                BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb);
+                BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb);
                 if (result.DefenderVictory) defenderWins++;
             }
 

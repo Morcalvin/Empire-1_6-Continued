@@ -76,6 +76,15 @@ namespace FactionColonies.util
         }
 
         /// <summary>
+        /// Base happiness/loyalty reward granted to the winning squad's home settlement
+        /// after an Overwhelming Victory.
+        /// </summary>
+        public static (double happiness, double loyalty) CalculateBattleVictoryRewards()
+        {
+            return (5, 3);
+        }
+
+        /// <summary>
         /// Calculates the silver cost to upgrade a settlement to the next level.
         /// </summary>
         public static int CalculateUpgradeCost(int settlementLevel, int baseUpgradeCost)

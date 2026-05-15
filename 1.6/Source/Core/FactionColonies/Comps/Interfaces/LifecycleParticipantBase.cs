@@ -14,10 +14,13 @@ namespace FactionColonies
         public virtual void OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef) { }
         public virtual void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot) { }
         public virtual void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot) { }
-        public virtual void OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad) { }
-        public virtual void OnSquadRecalled(WorldSettlementFC settlement) { }
-        public virtual void OnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result) { }
+        public virtual void OnOperationCreated(MilitaryOperation op) { }
+        public virtual void OnOperationResolved(MilitaryOperation op) { }
+        public virtual void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) { }
         public virtual void OnResearchCompleted(ResearchProjectDef project) { }
         public virtual void OnMercenaryDeath(MercenaryDeathEvent evt) { }
+        public virtual void OnSquadHired(MercenarySquadFC squad) { }
+        public virtual void OnSquadDismissed(MercenarySquadFC squad) { }
+        public virtual void OnSquadUpgraded(MercenarySquadFC squad) { }
     }
 }

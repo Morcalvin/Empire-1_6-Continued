@@ -1,8 +1,8 @@
+using FactionColonies.util;
 using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using FactionColonies.util;
 using UnityEngine;
 using Verse;
 
@@ -157,12 +157,11 @@ namespace FactionColonies
             itemSearchTerm = Widgets.TextField(searchRect, itemSearchTerm);
             if (string.IsNullOrEmpty(itemSearchTerm))
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
-                    "FCSearchItems".Translate());
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
+                    "FCSearchItems".Translate(),
+                    Color.gray);
             }
 
             // Scroll view
@@ -274,12 +273,11 @@ namespace FactionColonies
             stuffSearchTerm = Widgets.TextField(searchRect, stuffSearchTerm);
             if (string.IsNullOrEmpty(stuffSearchTerm))
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
-                    "FCSearchMaterials".Translate());
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
+                    "FCSearchMaterials".Translate(),
+                    Color.gray);
             }
 
             // Scroll view

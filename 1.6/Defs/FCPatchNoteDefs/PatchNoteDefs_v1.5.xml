@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_0</defName>
+		<label>Military System Refactor</label>
+		<description>This update features a hefty refactor of Empire&apos;s military system, largely in the name of future extensibility. Some of the changes won&apos;t be evident to the player, but many will; and in time, this refactor should allow for further new and requested features.\n\nThis update *does* make some fairly substantial changes to how squads work. If you don&apos;t like those changes -- or any of the other changes -- then the latest 1.3.x version of Empire will be available in the releases section of the official Empire Refactored github. But once 1.5.x hits the steam workshop, support for 1.3.x will cease.\n\n1.5.x should be save compatible with previous versions, but active battles or military events might behave a little weirdly.</description>
+		<releaseDate>2026-05-15</releaseDate>
+		<patchNoteType>Major</patchNoteType>
+		<patchNoteLines>
+		<li>Auto-resolve battles now play out round-by-round over time, complete with a window to watch the battle&apos;s progress. Now you can see all of the RNG and math that goes into determining an auto-resolve result.</li>
+		<li>Battle Reports for both auto- and manual-battles are archived in the Military main tab. Reports for auto-battles include the round-by-round progress.</li>
+		<li>Multiple simultaneous attacks on the same settlement are now supported. The mod currently doesn&apos;t actually *use* this behavior, but it opens the door to lots of fun stuff in the future.</li>
+		<li>The reward for an Overwhelming Victory has been changed from cooldown elimination to a small happiness and loyalty boost.</li>
+		<li>Added Crushing Defeat, the opposite of Overwhelming Victory. A Crushing Defeat is when you&apos;re defeated without inflicting a single casualty on the opposing force. The penalties for Crushing Defeat are more severe than for regular defeats.</li>
+		<li>Squads have been completely reworked. No longer do you design a squad and then assign it to a settlement for free. Now, you must hire each individual squad. Furthermore, squads will not automatically update if you change their associated template; you have to pay to update them. And if a member of the squad dies, you&apos;ll need to hire a replacement. Squads aren&apos;t a free lunch anymore, pal!</li>
+		<li>(There are options in the settings to reduce the hire/upgrade cost for squads. If you *really* hate paying for things, you can drop the costs to 0, to emulate older Empire behavior.)</li>
+		<li>Injured squad members will heal over time. A squad that is deployed with injured members will not be as effective as when it&apos;s completely healthy.</li>
+		<li>All deployments and offensive operations cost 20% of the squad&apos;s value. This was technically already true for deployments, but this update surfaces that cost in the UI and sends you a bill.</li>
+		<li>Post-deployment squad cooldowns have been mostly replaced with travel time based on the distance back to their home settlement.</li>
+		<li>You can now personally customize each squad by editing the loadouts of specific squad members, or hiring additional members to a specific squad. All of these changes flow naturally into a squad&apos;s effective power, currently calculated from the squad&apos;s total value.</li>
+		<li>Settlements without an assigned squad will defend at half-power when attacked.</li>
+		<li>There is now support for a settlement to host multiple squads. The mod itself doesn&apos;t take advantage of this yet, but it opens some neat doors for the future.</li>
+		<li>New UI for picking squads to defend a settlement, or to attack an enemy settlement. Estimated enemy power and each squad&apos;s estimated win chance are now surfaced in the UI, so offensive operations aren&apos;t blind anymore.</li>
+		<li>Non-Empire NPC settlements now show their estimated military level and efficiency when selected on the world map.</li>
+		<li>Deployed squads will now immediately follow new orders instead of finishing their previous order first.</li>
+		<li>Bills can now carry custom late- and unpaid-payment penalties, used for mercenary deployment bills currently.</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
+</Defs>

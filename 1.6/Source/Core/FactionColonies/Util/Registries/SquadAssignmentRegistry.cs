@@ -18,7 +18,7 @@ namespace FactionColonies
         /// Returns true if all registered validators allow the assignment.
         /// On first rejection, outputs the reason string.
         /// </summary>
-        public static bool CanAssign(WorldSettlementFC settlement, MilSquadFC squad, out string reason)
+        public static bool CanAssign(WorldSettlementFC settlement, MercenarySquadFC squad, out string reason)
         {
             reason = null;
             foreach (ISquadAssignmentValidator validator in _validators)

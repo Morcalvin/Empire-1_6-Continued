@@ -93,7 +93,7 @@ namespace FactionColonies.util
             }
             return list;
         }
-        
+
         public static float ThingValue(ThingQualityTuple thing)
         {
             return ThingValue(thing.thingDef, thing.stuffDef, thing.quality);

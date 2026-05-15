@@ -70,13 +70,12 @@
     </FactionColonies.FCStatDef>
 
     <FactionColonies.FCStatDef>
-        <defName>deadPawnCooldownOffset</defName>
-        <label>dead pawn cooldown offset</label>
+        <defName>mercenaryDeathHappinessPenalty</defName>
+        <label>mercenary death happiness penalty</label>
         <aggregation>Additive</aggregation>
-        <appliesToSettlements>false</appliesToSettlements>
+        <appliesToSettlements>true</appliesToSettlements>
         <invertedForDisplay>true</invertedForDisplay>
-        <descriptionKey>FCTraitDesc_deadPawnCooldownOffset</descriptionKey>
-        <displayDivisor>2500</displayDivisor>
+        <descriptionKey>FCTraitDesc_mercenaryDeathHappinessPenalty</descriptionKey>
     </FactionColonies.FCStatDef>
 
     <FactionColonies.FCStatDef>
@@ -85,6 +84,38 @@
         <aggregation>Multiplicative</aggregation>
         <appliesToSettlements>true</appliesToSettlements>
         <descriptionKey>FCTraitDesc_mercHealRateMultiplier</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
+        <defName>mercenaryDeathChanceMultiplier</defName>
+        <label>mercenary death chance multiplier</label>
+        <aggregation>Multiplicative</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_mercenaryDeathChanceMultiplier</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
+        <defName>mercenaryCasualtyRateMultiplier</defName>
+        <label>mercenary casualty rate multiplier</label>
+        <aggregation>Multiplicative</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_mercenaryCasualtyRateMultiplier</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
+        <defName>squadCapPerSettlement</defName>
+        <label>squad capacity bonus</label>
+        <aggregation>Additive</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_squadCapPerSettlement</descriptionKey>
+    </FactionColonies.FCStatDef>
+
+    <FactionColonies.FCStatDef>
+        <defName>maxSquadSize</defName>
+        <label>max squad size bonus</label>
+        <aggregation>Additive</aggregation>
+        <appliesToSettlements>true</appliesToSettlements>
+        <descriptionKey>FCTraitDesc_maxSquadSize</descriptionKey>
     </FactionColonies.FCStatDef>
 
     <!-- ── Battle Penalties ────────────────────────────────────── -->

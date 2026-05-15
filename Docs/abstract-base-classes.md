@@ -78,8 +78,8 @@ Override `PostInitialize()` to wire up `[Unsaved]` fields from extension paramet
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `OnSquadDeployed` | `void OnSquadDeployed(FactionFC faction, WorldSettlementFC settlement, bool isExtraSquad)` | A squad was deployed from a settlement. |
-| `OnSquadRecalled` | `void OnSquadRecalled(FactionFC faction, WorldSettlementFC settlement)` | A squad was recalled. |
+| `OnSquadDeployed` | `void OnSquadDeployed(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement, bool isExtraSquad)` | A squad was deployed from a settlement. Fires once per home settlement involved in the op (foreign-defender ops fire twice). Compare `settlement` to `op.aggressor.homeSettlement` / `op.defender.homeSettlement` if side matters. |
+| `OnSquadRecalled` | `void OnSquadRecalled(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement)` | A squad was recalled. Symmetric with `OnSquadDeployed`. |
 | `OnBattleResolved` | `void OnBattleResolved(FactionFC faction, WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result)` | A battle was resolved. |
 
 #### Other Events
@@ -186,20 +186,18 @@ Override `ExposeData()` to save/load custom state. Uses standard `Scribe_*` meth
 </FactionColonies.MilitaryJobDef>
 ```
 
-### Abstract Methods (must implement)
-
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `OnDeployed` | `void OnDeployed(WorldObjectComp_SettlementMilitary milComp, PlanetTile location, int timeToFinish, Faction enemy)` | Called when the squad begins this operation. Set up state, record targets. |
-| `OnResolved` | `BattleResult OnResolved(WorldObjectComp_SettlementMilitary milComp)` | Called when the operation completes. Execute the operation's effects (loot, capture, etc.) and return a `BattleResult`. |
-
 ### Virtual Methods
 
 | Method | Signature | Default | Description |
 |--------|-----------|---------|-------------|
-| `IsValidTarget` | `bool IsValidTarget(Faction targetFaction)` | `true` | Return false to exclude a faction from valid targets for this job. |
+| `OnAutoResolve` | `void OnAutoResolve(MilitaryOperation op)` | calls `op.BeginAutoResolveProgress()` | Kick off auto-resolution. The default drives the per-round engine: one round per in-game hour via `SimulateBattleFc.ResolveOneRound`, ending in `op.CompleteBattle`. Override to short-circuit with an instant result (compute a `BattleResult` and call `op.CompleteBattle(result)` directly). |
+| `OnOpCreated` | `void OnOpCreated(MilitaryOperation op)` | no-op | Called immediately after `MilitaryOperationManager` registers the op. Use it to schedule the arrival event (`op.ScheduleEvent(...)`) and send the player a "we're sending forces" letter. |
+| `ApplyResult` | `void ApplyResult(MilitaryOperation op, BattleResult result)` | no-op | Side effects after a battle resolves: loot, prisoners, settlement capture, faction XP, delivery events. Called by `op.CompleteBattle(result)` regardless of whether the battle was auto-resolved or manually played, so the same outcome handling applies to both. |
+| `ResolvesManually` | `bool ResolvesManually(MilitaryOperation op)` | `false` | Return true to delegate resolution to `OnManualResolve` instead of `OnAutoResolve`. The handler is then responsible for calling `op.CompleteBattle(result)` when the player-driven battle resolves. |
+| `OnManualResolve` | `void OnManualResolve(MilitaryOperation op)` | no-op | Spawn pawns / lords on the op's `BattlefieldContext` (typically via `op.AttachToBattlefield()` and `bf.SpawnParticipantOnMap(op, ParticipantSide.X)`). Submods own when `op.CompleteBattle` fires. |
+| `IsValidTarget` | `bool IsValidTarget(Faction targetFaction)` | `true` | Return false to exclude a faction from valid targets for this job. Used to filter hostile menu options. |
 
-**Base mod examples**: `MilitaryJobHandler_Raid` (loot + prisoners), `MilitaryJobHandler_Capture` (converts settlement), `MilitaryJobHandler_Enslave` (1-2 prisoners).
+**Base mod examples**: `MilitaryJobHandler_Raid` (loot + prisoners), `MilitaryJobHandler_Capture` (converts settlement), `MilitaryJobHandler_Enslave` (1-3 prisoners), `MilitaryJobHandler_Defend` (settlement defense, routes through `BattlefieldContext.StartDefense`).
 
 ---
 

@@ -1,6 +1,4 @@
-﻿using FactionColonies.util;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
@@ -21,7 +19,7 @@ namespace FactionColonies
         private const float TitleHeight = 30f;
         private const float TabHeight = 22f;
 
-        private static readonly Color TitleGold = new Color(0.83f, 0.68f, 0.21f);
+        private static readonly Color TitleGold = ColorUtil.Gold;
 
         public override Vector2 InitialSize => new Vector2(1100f, 650f);
 
@@ -105,7 +103,7 @@ namespace FactionColonies
         {
             /* Title header with gold gradient + logo */
             Rect titleRect = new Rect(inRect.x, inRect.y, inRect.width, TitleHeight);
-            TexLoad.DrawHorizontalGradient(titleRect, TitleGold * new Color(1f, 1f, 1f, 0.5f));
+            TexLoad.DrawHorizontalGradient(titleRect, ColorUtil.TransformA(TitleGold, 0.5f));
 
             // Logo
             float logoSize = 24f;
@@ -153,19 +151,17 @@ namespace FactionColonies
             Rect centerRect2 = new Rect(centerX, bodyY, centerW, bodyH);
 
             /* Draw dividers */
-            GUI.color = Color.gray;
-            Widgets.DrawLineVertical(divider1X, bodyY, bodyH);
+            UIUtil.DrawColoredVerticalLine(divider1X, bodyY, bodyH, Color.gray);
 
             Rect rightRect = default(Rect);
             if (activeTab.HasRightPane)
             {
                 float divider2X = centerRect2.xMax + margin * 0.5f;
-                Widgets.DrawLineVertical(divider2X, bodyY, bodyH);
+                UIUtil.DrawColoredVerticalLine(divider2X, bodyY, bodyH, Color.gray);
                 float rightX = divider2X + margin * 0.5f + DividerWidth;
                 float rightW = bodyRect.xMax - rightX;
                 rightRect = new Rect(rightX, bodyY, rightW, bodyH);
             }
-            GUI.color = Color.white;
 
             /* Draw panes */
             activeTab.DrawLeftPane(leftRect);

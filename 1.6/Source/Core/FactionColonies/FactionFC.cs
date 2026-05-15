@@ -188,10 +188,18 @@ namespace FactionColonies
         public IReadOnlyList<FCEvent> Events => eventManager.Events;
         public int EventsVersion => eventManager.Version;
 
+        /// <summary>
+        /// Holds and indexes all active <see cref="MilitaryOperation"/>s. Single source of truth
+        /// for military operation state. <c>SendMilitary</c> / <c>AttackPlayerSettlement</c>
+        /// route through <c>CreateOffensiveOp</c> / <c>CreateDefensiveOp</c> on this manager.
+        /// </summary>
+        public MilitaryOperationManager militaryOperationManager = new MilitaryOperationManager();
+
         public float randomEventLastAdded = 0f;
         public List<BillFC> Bills = new List<BillFC>();
         public List<BillFC> OldBills = new List<BillFC>();
         public bool autoResolveBills;
+        public bool allowLatePayments = true;
 
         /* Resources */
         public List<ResourcePool> resourcePools = new List<ResourcePool>();
@@ -203,11 +211,6 @@ namespace FactionColonies
         public MilitaryCustomizationUtil militaryCustomizationUtil = new MilitaryCustomizationUtil();
         public EmpireThreatAdaptation threatAdaptation = new EmpireThreatAdaptation();
         public FCRoadBuilder roadBuilder = new FCRoadBuilder();
-        private List<PlanetTile> militaryTargets = new List<PlanetTile>();
-        public IReadOnlyList<PlanetTile> MilitaryTargets => militaryTargets;
-        public void AddMilitaryTarget(PlanetTile tile) { militaryTargets.Add(tile); }
-        public void RemoveMilitaryTarget(PlanetTile tile) { militaryTargets.Remove(tile); }
-        public bool HasMilitaryTarget(PlanetTile tile) => militaryTargets.Contains(tile);
 
         /* Caravans */
         public List<PlanetTile> settlementCaravansList = new List<PlanetTile>(); //list of locations caravans already sent to
@@ -331,9 +334,11 @@ namespace FactionColonies
                 LogUtil.MessageForce("FactionFC: migrated legacy events list into FCEventManager.");
             }
 
+            Scribe_Deep.Look(ref militaryOperationManager, "militaryOperationManager");
+            if (militaryOperationManager is null) militaryOperationManager = new MilitaryOperationManager();
+
             Scribe_Collections.Look(ref settlementCaravansList, "settlementCaravansList", LookMode.Value);
             Scribe_Collections.Look(ref enabledCaravanTypes, "enabledCaravanTypes", LookMode.Value);
-            Scribe_Collections.Look(ref militaryTargets, "militaryTargets", LookMode.Value);
 
             //New Production types
             Scribe_Collections.Look(ref resourcePools, "resourcePools", LookMode.Deep);
@@ -366,6 +371,7 @@ namespace FactionColonies
             Scribe_Collections.Look(ref Bills, "Bills", LookMode.Deep);
             Scribe_Collections.Look(ref OldBills, "OldBills", LookMode.Deep);
             Scribe_Values.Look(ref autoResolveBills, "autoResolveBills");
+            Scribe_Values.Look(ref allowLatePayments, "allowLatePayments", true);
 
             //Road builder
             Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
@@ -412,6 +418,10 @@ namespace FactionColonies
             EnsureCaravanTypesPopulated();
             EnsureResourcePools();
             LifecycleRegistry.Register(this);
+
+            // Rebuild op indices from `active` whether we just migrated a save or not — cheap
+            // and always-correct even on a fresh-game start (no-op when active is empty).
+            militaryOperationManager?.RebuildIndices();
 
             if (fromLoad)
             {
@@ -524,6 +534,22 @@ namespace FactionColonies
             }
             ScrubNullSettlements("FactionFC.PostLoadInit");
             RebuildPendingEdictActivations();
+
+            // Squad-first refactor migration: bind any legacy comp.militarySquad onto the squad
+            // itself (sets squad.settlement) and propagate comp.autoDefend to squad.autoDefend.
+            // Runs unconditionally because the legacy buffers are [Unsaved] — once drained, they
+            // stay null on subsequent loads.
+            MilitaryMigrationUtil.MigrateLegacyComp_MilitarySquad(this);
+
+            // Drain pre-refactor military operation state into the new MilitaryOperationManager.
+            // Idempotent: only runs when the manager is empty AND legacy state is present in the
+            // loaded save (post-refactor saves write the manager directly and skip migration).
+            if (militaryOperationManager is object && militaryOperationManager.IsEmpty
+                && MilitaryMigrationUtil.AnyLegacyStatePresent(this))
+            {
+                MilitaryMigrationUtil.Migrate(this);
+            }
+            militaryOperationManager?.RebuildIndices();
         }
 
         private void RebuildPendingEdictActivations()
@@ -564,6 +590,11 @@ namespace FactionColonies
              * (happens during Game.InitNewGame; ClearCaches postfix clears the registry
              * after World.FinalizeInit already registered us during world generation). */
             LifecycleRegistry.Register(this);
+
+            /* Built-in stateless squad-assignment validators. */
+            SquadAssignmentRegistry.Register(new SquadCapValidator());
+            SquadAssignmentRegistry.Register(new SquadSizeValidator());
+            SquadAssignmentRegistry.Register(new SquadValueValidator());
 
             roadBuilder.FirstTick();
 
@@ -667,6 +698,7 @@ namespace FactionColonies
             if (ticksGame % MercenaryHealTickInterval == 0)
             {
                 militaryCustomizationUtil?.TickMercenaryHealing(MercenaryHealTickInterval);
+                militaryCustomizationUtil?.TickAnimalReplacement();
             }
 
             // Daily tick
@@ -750,18 +782,24 @@ namespace FactionColonies
                                     t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
                                 float totalWeight = settlementTotalWeight + externalTotalWeight;
 
-                                if (Rand.Value * totalWeight < settlementTotalWeight && raidableSettlements.Any())
+                                EnemyPower attackerEntry = FactionCache.EnemyPower?.GetOrCompute(enemy);
+                                MilitaryForce attackingForce = attackerEntry?.SampleBattleForce(enemy, handicap: true);
+                                if (attackingForce is null)
+                                {
+                                    LogUtil.Warning($"AI attack from {enemy?.Name} aborted: no power entry resolvable.");
+                                }
+                                else if (Rand.Value * totalWeight < settlementTotalWeight && raidableSettlements.Any())
                                 {
                                     WorldSettlementFC target = raidableSettlements.RandomElementByWeight(
                                         s => (float)GetMilitaryTargetWeight(s.settlementMilitaryLevel) * s.settlementDef.raidTargetingWeight
                                              * RaidWeightRegistry.GetCombinedWeight(s, enemy));
-                                    MilitaryUtilFC.AttackPlayerSettlement(MilitaryForce.CreateMilitaryForceFromFaction(enemy, true), target, enemy);
+                                    MilitaryUtilFC.AttackPlayerSettlement(attackingForce, target, enemy);
                                 }
                                 else if (validExternalTargets.Any())
                                 {
                                     IRaidTarget target = validExternalTargets.RandomElementByWeight(
                                         t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
-                                    MilitaryUtilFC.AttackRaidTarget(MilitaryForce.CreateMilitaryForceFromFaction(enemy, true), target, enemy);
+                                    MilitaryUtilFC.AttackRaidTarget(attackingForce, target, enemy);
                                 }
                             }
                         }
@@ -1588,21 +1626,6 @@ namespace FactionColonies
             ForEachBehavior(b => b.OnBuildingDeconstructed(this, settlement, building, slot));
         }
 
-        void ILifecycleParticipant.OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad)
-        {
-            ForEachBehavior(b => b.OnSquadDeployed(this, settlement, isExtraSquad));
-        }
-
-        void ILifecycleParticipant.OnSquadRecalled(WorldSettlementFC settlement)
-        {
-            ForEachBehavior(b => b.OnSquadRecalled(this, settlement));
-        }
-
-        void ILifecycleParticipant.OnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result)
-        {
-            ForEachBehavior(b => b.OnBattleResolved(this, settlement, job, victory, result));
-        }
-
         void ILifecycleParticipant.OnResearchCompleted(ResearchProjectDef project)
         {
             ForEachBehavior(b => b.OnResearchCompleted(this, project));
@@ -1611,6 +1634,78 @@ namespace FactionColonies
         void ILifecycleParticipant.OnMercenaryDeath(MercenaryDeathEvent evt)
         {
             // No policy behavior hook for merc death currently — submods handle this via their own listener
+        }
+
+        /* -*-*-*-*- Military hooks -*-*-*-*-
+         * The comp's military-related properties (militaryBusy / militaryJob / militaryLocation /
+         * militaryEnemy / isUnderAttack) are read-only and derived from MilitaryOperationManager's
+         * op indices, so these hooks have no comp-side state to update. They just dispatch to
+         * policy behaviors and run squad injury bookkeeping.
+         */
+
+        void ILifecycleParticipant.OnOperationCreated(MilitaryOperation op)
+        {
+            if (op is null) return;
+
+            // Fire on both sides when distinct: a foreign-defender op commits two settlements
+            // (aggressor's home and defender's home), and listeners that track per-settlement
+            // commitment need both notifications.
+            WorldSettlementFC aggressorHome = op.aggressor?.homeSettlement;
+            WorldSettlementFC defenderHome = op.defender?.homeSettlement;
+            if (aggressorHome is object)
+            {
+                bool isExtra = op.aggressor?.squad?.isExtraSquad ?? false;
+                ForEachBehavior(b => b.OnSquadDeployed(this, op, aggressorHome, isExtra));
+            }
+            if (defenderHome is object && defenderHome != aggressorHome)
+            {
+                bool isExtra = op.defender?.squad?.isExtraSquad ?? false;
+                ForEachBehavior(b => b.OnSquadDeployed(this, op, defenderHome, isExtra));
+            }
+        }
+
+        void ILifecycleParticipant.OnOperationResolved(MilitaryOperation op)
+        {
+            if (op is null) return;
+
+            // Squad injuries are registered earlier, in op.CompleteBattle, so OnBattleResolved
+            // listeners observe the post-battle injury counts.
+
+            // Symmetric with OnOperationCreated: recall both sides when they're distinct settlements.
+            WorldSettlementFC aggressorHome = op.aggressor?.homeSettlement;
+            WorldSettlementFC defenderHome = op.defender?.homeSettlement;
+            if (aggressorHome is object)
+                ForEachBehavior(b => b.OnSquadRecalled(this, op, aggressorHome));
+            if (defenderHome is object && defenderHome != aggressorHome)
+                ForEachBehavior(b => b.OnSquadRecalled(this, op, defenderHome));
+        }
+
+        void ILifecycleParticipant.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
+        {
+            if (op is null) return;
+            WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
+            if (settlement is null) return;
+
+            ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
+        }
+
+        void ILifecycleParticipant.OnSquadHired(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            ForEachBehavior(b => b.OnSquadHired(this, squad));
+        }
+
+        void ILifecycleParticipant.OnSquadDismissed(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            ForEachBehavior(b => b.OnSquadDismissed(this, squad));
+        }
+
+        void ILifecycleParticipant.OnSquadUpgraded(MercenarySquadFC squad)
+        {
+            if (squad is null) return;
+            MilitaryCustomizationUtil.NotifyIfUnderfunded(squad);
+            ForEachBehavior(b => b.OnSquadUpgraded(this, squad));
         }
 
         #endregion
@@ -1689,9 +1784,14 @@ namespace FactionColonies
                     List<ResourcePool> resourcePools = settlement.CreateResourcePools();
 
                     BillFC bill = new BillFC(settlement);
+                    bill.label = "FCBillKindTax".Translate();
                     bill.taxes.resourcePools = resourcePools;
                     bill.taxes.itemTithes.AddRange(list);
                     bill.taxes.silverAmount = silverAmount;
+                    bill.AddUnpaidPenalty(BillPenaltyStat.Unrest, 10);
+                    bill.AddUnpaidPenalty(BillPenaltyStat.Happiness, 10);
+                    bill.AddLatePaidPenalty(BillPenaltyStat.Unrest, 4);
+                    bill.AddLatePaidPenalty(BillPenaltyStat.Happiness, 4);
 
                     Bills.Add(bill);
 
@@ -1877,7 +1977,7 @@ namespace FactionColonies
         public void AddResourcePool(ResourcePool pool)
         {
             if (pool is null || pool.pool == 0) return;
-            
+
             /* If the pool wants to do any pre-adding-to-global-pool shenanigans, let it do so now. */
             pool.pool = pool.resource.PreAddToGlobalPool(pool.pool);
 

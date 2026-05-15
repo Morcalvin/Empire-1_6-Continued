@@ -1,5 +1,5 @@
-﻿using System;
-using FactionColonies.util;
+﻿using FactionColonies.util;
+using System;
 using UnityEngine;
 using Verse;
 

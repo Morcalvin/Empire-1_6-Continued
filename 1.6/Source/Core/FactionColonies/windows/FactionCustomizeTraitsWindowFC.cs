@@ -1,9 +1,9 @@
+using FactionColonies.util;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
-using FactionColonies.util;
 
 namespace FactionColonies
 {
@@ -178,9 +178,10 @@ namespace FactionColonies
 
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                GUI.color = labelColor;
-                Widgets.Label(new Rect(row.x + margin, row.y, row.width - (margin * 2), row.height), label);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredLabel(
+                    new Rect(row.x + margin, row.y, row.width - (margin * 2), row.height),
+                    label,
+                    labelColor);
 
                 y += traitRowHeight + smallMargin;
             }

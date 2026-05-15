@@ -1,9 +1,9 @@
+using FactionColonies.util;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
-using FactionColonies.util;
 
 namespace FactionColonies
 {
@@ -247,10 +247,7 @@ namespace FactionColonies
                 string conflictText = "FCConflictsWith".Translate(names);
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.UpperLeft;
-                Color savedColor = GUI.color;
-                GUI.color = isPreview ? new Color(1f, 1f, 0f, 0.45f) : Color.yellow;
-                Widgets.Label(new Rect(inner.x, y, inner.width, 18f), conflictText);
-                GUI.color = savedColor;
+                UIUtil.DrawColoredLabel(new Rect(inner.x, y, inner.width, 18f), conflictText, isPreview ? new Color(1f, 1f, 0f, 0.45f) : Color.yellow);
                 y += 20f;
             }
 
@@ -281,9 +278,9 @@ namespace FactionColonies
             Widgets.DrawMenuSection(cardRect);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleCenter;
-            GUI.color = Color.gray;
-            Widgets.Label(cardRect, (slotIndex + 1) + ". " + "FCSelectANewTrait".Translate());
-            GUI.color = Color.white;
+            UIUtil.DrawColoredLabel(cardRect,
+                (slotIndex + 1) + ". " + "FCSelectANewTrait".Translate(),
+                Color.gray);
         }
 
         private void DrawAvailablePolicies(Rect inRect)

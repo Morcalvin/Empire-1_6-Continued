@@ -30,19 +30,9 @@
 	
 	
   <FCExportUnit>Unité exportée</FCExportUnit>
-	
+
   <FCExportSquad>Escouade exportée</FCExportSquad>
-	
-  <FCCantBeModified>{0} ne peut pas être modifié : {1}</FCCantBeModified>
-	
-  <FCReasonDeployed>Une escouade qui le contient est déployée</FCReasonDeployed>
-	
-  <FCReasonDefending>Une escouade qui le contient défend une colonie</FCReasonDefending>
-	
-  <FCReasonDeployedSquad>L’escouade est actuellement déployée</FCReasonDeployedSquad>
-	
-  <FCReasonDefendingSquad>L’escouade défend actuellement une colonie</FCReasonDefendingSquad>
-	
+
   <FCImportUnit>Importer une unité</FCImportUnit>
 	
   <FCClearUnitSlot>Vider l’emplacement de l’unité</FCClearUnitSlot>

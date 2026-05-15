@@ -87,11 +87,28 @@ namespace FactionColonies
             => currentUpkeep;
 
         /* Military Events */
-        /// <summary>Called after a squad is deployed from a settlement.</summary>
-        public virtual void OnSquadDeployed(FactionFC faction, WorldSettlementFC settlement, bool isExtraSquad) { }
+        /// <summary>Called after a squad is deployed from a settlement. Fires once per home settlement
+        /// involved in the op — for foreign-defender ops you'll see two calls with different
+        /// <paramref name="settlement"/> values. Compare <paramref name="settlement"/> to
+        /// <c>op.aggressor.homeSettlement</c> / <c>op.defender.homeSettlement</c> if the side matters.</summary>
+        public virtual void OnSquadDeployed(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement, bool isExtraSquad) { }
 
-        /// <summary>Called when a squad is recalled/returned to a settlement.</summary>
-        public virtual void OnSquadRecalled(FactionFC faction, WorldSettlementFC settlement) { }
+        /// <summary>Called when a squad is recalled/returned to a settlement. Symmetric with
+        /// <see cref="OnSquadDeployed"/> — fires once per home settlement involved in the op.</summary>
+        public virtual void OnSquadRecalled(FactionFC faction, MilitaryOperation op, WorldSettlementFC settlement) { }
+
+        /// <summary>Called after a fresh squad is hired from a template. Silver has been paid;
+        /// <c>squad.settlement</c> is null (squad sits in the unassigned pool until the player
+        /// assigns it).</summary>
+        public virtual void OnSquadHired(FactionFC faction, MercenarySquadFC squad) { }
+
+        /// <summary>Called after a squad is dismissed by the player. The squad has been removed
+        /// from the faction-wide pool.</summary>
+        public virtual void OnSquadDismissed(FactionFC faction, MercenarySquadFC squad) { }
+
+        /// <summary>Called after a hired squad's loadout has been brought up to its source
+        /// template via <see cref="SquadUpgradeUtil.UpgradeToTemplate"/>. Silver has been paid.</summary>
+        public virtual void OnSquadUpgraded(FactionFC faction, MercenarySquadFC squad) { }
 
         /// <summary>Called after a battle has been resolved, before the squad enters cooldown.</summary>
         public virtual void OnBattleResolved(FactionFC faction, WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result) { }

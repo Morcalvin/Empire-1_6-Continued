@@ -14,6 +14,30 @@ namespace FactionColonies
     public static class DebugUtil
     {
 
+        [DebugAction("Empire", "Force auto-resolve round now", allowedGameStates = AllowedGameStates.Playing)]
+        private static void ForceAutoResolveRoundNow()
+        {
+            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            if (mgr is null)
+            {
+                LogUtil.MessageForce("No MilitaryOperationManager available.");
+                return;
+            }
+            int bumped = 0;
+            foreach (MilitaryOperation op in mgr.active)
+            {
+                if (op is null) continue;
+                if (op.phase != MilitaryOperationPhase.Engaged) continue;
+                FCEvent evt = op.sourceEvents.FirstOrDefault(e => e is object && e.def == FCEventDefOf.autoResolveBattleRound);
+                if (evt is object)
+                {
+                    evt.timeTillTrigger = Find.TickManager.TicksGame + 1;
+                    bumped++;
+                }
+            }
+            LogUtil.MessageForce($"Bumped {bumped} autoResolveBattleRound event(s) to fire next tick.");
+        }
+
         [DebugAction("Empire", "View Events and ticks till", allowedGameStates = AllowedGameStates.Playing)]
         private static void ViewEventsAndLog()
         {
@@ -146,9 +170,9 @@ namespace FactionColonies
             var allMercs = util.AllMercenaries.ToList();
             for (int i = allMercs.Count - 1; i >= 0; i--)
             {
-                if (allMercs[i].squad.hasLord)
+                if (allMercs[i].squad.Deployment.HasLord)
                 {
-                    allMercs[i].squad.map.lordManager.RemoveLord(allMercs[i].squad.lord);
+                    allMercs[i].squad.Deployment.Map.lordManager.RemoveLord(allMercs[i].squad.Deployment.Lord);
                 }
 
                 allMercs[i].pawn.Destroy();
@@ -157,8 +181,8 @@ namespace FactionColonies
 
             for (int k = util.mercenarySquads.Count() - 1; k >= 0; k--)
             {
-                if (util.mercenarySquads[k].settlement.MilitaryComp != null)
-                    util.mercenarySquads[k].settlement.MilitaryComp.militarySquad = null;
+                MercenarySquadFC squad = util.mercenarySquads[k];
+                if (squad?.settlement != null) squad.settlement = null;
                 util.mercenarySquads.RemoveAt(k);
             }
 
@@ -230,12 +254,12 @@ namespace FactionColonies
                         int chosenLevel = level;
                         levelList.Add(new DebugMenuOption($"Level {chosenLevel}", DebugMenuOptionMode.Action, delegate
                         {
-                            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(enemyFaction.def.techLevel, out double _, out double efficiency);
+                            MilitaryUtil.GetTechLevelBaseline(enemyFaction.def.techLevel, out double _, out double efficiency);
                             MilitaryForce attackingForce = new MilitaryForce(chosenLevel, efficiency, null, enemyFaction);
                             LogUtil.MessageForce($"Debug - Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
                             if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
                             {
-                                Messages.Message($"{settlement.Name} is already under attack — debug attack dropped.", MessageTypeDefOf.RejectInput);
+                                Messages.Message($"Debug attack on {settlement.Name} failed (no MilitaryComp or MilitaryManager).", MessageTypeDefOf.RejectInput);
                             }
                         }));
                     }
@@ -268,16 +292,31 @@ namespace FactionColonies
                         int chosenLevel = level;
                         levelList.Add(new DebugMenuOption($"Level {chosenLevel}", DebugMenuOptionMode.Action, delegate
                         {
-                            MilitaryForce.GetMilitaryLevelAndEfficiencyFromTechLevel(enemyFaction.def.techLevel, out double _, out double efficiency);
+                            MilitaryUtil.GetTechLevelBaseline(enemyFaction.def.techLevel, out double _, out double efficiency);
                             MilitaryForce attackingForce = new MilitaryForce(chosenLevel, efficiency, null, enemyFaction);
                             LogUtil.MessageForce($"Debug - Instant Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
-                            if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
+                            if (settlement.MilitaryComp is null || FactionCache.MilitaryManager is null)
                             {
-                                Messages.Message($"{settlement.Name} is already under attack — debug attack dropped.", MessageTypeDefOf.RejectInput);
+                                Messages.Message($"Debug attack on {settlement.Name} failed (no MilitaryComp or MilitaryManager).", MessageTypeDefOf.RejectInput);
                                 return;
                             }
 
-                            FCEvent attackEvt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
+                            // Call the manager directly so we get the freshly-created op handle. Going via
+                            // MilitaryUtilFC.AttackPlayerSettlement would force a tile-wide event lookup, which
+                            // returns the FIRST settlementBeingAttacked at this tile — that can be an older,
+                            // already-stacked attack rather than the one we just queued.
+                            MilitaryOperation op = FactionCache.MilitaryManager.CreateDefensiveOp(settlement, attackingForce, enemyFaction);
+                            if (op is null) return;
+
+                            FCEvent attackEvt = null;
+                            for (int i = op.sourceEvents.Count - 1; i >= 0; i--)
+                            {
+                                if (op.sourceEvents[i]?.def == FCEventDefOf.settlementBeingAttacked)
+                                {
+                                    attackEvt = op.sourceEvents[i];
+                                    break;
+                                }
+                            }
                             if (attackEvt != null)
                             {
                                 attackEvt.timeTillTrigger = Find.TickManager.TicksGame + 1;
@@ -332,22 +371,24 @@ namespace FactionColonies
                             //when event is selected, select defending force to replace it with
 
                             List<DebugMenuOption> list2 = new List<DebugMenuOption>();
+                            MilitaryOperation defOp = evt.linkedOperation;
+                            WorldObject currentDefenderTarget = defOp?.targetObject;
+                            WorldSettlementFC currentDefenderHome = defOp?.defender?.homeSettlement;
                             foreach (WorldSettlementFC settlement in worldcomp.settlements)
                             {
-                                if (settlement.MilitaryComp != null && settlement.MilitaryComp.IsMilitaryValid() && settlement.Name != evt.settlementFCDefending?.Label)
-                                {
-                                    list2.Add(new DebugMenuOption(
-                                        settlement.Name + " - " + settlement.settlementMilitaryLevel + " - Busy: " +
-                                        settlement.MilitaryComp.IsMilitaryBusySilent(), DebugMenuOptionMode.Action, delegate
+                                if (settlement.MilitaryComp == null || !settlement.MilitaryComp.IsMilitaryValid()) continue;
+                                if (currentDefenderTarget is object && settlement.Name == currentDefenderTarget.Label) continue;
+                                list2.Add(new DebugMenuOption(
+                                    settlement.Name + " - " + settlement.settlementMilitaryLevel + " - Busy: " +
+                                    settlement.MilitaryComp.militaryBusy, DebugMenuOptionMode.Action, delegate
+                                    {
+                                        if (settlement.MilitaryComp.IsMilitaryBusy() == false)
                                         {
-                                            if (settlement.MilitaryComp.IsMilitaryBusy() == false)
-                                            {
-                                                LogUtil.MessageForce($"Debug - Change Player Settlement - {evt.militaryForceDefending?.homeSettlement?.Name ?? "Unknown"} to {settlement.Name}");
-                                                MilitaryUtilFC.ChangeDefendingMilitaryForce(evt, settlement);
-                                            }
+                                            LogUtil.MessageForce($"Debug - Change Player Settlement - {currentDefenderHome?.Name ?? "Unknown"} to {settlement.Name}");
+                                            MilitaryUtilFC.ChangeDefendingMilitaryForce(evt, settlement);
                                         }
-                                    ));
-                                }
+                                    }
+                                ));
                             }
 
                             Find.WindowStack.Add(new Dialog_DebugOptionListLister(list2));
@@ -410,9 +451,9 @@ namespace FactionColonies
             for (int i = util.mercenarySquads.Count - 1; i >= 0; i--)
             {
                 MercenarySquadFC squad = util.mercenarySquads[i];
-                if (squad.hasLord)
+                if (squad.Deployment.HasLord)
                 {
-                    squad.map?.lordManager.RemoveLord(squad.lord);
+                    squad.Deployment.Map?.lordManager.RemoveLord(squad.Deployment.Lord);
                 }
 
                 foreach (Mercenary merc in squad.mercenaries.Concat(squad.animals).ToList())
@@ -421,8 +462,7 @@ namespace FactionColonies
                         merc.pawn.Destroy();
                 }
 
-                if (squad.settlement?.MilitaryComp != null)
-                    squad.settlement.MilitaryComp.militarySquad = null;
+                squad.settlement = null;
 
                 util.mercenarySquads.RemoveAt(i);
             }
@@ -435,26 +475,51 @@ namespace FactionColonies
             util.CheckMilitaryUtilForErrors();
         }
 
-        [DebugAction("Empire", "Reset All Military Cooldowns", allowedGameStates = AllowedGameStates.Playing)]
-        private static void ResetAllMilitaryCooldowns()
+        [DebugAction("Empire", "Reset All Squad Cooldowns", allowedGameStates = AllowedGameStates.Playing)]
+        private static void ResetAllSquadCooldowns()
         {
-            LogUtil.MessageForce("Debug - Reset All Military Cooldowns");
+            LogUtil.MessageForce("Debug - Reset All Squad Cooldowns");
             FactionFC faction = FactionCache.FactionComp;
-            int count = 0;
 
-            foreach (WorldSettlementFC settlement in faction.settlements)
+            /* Squad-first model: a squad's cooldown is a cooldownMilitary ("traveling") FCEvent
+             * linked to a MilitaryOperation in CooldownPending phase, plus the per-squad
+             * nextAvailableTick gate. Clear all three layers. */
+
+            // 1. Resolve every op stuck in a return-trip cooldown. Snapshot first — Resolve()
+            //    unregisters the op, which mutates the manager's active list.
+            int opsResolved = 0;
+            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            if (mgr is object)
             {
-                if (settlement.MilitaryComp is null || settlement.MilitaryComp.militaryJob != MilitaryJobDefOf.Cooldown)
-                    continue;
-
-                faction.RemoveEventsWhere(e =>
-                    e.def == FCEventDefOf.cooldownMilitary && e.location == settlement.Tile);
-
-                settlement.MilitaryComp.ReturnMilitary(false);
-                count++;
+                List<MilitaryOperation> snapshot = new List<MilitaryOperation>(mgr.active);
+                foreach (MilitaryOperation op in snapshot)
+                {
+                    if (op is null || op.phase != MilitaryOperationPhase.CooldownPending) continue;
+                    op.Resolve();
+                    opsResolved++;
+                }
             }
 
-            LogUtil.MessageForce($"Debug - Reset {count} military cooldown(s)");
+            // 2. Sweep all cooldownMilitary ("traveling") events from the faction queue,
+            //    including any orphans whose linked op is already gone.
+            int eventsCleared = faction.RemoveEventsWhere(e => e.def == FCEventDefOf.cooldownMilitary);
+
+            // 3. Clear the per-squad cooldown gate so squads are immediately available.
+            int squadsCleared = 0;
+            List<MercenarySquadFC> pool = faction.militaryCustomizationUtil?.mercenarySquads;
+            if (pool is object)
+            {
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC squad = pool[i];
+                    if (squad is null || squad.nextAvailableTick <= Find.TickManager.TicksGame) continue;
+                    squad.nextAvailableTick = Find.TickManager.TicksGame;
+                    squadsCleared++;
+                }
+            }
+
+            LogUtil.MessageForce($"Debug - Resolved {opsResolved} cooldown op(s), cleared " +
+                $"{eventsCleared} traveling event(s), reset {squadsCleared} squad cooldown(s)");
         }
 
         [DebugAction("Empire", "Clear Old Bills", allowedGameStates = AllowedGameStates.Playing)]
@@ -493,7 +558,8 @@ namespace FactionColonies
             List<DebugMenuOption> list = new List<DebugMenuOption>();
             foreach (WorldSettlementFC settlement in FactionCache.FactionComp.settlements)
             {
-                if (settlement.MilitaryComp?.militarySquad != null)
+                MercenarySquadFC squad = settlement.PrimaryStationedSquad;
+                if (squad != null)
                 {
                     list.Add(new DebugMenuOption(settlement.Name, DebugMenuOptionMode.Action, delegate
                     {
@@ -507,22 +573,22 @@ namespace FactionColonies
                         parms.raidArrivalMode = PawnsArrivalModeDefOf.CenterDrop;
                         parms.raidStrategy = RaidStrategyDefOf.ImmediateAttackFriendly;
 
-                        settlement.MilitaryComp.militarySquad.CheckInitialization();
-                        settlement.MilitaryComp.militarySquad.UpdateSquadStats(settlement.settlementMilitaryLevel);
+                        squad.CheckInitialization();
+                        squad.UpdateSquadStats(settlement.settlementMilitaryLevel);
 
                         DebugTools.curTool = new DebugTool("Select Drop Position", delegate
                         {
                             IntVec3 dropPosition = UI.MouseCell();
                             parms.spawnCenter = dropPosition;
 
-                            settlement.MilitaryComp.militarySquad.isDeployed = true;
-                            settlement.MilitaryComp.militarySquad.orderLocation = dropPosition;
-                            settlement.MilitaryComp.militarySquad.timeDeployed = Find.TickManager.TicksGame;
+                            squad.Deployment.OrderLocation = dropPosition;
 
-                            var debugEquippedPawns = settlement.MilitaryComp.militarySquad.AllEquippedMercenaryPawns.ToList();
+                            var debugEquippedPawns = squad.AllEquippedMercenaryPawns.ToList();
                             PawnsArrivalModeWorkerUtility.DropInDropPodsNearSpawnCenter(parms, debugEquippedPawns);
                             debugEquippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
-                            settlement.MilitaryComp.militarySquad.isDeployed = true;
+                            // Register the deploy op so squad.Deployment.IsPhysicallyDeployed reflects the state.
+                            // Squad-first: pass the squad, not the settlement.
+                            FactionCache.MilitaryManager?.CreateDeployOp(squad, Find.CurrentMap.Tile);
                             DebugTools.curTool = null;
                         });
                     }));
@@ -557,6 +623,31 @@ namespace FactionColonies
                 list.Add(new DebugMenuOption(
                     $"{local.Name} (Lv{local.settlementLevel})",
                     DebugMenuOptionMode.Action, () => callback(local)));
+            }
+            Find.WindowStack.Add(new Dialog_DebugOptionListLister(list));
+        }
+
+        private static void WithSquadChoice(Action<MercenarySquadFC> callback)
+        {
+            List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+            List<DebugMenuOption> list = new List<DebugMenuOption>();
+            if (pool is object)
+            {
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC squad = pool[i];
+                    if (squad is null) continue;
+                    MercenarySquadFC local = squad;
+                    string where = local.settlement?.Name ?? "(unassigned)";
+                    list.Add(new DebugMenuOption(
+                        $"{local.DisplayName} @ {where} - {SquadHealthUtil.CountInjuredMercs(local)} injured merc(s)",
+                        DebugMenuOptionMode.Action, () => callback(local)));
+                }
+            }
+            if (list.Count == 0)
+            {
+                LogUtil.MessageForce("Debug - No squads available");
+                return;
             }
             Find.WindowStack.Add(new Dialog_DebugOptionListLister(list));
         }
@@ -943,10 +1034,22 @@ namespace FactionColonies
                     LogUtil.MessageForce($"[{s.Name}] MilitaryComp: null");
                     continue;
                 }
-                string squadInfo = comp.militarySquad != null
-                    ? $"Deployed:{comp.militarySquad.isDeployed} Job:{comp.militaryJob}"
-                    : "No squad";
-                LogUtil.MessageForce($"[{s.Name}] MilLv:{s.settlementMilitaryLevel} Busy:{comp.IsMilitaryBusySilent()} | {squadInfo}");
+                List<MercenarySquadFC> stationed = s.StationedSquads;
+                string squadInfo;
+                if (stationed.Count == 0)
+                {
+                    squadInfo = "No squad";
+                }
+                else
+                {
+                    int deployedCount = 0;
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        if (stationed[i] != null && stationed[i].Deployment.IsPhysicallyDeployed()) deployedCount++;
+                    }
+                    squadInfo = $"Squads:{stationed.Count} Deployed:{deployedCount} Job:{comp.militaryJob}";
+                }
+                LogUtil.MessageForce($"[{s.Name}] MilLv:{s.settlementMilitaryLevel} Busy:{comp.militaryBusy} | {squadInfo}");
             }
         }
 
@@ -992,6 +1095,26 @@ namespace FactionColonies
             LogUtil.MessageForce("Debug - Running military error check");
             FactionCache.FactionComp.militaryCustomizationUtil.CheckMilitaryUtilForErrors();
             LogUtil.MessageForce("Debug - Military error check complete");
+        }
+
+        [DebugAction("Empire", "Heal Squad to Full", allowedGameStates = AllowedGameStates.Playing)]
+        private static void HealSquadToFull()
+        {
+            WithSquadChoice(squad =>
+            {
+                int healed = 0;
+                IEnumerable<Mercenary> all = (squad.mercenaries ?? Enumerable.Empty<Mercenary>())
+                    .Concat(squad.animals ?? Enumerable.Empty<Mercenary>());
+                foreach (Mercenary merc in all)
+                {
+                    // Skip empty slots and dead/destroyed pawns — there is no revival system,
+                    // dead mercs are already empty slots. HealPawn does merc.pawn.health.Reset().
+                    if (merc?.pawn is null || merc.pawn.Dead || merc.pawn.Destroyed) continue;
+                    SquadHealthUtil.HealPawn(merc);
+                    healed++;
+                }
+                LogUtil.MessageForce($"Debug - Healed {healed} pawn(s) in squad {squad.DisplayName}");
+            });
         }
 
         // ============================
@@ -1356,7 +1479,8 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSquadDeployed(faction, settlement, false));
+                    // Debug trigger has no real op — behaviors that inspect op must null-check.
+                    faction.ForEachBehavior(b => b.OnSquadDeployed(faction, null, settlement, false));
                     LogUtil.MessageForce($"Debug - Triggered OnSquadDeployed on {settlement.Name}");
                 });
             }));
@@ -1365,7 +1489,7 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSquadRecalled(faction, settlement));
+                    faction.ForEachBehavior(b => b.OnSquadRecalled(faction, null, settlement));
                     LogUtil.MessageForce($"Debug - Triggered OnSquadRecalled on {settlement.Name}");
                 });
             }));

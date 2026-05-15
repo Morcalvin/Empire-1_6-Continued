@@ -10,13 +10,16 @@ namespace FactionColonies
 {
     public class LordJob_DeployMilitary : LordJob
     {
+        /// <summary>Default ticks the lord stays before force-leaving. Mirrored on
+        /// <see cref="MilitaryOperation.nextPhaseTick"/> by <c>CreateDeployOp</c> so the busy
+        /// timer reflects the actual deploy horizon.</summary>
+        public const int DefaultMaxDeploymentTime = 30000;
+
         public MercenarySquadFC squad;
         private IntVec3 currentOrderPosition;
         private int whenToForceLeave;
         private int timeDeployed = 0;
         private bool readyForCommands = false;
-        private DeployedMilitaryCommandMenu deployedMilitaryCommandMenu;
-        private MilitaryOrder currentOrder = MilitaryOrder.DefendPoint;
 
         private LordToil_DefendPoint lordToil_DefendPoint;
         private LordToil_HuntEnemies lordToil_HuntEnemies;
@@ -39,34 +42,28 @@ namespace FactionColonies
         /// <param name="currentOrderPosition"></param>
         /// <param name="squad"></param>
         /// <param name="maxDeploymentTime"></param>
-        public LordJob_DeployMilitary(IntVec3 currentOrderPosition, MercenarySquadFC squad, int maxDeploymentTime = 30000)
+        public LordJob_DeployMilitary(IntVec3 currentOrderPosition, MercenarySquadFC squad, int maxDeploymentTime = DefaultMaxDeploymentTime)
         {
             this.currentOrderPosition = currentOrderPosition;
             this.squad = squad;
 
             whenToForceLeave = maxDeploymentTime + Find.TickManager.TicksGame;
             timeDeployed = Find.TickManager.TicksGame;
-            currentMap = squad.map;
+            currentMap = squad.Deployment.Map;
 
             Init();
         }
 
         /// <summary>
-        /// Initializes some variables after loading is complete or when the deployment is first started
+        /// Initializes some variables after loading is complete or when the deployment is first started.
+        /// Ensures the deployment command menu window is open; the menu reads/writes
+        /// <see cref="SquadDeploymentState.MilitaryOrder"/> / <see cref="SquadDeploymentState.OrderLocation"/>
+        /// directly, so this lord doesn't keep a reference to it.
         /// </summary>
         private void Init()
         {
-            deployedMilitaryCommandMenu = new DeployedMilitaryCommandMenu();
-            if (!Find.WindowStack.IsOpen(typeof(DeployedMilitaryCommandMenu))) Find.WindowStack.Add(deployedMilitaryCommandMenu);
-            else
-            {
-                var existing = Find.WindowStack.Windows.FirstOrDefault(w => w is DeployedMilitaryCommandMenu);
-                if (existing is DeployedMilitaryCommandMenu menu)
-                    deployedMilitaryCommandMenu = menu;
-            }
-
-            deployedMilitaryCommandMenu.squadMilitaryOrderDic.SetOrAdd(squad, currentOrder);
-            deployedMilitaryCommandMenu.currentOrderPositionDic[squad] = currentOrderPosition;
+            if (!Find.WindowStack.IsOpen(typeof(DeployedMilitaryCommandMenu)))
+                Find.WindowStack.Add(new DeployedMilitaryCommandMenu());
 
             lordToil_DefendPoint = new LordToil_DefendPoint(currentOrderPosition);
             lordToil_HuntEnemies = new LordToil_HuntEnemies(currentOrderPosition);
@@ -96,7 +93,7 @@ namespace FactionColonies
 
         /// <summary>Hard grace period after <c>whenToForceLeave</c> (~4 in-game hours).
         /// If pawns are still in the lord after this, force-finalize.</summary>
-        private const int PostLeaveGraceTicks = 10000;
+        public const int PostLeaveGraceTicks = 10000;
 
         public override void LordJobTick()
         {
@@ -114,8 +111,7 @@ namespace FactionColonies
             base.Notify_AddedToLord();
             if (squad is object)
             {
-                squad.lord = lord;
-                squad.hasLord = true;
+                squad.Deployment.Lord = lord;
             }
         }
 
@@ -125,7 +121,8 @@ namespace FactionColonies
             Scribe_Values.Look(ref currentOrderPosition, "currentOrderPosition");
             Scribe_Values.Look(ref timeDeployed, "timeDeployed");
             Scribe_Values.Look(ref whenToForceLeave, "whenToForceLeave");
-            Scribe_Values.Look(ref currentOrder, "currentOrder");
+            // currentOrder used to be persisted here. It moved to SquadDeploymentState.MilitaryOrder.
+            // Old-save value is silently ignored on load.
             Scribe_References.Look(ref squad, "squad");
             Scribe_References.Look(ref currentMap, "currentMap");
             Scribe_Values.Look(ref finalized, "finalized");
@@ -135,17 +132,39 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Grabs a new currentOrderPosition and updates the toils with it
+        /// Grabs a new currentOrderPosition from <see cref="SquadDeploymentState.OrderLocation"/>
+        /// and pushes it into the toils' data. Runs as a preAction so the data is fresh before
+        /// <c>GotoToil</c> calls <c>UpdateAllDuties</c> on the target toil.
         /// </summary>
-        private void UpdateOrderPosition()
+        private void UpdateOrderPositionData()
         {
-            if (!deployedMilitaryCommandMenu.currentOrderPositionDic.TryGetValue(squad, out IntVec3 newPos)) return;
+            if (squad is null) return;
+            IntVec3 newPos = squad.Deployment.OrderLocation;
             currentOrderPosition = newPos;
 
             lordToil_DefendPoint.SetDefendPoint(newPos);
             ((LordToilData_HuntEnemies)lordToil_HuntEnemies.data).fallbackLocation = newPos;
+        }
 
-            lord.CurLordToil.UpdateAllDuties();
+        /// <summary>
+        /// Force pawns to drop their current job so the new duty takes effect this tick instead of after the current job finishes.
+        /// Runs as a postAction (after <c>GotoToil</c> has installed the target toil's duty) so the pawns' next job is picked
+        /// against the new duty, not against the soon-to-be-discarded source duty. This matters for Leave->Move/Attack: the
+        /// leave duty's <c>JobGiver_ExitMapBest</c> hands out a Goto with <c>expiryInterval = 500</c> that won't re-evaluate
+        /// for ~8 seconds, so any job-end before the duty swap leaves the pawn locked into walking off the map.
+        ///
+        /// Defend's think tree ends in JobGiver_WanderNearDutyLocation, which alternates GotoWander/Wait_Wander via
+        /// <c>nextMoveOrderIsWait</c>. Without resetting it, ~50% of interrupts land on the "wait" half of the toggle and
+        /// queue a 125-200 tick Wait_Wander before any movement, visible as a 1-2s freeze before the squad heads to the new point.
+        /// </summary>
+        private void RestartPawnJobs()
+        {
+            foreach (Pawn p in lord.ownedPawns)
+            {
+                if (p is null) continue;
+                if (p.mindState is object) p.mindState.nextMoveOrderIsWait = false;
+                if (p.jobs?.curJob is object) p.jobs.EndCurrentJob(JobCondition.InterruptForced);
+            }
         }
 
         /// <summary>
@@ -164,7 +183,7 @@ namespace FactionColonies
                     {
                         new TransitionAction_Custom(delegate()
                         {
-                            deployedMilitaryCommandMenu.squadMilitaryOrderDic.SetOrAdd(squad, MilitaryOrder.RecoverWoundedAndLeave);
+                            if (squad is object) squad.Deployment.MilitaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
                             Messages.Message("FCMilitaryPawnsLeavingTimeOut".Translate(), lord.ownedPawns, MessageTypeDefOf.NeutralEvent);
                         })
                     }
@@ -191,11 +210,15 @@ namespace FactionColonies
                     {
                         triggers = new List<Trigger>(1)
                         {
-                            new Trigger_Custom((TriggerSignal _) => deployedMilitaryCommandMenu.squadMilitaryOrderDic.TryGetValue(squad, out MilitaryOrder order) && order == (MilitaryOrder)k + 1 && ReadyForCommands)
+                            new Trigger_Custom((TriggerSignal _) => squad is object && squad.Deployment.MilitaryOrder == (MilitaryOrder)k + 1 && ReadyForCommands)
                         },
                         preActions = new List<TransitionAction>(1)
                         {
-                            new TransitionAction_Custom(UpdateOrderPosition)
+                            new TransitionAction_Custom(UpdateOrderPositionData)
+                        },
+                        postActions = new List<TransitionAction>(1)
+                        {
+                            new TransitionAction_Custom(RestartPawnJobs)
                         }
                     };
                 }
@@ -214,11 +237,23 @@ namespace FactionColonies
             {
                 triggers = new List<Trigger>(1)
                 {
-                    new Trigger_Custom((TriggerSignal _) => deployedMilitaryCommandMenu.currentOrderPositionDic.TryGetValue(squad, out IntVec3 pos) && currentOrderPosition != pos && squad.isDeployed)
+                    new Trigger_Custom((TriggerSignal _) =>
+                    {
+                        if (squad is null) return false;
+                        MilitaryOperation op = squad.Operation;
+                        return op is object
+                            && op.kind == MilitaryJobDefOf.Deploy
+                            && op.phase == MilitaryOperationPhase.Engaged
+                            && squad.Deployment.OrderLocation != currentOrderPosition;
+                    })
                 },
                 preActions = new List<TransitionAction>(1)
                 {
-                    new TransitionAction_Custom(UpdateOrderPosition)
+                    new TransitionAction_Custom(UpdateOrderPositionData)
+                },
+                postActions = new List<TransitionAction>(1)
+                {
+                    new TransitionAction_Custom(RestartPawnJobs)
                 }
             };
         }
@@ -242,8 +277,9 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Idempotent finalization: triggers cooldown, clears deployment state, and
-        /// despawns any orphaned squad pawns still on the map (e.g. downed mercs).
+        /// Idempotent finalization: completes the deploy op (which schedules the squad's cooldown
+        /// event and fires lifecycle hooks), and despawns any orphaned squad pawns still on the
+        /// map (e.g. downed mercs).
         /// </summary>
         private void FinalizeDeployment()
         {
@@ -252,9 +288,18 @@ namespace FactionColonies
 
             if (squad is object)
             {
-                squad.InitiateCooldownEvent();
-                squad.isDeployed = false;
-                FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(squad);
+                // Find the deploy op and complete it. This schedules the cooldown event linked
+                // to the op (which on fire transitions the op to Resolved and unregisters it),
+                // and fires LifecycleRegistry.OnBattleResolved -> OnOperationResolved.
+                MilitaryOperation op = squad.Operation;
+                if (op is object && op.kind == MilitaryJobDefOf.Deploy
+                    && op.phase == MilitaryOperationPhase.Engaged)
+                {
+                    // Deploy isn't a battle — synthesize a result so CompleteBattle's
+                    // victory-flag computation has something to read. CompleteBattle now also
+                    // registers squad injuries internally, so the explicit call below is gone.
+                    op.CompleteBattle(new BattleResult { winner = BattleWinner.Defender });
+                }
 
                 // Despawn orphaned downed/stuck mercs still on the map
                 if (currentMap is object)

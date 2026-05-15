@@ -224,13 +224,10 @@ namespace FactionColonies
             RebuildFilteredCache();
             if (searchTerm.NullOrEmpty())
             {
-                Color prevColor = GUI.color;
-                GUI.color = Color.gray;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
-                    "FCCodexSearchBuildings".Translate());
-                GUI.color = prevColor;
+                UIUtil.DrawColoredLabel(new Rect(searchRect.x + 5f, searchRect.y, searchRect.width - 10f, searchRect.height),
+                    "FCCodexSearchBuildings".Translate(), Color.gray);
             }
             ResetText();
 
@@ -252,17 +249,17 @@ namespace FactionColonies
                 // Group header
                 Rect groupRect = new Rect(0f, curY, viewRect.width, GroupHeaderHeight);
                 Widgets.DrawBoxSolid(groupRect, GroupBgColor);
-                TexLoad.DrawHorizontalGradient(groupRect, techColor * new Color(1f, 1f, 1f, 0.2f));
+                TexLoad.DrawHorizontalGradient(groupRect, ColorUtil.TransformA(techColor, 0.2f));
                 Widgets.DrawBoxSolid(new Rect(0f, curY, AccentBarWidth, GroupHeaderHeight), techColor);
 
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                GUI.color = techColor * new Color(1.3f, 1.3f, 1.3f, 1f);
-                Widgets.Label(new Rect(AccentBarWidth + Margin, curY, viewRect.width - AccentBarWidth - Margin * 2 - 20f, GroupHeaderHeight),
-                    GetTechLabel(tg.techLevel));
+                UIUtil.DrawColoredLabel(
+                    new Rect(AccentBarWidth + Margin, curY, viewRect.width - AccentBarWidth - Margin * 2 - 20f, GroupHeaderHeight),
+                    GetTechLabel(tg.techLevel),
+                    ColorUtil.TransformRGB(techColor, 1.3f));
 
                 Rect arrowRect = new Rect(groupRect.xMax - 20f - 2f, curY + (GroupHeaderHeight - 20f) * 0.5f, 20f, 20f);
-                GUI.color = Color.white;
                 Widgets.DrawTextureFitted(arrowRect, isExpanded ? TexButton.Collapse : TexButton.Reveal, 1f);
                 ResetText();
 
@@ -283,9 +280,9 @@ namespace FactionColonies
                     bool isSelected = selectedBuilding == building;
 
                     if (isSelected)
-                        Widgets.DrawBoxSolid(entryRect, techColor * new Color(1f, 1f, 1f, 0.35f));
+                        Widgets.DrawBoxSolid(entryRect, ColorUtil.TransformA(techColor, 0.35f));
                     else if (Mouse.IsOver(entryRect))
-                        Widgets.DrawBoxSolid(entryRect, techColor * new Color(1f, 1f, 1f, 0.15f));
+                        Widgets.DrawBoxSolid(entryRect, ColorUtil.TransformA(techColor, 0.15f));
 
                     Color barColor = isSelected ? techColor : techColor * new Color(1f, 1f, 1f, 0.4f);
                     Widgets.DrawBoxSolid(new Rect(entryRect.x, entryRect.y, 2f, entryRect.height), barColor);
@@ -301,11 +298,13 @@ namespace FactionColonies
 
                     Text.Font = GameFont.Small;
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    GUI.color = isSelected ? Color.white : new Color(0.9f, 0.9f, 0.9f);
                     float labelWidth = entryRect.xMax - textX - 4f;
                     string fullLabel = building.LabelCap;
                     string truncated = fullLabel.Truncate(labelWidth, truncateCache);
-                    Widgets.Label(new Rect(textX, entryRect.y, labelWidth, entryRect.height), truncated);
+                    UIUtil.DrawColoredLabel(
+                        new Rect(textX, entryRect.y, labelWidth, entryRect.height),
+                        truncated,
+                        isSelected ? Color.white : ColorUtil.Gray9);
                     if (truncated != fullLabel)
                         TooltipHandler.TipRegion(entryRect, fullLabel);
                     ResetText();
@@ -350,8 +349,7 @@ namespace FactionColonies
             {
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                GUI.color = Color.gray;
-                Widgets.Label(rect, "FCCodexSelectBuilding".Translate());
+                UIUtil.DrawColoredLabel(rect, "FCCodexSelectBuilding".Translate(), Color.gray);
                 ResetText();
                 return;
             }
@@ -368,11 +366,8 @@ namespace FactionColonies
             if (selectedBuilding.Icon is object)
             {
                 Rect iconBgRect = new Rect(0f, curY, TitleIconSize, TitleIconSize);
-                Widgets.DrawBoxSolid(iconBgRect, accent * new Color(1f, 1f, 1f, 0.25f));
-                Color prevColor = GUI.color;
-                GUI.color = accent * new Color(1f, 1f, 1f, 0.6f);
-                Widgets.DrawBox(iconBgRect);
-                GUI.color = prevColor;
+                Widgets.DrawBoxSolid(iconBgRect, ColorUtil.TransformA(accent, 0.25f));
+                UIUtil.DrawColoredBox(iconBgRect, ColorUtil.TransformA(accent, 0.6f));
                 GUI.DrawTexture(iconBgRect.ContractedBy(3f), selectedBuilding.Icon);
                 titleTextX = TitleIconSize + Margin;
             }
@@ -452,15 +447,12 @@ namespace FactionColonies
                 {
                     Text.Font = GameFont.Small;
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    GUI.color = Color.gray;
-                    Widgets.Label(new Rect(0f, curY, contentWidth, 20f), modName);
+                    UIUtil.DrawColoredLabel(new Rect(0f, curY, contentWidth, 20f), modName, Color.gray);
                     ResetText();
                     curY += 24f;
                 }
 
-                GUI.color = Color.gray;
-                Widgets.DrawLineHorizontal(Margin, curY, contentWidth - Margin * 2);
-                GUI.color = Color.white;
+                UIUtil.DrawColoredHorizontalLine(Margin, curY, contentWidth - Margin * 2, Color.gray);
                 curY += Margin;
 
                 /* Compatible Settlements */
@@ -496,13 +488,15 @@ namespace FactionColonies
 
             Rect headerRect = new Rect(0f, curY, width, SectionHeaderHeight);
             Widgets.DrawBoxSolid(headerRect, SectionBgColor);
-            TexLoad.DrawHorizontalGradient(headerRect, accent * new Color(1f, 1f, 1f, 0.15f));
+            TexLoad.DrawHorizontalGradient(headerRect, ColorUtil.TransformA(accent, 0.15f));
             Widgets.DrawBoxSolid(new Rect(0f, curY, AccentBarWidth, SectionHeaderHeight), accent);
 
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = accent * new Color(1.3f, 1.3f, 1.3f, 1f);
-            Widgets.Label(new Rect(AccentBarWidth + Margin, curY, width - AccentBarWidth - Margin, SectionHeaderHeight), header);
+            UIUtil.DrawColoredLabel(
+                new Rect(AccentBarWidth + Margin, curY, width - AccentBarWidth - Margin, SectionHeaderHeight),
+                header,
+                ColorUtil.TransformRGB(accent, 1.3f));
             ResetText();
             curY += SectionHeaderHeight + SmallMargin;
 
@@ -607,8 +601,7 @@ namespace FactionColonies
             bool isHover = Mouse.IsOver(rowRect);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = isHover ? HighlightColor : Color.white;
-            Widgets.Label(new Rect(textX, curY, width - textX - Margin, UpgradeRowHeight), prefix + building.LabelCap);
+            UIUtil.DrawColoredLabel(new Rect(textX, curY, width - textX - Margin, UpgradeRowHeight), prefix + building.LabelCap, isHover ? HighlightColor : Color.white);
             ResetText();
 
             if (isHover)
@@ -636,8 +629,10 @@ namespace FactionColonies
 
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                GUI.color = isHover ? HighlightColor : Color.white;
-                Widgets.Label(new Rect(x, curY, width - x - Margin, UpgradeRowHeight), def.LabelCap);
+                UIUtil.DrawColoredLabel(
+                    new Rect(x, curY, width - x - Margin, UpgradeRowHeight),
+                    def.LabelCap,
+                    isHover ? HighlightColor : Color.white);
                 ResetText();
 
                 if (isHover)
@@ -690,17 +685,14 @@ namespace FactionColonies
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
 
-            if (isCurrent)
-                GUI.color = HighlightColor;
-            else if (isHover)
-                GUI.color = HighlightColor * new Color(1f, 1f, 1f, 0.7f);
-            else
-                GUI.color = Color.white;
+            Color upgradeLabelColor = isCurrent
+                ? HighlightColor
+                : (isHover ? ColorUtil.TransformA(HighlightColor, 0.7f) : Color.white);
 
             float labelWidth = width - textX - Margin;
             string fullLabel = prefix + building.LabelCap;
             string truncated = fullLabel.Truncate(labelWidth, truncateCacheRight);
-            Widgets.Label(new Rect(textX, curY, labelWidth, UpgradeRowHeight), truncated);
+            UIUtil.DrawColoredLabel(new Rect(textX, curY, labelWidth, UpgradeRowHeight), truncated, upgradeLabelColor);
             if (truncated != fullLabel)
                 TooltipHandler.TipRegion(rowRect, building.LabelCap);
             ResetText();

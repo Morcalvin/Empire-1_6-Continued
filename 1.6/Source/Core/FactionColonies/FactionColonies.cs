@@ -71,7 +71,6 @@ namespace FactionColonies
         public const bool DEFAULT_DISABLE_RANDOM_EVENTS = false;
         public const bool DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS = true;
         public const float DEFAULT_EVENT_OPTION_DELAY_SECONDS = 1.0f;
-        public const bool DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN = true;
         public const bool DEFAULT_USE_THREADED_ROAD_COMPUTATION = true;
         public const int DEFAULT_EDGES_PER_ROAD_TICK = 5;
         public const BattleMode DEFAULT_BATTLE_MODE = BattleMode.Auto;
@@ -110,7 +109,6 @@ namespace FactionColonies
         public static bool disableRandomEvents = DEFAULT_DISABLE_RANDOM_EVENTS;
         public static bool disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
         public static float eventOptionDelaySeconds = DEFAULT_EVENT_OPTION_DELAY_SECONDS;
-        public static bool deadPawnsIncreaseMilitaryCooldown = DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN;
         public static bool useThreadedRoadComputation = DEFAULT_USE_THREADED_ROAD_COMPUTATION;
         public static int edgesPerRoadTick = DEFAULT_EDGES_PER_ROAD_TICK;
         public static BattleMode battleMode = DEFAULT_BATTLE_MODE;
@@ -144,8 +142,90 @@ namespace FactionColonies
         public static float defenderAdvantage = DEFAULT_DEFENDER_ADVANTAGE;
         public static float efficiencyDamping = DEFAULT_EFFICIENCY_DAMPING;
 
+        /* Squad hiring economy. squadHireCostMultiplier scales the up-front silver paid when
+         * hiring a squad from a template (1.0 = template's full equipment cost; 0.0 = free).
+         * squadUpgradeCostMultiplier scales the diff paid to bring an existing hired squad's
+         * loadout up to its template's current cost. */
+        public const float DEFAULT_SQUAD_HIRE_COST_MULTIPLIER = 1.0f;
+        public const float DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER = 1.0f;
+        public const int DEFAULT_MAX_SQUAD_SIZE = 30;
+        public static float squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
+        public static float squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
+        public static int maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+
+        /* Squad deployment economy. squadDeploymentCostPercentage is the fraction of a
+         * squad's current equipment value billed in silver each time it is deployed
+         * (offensive op or call-in to a player map). Defensive ops are free. The charge
+         * is created as a BillFC against the squad's home settlement, due after
+         * deploymentBillLifespan_days days; an unpaid bill incurs the standard bill
+         * penalties below. */
+        public const float DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE = 0.20f;
+        public const int DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS = 5;
+        public static float squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
+        public static int deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+
         /// <summary>Max simultaneous manual battle maps across all settlements. 0 = unlimited.</summary>
         public static int maxConcurrentBattleMaps = 0;
+
+        /* Auto-resolve battle pacing. Auto-resolved battles roll one round per
+         * autoResolveTicksPerRound ticks (default: 1 in-game hour). The flow:
+         *   T+0      Preparing (no roll)
+         *   T+1h     flip to Engaged (no roll)
+         *   T+2h+    one round per hour until completion */
+        public const int DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND = GenDate.TicksPerHour; // 2500
+        public static int autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
+
+        /* Auto-resolve casualty translation: the abstract force decrement from an
+         * auto-resolved battle is converted into real hediffs/deaths on the deployed
+         * squad pawns. Deaths only fire when the casualty rate exceeds the threshold;
+         * the per-casualty death roll then ramps linearly to maxDeathFraction at 100%.
+         * Crushing Defeat (100% rate, the losing side wiped) follows the same ramp,
+         * which lands at ~80% deaths with defaults. */
+        public const float DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD = 0.75f;
+        public const float DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION = 0.80f;
+        public const bool DEFAULT_APPLY_AUTO_RESOLVE_INJURIES = true;
+        public const bool DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD = true;
+        public static float autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
+        public static float autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
+        public static bool applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
+
+        /* When true, BattleCasualtyApplicator's injury path clamps cumulative Hediff_Injury
+         * severity below vanilla's lethal-damage threshold (150 * HealthScale) so the injury
+         * path can't accidentally tip a pawn over into a vanilla auto-kill. Disable when running
+         * mods (e.g. Death Rattle) that remove or relax vanilla's check and you want the abstract
+         * damage to flow through unmediated. */
+        public static bool respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
+
+        /* Crushing Defeat consequences. A "Crushing Defeat" is any battle the empire loses
+         * without inflicting a single casualty on the winning side — the mirror of
+         * Overwhelming Victory. Settlement-defense penalties (prosperity / happiness /
+         * loyalty / building destruction) are multiplied by crushingDefeatPenaltyMultiplier. */
+        public const float DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER = 2.0f;
+        public static float crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+
+        /* Overwhelming Victory rewards. The mirror of Crushing Defeat: any battle the
+         * empire wins without taking a single casualty on the winning side grants the
+         * winning squad's home settlement a small happiness/loyalty bonus, scaled by
+         * overwhelmingVictoryRewardMultiplier. Set to 0 to disable. External
+         * IAutoDefender wins skip the reward (no empire home settlement to credit).
+         * Base reward magnitudes live in SettlementFormulas.CalculateBattleVictoryRewards. */
+        public const float DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER = 1.0f;
+        public static float overwhelmingVictoryRewardMultiplier = DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER;
+
+        /* Battle archive cap. The world-level archive (WorldComponent_Archive) keeps
+         * the N most recent battle reports for the player to review via the military
+         * tab. Letters that reference an evicted report fall back to a "no longer
+         * available" toast on click. */
+        public const int DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES = 50;
+        public const int MIN_BATTLE_ARCHIVE_MAX_ENTRIES = 1;
+        public const int MAX_BATTLE_ARCHIVE_MAX_ENTRIES = 500;
+        public static int battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
+
+        /* When true, the battle archive keeps every report and never evicts. The
+         * battleArchiveMaxEntries cap is ignored. May grow the save file over a long
+         * playthrough. */
+        public const bool DEFAULT_BATTLE_ARCHIVE_UNLIMITED = false;
+        public static bool battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
 
         public static int maxPolicyCount = 2;
 
@@ -205,7 +285,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref eventOptionDelaySeconds, "eventOptionDelaySeconds", DEFAULT_EVENT_OPTION_DELAY_SECONDS);
             Scribe_Values.Look(ref forcedTaxDeliveryMode, "forcedTaxDeliveryMode", DEFAULT_TAX_DELIVERY_MODE);
             Scribe_Values.Look(ref taxNotificationMode, "taxNotificationMode", DEFAULT_TAX_NOTIFICATION_MODE);
-            Scribe_Values.Look(ref deadPawnsIncreaseMilitaryCooldown, "deadPawnsIncreaseMilitaryCooldown", DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN);
             Scribe_Values.Look(ref useThreadedRoadComputation, "useThreadedRoadComputation", DEFAULT_USE_THREADED_ROAD_COMPUTATION);
             Scribe_Values.Look(ref edgesPerRoadTick, "edgesPerRoadTick", DEFAULT_EDGES_PER_ROAD_TICK);
             Scribe_Values.Look(ref battleMode, "battleMode", DEFAULT_BATTLE_MODE);
@@ -221,7 +300,33 @@ namespace FactionColonies
             Scribe_Values.Look(ref defenderAdvantage, "defenderAdvantage", DEFAULT_DEFENDER_ADVANTAGE);
             Scribe_Values.Look(ref efficiencyDamping, "efficiencyDamping", DEFAULT_EFFICIENCY_DAMPING);
             Scribe_Values.Look(ref maxConcurrentBattleMaps, "maxConcurrentBattleMaps", 0);
+            Scribe_Values.Look(ref autoResolveTicksPerRound, "autoResolveTicksPerRound", DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND);
+            Scribe_Values.Look(ref autoResolveCasualtyDeathThreshold, "autoResolveCasualtyDeathThreshold", DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD);
+            Scribe_Values.Look(ref autoResolveCasualtyMaxDeathFraction, "autoResolveCasualtyMaxDeathFraction", DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION);
+            Scribe_Values.Look(ref applyAutoResolveInjuries, "applyAutoResolveInjuries", DEFAULT_APPLY_AUTO_RESOLVE_INJURIES);
+            Scribe_Values.Look(ref crushingDefeatPenaltyMultiplier, "crushingDefeatPenaltyMultiplier", DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER);
+            Scribe_Values.Look(ref overwhelmingVictoryRewardMultiplier, "overwhelmingVictoryRewardMultiplier", DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER);
+            Scribe_Values.Look(ref respectLethalDamageThreshold, "respectLethalDamageThreshold", DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD);
+            Scribe_Values.Look(ref battleArchiveMaxEntries, "battleArchiveMaxEntries", DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES);
+            if (Scribe.mode == LoadSaveMode.LoadingVars
+                && (battleArchiveMaxEntries < MIN_BATTLE_ARCHIVE_MAX_ENTRIES
+                    || battleArchiveMaxEntries > MAX_BATTLE_ARCHIVE_MAX_ENTRIES))
+            {
+                LogUtil.Warning($"Loaded out-of-range battleArchiveMaxEntries={battleArchiveMaxEntries}; resetting to {DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES}.");
+                battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
+            }
+            Scribe_Values.Look(ref battleArchiveUnlimited, "battleArchiveUnlimited", DEFAULT_BATTLE_ARCHIVE_UNLIMITED);
             Scribe_Values.Look(ref mercenaryHealRatePerHour, "mercenaryHealRatePerHour", 1f);
+            Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
+            Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
+            Scribe_Values.Look(ref maxSquadSize, "maxSquadSize", DEFAULT_MAX_SQUAD_SIZE);
+            Scribe_Values.Look(ref squadDeploymentCostPercentage, "squadDeploymentCostPercentage", DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE);
+            Scribe_Values.Look(ref deploymentBillLifespan_days, "deploymentBillLifespan_days", DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS);
+            if (Scribe.mode == LoadSaveMode.LoadingVars && maxSquadSize < 1)
+            {
+                LogUtil.Warning($"Loaded suspicious maxSquadSize={maxSquadSize}; resetting to {DEFAULT_MAX_SQUAD_SIZE}.");
+                maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+            }
             Scribe_Collections.Look(ref lastSeenVersions, "lastSeenVersions", LookMode.Value, LookMode.Value);
             if (lastSeenVersions is null) lastSeenVersions = new Dictionary<string, string>();
             Scribe_Values.Look(ref patchNoteAutoOpenThreshold, "patchNoteAutoOpenThreshold", DEFAULT_PATCH_NOTE_AUTO_OPEN_THRESHOLD);
@@ -405,6 +510,13 @@ namespace FactionColonies
         private Vector2 scrollVectorMilitary = new Vector2();
         private Vector2 scrollVectorRoadBuilder = new Vector2();
 
+        /* Per-tab content heights, measured from the previous frame's Listing_Standard and
+         * fed back into the scroll view so the scrollbar matches the real content length. */
+        private float contentHeightGeneral;
+        private float contentHeightEvents;
+        private float contentHeightMilitary;
+        private float contentHeightRoadBuilder;
+
         /// <summary>
         /// Creates an option for the list of ForcedTaxDeliveryOptions. Shuttles may not be used if royality is inactive
         /// </summary>
@@ -496,7 +608,7 @@ namespace FactionColonies
             minMaxDaysTillMilitaryAction = new IntRange(minDaysTillMilitaryAction, maxDaysTillMilitaryAction);
             minMaxDaysTillRandomEvent = new IntRange(minDaysTillRandomEvent, maxDaysTillRandomEvent);
 
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorGeneral, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorGeneral, contentHeightGeneral);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -625,7 +737,6 @@ namespace FactionColonies
                 minDaysTillRandomEvent = DEFAULT_MIN_DAYS_TIL_RANDOM_EVENT;
                 maxDaysTillRandomEvent = DEFAULT_MAX_DAYS_TIL_RANDOM_EVENT;
                 disableRandomEvents = DEFAULT_DISABLE_RANDOM_EVENTS;
-                deadPawnsIncreaseMilitaryCooldown = DEFAULT_DEAD_PAWNS_INCREASE_MILITARY_COOLDOWN;
                 useThreadedRoadComputation = DEFAULT_USE_THREADED_ROAD_COMPUTATION;
                 edgesPerRoadTick = DEFAULT_EDGES_PER_ROAD_TICK;
                 battleMode = DEFAULT_BATTLE_MODE;
@@ -633,7 +744,21 @@ namespace FactionColonies
                 defenderAdvantage = DEFAULT_DEFENDER_ADVANTAGE;
                 efficiencyDamping = DEFAULT_EFFICIENCY_DAMPING;
                 maxConcurrentBattleMaps = 0;
+                autoResolveTicksPerRound = DEFAULT_AUTO_RESOLVE_TICKS_PER_ROUND;
+                autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
+                autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
+                applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
+                crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+                overwhelmingVictoryRewardMultiplier = DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER;
+                respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
                 mercenaryHealRatePerHour = 1f;
+                squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
+                squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
+                maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+                squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
+                deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+                battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
+                battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
@@ -644,6 +769,7 @@ namespace FactionColonies
                 LogUtil.Message($"Settings reset: timeBetweenTaxes_days={timeBetweenTaxes_days}");
             }
 
+            contentHeightGeneral = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
@@ -651,7 +777,7 @@ namespace FactionColonies
 
         private void DoEventsTab(Rect rect)
         {
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorEvents, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorEvents, contentHeightEvents);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -739,6 +865,7 @@ namespace FactionColonies
                 }
             }
 
+            contentHeightEvents = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
@@ -748,13 +875,12 @@ namespace FactionColonies
         {
             minMaxDaysTillMilitaryAction = new IntRange(minDaysTillMilitaryAction, maxDaysTillMilitaryAction);
 
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorMilitary, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorMilitary, contentHeightMilitary);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
 
             ls.CheckboxLabeled("FCSettingDisableHostileMilActions".Translate(), ref disableHostileMilitaryActions);
-            ls.CheckboxLabeled("FCSettingDeadPawnsIncreaseMilCooldown".Translate(), ref deadPawnsIncreaseMilitaryCooldown);
             if (ls.ButtonText("FCSettingBattleMode".Translate() + battleMode)) Find.WindowStack.Add(new FloatMenu(BattleModeOptions));
 
             ls.Gap(10f);
@@ -777,9 +903,99 @@ namespace FactionColonies
             ls.Label("FCSettingEfficiencyDamping".Translate() + ": " + efficiencyDamping.ToString("0.00"), -1f, "FCSettingEfficiencyDampingTooltip".Translate());
             efficiencyDamping = ls.Slider(efficiencyDamping, 0.0f, 1.0f);
 
-            ls.Label("FCSettingMercHealRate".Translate() + ": " + mercenaryHealRatePerHour.ToString("0.0") + " HP/hr", -1f, "FCSettingMercHealRateTip".Translate());
+            ls.Label("FCSettingMercHealRate".Translate() + ": " + mercenaryHealRatePerHour.ToString("0.00") + "x", -1f, "FCSettingMercHealRateTip".Translate());
             mercenaryHealRatePerHour = ls.Slider(mercenaryHealRatePerHour, 0.1f, 100f);
 
+            DrawSectionResetButton(ls, delegate
+            {
+                disableHostileMilitaryActions = DEFAULT_DISABLE_HOSTILE_MILITARY_ACTIONS;
+                battleMode = DEFAULT_BATTLE_MODE;
+                minDaysTillMilitaryAction = DEFAULT_MIN_DAYS_TIL_MILITARY_ACTION;
+                maxDaysTillMilitaryAction = DEFAULT_MAX_DAYS_TIL_MILITARY_ACTION;
+                minMaxDaysTillMilitaryAction = new IntRange(minDaysTillMilitaryAction, maxDaysTillMilitaryAction);
+                maxThreatMultiplier = DEFAULT_MAX_THREAT_MULTIPLIER;
+                defenderAdvantage = DEFAULT_DEFENDER_ADVANTAGE;
+                maxConcurrentBattleMaps = 0;
+                efficiencyDamping = DEFAULT_EFFICIENCY_DAMPING;
+                mercenaryHealRatePerHour = 1f;
+            });
+
+            ls.Gap(12f);
+            ls.GapLine();
+            Text.Font = GameFont.Medium;
+            ls.Label("FCSettingAutoResolveCasualtiesHeader".Translate());
+            Text.Font = GameFont.Small;
+
+            ls.CheckboxLabeled("FCSettingApplyAutoResolveInjuries".Translate(), ref applyAutoResolveInjuries, "FCSettingApplyAutoResolveInjuriesTip".Translate());
+
+            ls.Label("FCSettingAutoResolveDeathThreshold".Translate() + ": " + (autoResolveCasualtyDeathThreshold * 100f).ToString("0") + "%", -1f, "FCSettingAutoResolveDeathThresholdTip".Translate());
+            autoResolveCasualtyDeathThreshold = ls.Slider(autoResolveCasualtyDeathThreshold, 0.0f, 1.0f);
+
+            ls.Label("FCSettingAutoResolveMaxDeathFraction".Translate() + ": " + (autoResolveCasualtyMaxDeathFraction * 100f).ToString("0") + "%", -1f, "FCSettingAutoResolveMaxDeathFractionTip".Translate());
+            autoResolveCasualtyMaxDeathFraction = ls.Slider(autoResolveCasualtyMaxDeathFraction, 0.0f, 1.0f);
+
+            ls.Label("FCSettingCrushingDefeatPenaltyMultiplier".Translate() + ": " + crushingDefeatPenaltyMultiplier.ToString("0.00") + "x", -1f, "FCSettingCrushingDefeatPenaltyMultiplierTip".Translate());
+            crushingDefeatPenaltyMultiplier = ls.Slider(crushingDefeatPenaltyMultiplier, 1.0f, 5.0f);
+
+            ls.Label("FCSettingOverwhelmingVictoryRewardMultiplier".Translate() + ": " + overwhelmingVictoryRewardMultiplier.ToString("0.00") + "x", -1f, "FCSettingOverwhelmingVictoryRewardMultiplierTip".Translate());
+            overwhelmingVictoryRewardMultiplier = ls.Slider(overwhelmingVictoryRewardMultiplier, 0.0f, 5.0f);
+
+            ls.CheckboxLabeled("FCSettingRespectLethalDamageThreshold".Translate(), ref respectLethalDamageThreshold, "FCSettingRespectLethalDamageThresholdTip".Translate());
+
+            DrawSectionResetButton(ls, delegate
+            {
+                applyAutoResolveInjuries = DEFAULT_APPLY_AUTO_RESOLVE_INJURIES;
+                autoResolveCasualtyDeathThreshold = DEFAULT_AUTO_RESOLVE_CASUALTY_DEATH_THRESHOLD;
+                autoResolveCasualtyMaxDeathFraction = DEFAULT_AUTO_RESOLVE_CASUALTY_MAX_DEATH_FRACTION;
+                crushingDefeatPenaltyMultiplier = DEFAULT_CRUSHING_DEFEAT_PENALTY_MULTIPLIER;
+                overwhelmingVictoryRewardMultiplier = DEFAULT_OVERWHELMING_VICTORY_REWARD_MULTIPLIER;
+                respectLethalDamageThreshold = DEFAULT_RESPECT_LETHAL_DAMAGE_THRESHOLD;
+            });
+
+            ls.Gap(12f);
+            ls.GapLine();
+            Text.Font = GameFont.Medium;
+            ls.Label("FCSettingSquadsHeader".Translate());
+            Text.Font = GameFont.Small;
+
+            ls.Label("FCSettingMaxSquadSize".Translate() + ": " + maxSquadSize.ToString(), -1f, "FCSettingMaxSquadSizeTip".Translate());
+            maxSquadSize = (int)ls.Slider(maxSquadSize, 1f, 60f);
+
+            ls.Label("FCSettingSquadHireCostMultiplier".Translate() + ": " + squadHireCostMultiplier.ToString("0.00") + "x", -1f, "FCSettingSquadHireCostMultiplierTip".Translate());
+            squadHireCostMultiplier = ls.Slider(squadHireCostMultiplier, 0.0f, 5.0f);
+
+            ls.Label("FCSettingSquadUpgradeCostMultiplier".Translate() + ": " + squadUpgradeCostMultiplier.ToString("0.00") + "x", -1f, "FCSettingSquadUpgradeCostMultiplierTip".Translate());
+            squadUpgradeCostMultiplier = ls.Slider(squadUpgradeCostMultiplier, 0.0f, 5.0f);
+
+            ls.Label("FCSettingSquadDeploymentCostPercentage".Translate() + ": " + (squadDeploymentCostPercentage * 100f).ToString("0") + "%", -1f, "FCSettingSquadDeploymentCostPercentageTip".Translate());
+            squadDeploymentCostPercentage = ls.Slider(squadDeploymentCostPercentage, 0.0f, 1.0f);
+
+            ls.Label("FCSettingDeploymentBillLifespan".Translate() + ": " + deploymentBillLifespan_days.ToString() + " d", -1f, "FCSettingDeploymentBillLifespanTip".Translate());
+            deploymentBillLifespan_days = (int)ls.Slider(deploymentBillLifespan_days, 1f, 60f);
+
+            DrawSectionResetButton(ls, delegate
+            {
+                maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
+                squadHireCostMultiplier = DEFAULT_SQUAD_HIRE_COST_MULTIPLIER;
+                squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
+                squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
+                deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+            });
+
+            ls.Gap(12f);
+            ls.GapLine();
+            Text.Font = GameFont.Medium;
+            ls.Label("FCBattleArchiveSettingsHeader".Translate());
+            Text.Font = GameFont.Small;
+
+            ls.CheckboxLabeled("FCBattleArchiveUnlimited".Translate(), ref battleArchiveUnlimited, "FCBattleArchiveUnlimitedTip".Translate());
+            if (!battleArchiveUnlimited)
+            {
+                ls.Label("FCBattleArchiveMaxEntriesLabel".Translate() + ": " + battleArchiveMaxEntries.ToString(), -1f, "FCBattleArchiveMaxEntriesTip".Translate());
+                battleArchiveMaxEntries = (int)ls.Slider(battleArchiveMaxEntries, MIN_BATTLE_ARCHIVE_MAX_ENTRIES, MAX_BATTLE_ARCHIVE_MAX_ENTRIES);
+            }
+
+            contentHeightMilitary = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
@@ -787,7 +1003,7 @@ namespace FactionColonies
 
         private void DoRoadBuilderTab(Rect rect)
         {
-            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorRoadBuilder, float.MaxValue);
+            Rect viewRect = ScrollUtil.BeginScrollView(rect, ref scrollVectorRoadBuilder, contentHeightRoadBuilder);
             Rect listRect = new Rect(viewRect.x, viewRect.y, viewRect.width, float.MaxValue);
             Listing_Standard ls = new Listing_Standard();
             ls.Begin(listRect);
@@ -817,9 +1033,22 @@ namespace FactionColonies
                 queue.FlushCache();
             }
 
+            contentHeightRoadBuilder = ls.CurHeight + 12f;
             ls.End();
 
             ScrollUtil.EndScrollView();
+        }
+
+        /// <summary>
+        /// Draws a compact, left-aligned "Reset Section to Defaults" button into the given
+        /// listing and invokes <paramref name="resetAction"/> when clicked.
+        /// </summary>
+        private void DrawSectionResetButton(Listing_Standard ls, Action resetAction)
+        {
+            ls.Gap(4f);
+            Rect row = ls.GetRect(28f);
+            Rect btn = new Rect(row.x, row.y, Mathf.Min(240f, row.width), row.height);
+            if (Widgets.ButtonText(btn, "FCSettingResetSection".Translate())) resetAction();
         }
     }
 
@@ -831,7 +1060,7 @@ namespace FactionColonies
         public FactionColoniesMod(ModContentPack content) : base(content)
         {
             settings = GetSettings<FCSettings>();
-            
+
             string modVersion = content?.ModMetaData?.ModVersion;
             if (modVersion.NullOrEmpty())
             {

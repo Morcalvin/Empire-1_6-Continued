@@ -237,9 +237,8 @@ namespace FactionColonies
 
         private void DrawHorizontalDivider(Rect inRect)
         {
-            GUI.color = Color.gray;
             float lineY = inRect.y + TitleBarHeight + (DividerPad * 0.5f) - 1f;
-            Widgets.DrawLineHorizontal(inRect.x + margin, lineY, inRect.width - margin * 2);
+            UIUtil.DrawColoredHorizontalLine(inRect.x + margin, lineY, inRect.width - margin * 2, Color.gray);
             ResetTextAndColor();
         }
 
@@ -320,8 +319,7 @@ namespace FactionColonies
                         Rect dateRect = new Rect(iconRect.x - DateWidth - margin, headerRect.y, DateWidth, HeaderHeight);
                         Text.Font = GameFont.Tiny;
                         Text.Anchor = TextAnchor.MiddleRight;
-                        GUI.color = Color.gray;
-                        Widgets.Label(dateRect, def.ReleaseDate.ToString("dd MMM yyyy"));
+                        UIUtil.DrawColoredLabel(dateRect, def.ReleaseDate.ToString("dd MMM yyyy"), Color.gray);
                         ResetTextAndColor();
 
                         // Title
@@ -402,10 +400,9 @@ namespace FactionColonies
             string rightText = group.entries.Count + " entries  \u2022  " + group.dateRange;
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
-            GUI.color = Color.gray;
             float rightWidth = rect.xMax - iconRect.width - badgeRect.xMax - margin * 3f;
             Rect rightRect = new Rect(badgeRect.xMax + margin, rect.y, rightWidth, rect.height);
-            Widgets.Label(rightRect, rightText);
+            UIUtil.DrawColoredLabel(rightRect, rightText, Color.gray);
             ResetTextAndColor();
         }
 

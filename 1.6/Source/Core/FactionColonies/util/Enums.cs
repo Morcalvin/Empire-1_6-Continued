@@ -67,7 +67,7 @@ namespace FactionColonies.util
 
         public static bool RequiresEnable(FCActionType action) => requiresEnable.Contains(action);
     }
-    
+
 
     public enum TaxDeliveryMode
     {
@@ -96,7 +96,7 @@ namespace FactionColonies.util
         MessageOnly,// Only show Message (top-screen text)
         None        // Hide all tax delivery notifications
     }
-    
+
     public enum FCPolicyCategory : byte
     {
         Undefined = 0,
@@ -113,6 +113,34 @@ namespace FactionColonies.util
         Units,
         Squads,
         FireSupport
+    }
+
+    /// <summary>
+    /// Logical kind of a battle as recorded in the archive. Used for the archive list's
+    /// row label and for picking the right offensive/defensive context when opening the
+    /// report viewer (offensive ops use the defender label as the "target", defensive ops
+    /// use the attacker label).
+    /// </summary>
+    public enum BattleOperationKind
+    {
+        Other = 0,
+        Raid = 1,
+        Capture = 2,
+        Enslave = 3,
+        Defense = 4
+    }
+
+    /// <summary>
+    /// Which side the player is on for the report viewer's tinting and column emphasis.
+    /// Computed from the op at archive time (so the archive can render correctly even if
+    /// the originating op is long gone). <c>Neither</c> covers pure NPC-vs-NPC battles
+    /// observed via diplomatic alliances or other indirect channels.
+    /// </summary>
+    public enum BattleViewerSide
+    {
+        Neither = 0,
+        Attacker = 1,
+        Defender = 2
     }
 
     /// <summary>

@@ -173,6 +173,13 @@ namespace FactionColonies
             return nameSplit.Aggregate(main, (total, next) => total + ((main == next) ? ' ' : next[0]));
         }
 
+        public static string FormatRange(double min, double max, string fmt)
+        {
+            return min == max
+                ? min.ToString(fmt)
+                : min.ToString(fmt) + "-" + max.ToString(fmt);
+        }
+
         public static string GetDefModInfo(Def def)
         {
             if (def is null)

@@ -1,6 +1,6 @@
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
-using HarmonyLib;
 using Verse;
 
 namespace FactionColonies
@@ -44,6 +44,8 @@ namespace FactionColonies
             RaidTargetRegistry.ClearAll();
             DefenseValidatorRegistry.ClearAll();
             SquadAssignmentRegistry.ClearAll();
+            SquadInspectionRegistry.ClearAll();
+            SquadPowerRegistry.ClearAll();
             ThreatScalingRegistry.ClearAll();
             SilverPaymentRegistry.ClearAll();
             RaidWeightRegistry.ClearAll();

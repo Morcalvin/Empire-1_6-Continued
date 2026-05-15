@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
+using System;
+using System.Collections.Generic;
 using Verse;
 
 namespace FactionColonies
@@ -35,19 +35,19 @@ namespace FactionColonies
         {
             switch (f)
             {
-                case TileField.Temperature:          return "Temperature";
-                case TileField.Rainfall:             return "Rainfall";
-                case TileField.Swampiness:           return "Swampiness";
-                case TileField.Elevation:            return "Elevation";
-                case TileField.Pollution:            return "Pollution";
-                case TileField.AnimalDensity:        return "Animal density";
-                case TileField.PlantDensityFactor:   return "Plant density";
+                case TileField.Temperature: return "Temperature";
+                case TileField.Rainfall: return "Rainfall";
+                case TileField.Swampiness: return "Swampiness";
+                case TileField.Elevation: return "Elevation";
+                case TileField.Pollution: return "Pollution";
+                case TileField.AnimalDensity: return "Animal density";
+                case TileField.PlantDensityFactor: return "Plant density";
                 case TileField.FishPopulationFactor: return "Fish population";
-                case TileField.BiomePlantDensity:    return "Biome plant density";
-                case TileField.RiverDistance:        return "River distance";
-                case TileField.RoadCount:            return "Road connectivity";
-                case TileField.HasAnyRiver:          return "River";
-                default:                             return f.ToString();
+                case TileField.BiomePlantDensity: return "Biome plant density";
+                case TileField.RiverDistance: return "River distance";
+                case TileField.RoadCount: return "Road connectivity";
+                case TileField.HasAnyRiver: return "River";
+                default: return f.ToString();
             }
         }
 
@@ -84,24 +84,24 @@ namespace FactionColonies
                 case TileField.BiomePlantDensity:
                     return t.PrimaryBiome?.plantDensity ?? defaultValue;
                 case TileField.RiverDistance:
-                {
-                    SurfaceTile st = t as SurfaceTile;
-                    return st is object ? st.riverDist : defaultValue;
-                }
+                    {
+                        SurfaceTile st = t as SurfaceTile;
+                        return st is object ? st.riverDist : defaultValue;
+                    }
                 case TileField.RoadCount:
-                {
-                    SurfaceTile st = t as SurfaceTile;
-                    if (st is null) return 0f;
-                    List<SurfaceTile.RoadLink> roads = st.Roads;
-                    return roads is object ? roads.Count : 0f;
-                }
+                    {
+                        SurfaceTile st = t as SurfaceTile;
+                        if (st is null) return 0f;
+                        List<SurfaceTile.RoadLink> roads = st.Roads;
+                        return roads is object ? roads.Count : 0f;
+                    }
                 case TileField.HasAnyRiver:
-                {
-                    SurfaceTile st = t as SurfaceTile;
-                    if (st is null) return 0f;
-                    List<SurfaceTile.RiverLink> rivers = st.Rivers;
-                    return (rivers is object && rivers.Count > 0) ? 1f : 0f;
-                }
+                    {
+                        SurfaceTile st = t as SurfaceTile;
+                        if (st is null) return 0f;
+                        List<SurfaceTile.RiverLink> rivers = st.Rivers;
+                        return (rivers is object && rivers.Count > 0) ? 1f : 0f;
+                    }
                 default:
                     return defaultValue;
             }

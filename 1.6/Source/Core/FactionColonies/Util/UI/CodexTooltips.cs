@@ -1,8 +1,8 @@
+using RimWorld;
 using System;
 using System.Linq;
 using UnityEngine;
 using Verse;
-using RimWorld;
 
 namespace FactionColonies.util
 {
@@ -98,28 +98,6 @@ namespace FactionColonies.util
             string tip = "FCCodexTipTaxTimer".Translate(days);
             tip += "\n\n" + "FCCodexTipTaxAveraging".Translate();
             return tip;
-        }
-
-        /// <summary>
-        /// Enhanced tooltip for the settlement military level stat.
-        /// Appends targeting weight and ETL info to the existing military tooltip.
-        /// </summary>
-        public static string GetMilitaryTargetingInfo(WorldSettlementFC settlement)
-        {
-            int milLevel = settlement.settlementMilitaryLevel;
-            string weight;
-            if (milLevel <= 1) weight = "10";
-            else if (milLevel <= 3) weight = "7";
-            else if (milLevel <= 5) weight = "3";
-            else weight = "1";
-
-            FactionFC faction = FactionCache.FactionComp;
-            double etl = 1.0;
-            if (faction is object && faction.settlements.Any())
-                etl = ThreatScalingUtil.ComputeEmpireThreatLevel(faction);
-
-            return "\n\n" + "FCCodexTipMilTargeting".Translate(weight) +
-                   "\n" + "FCCodexTipMilETL".Translate(Math.Round(etl, 2));
         }
     }
 }

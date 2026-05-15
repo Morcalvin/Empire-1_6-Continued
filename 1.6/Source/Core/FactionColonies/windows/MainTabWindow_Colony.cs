@@ -1,5 +1,4 @@
 using FactionColonies.util;
-using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using System;
@@ -330,10 +329,7 @@ namespace FactionColonies
 
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Color origStatColor = GUI.color;
-                GUI.color = AccentUtil.GetStatColor(statVal, inverted);
-                Widgets.Label(valueBox, value);
-                GUI.color = origStatColor;
+                UIUtil.DrawColoredLabel(valueBox, value, AccentUtil.GetStatColor(statVal, inverted));
 
                 TooltipHandler.TipRegion(statBox, tooltip);
 
@@ -714,13 +710,11 @@ namespace FactionColonies
             // Summary header — left: count
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
+            Color origColor = GUI.color;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
-            Widgets.Label(new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH),
-                "FCSettlementCount".Translate(faction.settlements.Count));
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH),
+                "FCSettlementCount".Translate(faction.settlements.Count), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -749,11 +743,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
-                    "FCNoSettlements".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
+                    "FCNoSettlements".Translate(), Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -796,11 +787,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, s.Name);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, s.Name, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect))
@@ -829,11 +817,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = displayProfit >= 0 ? AccentUtil.Income : AccentUtil.Expense;
                 Rect profitRect = new Rect(contentX + contentW - profitDisplayW, topY, profitDisplayW, lineH);
-                Widgets.Label(profitRect, profitStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(profitRect, profitStr, displayProfit >= 0 ? AccentUtil.Income : AccentUtil.Expense);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 TooltipHandler.TipRegion(profitRect, TextUtil.BuildPeriodAverageTooltip(hasAvg));
@@ -861,11 +846,11 @@ namespace FactionColonies
                     anchorBefore = Text.Anchor;
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    origColor = GUI.color;
-                    GUI.color = Color.gray;
                     float labelW = 67f;
-                    Widgets.Label(new Rect(upgradeBadgeX, botY, labelW, lineH), "FCSettlementUpgradeInProgress".Translate());
-                    GUI.color = origColor;
+                    UIUtil.DrawColoredLabel(
+                        new Rect(upgradeBadgeX, botY, labelW, lineH),
+                        "FCSettlementUpgradeInProgress".Translate(),
+                        Color.gray);
                     Text.Font = fontBefore;
                     Text.Anchor = anchorBefore;
 
@@ -938,10 +923,7 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = color;
-            Widgets.Label(new Rect(x + iconSz + 2f, y, 28f, lineH), value);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(new Rect(x + iconSz + 2f, y, 28f, lineH), value, color);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
         }
@@ -966,13 +948,12 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
             string taxCountdown = "FCTimeTillTax".Translate() + ": "
                 + Math.Max(0, faction.taxTimeDue - Find.TickManager.TicksGame).ToTimeString();
-            Widgets.Label(new Rect(innerX, rect.y + pad, innerW * 0.6f, summaryH),
-                "FCPendingBillsCount".Translate(bills.Count) + "    |    " + taxCountdown);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, rect.y + pad, innerW * 0.6f, summaryH),
+                "FCPendingBillsCount".Translate(bills.Count) + "    |    " + taxCountdown,
+                Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -982,10 +963,8 @@ namespace FactionColonies
             anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleRight;
-            origColor = GUI.color;
-            GUI.color = Color.gray;
-            Widgets.Label(new Rect(autoX, rect.y + pad, 150f, summaryH), "FCAutoResolve".Translate());
-            GUI.color = origColor;
+            Rect autoResolveRectLabel = new Rect(autoX, rect.y + pad, 150f, summaryH);
+            UIUtil.DrawColoredLabel(autoResolveRectLabel, "FCAutoResolve".Translate(), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
             bool prevAutoResolve = faction.autoResolveBills;
@@ -1000,6 +979,28 @@ namespace FactionColonies
                 Messages.Message("FCBillsNotAutoResolving".Translate(), MessageTypeDefOf.NeutralEvent);
             }
 
+            // Allow late payments checkbox (second row, below auto-resolve)
+            float lateY = autoResolveRectLabel.y;
+            float lateX = autoResolveRectLabel.x - 150f;
+            fontBefore = Text.Font;
+            anchorBefore = Text.Anchor;
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleRight;
+            Rect latePaymentRectLabel = new Rect(lateX, lateY, 150f, summaryH);
+            UIUtil.DrawColoredLabel(latePaymentRectLabel, "FCAllowLatePayments".Translate(), Color.gray);
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
+            bool prevAllowLate = faction.allowLatePayments;
+            Widgets.Checkbox(new Vector2(lateX + 153f, lateY + 1f), ref faction.allowLatePayments, 22);
+            if (faction.allowLatePayments && !prevAllowLate)
+            {
+                Messages.Message("FCBillsLatePaymentsAllowed".Translate(), MessageTypeDefOf.NeutralEvent);
+            }
+            else if (!faction.allowLatePayments && prevAllowLate)
+            {
+                Messages.Message("FCBillsLatePaymentsDisallowed".Translate(), MessageTypeDefOf.NeutralEvent);
+            }
+
             // Empty state
             if (bills.Count == 0)
             {
@@ -1007,11 +1008,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
-                    "FCNoPendingBills".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
+                    "FCNoPendingBills".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1051,18 +1051,17 @@ namespace FactionColonies
                 float botY = ry + rowH / 2f;
                 float lineH = rowH / 2f;
 
-                // Top-left: Settlement name (clickable, colored by bill type)
+                // Top-left: Settlement name + bill kind (clickable, colored by bill type)
                 string settleName = bill.settlement != null ? bill.settlement.Name : "Null";
+                string kindLabel = string.IsNullOrEmpty(bill.label) ? "" : bill.label;
+                string headerLabel = settleName + " - " + kindLabel;
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 float nameW = contentW - resolveW - 160f;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, settleName);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, headerLabel, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect) && bill.settlement != null)
@@ -1078,10 +1077,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = bill.taxes.silverAmount >= 0 ? AccentUtil.Income : AccentUtil.Expense;
-                Widgets.Label(new Rect(silverX, topY, silverW, lineH), silverStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(silverX, topY, silverW, lineH),
+                    silverStr,
+                    bill.taxes.silverAmount >= 0 ? AccentUtil.Income : AccentUtil.Expense);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1125,10 +1124,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = dueColor;
-                Widgets.Label(new Rect(contentX + contentW - resolveW - 166f, botY, 160f, lineH), dueStr);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + contentW - resolveW - 166f, botY, 160f, lineH),
+                    dueStr,
+                    dueColor);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1246,14 +1245,14 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
             int filteredCount = filtering ? sorted.Count : events.Count;
             string summaryText = filtering
                 ? "FCActiveEventsFiltered".Translate(filteredCount, events.Count)
                 : "FCActiveEventsCount".Translate(events.Count);
-            Widgets.Label(new Rect(innerX, rect.y + pad, innerW, summaryH), summaryText);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, rect.y + pad, innerW, summaryH),
+                summaryText,
+                Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -1268,11 +1267,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
-                    "FCNoActiveEvents".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, 40f),
+                    "FCNoActiveEvents".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1291,11 +1289,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(rect.x, listY + viewH * 0.25f, rect.width, 40f),
-                    "FCNoEventsMatchFilter".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(rect.x, listY + viewH * 0.25f, rect.width, 40f),
+                    "FCNoEventsMatchFilter".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
@@ -1329,15 +1326,17 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = catColor;
-                Widgets.Label(new Rect(contentX, topY, contentW - progressW - 10f, lineH), evt.def.label);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX, topY, contentW - progressW - 10f, lineH),
+                    evt.Label,
+                    catColor);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
                 // Top-right: Clickable location label
                 string locLabel = GetEventLocationLabel(evt);
+                bool hasLocRect = false;
+                Rect locRect = default(Rect);
                 if (locLabel != null)
                 {
                     fontBefore = Text.Font;
@@ -1345,11 +1344,9 @@ namespace FactionColonies
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleRight;
                     float locW = Mathf.Min(Text.CalcSize(locLabel).x + 8f, contentW * 0.4f);
-                    Rect locRect = new Rect(contentX + contentW - locW, topY, locW, lineH);
-                    origColor = GUI.color;
-                    GUI.color = new Color(0.7f, 0.8f, 0.9f);
-                    Widgets.Label(locRect, locLabel);
-                    GUI.color = origColor;
+                    locRect = new Rect(contentX + contentW - locW, topY, locW, lineH);
+                    hasLocRect = true;
+                    UIUtil.DrawColoredLabel(locRect, locLabel, new Color(0.7f, 0.8f, 0.9f));
                     if (Widgets.ButtonInvisible(locRect))
                         HandleLocationClick(evt);
                     if (Mouse.IsOver(locRect))
@@ -1365,8 +1362,7 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleLeft;
                 float descW = contentW - progressW - 10f;
                 Rect descRect = new Rect(contentX, botY, descW, lineH);
-                string desc = Text.ClampTextWithEllipsis(descRect, TextUtil.CleaveAtNewline(GetEventDescription(evt)));
-                Widgets.Label(descRect, desc);
+                UIUtil.ClampedLabel(descRect, TextUtil.CleaveAtNewline(GetEventDescription(evt)));
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1409,6 +1405,20 @@ namespace FactionColonies
                 Widgets.Label(new Rect(barX, barY, progressW, progressH), timeStr);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
+
+                // Row-wide click for in-progress battle events: anywhere outside the location
+                // label opens the live battle window. The location label keeps its own
+                // "open settlement window" behavior.
+                if (evt.def == FCEventDefOf.autoResolveBattleRound
+                    && evt.linkedOperation is object
+                    && evt.linkedOperation.battleResult is object)
+                {
+                    bool overLoc = hasLocRect && Mouse.IsOver(locRect);
+                    if (!overLoc && Mouse.IsOver(rowRect))
+                        Widgets.DrawHighlight(rowRect);
+                    if (!overLoc && Widgets.ButtonInvisible(rowRect))
+                        Find.WindowStack.Add(new BattleProgressWindow(evt.linkedOperation));
+                }
 
                 // Row tooltip
                 string tooltip = GetEventFullTooltip(evt);
@@ -1458,7 +1468,7 @@ namespace FactionColonies
 
         private string GetEventFullTooltip(FCEvent evt)
         {
-            return $"{evt.def.label}\n\n{FCEventMaker.BuildEventLetterBody(evt)}";
+            return $"{evt.Label}\n\n{FCEventMaker.BuildEventLetterBody(evt)}";
         }
 
         private void HandleLocationClick(FCEvent evt)
@@ -1513,6 +1523,12 @@ namespace FactionColonies
             EdictTabDrawer.Draw(rect, faction);
         }
 
+        // Military tab subtabs: 0 = By Settlement, 1 = By Squad, 2 = Battle Reports.
+        // Persists across this MainTabWindow_Colony instance.
+        private int militarySubtab = 0;
+        private MainTabWindow_Squads _bySquadRenderer;
+        private MainTabWindow_BattleReports _battleReportsRenderer;
+
         private void DrawMilitaryTab(Rect rect)
         {
             float x = rect.x;
@@ -1530,13 +1546,15 @@ namespace FactionColonies
             Rect labelBox = new Rect(iconRect.xMax + margin, y + margin, bx - iconRect.xMax - (margin * 2), buttonHeight);
             Rect labelTextBox = new Rect(labelBox.x + margin, labelBox.y, labelBox.width - (margin * 2), labelBox.height);
 
+            GameFont headerFontBefore = Text.Font;
+            TextAnchor headerAnchorBefore = Text.Anchor;
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
             Widgets.DrawHighlight(labelBox);
             Widgets.Label(labelTextBox, faction.name ?? "");
+            Text.Font = headerFontBefore;
+            Text.Anchor = headerAnchorBefore;
 
-            // Only allow the creation of units, squads, and fire support if there is at least one settlement. Required due to the fact that
-            //   the design units menu pulls the list of possible material stuffs from the list of things that settlements can produce.
             if (faction.settlements?.Count > 0)
             {
                 if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight), "FCMilitaryTableButtonCreateUnit".Translate()))
@@ -1553,19 +1571,53 @@ namespace FactionColonies
 
             y += buttonHeight + margin * 2;
 
-            // --- Settlements Card List ---
-            float tableH = rect.yMax - y - margin;
-            if (tableH > 0f)
-                DrawMilitarySettlementCards(new Rect(x + margin, y, width - (margin * 2), tableH));
+            /* Subtab strip spans full inner width; DrawTabRow returns the content area below.
+               Force Small font here — ButtonFlat inherits the ambient Text.Font, and the
+               header label above this method runs at Medium on the very first frame
+               (before any tab content has had a chance to set its own font). */
+            float subtabAreaH = rect.yMax - y - margin;
+            if (subtabAreaH <= 0f) return;
+            Rect subtabBox = new Rect(x + margin, y, width - (margin * 2), subtabAreaH);
+
+            Text.Font = GameFont.Small;
+            List<string> tabLabels = new List<string>
+            {
+                (string)"FCMilitaryTabBySettlement".Translate(),
+                (string)"FCMilitaryTabBySquad".Translate(),
+                (string)"FCMilitaryTabBattleReports".Translate(),
+            };
+            Rect contentRect;
+            militarySubtab = UIUtil.DrawTabRow(subtabBox, tabLabels, militarySubtab,
+                out contentRect, tabHeight: 24f);
+
+            Rect tableRect = contentRect.ContractedBy(2f);
+            if (tableRect.height <= 0f) return;
+
+            if (militarySubtab == 0)
+            {
+                DrawMilitarySettlementCards(tableRect);
+            }
+            else if (militarySubtab == 1)
+            {
+                if (_bySquadRenderer is null) _bySquadRenderer = new MainTabWindow_Squads();
+                _bySquadRenderer.Draw(tableRect);
+            }
+            else
+            {
+                if (_battleReportsRenderer is null) _battleReportsRenderer = new MainTabWindow_BattleReports();
+                _battleReportsRenderer.Draw(tableRect);
+            }
         }
 
         private void DrawMilitarySettlementCards(Rect tableRect)
         {
-            const float rowH = 44f;
+            const float headerH = 26f;
+            const float slotH = 22f;
             const float accentW = 4f;
             const float rowGap = 2f;
             const float pad = 4f;
             const float summaryH = 24f;
+            const float externalRowH = 44f;
 
             float innerX = tableRect.x + pad;
             float innerW = tableRect.width - pad * 2f;
@@ -1578,16 +1630,16 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Color origColor = GUI.color;
-            GUI.color = Color.gray;
             IReadOnlyList<IMilitaryTabEntry> externalEntries = MilitaryTabRegistry.Entries;
             int totalMilitaryCount = settlements.Count + externalEntries.Count;
 
             string countLabel = externalEntries.Count > 0
                 ? "FCMilitarySettlementCount".Translate(settlements.Count) + " + " + externalEntries.Count
                 : "FCMilitarySettlementCount".Translate(settlements.Count).ToString();
-            Widgets.Label(new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH), countLabel);
-            GUI.color = origColor;
+            UIUtil.DrawColoredLabel(
+                new Rect(innerX, tableRect.y + pad, innerW * 0.5f, summaryH),
+                countLabel,
+                Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
 
@@ -1598,61 +1650,75 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                origColor = GUI.color;
-                GUI.color = Color.gray;
-                Widgets.Label(new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
-                    "FCNoMilitarySettlements".Translate());
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(tableRect.x, tableRect.y + tableRect.height * 0.35f, tableRect.width, 40f),
+                    "FCNoMilitarySettlements".Translate(),
+                    Color.gray);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 return;
             }
 
+            // Pre-compute per-settlement card heights (variable: headerH + cap*slotH).
+            int[] settlementCaps = new int[settlements.Count];
+            float[] cardHeights = new float[settlements.Count];
+            float totalContentH = 0f;
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                int cap = settlements[i].SquadCap;
+                settlementCaps[i] = cap;
+                float h = headerH + (cap > 0 ? cap * slotH : 0f);
+                cardHeights[i] = h;
+                totalContentH += h + rowGap;
+            }
+            totalContentH += externalEntries.Count * (externalRowH + rowGap);
+
             // Scrollable card list
             float listY = tableRect.y + pad + summaryH + 4f;
             float viewH = tableRect.yMax - listY - pad;
             Rect viewRect = new Rect(innerX, listY, innerW, viewH);
-            float contentH = totalMilitaryCount * (rowH + rowGap);
-            Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref militaryScroll, contentH);
+            Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref militaryScroll, totalContentH);
 
+            float runningY = 0f;
             for (int i = 0; i < settlements.Count; i++)
             {
                 WorldSettlementFC settlement = settlements[i];
                 WorldObjectComp_SettlementMilitary milComp = settlement.MilitaryComp;
-                float ry = i * (rowH + rowGap);
+                int settlementCap = settlementCaps[i];
+                float cardH = cardHeights[i];
+                float ry = runningY;
                 float rowW = scrollRect.width;
-                Rect rowRect = new Rect(0f, ry, rowW, rowH);
+                Rect cardRect = new Rect(0f, ry, rowW, cardH);
 
                 // Alternating row background
                 bool isHighlighted = i % 2 == 0;
                 if (isHighlighted)
-                    Widgets.DrawHighlight(rowRect);
+                    Widgets.DrawHighlight(cardRect);
 
-                // Accent strip
+                // Accent strip spans full card height
                 Color accent = AccentUtil.GetMilitaryAccent(milComp);
-                Widgets.DrawBoxSolid(new Rect(0f, ry, accentW, rowH), accent);
+                Widgets.DrawBoxSolid(new Rect(0f, ry, accentW, cardH), accent);
 
                 float contentX = accentW + 6f;
                 float contentW = rowW - contentX - 4f;
                 float topY = ry;
-                float botY = ry + rowH / 2f;
-                float lineH = rowH / 2f;
+                float lineH = headerH;
 
-                // === TOP LINE ===
-                float statusW = 190f;
-                float badgeW = 150f;
-                float nameW = contentW - statusW - badgeW;
+                // === HEADER ROW ===
+                List<MercenarySquadFC> stationed = settlement.StationedSquads;
 
-                // Top-left: Settlement name (clickable, accent-colored)
+                float fsBtnW = 110f;
+                float counterW = 96f;
+                float badgeW = 180f;
+                float nameW = contentW - fsBtnW - counterW - badgeW - 12f;
+
+                // Header-left: Settlement name (clickable, accent-colored)
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, settlement.Name);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, settlement.Name, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect))
@@ -1660,135 +1726,100 @@ namespace FactionColonies
                 if (Mouse.IsOver(nameRect))
                     Widgets.DrawHighlight(nameRect);
 
-                // Top-center: "Mil N • $Budget" badge
+                // Header-center-left: Def + max-deploy-cost badge.
+                // Power is squad-derived: strongest available stationed squad (white), or
+                // strongest stationed if all busy (yellow), or half-power ghost if empty
+                // billet (red). Grey when cap=0. Max deploy cost is the settlement's
+                // squad-value budget scaled by the deploy-cost percentage, so it compares
+                // apples-to-apples with the Deploy Cost shown in deploy windows.
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                double budget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
-                double efficiency = settlement.GetStatValue(FCStatDefOf.militaryCombatEfficiency);
+                double rawBudget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
+                int maxDeploy = MilitaryUtil.CalculateDeploymentCost(rawBudget);
                 FactionFC fcBadge = FactionCache.FactionComp;
-                double atkPower = Math.Round(
-                    (settlement.settlementMilitaryLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusAttacking))
-                    * efficiency * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusAttacking));
+                (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
                 double defPower = Math.Round(
-                    (settlement.settlementMilitaryLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))
-                    * efficiency * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
+                    (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))
+                    * powEff * fcBadge.GetStatValue(FCStatDefOf.militaryEfficiencyBonusDefending)
                     * FCSettings.defenderAdvantage);
-                string badgeStr = "FCMilBadge".Translate(atkPower, defPower, budget);
-                Widgets.Label(new Rect(contentX + nameW, topY, badgeW, lineH), badgeStr);
+                string badgeStr = "FCMilBadge".Translate(defPower, maxDeploy);
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + nameW, topY, badgeW, lineH),
+                    badgeStr,
+                    ColorForPowerStatus(powStatus));
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
+                Rect badgeRect = new Rect(contentX + nameW, topY, badgeW, lineH);
+                TooltipHandler.TipRegion(badgeRect, TooltipForPowerStatus(powStatus, settlement, stationed));
 
-                // Top-right: Status label (colored by accent)
-                fontBefore = Text.Font;
-                anchorBefore = Text.Anchor;
-                Text.Font = GameFont.Tiny;
-                Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = accent;
-                Rect labelRect = new Rect(contentX + contentW - statusW, topY, statusW, lineH);
-                Widgets.Label(labelRect, Text.ClampTextWithEllipsis(labelRect, AccentUtil.GetMilitaryStatusLabel(milComp, settlement)));
-                GUI.color = origColor;
-                Text.Font = fontBefore;
-                Text.Anchor = anchorBefore;
-
-                // === BOTTOM LINE ===
-                float btnW = 80f;
-                float btnGap = 2f;
-                float btnH = lineH - 4f;
-                float btnY = botY + 2f;
-                float totalBtnW = btnW * 4 + btnGap * 3;
-
-                // Bottom-left: Squad name with prefix
+                // Header-center-right: "Squads: N / M" counter (or "No military" for cap=0)
                 fontBefore = Text.Font;
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                string squadName = milComp.militarySquad?.outfit?.name ?? "FCNone".Translate();
-                string squadLabel = "FCMilSquadPrefix".Translate() + ": " + squadName;
-                float infoAreaW = contentW - totalBtnW - 4f;
-                Widgets.Label(new Rect(contentX, botY, infoAreaW, lineH), squadLabel);
+                string counterStr = settlementCap == 0
+                    ? (string)"FCMilitaryTableNoMilitary".Translate()
+                    : (string)"FCMilitaryTableSquadsCounter".Translate(stationed.Count, settlementCap);
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + nameW + badgeW, topY, counterW, lineH),
+                    counterStr,
+                    settlementCap == 0 ? Color.gray : GUI.color);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
-                // Bottom-left (after squad): Fire support cooldown timer
-                if (milComp.artilleryTimer > Find.TickManager.TicksGame)
+                // Header-right: Fire Support button (visibility decoupled from squad cap).
+                bool noFireSupport = militaryUtil.fireSupportDefs.Count == 0
+                    || settlement.BuildingsComp?.HasBuilding(BuildingFCDefOf.artilleryOutpost) == false;
+                if (!noFireSupport)
                 {
-                    int fsTicksLeft = Math.Max(0, milComp.artilleryTimer - Find.TickManager.TicksGame);
-                    string fsTimer = "  \u2022  " + "FCMilFireSupportCooldownShort".Translate() + ": " + fsTicksLeft.ToTimeString();
-                    fontBefore = Text.Font;
-                    anchorBefore = Text.Anchor;
+                    bool fsDisabled = milComp.artilleryTimer > Find.TickManager.TicksGame
+                        || !faction.IsActionAllowed(FCActionType.UseFireSupport);
+                    float fsBtnH = lineH - 6f;
+                    float fsBtnY = topY + (lineH - fsBtnH) / 2f;
+                    Rect fsSupportRect = new Rect(contentX + contentW - fsBtnW, fsBtnY, fsBtnW, fsBtnH);
                     Text.Font = GameFont.Tiny;
-                    Text.Anchor = TextAnchor.MiddleLeft;
-                    float squadTextW = Text.CalcSize(squadLabel).x;
-                    origColor = GUI.color;
-                    GUI.color = AccentUtil.MilCooldown;
-                    Widgets.Label(new Rect(contentX + squadTextW, botY, infoAreaW - squadTextW, lineH), fsTimer);
-                    GUI.color = origColor;
+                    if (UIUtil.ButtonFlat(fsSupportRect, "FCMilitaryTableFireSupport".Translate(), disabled: fsDisabled, highlighted: isHighlighted))
+                    {
+                        HandleFireSupportClick(settlement, milComp);
+                    }
+                    TooltipHandler.TipRegion(fsSupportRect, "FCMilBtnFireSupportTip".Translate());
                     Text.Font = fontBefore;
-                    Text.Anchor = anchorBefore;
+
+                    if (milComp.artilleryTimer > Find.TickManager.TicksGame)
+                    {
+                        int fsTicksLeft = Math.Max(0, milComp.artilleryTimer - Find.TickManager.TicksGame);
+                        string fsTimer = "FCMilFireSupportCooldownShort".Translate() + ": " + fsTicksLeft.ToTimeString();
+                        TooltipHandler.TipRegion(fsSupportRect, fsTimer);
+                    }
                 }
 
-                // Bottom-right: Action buttons
-                float bx = contentX + contentW - totalBtnW;
-                Text.Font = GameFont.Tiny;
-
-                // Set Squad
-                bool noSquads = (militaryUtil.squads?.Count ?? 0) == 0;
-                Rect setSquadRect = new Rect(bx, btnY, btnW, btnH);
-                if (UIUtil.ButtonFlat(setSquadRect, "FCMilitaryTableSetSquad".Translate(), disabled: noSquads, highlighted: isHighlighted))
+                // === SLOT ROWS (cap > 0) ===
+                if (settlementCap > 0)
                 {
-                    List<FloatMenuOption> squads = militaryUtil.BuildSquadAssignmentOptions(settlement);
-                    Find.WindowStack.Add(new Searchable_FloatMenu(squads));
+                    for (int slotIdx = 0; slotIdx < settlementCap; slotIdx++)
+                    {
+                        float slotY = ry + headerH + (slotIdx * slotH);
+                        Rect slotRect = new Rect(contentX, slotY, contentW, slotH);
+                        MercenarySquadFC squadInSlot = (slotIdx < stationed.Count) ? stationed[slotIdx] : null;
+                        DrawSettlementSlotRow(slotRect, settlement, milComp, slotIdx, squadInSlot, isHighlighted);
+                    }
                 }
-                TooltipHandler.TipRegion(setSquadRect, "FCMilBtnSetSquadTip".Translate());
-                bx += btnW + btnGap;
 
-                // Deploy
-                bool noOutfit = milComp.militarySquad?.outfit?.name is null;
-                bool deployDisabled = noOutfit || milComp.militaryBusy;
-                Rect deployRect = new Rect(bx, btnY, btnW, btnH);
-                if (UIUtil.ButtonFlat(deployRect, "FCDeploy".Translate(), disabled: deployDisabled, highlighted: isHighlighted))
-                {
-                    HandleDeployClick(settlement, milComp);
-                }
-                TooltipHandler.TipRegion(deployRect, "FCMilBtnDeployTip".Translate());
-                bx += btnW + btnGap;
-
-                // Fire Support
-                bool noFireSupport = militaryUtil.fireSupportDefs.Count == 0 || settlement.BuildingsComp?.HasBuilding(BuildingFCDefOf.artilleryOutpost) == false;
-                bool fsDisabled = noFireSupport || milComp.artilleryTimer > Find.TickManager.TicksGame || !faction.IsActionAllowed(FCActionType.UseFireSupport);
-                Rect fsSupportRect = new Rect(bx, btnY, btnW, btnH);
-                if (UIUtil.ButtonFlat(fsSupportRect, "FCMilitaryTableFireSupport".Translate(), disabled: fsDisabled, highlighted: isHighlighted))
-                {
-                    HandleFireSupportClick(settlement, milComp);
-                }
-                TooltipHandler.TipRegion(fsSupportRect, "FCMilBtnFireSupportTip".Translate());
-                bx += btnW + btnGap;
-
-                // Auto-Defend toggle
-                bool autoDefendOn = milComp.autoDefend;
-                Rect autoDefRect = new Rect(bx, btnY, btnW, btnH);
-                if (UIUtil.ButtonFlat(autoDefRect, "FCMilAutoDefend".Translate(), labelColor: autoDefendOn ? AccentUtil.MilReady : (Color?)null,
-                    highlighted: isHighlighted))
-                {
-                    milComp.autoDefend = !milComp.autoDefend;
-                }
-                TooltipHandler.TipRegion(autoDefRect, "FCMilBtnAutoDefendTip".Translate());
-
-                Text.Font = fontBefore;
-
-                // Tooltip
+                // Card-level tooltip on the header strip
+                string squadName = stationed.Count > 0
+                    ? (stationed[0]?.DisplayName ?? "FCNone".Translate())
+                    : (string)"FCNone".Translate();
                 string tooltip = settlement.Name + "\n\n"
                     + "FCSettlementTableMilLevel".Translate() + ": " + settlement.settlementMilitaryLevel + "\n"
-                    + "FCMilitaryTableMilitaryBudget".Translate() + ": $" + budget + "\n"
+                    + "FCMilitaryTableMilitaryBudget".Translate() + ": $" + rawBudget + "\n"
                     + "FCMilitaryTableSquad".Translate() + ": " + squadName + "\n"
-                    + "FCMilitaryTableAvailable".Translate() + ": " + (milComp.IsMilitaryBusySilent() ? "FCNo".Translate() : "FCYes".Translate()) + "\n"
+                    + "FCMilitaryTableAvailable".Translate() + ": " + (milComp.militaryBusy ? "FCNo".Translate() : "FCYes".Translate()) + "\n"
                     + "FCMilitaryTableUnderAttack".Translate() + ": " + (milComp.isUnderAttack ? "FCYes".Translate() : "FCNo".Translate());
-                float btnStartX = contentX + contentW - totalBtnW;
-                TooltipHandler.TipRegion(new Rect(0f, ry, btnStartX, rowH), tooltip);
-                TooltipHandler.TipRegion(new Rect(btnStartX, ry, rowW - btnStartX, lineH), tooltip);
+                TooltipHandler.TipRegion(new Rect(0f, ry, rowW, headerH), tooltip);
+
+                runningY += cardH + rowGap;
             }
 
             // === External military tab entries (e.g., defensive outposts) ===
@@ -1796,8 +1827,9 @@ namespace FactionColonies
             {
                 IMilitaryTabEntry entry = externalEntries[j];
                 int rowIndex = settlements.Count + j;
-                float ry = rowIndex * (rowH + rowGap);
+                float ry = runningY;
                 float rowW = scrollRect.width;
+                float rowH = externalRowH;
                 Rect rowRect = new Rect(0f, ry, rowW, rowH);
 
                 bool isHighlighted = rowIndex % 2 == 0;
@@ -1824,11 +1856,8 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                origColor = GUI.color;
-                GUI.color = accent;
                 Rect nameRect = new Rect(contentX, topY, nameW, lineH);
-                Widgets.Label(nameRect, entry.Name);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(nameRect, entry.Name, accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
                 if (Widgets.ButtonInvisible(nameRect))
@@ -1852,10 +1881,10 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleRight;
-                origColor = GUI.color;
-                GUI.color = accent;
-                Widgets.Label(new Rect(contentX + contentW - statusW, topY, statusW, lineH), entry.StatusLabel);
-                GUI.color = origColor;
+                UIUtil.DrawColoredLabel(
+                    new Rect(contentX + contentW - statusW, topY, statusW, lineH),
+                    entry.StatusLabel,
+                    accent);
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
 
@@ -1890,9 +1919,142 @@ namespace FactionColonies
                     + "FCSettlementTableMilLevel".Translate() + ": " + entry.MilitaryLevel + "\n"
                     + "FCMilitaryTableUnderAttack".Translate() + ": " + (entry.IsUnderAttack ? "FCYes".Translate() : "FCNo".Translate());
                 TooltipHandler.TipRegion(new Rect(0f, ry, contentX + contentW - btnW, rowH), entryTooltip);
+
+                runningY += rowH + rowGap;
             }
 
             ScrollUtil.EndScrollView();
+        }
+
+        /// <summary>Draws a single slot row in a settlement card. Slot row contains:
+        /// "Slot N" label, squad name (or empty), Set/Inspect button, Deploy button,
+        /// Auto-Defend toggle, status text. The Set button opens a settlement-wide squad menu;
+        /// the per-squad buttons operate on the slot's specific squad. Empty slots show only the
+        /// "Set" button (no Deploy/Inspect/Auto-Defend).</summary>
+        private void DrawSettlementSlotRow(Rect rect, WorldSettlementFC settlement,
+            WorldObjectComp_SettlementMilitary milComp, int slotIdx, MercenarySquadFC squad, bool isHighlighted)
+        {
+            GameFont fontBefore = Text.Font;
+            TextAnchor anchorBefore = Text.Anchor;
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+
+            float btnW = 80f;
+            float btnGap = 2f;
+            float btnH = rect.height - 4f;
+            float btnY = rect.y + 2f;
+
+            float powW = 90f;
+            float depCostW = 150f;
+
+            // Slot index column (indented to suggest it's a child of the settlement header)
+            const float slotIndent = 18f;
+            float idxW = 40f;
+            Rect slotLabel = new Rect(rect.x + slotIndent, rect.y, idxW, rect.height);
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(slotLabel, "FCMilitaryTableSlotPrefix".Translate(slotIdx + 1));
+
+            // Squad name area. Amber + tooltip when underfunded so the player understands
+            // why the deploy/op buttons are greyed. Red is reserved for under-attack state.
+            string squadName = squad?.DisplayName ?? (string)"FCMilitaryTableSlotEmpty".Translate();
+            float buttonAreaW = btnW * 4 + btnGap * 3;
+            float nameAreaW = rect.xMax - slotLabel.xMax - buttonAreaW - 4f - powW - depCostW - (margin * 2);
+            Rect squadNameLabel = new Rect(slotLabel.xMax + 5f, rect.y, nameAreaW, rect.height);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            int underSquadDeploy = 0;
+            int underMaxDeploy = 0;
+            bool slotUnderfunded = squad is object
+                && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(
+                    squad, settlement, out underSquadDeploy, out underMaxDeploy);
+            UIUtil.DrawColoredLabel(squadNameLabel, squadName,
+                slotUnderfunded ? AccentUtil.MilUnderfunded : GUI.color);
+            if (slotUnderfunded)
+            {
+                TooltipHandler.TipRegion(squadNameLabel,
+                    "FCMilSlotUnderfundedTip".Translate(settlement.Name, underSquadDeploy, underMaxDeploy));
+            }
+
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Rect powerLabel = new Rect(squadNameLabel.xMax + margin, rect.y, powW, rect.height);
+            Rect depCostLabel = new Rect(powerLabel.xMax + margin, rect.y, depCostW, rect.height);
+            if (squad is object)
+            {
+                double powerLevel = SquadPowerRegistry.Resolve(squad).militaryLevel;
+                string powerLbl = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
+                string costLbl = "FCDeployCost".Translate(SquadCostCalculator.DeploymentCost(squad));
+                Widgets.Label(powerLabel, powerLbl);
+                Widgets.Label(depCostLabel, costLbl);
+            }
+
+            // Action buttons (right-aligned)
+            float bx = rect.xMax - buttonAreaW;
+
+            // Set / Change squad — disabled when no hired squads exist (templates alone aren't
+            // enough; the menu lists the live pool, not templates), or when the slot's squad is busy.
+            bool noSquads = (militaryUtil.mercenarySquads?.Count ?? 0) == 0;
+            bool slotBusy = squad != null && squad.IsBusy;
+            Rect setRect = new Rect(bx, btnY, btnW, btnH);
+            string setLabel = squad is null
+                ? (string)"FCMilitaryTableSetSquad".Translate()
+                : (string)"FCMilitaryTableChangeSquad".Translate();
+            if (UIUtil.ButtonFlat(setRect, setLabel, disabled: noSquads || slotBusy, highlighted: isHighlighted))
+            {
+                Find.WindowStack.Add(new Dialog_AssignSquadToSettlement(settlement, squad));
+            }
+            TooltipHandler.TipRegion(setRect, slotBusy
+                ? "FCSquadCannotModifyBusyTip".Translate()
+                : "FCMilBtnSetSquadTip".Translate());
+            bx += btnW + btnGap;
+
+            // Inspect (per-squad) — opens Dialog_SquadInspection on this slot's squad.
+            // Always available even when busy so the player can read pawn state.
+            bool canInspect = squad != null;
+            Rect inspectRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(inspectRect, "FCMilitaryTableInspect".Translate(), disabled: !canInspect, highlighted: isHighlighted))
+            {
+                Find.WindowStack.Add(new Dialog_SquadInspection(squad));
+            }
+            TooltipHandler.TipRegion(inspectRect, "FCMilBtnInspectTip".Translate());
+            bx += btnW + btnGap;
+
+            // Deploy (per-squad) — offers walk-in + drop pod options for this slot's squad.
+            // Gated on IsAvailable (not just IsBusy) so underfunded squads and cooling-down
+            // squads can't deploy. The squad-name tooltip explains the underfunded state.
+            bool deployDisabled = squad is null || !squad.IsAvailable
+                || (squad.outfit is null && (squad.mercenaries?.Any(m => m?.pawn != null) != true));
+            Rect deployRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(deployRect, "FCDeploy".Translate(), disabled: deployDisabled, highlighted: isHighlighted))
+            {
+                if (squad != null)
+                {
+                    Find.WindowStack.Add(new FloatMenu(SquadDeploymentOptions(settlement, squad)));
+                }
+            }
+            string deployTip;
+            if (slotBusy) deployTip = "FCSquadCannotModifyBusyTip".Translate();
+            else if (slotUnderfunded) deployTip = "FCMilSlotUnderfundedTip".Translate(settlement.Name, underSquadDeploy, underMaxDeploy);
+            else if (squad is object && SquadCostCalculator.DeploymentCost(squad) > 0) deployTip = "FCMilBtnDeployTipWithCost".Translate(SquadCostCalculator.DeploymentCost(squad), FCSettings.deploymentBillLifespan_days);
+            else deployTip = "FCMilBtnDeployTip".Translate();
+            TooltipHandler.TipRegion(deployRect, deployTip);
+            bx += btnW + btnGap;
+
+            // Auto-Defend toggle (per-squad)
+            bool canToggle = squad != null && !slotBusy;
+            bool autoDefendOn = squad?.autoDefend ?? false;
+            Rect autoDefRect = new Rect(bx, btnY, btnW, btnH);
+            if (UIUtil.ButtonFlat(autoDefRect, "FCMilAutoDefend".Translate(),
+                disabled: !canToggle,
+                labelColor: autoDefendOn ? AccentUtil.MilReady : (Color?)null,
+                highlighted: isHighlighted))
+            {
+                if (squad != null) squad.autoDefend = !squad.autoDefend;
+            }
+            TooltipHandler.TipRegion(autoDefRect, slotBusy
+                ? "FCSquadCannotModifyBusyTip".Translate()
+                : "FCMilBtnAutoDefendTip".Translate());
+
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
         }
 
         private void HandleDeployClick(WorldSettlementFC settlement, WorldObjectComp_SettlementMilitary milComp)
@@ -1975,21 +2137,63 @@ namespace FactionColonies
             Find.WindowStack.Add(new Searchable_FloatMenu(list));
         }
 
-        private List<FloatMenuOption> DeploymentOptions(WorldSettlementFC settlement) => new List<FloatMenuOption>
+        private List<FloatMenuOption> DeploymentOptions(WorldSettlementFC settlement)
         {
-            new FloatMenuOption("FCWalkIntoMapDeploymentOption".Translate(), delegate
+            MercenarySquadFC primary = settlement?.FirstAvailableStationedSquad
+                                    ?? settlement?.PrimaryStationedSquad;
+            int cost = SquadCostCalculator.DeploymentCost(primary);
+            string costSuffix = cost > 0 ? " ($" + cost + ")" : "";
+            return new List<FloatMenuOption>
             {
-                MilitaryUtil.CallinAlliedForces(settlement, false);
-            }),
-            DropPodDeploymentOption(settlement)
-        };
+                new FloatMenuOption("FCWalkIntoMapDeploymentOption".Translate() + costSuffix, delegate
+                {
+                    MilitaryUtil.CallinAlliedForces(settlement, false);
+                }),
+                DropPodDeploymentOption(settlement)
+            };
+        }
 
-        private FloatMenuOption DropPodDeploymentOption(WorldSettlementFC settlement)
+        /// <summary>Same shape as <see cref="DeploymentOptions"/> but routes to a specific squad
+        /// via <see cref="MilitaryUtil.CallinAlliedForces"/>'s overrideSquad parameter. Used by
+        /// the per-slot Deploy button on the 1+N settlement card layout.</summary>
+        private List<FloatMenuOption> SquadDeploymentOptions(WorldSettlementFC settlement, MercenarySquadFC squad)
         {
+            int cost = SquadCostCalculator.DeploymentCost(squad);
+            string costSuffix = cost > 0 ? " ($" + cost + ")" : "";
+
+            List<FloatMenuOption> opts = new List<FloatMenuOption>();
+            opts.Add(new FloatMenuOption("FCWalkIntoMapDeploymentOption".Translate() + costSuffix,
+                delegate { MilitaryUtil.CallinAlliedForces(settlement, false, squad); }));
+
             bool medievalOnly = FCSettings.medievalTechOnly;
             if (!medievalOnly && (FactionCache.TechTransportPods?.IsFinished ?? false))
             {
-                return new FloatMenuOption("FCDropPodDeploymentOption".Translate(),
+                opts.Add(new FloatMenuOption("FCDropPodDeploymentOption".Translate() + costSuffix,
+                    delegate { MilitaryUtil.CallinAlliedForces(settlement, true, squad); }));
+            }
+            else
+            {
+                opts.Add(new FloatMenuOption(
+                    "FCDropPodDeploymentOption".Translate() + (medievalOnly
+                        ? "FCDropPodDeploymentOptionUnavailableReasonMedieval".Translate()
+                        : "FCDropPodDeploymentOptionUnavailableReasonTech".Translate(
+                            FactionCache.TechTransportPods?.label ?? "FCErrorDropPodResearchCouldNotBeFound".Translate())),
+                    null));
+            }
+            return opts;
+        }
+
+        private FloatMenuOption DropPodDeploymentOption(WorldSettlementFC settlement)
+        {
+            MercenarySquadFC primary = settlement?.FirstAvailableStationedSquad
+                                    ?? settlement?.PrimaryStationedSquad;
+            int cost = SquadCostCalculator.DeploymentCost(primary);
+            string costSuffix = cost > 0 ? " ($" + cost + ")" : "";
+
+            bool medievalOnly = FCSettings.medievalTechOnly;
+            if (!medievalOnly && (FactionCache.TechTransportPods?.IsFinished ?? false))
+            {
+                return new FloatMenuOption("FCDropPodDeploymentOption".Translate() + costSuffix,
                     delegate { MilitaryUtil.CallinAlliedForces(settlement, true); });
             }
 
@@ -2013,6 +2217,46 @@ namespace FactionColonies
             }
 
             Find.WindowStack.Add(new FCWindow_Military(content, title));
+        }
+
+        private static Color ColorForPowerStatus(SettlementPowerStatus status)
+        {
+            switch (status)
+            {
+                case SettlementPowerStatus.UnderAttack: return AccentUtil.MilUnderAttack;
+                case SettlementPowerStatus.AllBusy: return new Color(1f, 0.85f, 0.4f);
+                case SettlementPowerStatus.Ghost: return new Color(1f, 0.85f, 0.4f);
+                case SettlementPowerStatus.NoMilitary: return Color.gray;
+                default: return Color.white;
+            }
+        }
+
+        private static string TooltipForPowerStatus(SettlementPowerStatus status,
+            WorldSettlementFC settlement, List<MercenarySquadFC> stationed)
+        {
+            switch (status)
+            {
+                case SettlementPowerStatus.UnderAttack:
+                    return "FCMilPowerTipUnderAttack".Translate();
+                case SettlementPowerStatus.Squad:
+                    MercenarySquadFC strongest = null;
+                    double bestLevel = -1;
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        MercenarySquadFC s = stationed[i];
+                        if (s is null || !s.IsAvailable) continue;
+                        double lvl = SquadPowerRegistry.Resolve(s).militaryLevel;
+                        if (lvl > bestLevel) { strongest = s; bestLevel = lvl; }
+                    }
+                    return "FCMilPowerTipSquad".Translate(strongest?.DisplayName ?? "?");
+                case SettlementPowerStatus.AllBusy:
+                    return "FCMilPowerTipAllBusy".Translate();
+                case SettlementPowerStatus.Ghost:
+                    return "FCMilPowerTipGhost".Translate();
+                case SettlementPowerStatus.NoMilitary:
+                    return "FCMilPowerTipNoMilitary".Translate();
+            }
+            return "";
         }
 
     }

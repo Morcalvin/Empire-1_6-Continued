@@ -6,7 +6,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Verse;
 using Verse.AI.Group;
-using Verse.Sound;
+
+// Save-load buffers (declared below) reference [Obsolete] DefenseWave; they are drained on
+// PostLoadInit by MilitaryMigrationUtil. The runtime surface is computed properties backed by
+// the manager. File-level pragma scopes the obsolete-warning silence to this file.
+#pragma warning disable 0618
 
 namespace FactionColonies
 {
@@ -54,108 +58,263 @@ namespace FactionColonies
         }
         public Map Map => WorldSettlement.Map;
 
-        /// <summary>Per-wave tracking for multi-wave defense battles.</summary>
-        public List<DefenseWave> activeWaves = new List<DefenseWave>();
-
-        // Pending force references set during the warning phase (before waves are created in StartDefence).
-        // Also used by design windows to check if a squad is assigned to defend.
-        // During active battles, prefer reading from activeWaves directly.
-        private MilitaryForce _pendingAttackerForce;
-        private MilitaryForce _pendingDefenderForce;
-        public MilitaryForce attackerForce
-        {
-            get => activeWaves.Count > 0 ? activeWaves[0].attackerForce : _pendingAttackerForce;
-            set => _pendingAttackerForce = value;
-        }
-        public MilitaryForce defenderForce
-        {
-            get => activeWaves.Count > 0 ? activeWaves[0].defenderForce : _pendingDefenderForce;
-            set => _pendingDefenderForce = value;
-        }
-
-        public List<Pawn> attackers = new List<Pawn>();
-        public List<Pawn> defenders = new List<Pawn>();
-        public List<Pawn> draftedNPCs = new List<Pawn>();
-        //TODO all code referencing isUnderAttack needs to point to this comp
-        //     also need to make it so that WorldSettlementFC's without a defense comp don't get targeted
-        //     for attacks
-        public bool isUnderAttack;
-        public bool militaryBusy;
-        public PlanetTile militaryLocation = PlanetTile.Invalid;
-        public MilitaryJobDef militaryJob;
-        public Faction militaryEnemy;
-        public MercenarySquadFC militarySquad;
         public int artilleryTimer = 0;
-        public bool autoDefend = false;
         public int settlementMilitaryLevel;
 
-        private bool endingBattle = false;
-        private bool battleMapInitialized = false;
-        private bool shuttleLandingPending = false;
-        private int initialDefenderCount;
-        private string pendingDeliveryMessage;
-
-        /* Pod-bound pawns during Skyfaller descent are !Spawned but ParentHolder != null.
-         * A pure !Spawned check treats them as lost and triggers false victory. */
-        private static bool IsPawnTrulyGone(Pawn p)
+        /// <summary>Compatibility shim: 1:1 settlement-to-squad accessor. Squads live on the
+        /// faction-wide pool and reference their billet via <see cref="MercenarySquadFC.settlement"/>.
+        /// New code should iterate <see cref="WorldSettlementFC.StationedSquads"/>; this shim
+        /// returns the first stationed squad for cross-mod source compatibility.</summary>
+        [System.Obsolete("Use WorldSettlementFC.StationedSquads. This shim returns the primary stationed squad.")]
+        public MercenarySquadFC militarySquad
         {
-            if (p is null) return true;
-            if (p.Destroyed) return true;
-            if (p.Spawned) return false;
-            if (p.ParentHolder is object) return false;
-            return true;
+            get
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed is null || stationed.Count == 0) return null;
+                return stationed[0];
+            }
+            set
+            {
+                // Setter semantics: "this is THE squad now". Detach any other stationed squads,
+                // then attach the new one to this settlement.
+                if (WorldSettlement is null) return;
+                if (value is null)
+                {
+                    // Snapshot the list — assigning settlement = null mutates StationedSquads.
+                    List<MercenarySquadFC> stationed = new List<MercenarySquadFC>(WorldSettlement.StationedSquads);
+                    foreach (MercenarySquadFC s in stationed)
+                    {
+                        if (s is object) s.settlement = null;
+                    }
+                    return;
+                }
+                if (value.settlement == WorldSettlement) return;
+                List<MercenarySquadFC> existing = new List<MercenarySquadFC>(WorldSettlement.StationedSquads);
+                foreach (MercenarySquadFC s in existing)
+                {
+                    if (s is object && s != value) s.settlement = null;
+                }
+                value.settlement = WorldSettlement;
+            }
         }
 
-        private bool HasPendingPodAttackers()
+        /// <summary>Compatibility shim: per-settlement auto-defend flag. Auto-defend lives on
+        /// the squad (<see cref="MercenarySquadFC.autoDefend"/>) so a settlement with multiple
+        /// squads can opt some in and some out. The shim returns true when any stationed squad
+        /// has <c>autoDefend</c> set; the setter applies the flag to all stationed squads.</summary>
+        [System.Obsolete("Use MercenarySquadFC.autoDefend. This shim aggregates across stationed squads.")]
+        public bool autoDefend
         {
-            foreach (DefenseWave wave in activeWaves)
+            get
             {
-                if (wave is null || wave.resolved) continue;
-                List<Pawn> list = wave.waveAttackers;
-                if (list is null) continue;
-                foreach (Pawn p in list)
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed is null) return false;
+                for (int i = 0; i < stationed.Count; i++)
                 {
-                    if (p is null || p.Destroyed || p.Dead) continue;
-                    if (!p.Spawned && p.ParentHolder is object) return true;
+                    if (stationed[i] != null && stationed[i].autoDefend) return true;
+                }
+                return false;
+            }
+            set
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed is null) return;
+                for (int i = 0; i < stationed.Count; i++)
+                {
+                    if (stationed[i] != null) stationed[i].autoDefend = value;
                 }
             }
+        }
 
-            return false;
+        // -*-*-*-*- Squad-first comp-side load buffers -*-*-*-*-
+        // The canonical home for these values is MercenarySquadFC (squad.settlement /
+        // squad.autoDefend). When a save XML carries them on the comp, ExposeData captures
+        // them into these [Unsaved] buffers; MilitaryMigrationUtil drains them in PostLoadInit.
+        // Never written on save.
+        [Unsaved] public MercenarySquadFC _legacyMilitarySquad;
+        [Unsaved] public bool _legacyAutoDefend;
+
+        /* -*-*-*-*- Operation-state comp-side load buffers -*-*-*-*-
+         * The canonical home for op state is MilitaryOperation on the manager; the comp's
+         * militaryBusy / militaryJob / militaryLocation / militaryEnemy / isUnderAttack are
+         * computed properties that read from the manager (defined below). Battle infrastructure
+         * (attackers / defenders / draftedNPCs) lives on BattlefieldContext. When a save XML
+         * carries these values on the comp, ExposeData reads them into the buffers below
+         * during LoadingVars; <see cref="MilitaryMigrationUtil"/> drains them in PostLoadInit.
+         * They are never written on save.
+         */
+        public bool _legacyMilitaryBusy;
+        public MilitaryJobDef _legacyMilitaryJob;
+        public PlanetTile _legacyMilitaryLocation = PlanetTile.Invalid;
+        public Faction _legacyMilitaryEnemy;
+        public bool _legacyIsUnderAttack;
+        public List<Pawn> _legacyAttackers;
+        public List<Pawn> _legacyDefenders;
+        public List<Pawn> _legacyDraftedNPCs;
+        public List<DefenseWave> _legacyActiveWaves;
+        public bool _legacyBattleMapInitialized;
+        public int _legacyInitialDefenderCount;
+
+        /* -*-*-*-*- Computed battle state (derived from BattlefieldContext) -*-*-*-*-
+         * Read-only proxies onto the per-tile BattlefieldContext owned by the manager.
+         * External code that read these fields (UI / VEF compat / WorldSettlementFC / debug)
+         * continues to compile and read correctly. Internal mutations live on BattlefieldContext.
+         */
+
+        private static readonly List<Pawn> _emptyPawnList = new List<Pawn>();
+
+        private BattlefieldContext Battlefield
+            => FactionCache.MilitaryManager?.GetBattlefield(WorldSettlement?.Tile ?? PlanetTile.Invalid);
+
+        public IEnumerable<Pawn> attackers => Battlefield?.attackerPawns ?? Enumerable.Empty<Pawn>();
+        public IEnumerable<Pawn> defenders => Battlefield?.defenderPawns ?? Enumerable.Empty<Pawn>();
+        public List<Pawn> draftedNPCs => Battlefield?.draftedNPCs ?? _emptyPawnList;
+
+        /* -*-*-*-*- Computed properties (derived from manager state) -*-*-*-*- */
+
+        /// <summary>True when this settlement has any active op in which it's the squad-bearer
+        /// (offensive aggressor, deploy aggressor, or foreign defender of another settlement's
+        /// defensive battle).</summary>
+        public bool militaryBusy
+        {
+            get
+            {
+                MilitaryOperationManager manager = FactionCache.MilitaryManager;
+                if (manager is null) return false;
+                IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(WorldSettlement);
+                for (int i = 0; i < ops.Count; i++)
+                {
+                    MilitaryOperation op = ops[i];
+                    if (op.aggressor?.homeSettlement == WorldSettlement) return true;
+                    if (op.defender?.homeSettlement == WorldSettlement
+                        && (op.targetObject as WorldSettlementFC) != WorldSettlement) return true;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>Current op kind for this settlement: the aggressor op's kind (Raid/Capture/
+        /// Enslave/Deploy/Cooldown) or <c>DefendFriendlySettlement</c> if foreign-defending,
+        /// else <c>Undefined</c>.</summary>
+        public MilitaryJobDef militaryJob
+        {
+            get
+            {
+                MilitaryOperation op = FindOwnOp();
+                if (op is null) return MilitaryJobDefOf.Undefined;
+                if (op.phase == MilitaryOperationPhase.CooldownPending) return MilitaryJobDefOf.Cooldown;
+                if (op.aggressor?.homeSettlement == WorldSettlement) return op.kind ?? MilitaryJobDefOf.Undefined;
+                // Foreign-defender case
+                return MilitaryJobDefOf.DefendFriendlySettlement;
+            }
+        }
+
+        /// <summary>Target tile of the active op (raid target, deploy map tile, or defended settlement).</summary>
+        public PlanetTile militaryLocation
+        {
+            get
+            {
+                MilitaryOperation op = FindOwnOp();
+                return op?.targetTile ?? PlanetTile.Invalid;
+            }
+        }
+
+        /// <summary>Enemy faction in the current op (defender's faction for offensive ops,
+        /// aggressor's faction for foreign-defender ops).</summary>
+        public Faction militaryEnemy
+        {
+            get
+            {
+                MilitaryOperation op = FindOwnOp();
+                if (op is null) return null;
+                if (op.aggressor?.homeSettlement == WorldSettlement) return op.defender?.faction;
+                // Foreign-defender: enemy is the attacker
+                return op.aggressor?.faction;
+            }
+        }
+
+        /// <summary>True when this settlement is the target of any active defensive op.</summary>
+        public bool isUnderAttack => FactionCache.MilitaryManager?.HasDefenseAt(WorldSettlement) ?? false;
+
+        /// <summary>Aggressor's force in the active defensive battle on this tile, or null.</summary>
+        public MilitaryForce attackerForce => FindIncomingDefensiveOp()?.aggressor?.force;
+
+        /// <summary>Defender's force in the active defensive battle on this tile, or null.</summary>
+        public MilitaryForce defenderForce => FindIncomingDefensiveOp()?.defender?.force;
+
+        /// <summary>Returns the first op where this settlement is "the actor" — aggressor of any
+        /// op, or foreign defender of someone else's defensive op. Used by the computed
+        /// militaryJob / militaryLocation / militaryEnemy properties.</summary>
+        private MilitaryOperation FindOwnOp()
+        {
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is null) return null;
+            IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(WorldSettlement);
+            for (int i = 0; i < ops.Count; i++)
+            {
+                MilitaryOperation op = ops[i];
+                if (op.aggressor?.homeSettlement == WorldSettlement) return op;
+                if (op.defender?.homeSettlement == WorldSettlement
+                    && (op.targetObject as WorldSettlementFC) != WorldSettlement) return op;
+            }
+            return null;
+        }
+
+        /// <summary>Returns the defensive op targeting THIS settlement, or null.</summary>
+        private MilitaryOperation FindIncomingDefensiveOp()
+        {
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is null) return null;
+            IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(WorldSettlement);
+            for (int i = 0; i < ops.Count; i++)
+            {
+                MilitaryOperation op = ops[i];
+                if (op.IsDefensive && (op.targetObject as WorldSettlementFC) == WorldSettlement) return op;
+            }
+            return null;
         }
 
         public override void PostExposeData()
         {
             base.PostExposeData();
-            Scribe_Collections.Look(ref attackers, "attackers", LookMode.Reference);
-            Scribe_Collections.Look(ref defenders, "defenders", LookMode.Reference);
-            Scribe_Collections.Look(ref draftedNPCs, "draftedNPCs", LookMode.Reference);
-            Scribe_Collections.Look(ref activeWaves, "activeWaves", LookMode.Deep);
-            Scribe_Values.Look(ref isUnderAttack, "isUnderAttack");
-            Scribe_Values.Look(ref militaryBusy, "militaryBusy");
-            Scribe_Values.Look(ref militaryLocation, "militaryLocation", PlanetTile.Invalid);
-            Scribe_Defs.Look(ref militaryJob, "militaryJob");
-            Scribe_References.Look(ref militaryEnemy, "militaryEnemy");
-            Scribe_References.Look(ref militarySquad, "militarySquad");
             Scribe_Values.Look(ref artilleryTimer, "artilleryTimer");
-            Scribe_Values.Look(ref autoDefend, "autoDefend");
             Scribe_Values.Look(ref settlementMilitaryLevel, "settlementMilitaryLevel");
-            Scribe_Values.Look(ref initialDefenderCount, "initialDefenderCount");
-            Scribe_Values.Look(ref battleMapInitialized, "battleMapInitialized");
 
-            /* Backward compat: migrate old singleton attackerForce/defenderForce into activeWaves.
-             * Permanent — can't be removed without a breaking save version bump, since old saves
-             * in circulation would lose mid-combat state on upgrade. */
+            /* On LoadingVars, fill the comp-side load buffers from XML so MilitaryMigrationUtil
+             * can drain them in PostLoadInit. Canonical state lives on MilitaryOperationManager
+             * (ops) and BattlefieldContext (battle pawns); save writes use the manager-owned
+             * layout, so these reads only resolve values when a comp-side XML is present. */
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
+                // Squad-first split: capture militarySquad/autoDefend from the XML into
+                // [Unsaved] buffers. MigrateLegacyComp_MilitarySquad consumes them in
+                // PostLoadInit and writes squad.settlement = this + squad.autoDefend = buffer.
+                Scribe_References.Look(ref _legacyMilitarySquad, "militarySquad");
+                Scribe_Values.Look(ref _legacyAutoDefend, "autoDefend", false);
+
+                Scribe_Values.Look(ref _legacyMilitaryBusy, "militaryBusy", false);
+                Scribe_Defs.Look(ref _legacyMilitaryJob, "militaryJob");
+                Scribe_Values.Look(ref _legacyMilitaryLocation, "militaryLocation", PlanetTile.Invalid);
+                Scribe_References.Look(ref _legacyMilitaryEnemy, "militaryEnemy");
+                Scribe_Values.Look(ref _legacyIsUnderAttack, "isUnderAttack", false);
+                Scribe_Values.Look(ref _legacyBattleMapInitialized, "battleMapInitialized", false);
+                Scribe_Values.Look(ref _legacyInitialDefenderCount, "initialDefenderCount", 0);
+
+                Scribe_Collections.Look(ref _legacyAttackers, "attackers", LookMode.Reference);
+                Scribe_Collections.Look(ref _legacyDefenders, "defenders", LookMode.Reference);
+                Scribe_Collections.Look(ref _legacyDraftedNPCs, "draftedNPCs", LookMode.Reference);
+                Scribe_Collections.Look(ref _legacyActiveWaves, "activeWaves", LookMode.Deep);
+
                 MilitaryForce legacyAttackerForce = null;
                 MilitaryForce legacyDefenderForce = null;
                 Scribe_Deep.Look(ref legacyAttackerForce, "attackerForce");
                 Scribe_Deep.Look(ref legacyDefenderForce, "defenderForce");
 
-                if (activeWaves is null) activeWaves = new List<DefenseWave>();
-                if (activeWaves.Count == 0 && (legacyAttackerForce is object || legacyDefenderForce is object))
+                if (_legacyActiveWaves is null) _legacyActiveWaves = new List<DefenseWave>();
+                if (_legacyActiveWaves.Count == 0 && (legacyAttackerForce is object || legacyDefenderForce is object))
                 {
-                    activeWaves.Add(new DefenseWave
+                    _legacyActiveWaves.Add(new DefenseWave
                     {
                         attackerForce = legacyAttackerForce,
                         defenderForce = legacyDefenderForce,
@@ -163,113 +322,17 @@ namespace FactionColonies
                     });
                 }
             }
-
-            if (Scribe.mode == LoadSaveMode.PostLoadInit)
-                EnsureCollectionsNonNull();
-        }
-
-        /* LookMode.Reference collections silently drop unresolved entries and may leave
-         * the list null if the XML element was absent (e.g. pre-field saves). */
-        private void EnsureCollectionsNonNull()
-        {
-            if (activeWaves is null) activeWaves = new List<DefenseWave>();
-            if (attackers is null) attackers = new List<Pawn>();
-            if (defenders is null) defenders = new List<Pawn>();
-            if (draftedNPCs is null) draftedNPCs = new List<Pawn>();
         }
 
         public override void Initialize(WorldObjectCompProperties props_l)
         {
             base.Initialize(props_l);
-
-            attackers = new List<Pawn>();
-            defenders = new List<Pawn>();
-            draftedNPCs = new List<Pawn>();
-            activeWaves = new List<DefenseWave>();
         }
 
         public override void CompTick()
         {
             base.CompTick();
-            if (!isUnderAttack) return;
-            if (endingBattle) return;
-
-            if (isUnderAttack && !endingBattle && Find.TickManager.TicksGame % 2500 == 0
-                && Map is null && attackers.Count == 0 && defenders.Count == 0)
-            {
-                // Events are removed from the queue before battle starts (see FCEventMaker.ProcessEvents),
-                // so an orphaned flag is only "stuck" if the battle also isn't in progress; i.e. no map loaded
-                // and no active combatants.
-                FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(WorldSettlement.Tile);
-                if (evt is null)
-                {
-                    LogUtil.Warning($"Clearing orphaned isUnderAttack flag on {WorldSettlement.Name} " +
-                        $"(no matching settlementBeingAttacked event in queue).");
-                    ClearAttackState();
-                    return;
-                }
-            }
-
-            if (Find.TickManager.TicksGame % 250 != 0) return;
-            if (Map == null) return;
-
-            // Clean stale references: null (save/load), destroyed, or despawned-without-holder
-            // (e.g. pawn joined an existing caravan without PostCaravanFormed firing).
-            // Pod-bound pawns in a descending Skyfaller are !Spawned but ParentHolder != null;
-            //   they stay tracked until the pod opens.
-            attackers.RemoveAll(IsPawnTrulyGone);
-            defenders.RemoveAll(IsPawnTrulyGone);
-
-            // Detect untracked player pawns on the battle map (e.g. shuttle-delivered pawns
-            // that spawned via the Unload job after the ArrivePatch fired).
-            // Also assigns lordless defenders to the battle lord (e.g. pawns that just
-            // unloaded from a shuttle after being registered with assignToLord: false).
-            var map = Map;
-            Lord battleLord = null;
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
-            {
-                if (pawn.Dead || pawn.Downed) continue;
-                if (!defenders.Contains(pawn))
-                {
-                    LogUtil.Warning($"Registering untracked player pawn {pawn.LabelShort} with defense at {WorldSettlement.Name}");
-                    defenders.Add(pawn);
-                    initialDefenderCount++;
-                }
-                if (pawn.GetLord() is null)
-                {
-                    if (battleLord is null)
-                        battleLord = defenders.FirstOrDefault(d => d.GetLord() != null)?.GetLord();
-                    if (battleLord != null && !battleLord.ownedPawns.Contains(pawn))
-                        battleLord.AddPawn(pawn);
-                }
-            }
-
-            // Don't declare stuck if attackers are still inbound in drop pods.
-            bool attackersGone = attackers.Count == 0 && !HasPendingPodAttackers();
-            if (attackersGone || defenders.Count == 0)
-            {
-                LogUtil.Warning($"Stuck battle detected at {WorldSettlement.Name}, forcing resolution.");
-                endingBattle = true;
-                LongEventHandler.QueueLongEvent(EndAttack,
-                    "EndingAttack", false, error =>
-                    {
-                        DelayedErrorWindowRequest.Add("FCErrorEndingAttack".Translate(),
-                            "FCErrorEndingAttackDescription".Translate());
-                        LogUtil.Error(error.Message);
-                    });
-            }
-        }
-
-        private static string FoundSettlementString(WorldSettlementFC settlement, string winChanceText = null, bool isCurrentDefender = false)
-        {
-            string s = settlement.Name + " " + "FCShortMilitary".Translate() + " " + settlement.settlementMilitaryLevel;
-            if (!winChanceText.NullOrEmpty())
-                s += " - Victory: " + winChanceText + "%";
-            if (isCurrentDefender)
-                s += " - [" + "FCCurrentDefender".Translate() + "]";
-            else
-                s += " - " + "FCAvailable".Translate() + ": " + (settlement.MilitaryComp?.IsMilitaryBusySilent() != true).ToString();
-            return s;
+            Battlefield?.Tick();
         }
 
         public override IEnumerable<Gizmo> GetGizmos()
@@ -291,6 +354,40 @@ namespace FactionColonies
                     yield return ChangeDefenderAction(pendingEvents[i]);
                 }
             }
+
+            // "Watch battle" gizmo: visible while an auto-resolved battle on this settlement
+            // is in flight. Opens the live BattleProgressWindow for the linked op so the
+            // player can watch rolls land hour by hour.
+            MilitaryOperation activeBattle = FindActiveBattleProgressOp();
+            if (activeBattle is object)
+            {
+                yield return WatchBattleAction(activeBattle);
+            }
+        }
+
+        private MilitaryOperation FindActiveBattleProgressOp()
+        {
+            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            if (mgr is null) return null;
+            IReadOnlyList<MilitaryOperation> active = mgr.active;
+            foreach (MilitaryOperation op in active)
+            {
+                if (op?.battleResult is null) continue;
+                if (op.phase != MilitaryOperationPhase.Engaged) continue;
+                if (op.defender?.homeSettlement == WorldSettlement) return op;
+            }
+            return null;
+        }
+
+        private Command WatchBattleAction(MilitaryOperation op)
+        {
+            return new Command_Action
+            {
+                defaultLabel = "FCBattleProgressGizmoLabel".Translate(),
+                defaultDesc = "FCBattleProgressGizmoDesc".Translate(),
+                icon = TexLoad.iconMilitary,
+                action = delegate { Find.WindowStack.Add(new BattleProgressWindow(op)); }
+            };
         }
 
         private Command DefendColonyAction()
@@ -318,109 +415,13 @@ namespace FactionColonies
 
         private Command ChangeDefenderAction(FCEvent evt)
         {
-            Command_Action changeDefender = new Command_Action
+            return new Command_Action
             {
                 defaultLabel = "FCDefendSettlement".Translate(),
                 defaultDesc = "",
                 icon = TexLoad.iconCustomize,
-                action = delegate
-                {
-                    if (evt.militaryForceDefending == null || evt.militaryForceDefending.homeSettlement == null)
-                    {
-                        LogUtil.Warning($"ChangeDefenderAction: militaryForceDefending or its homeSettlement is null for event at {evt.location}");
-                        ChangeDefendingForceAction(evt);
-                        return;
-                    }
-
-                    double winChance = SimulateBattleFc.CalculateDefenderWinChance(evt.militaryForceAttacking, evt.militaryForceDefending);
-                    var list = new List<FloatMenuOption>()
-                    {
-                        new FloatMenuOption("FCSettlementDefendingInformation".Translate(evt.militaryForceDefending.homeSettlement.Name,
-                                                                                       evt.militaryForceDefending.DefensivePower,
-                                                                                       (winChance * 100).ToString("F0")),
-                                            null, MenuOptionPriority.High),
-                        new FloatMenuOption("FCChangeDefendingForce".Translate(), () => ChangeDefendingForceAction(evt))
-                    };
-
-                    var floatMenu = new FloatMenu(list)
-                    {
-                        vanishIfMouseDistant = true
-                    };
-                    Find.WindowStack.Add(floatMenu);
-                }
+                action = delegate { Find.WindowStack.Add(new Dialog_DefendSettlement(evt)); }
             };
-
-            return changeDefender;
-        }
-
-        private void ChangeDefendingForceAction(FCEvent evt)
-        {
-            var faction = FactionCache.FactionComp;
-            MilitaryForce attackForce = evt.militaryForceAttacking;
-            WorldSettlementFC currentDefender = evt.militaryForceDefending?.homeSettlement;
-
-            // "Reset to Home Settlement" option with win chance
-            MilitaryForce homeForce = MilitaryForce.CreateMilitaryForceFromSettlement(WorldSettlement);
-            double homeWinChance = SimulateBattleFc.CalculateDefenderWinChance(attackForce, homeForce);
-            var settlementList = new List<FloatMenuOption>
-            {
-                new FloatMenuOption
-                (
-                    "FCResetToHomeSettlement".Translate(settlementMilitaryLevel, (homeWinChance * 100).ToString("F0")),
-                    delegate { MilitaryUtilFC.ChangeDefendingMilitaryForce(evt, WorldSettlement); },
-                    MenuOptionPriority.High
-                )
-            };
-
-            // Other Empire settlements with win chance per option
-            foreach (WorldSettlementFC foundSettlement in faction.settlements)
-            {
-                if (foundSettlement == WorldSettlement) continue;
-                if (foundSettlement.MilitaryComp?.IsMilitaryValid() != true) continue;
-                if (!DefenseValidatorRegistry.CanDefend(foundSettlement, WorldSettlement)) continue;
-
-                MilitaryForce tmpHome = MilitaryForce.CreateMilitaryForceFromSettlement(WorldSettlement, true);
-                MilitaryForce hypothetical = MilitaryForce.CreateMilitaryForceFromSettlement(foundSettlement, homeDefendingForce: tmpHome);
-                double wc = SimulateBattleFc.CalculateDefenderWinChance(attackForce, hypothetical);
-                string wcText = (wc * 100).ToString("F0");
-
-                WorldSettlementFC s = foundSettlement;
-                settlementList.Add(new FloatMenuOption(
-                    FoundSettlementString(s, wcText, s == currentDefender),
-                    delegate
-                    {
-                        if (s.MilitaryComp?.IsMilitaryBusy() != true)
-                            MilitaryUtilFC.ChangeDefendingMilitaryForce(evt, s);
-                    }
-                ));
-            }
-
-            // Add external auto-defenders (VOE outposts, etc.)
-            foreach (IAutoDefender defender in AutoDefenderRegistry.Defenders)
-            {
-                if (!defender.CanAutoDefend) continue;
-                if (evt.externalDefenderSource != null && evt.externalDefenderSource == defender.WorldObject) continue;
-                int distance = Find.WorldGrid.TraversalDistanceBetween(defender.WorldObject.Tile, WorldSettlement.Tile);
-                if (distance > defender.Range) continue;
-
-                IAutoDefender d = defender;
-                MilitaryForce extForce = d.CreateDefendingForce();
-                double extWc = SimulateBattleFc.CalculateDefenderWinChance(attackForce, extForce);
-                settlementList.Add(new FloatMenuOption(
-                    d.WorldObject.LabelCap + " (" + "FCMilitaryLevel".Translate() + " " + d.MilitaryLevel
-                        + " - Victory: " + (extWc * 100).ToString("F0") + "%)",
-                    delegate { MilitaryUtilFC.ChangeDefendingToExternalForce(evt, d); }
-                ));
-            }
-
-            if (settlementList.Count == 0)
-                settlementList.Add(new FloatMenuOption("FCNoValidMilitaries".Translate(), null));
-
-            var floatMenu2 = new FloatMenu(settlementList)
-            {
-                vanishIfMouseDistant = true
-            };
-            Find.WindowStack.Add(floatMenu2);
         }
 
         public override IEnumerable<Gizmo> GetCaravanGizmos(Caravan caravan)
@@ -468,138 +469,32 @@ namespace FactionColonies
             {
                 return new AcceptanceReport("FCAutoBattleEnabledNoManualFight".Translate());
             }
-            if (FCSettings.battleMode == BattleMode.Hybrid && !IsPlayerCaravanOnTile())
+            if (FCSettings.battleMode == BattleMode.Hybrid && !PlayerCaravanOnSettlementTile())
             {
                 return new AcceptanceReport("FCHybridBattleEnabledNoManualFight".Translate());
             }
             return AcceptanceReport.WasAccepted;
         }
 
-        private bool IsPlayerCaravanOnTile()
+        // CaravanDefend / AddToDefenceFromList are thin wrappers around BattlefieldContext;
+        // external callers (VEF Harmony patch, WorldSettlementDefendAction,
+        // TransportPodArrivalActionPatch) target them by name on the comp.
+
+        private bool PlayerCaravanOnSettlementTile()
         {
             return Find.WorldObjects.Caravans.Any(c =>
-                c.Tile == WorldSettlement.Tile &&
-                c.Faction == Faction.OfPlayer);
-        }
-
-        private int CountOtherSettlementBattleMaps()
-        {
-            int count = 0;
-            foreach (WorldSettlementFC settlement in FactionCache.FactionComp?.settlements ?? Enumerable.Empty<WorldSettlementFC>())
-            {
-                if (settlement == WorldSettlement) continue;
-                if (settlement.Map != null && settlement.MilitaryComp?.isUnderAttack == true) count++;
-            }
-            return count;
+                c.Tile == WorldSettlement.Tile && c.Faction == Faction.OfPlayer);
         }
 
         public void CaravanDefend(Caravan caravan)
         {
-            var pawns = caravan.pawns.InnerListForReading.ListFullCopy();
-
-            // Check for shuttle in caravan (Odyssey DLC passenger shuttle)
-            var shuttle = caravan.Shuttle;
-            if (shuttle != null && Map != null)
+            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(WorldSettlement.Tile);
+            if (bf is null)
             {
-                ShuttleCaravanDefend(caravan, pawns, shuttle);
+                LogUtil.Error($"CaravanDefend: no battlefield for {WorldSettlement?.Name}.");
                 return;
             }
-
-            // Standard flow — spawn pawns at map edge
-            RegisterPawnsAsDefenders(pawns, assignToLord: true);
-            if (!caravan.Destroyed) caravan.Destroy();
-            SpawnPawnsAtEdge(pawns);
-        }
-
-        private void ShuttleCaravanDefend(Caravan caravan, List<Pawn> pawns, Building_PassengerShuttle shuttle)
-        {
-            // Extract shuttle from pawn inventory before destroying caravan
-            Pawn owner = CaravanInventoryUtility.GetOwnerOf(caravan, shuttle);
-            owner?.inventory.innerContainer.Remove(shuttle);
-
-            // Register pawns as defenders (for win/loss counting) but don't assign to a lord
-            // since they're still inside the shuttle and not spawned on the map yet.
-            RegisterPawnsAsDefenders(pawns, assignToLord: false);
-            if (!caravan.Destroyed) caravan.Destroy();
-
-            // Build TransportShip with pawns loaded inside
-            CompShuttle compShuttle = shuttle.TryGetComp<CompShuttle>();
-            TransportShipDef shipDef = compShuttle?.Props?.shipDef ?? TransportShipDefOf.Ship_Shuttle;
-            TransportShip transportShip = TransportShipMaker.MakeTransportShip(shipDef, pawns, shuttle);
-
-            // Prevent DeleteMap from removing the map while shuttle is in flight
-            shuttleLandingPending = true;
-
-            // Defer targeting to the next CompTick — UI can't render during LongEvents.
-            var map = Map;
-            var settlement = WorldSettlement;
-            var shuttleDef = shuttle.def;
-            Rot4 shuttleRotation = shuttleDef.defaultPlacingRot;
-            LongEventHandler.ExecuteWhenFinished(() =>
-            {
-                // Force camera to the battle map so the player sees where to land
-                Current.Game.CurrentMap = map;
-                CameraJumper.TryJump(new IntVec3(map.Size.x / 2, 0, map.Size.z / 2), map);
-
-                var targetParams = new TargetingParameters
-                {
-                    canTargetLocations = true,
-                    canTargetSelf = false,
-                    canTargetPawns = false,
-                    canTargetFires = false,
-                    canTargetBuildings = false,
-                    canTargetItems = false
-                };
-
-                bool landed = false;
-                Find.Targeter.BeginTargeting(targetParams,
-                    delegate(LocalTargetInfo target)
-                    {
-                        landed = true;
-                        shuttleLandingPending = false;
-                        shuttle.Rotation = shuttleRotation;
-                        transportShip.ArriveAt(target.Cell, settlement);
-                        transportShip.AddJobs(ShipJobDefOf.Unload, ShipJobDefOf.WaitForever);
-                    },
-                    delegate(LocalTargetInfo target)
-                    {
-                        RoyalTitlePermitWorker_CallShuttle.DrawShuttleGhost(target, map, shuttleDef, shuttleRotation);
-                    },
-                    delegate(LocalTargetInfo target)
-                    {
-                        return RoyalTitlePermitWorker_CallShuttle.ShuttleCanLandHere(target, map, shuttleDef, shuttleRotation);
-                    },
-                    null,
-                    delegate
-                    {
-                        if (landed) return;
-                        shuttleLandingPending = false;
-                        // Player cancelled targeting — auto-land at best spot
-                        if (!Find.Maps.Contains(map)) return;
-                        IntVec3 fallback = DropCellFinder.GetBestShuttleLandingSpot(map, Faction.OfPlayer);
-                        transportShip.ArriveAt(fallback, settlement);
-                        transportShip.AddJobs(ShipJobDefOf.Unload, ShipJobDefOf.WaitForever);
-                    },
-                    null, true, null,
-                    delegate(LocalTargetInfo target)
-                    {
-                        if (!shuttleDef.rotatable) return;
-                        if (KeyBindingDefOf.Designator_RotateRight.KeyDownEvent)
-                            shuttleRotation = shuttleRotation.Rotated(RotationDirection.Clockwise);
-                        if (KeyBindingDefOf.Designator_RotateLeft.KeyDownEvent)
-                            shuttleRotation = shuttleRotation.Rotated(RotationDirection.Counterclockwise);
-                    });
-            });
-        }
-
-        private void SpawnPawnsAtEdge(List<Pawn> pawns)
-        {
-            var enterCell = FindNearEdgeCell(Map);
-            foreach (var pawn in pawns)
-            {
-                var loc = CellFinder.RandomSpawnCellForPawnNear(enterCell, Map);
-                GenSpawn.Spawn(pawn, loc, Map, Rot4.Random);
-            }
+            bf.CaravanDefend(caravan);
         }
 
         public void AddToDefenceFromList(List<Pawn> pawns, int destinationTile)
@@ -607,71 +502,15 @@ namespace FactionColonies
             AddToDefenceFromList(pawns, destinationTile, assignToLord: true);
         }
 
-        /// <summary>
-        /// Registers pawns with the defense system (defenders list + battle lord).
-        /// When <paramref name="assignToLord"/> is false, pawns are added to defenders
-        /// but not to the battle lord. This is needed for entities like Vehicle Framework
-        /// vehicles that have their own job systems and conflict with lord duty assignments.
-        /// </summary>
         public void AddToDefenceFromList(List<Pawn> pawns, int destinationTile, bool assignToLord)
         {
-            if (pawns.NullOrEmpty())
+            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(new PlanetTile(destinationTile));
+            if (bf is null)
             {
-                LogUtil.Error("Tried to add an empty list of pawns to an FCEvent");
+                LogUtil.Error($"AddToDefenceFromList: no battlefield for tile {destinationTile}.");
                 return;
             }
-
-            // If battle is already in progress (map loaded), register directly.
-            // Avoids a redundant StartDefence call that would fail to find the event
-            // (already consumed) and queue a second LongEvent causing cascade errors.
-            if (isUnderAttack && Map != null)
-            {
-                RegisterPawnsAsDefenders(pawns, assignToLord);
-                return;
-            }
-
-            StartDefence(
-                MilitaryUtilFC.ReturnMilitaryEventByLocation(destinationTile), () =>
-                {
-                    RegisterPawnsAsDefenders(pawns, assignToLord);
-                });
-        }
-
-        private void RegisterPawnsAsDefenders(List<Pawn> pawns, bool assignToLord)
-        {
-            if (assignToLord)
-            {
-                Lord existingLord = defenders.Any() ? defenders[0].GetLord() : null;
-                if (existingLord != null)
-                {
-                    foreach (var pawn in pawns)
-                    {
-                        if (!defenders.Contains(pawn) && !existingLord.ownedPawns.Contains(pawn))
-                            existingLord.AddPawn(pawn);
-                    }
-                }
-                else if (Map != null)
-                {
-                    var lordless = new List<Pawn>();
-                    foreach (var pawn in pawns)
-                    {
-                        if (!defenders.Contains(pawn) && pawn.GetLord() is null)
-                            lordless.Add(pawn);
-                    }
-                    if (lordless.Any())
-                        LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction,
-                            new LordJob_ColonistsIdle(WorldSettlement), Map, lordless);
-                }
-            }
-
-            foreach (var pawn in pawns)
-            {
-                if (!defenders.Contains(pawn))
-                {
-                    defenders.Add(pawn);
-                    initialDefenderCount++;
-                }
-            }
+            bf.AddToDefenceFromList(pawns, destinationTile, assignToLord);
         }
 
         public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Caravan caravan)
@@ -681,806 +520,152 @@ namespace FactionColonies
                     yield return option;
         }
 
-        private void DeleteMap(bool won = true)
-        {
-            var map = Map;
-            if (map is null) return;
-
-            // Restore faction on Empire defenders the player drafted during battle.
-            // After this, any remaining Faction.OfPlayer pawns are real player colonists.
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
-            foreach (Pawn npc in draftedNPCs)
-            {
-                if (npc is null || npc.Dead || npc.Destroyed) continue;
-                if (npc.Faction == Faction.OfPlayer)
-                    npc.SetFaction(empireFaction);
-            }
-            draftedNPCs.Clear();
-
-            // Check for player pawns on the map (spawned as Faction.OfPlayer free colonists)
-            List<Pawn> playerPawns = new List<Pawn>();
-            bool anyMobile = false;
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
-            {
-                playerPawns.Add(pawn);
-                if (!pawn.Downed) anyMobile = true;
-            }
-
-            if (anyMobile || shuttleLandingPending)
-            {
-                // Mobile player pawns (or shuttles) exist — keep the map alive.
-                // ShouldRemoveMapNow checks AnyPawnBlockingMapRemoval and will
-                // auto-remove the map once all player pawns/shuttles have left.
-                // Notify_MyMapAboutToBeRemoved handles Empire pawn cleanup at that point.
-
-                // Remove battle lords, then re-assign Empire defenders to an idle lord
-                // so they hold position instead of wandering to the map edge.
-                foreach (var lord in map.lordManager.lords.ListFullCopy())
-                    map.lordManager.RemoveLord(lord);
-
-                List<Pawn> empireDefenders = new List<Pawn>();
-                foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
-                    if (pawn.Faction == empireFaction && !pawn.Dead && !pawn.Downed)
-                        empireDefenders.Add(pawn);
-
-                // Stop stale jobs that survived lord cleanup (e.g. Goto with exitMapOnArrival).
-                // Lord.Cleanup only interrupts jobs where EndPawnJobOnCleanup returns true;
-                // the rest keep executing and can walk pawns off the map.
-                foreach (Pawn pawn in empireDefenders)
-                    pawn.jobs.StopAll();
-
-                if (empireDefenders.Any())
-                    LordMaker.MakeNewLord(empireFaction, new LordJob_ColonistsIdle(WorldSettlement), map, empireDefenders);
-
-                return;
-            }
-
-            // Immediate path — remove all lords before cleanup
-            foreach (var lord in map.lordManager.lords.ListFullCopy())
-                map.lordManager.RemoveLord(lord);
-
-            if (playerPawns.Count > 0)
-            {
-                // All player pawns are downed — deliver them home via event, then remove map
-                foreach (Pawn pawn in playerPawns)
-                    if (pawn.Spawned) pawn.DeSpawn();
-
-                foreach (Pawn pawn in playerPawns)
-                    if (!pawn.Dead)
-                    {
-                        int iterations = 0;
-                        while (pawn.health.HasHediffsNeedingTend())
-                        {
-                            iterations++;
-                            if (iterations > 10000)
-                            {
-                                LogUtil.Error("SettlementMilitary.DeleteMap: Too many tend iterations.");
-                                break;
-                            }
-                            TendUtility.DoTend(null, pawn, null);
-                        }
-                    }
-
-                string eventText = won
-                    ? DeliveryEvent.ShuttleEventInjuredString
-                    : DeliveryEvent.ShuttleEventInjuredLostString;
-                int travelTicks = TravelUtil.ReturnTicksToArrive(WorldSettlement.Tile, Find.AnyPlayerHomeMap.Tile);
-                if (!won) travelTicks += GenDate.TicksPerDay;
-
-                var goods = new List<Thing>(playerPawns.Count);
-                foreach (Pawn pawn in playerPawns) goods.Add(pawn);
-
-                var eventParams = new FCEvent
-                {
-                    location = Find.AnyPlayerHomeMap.Tile,
-                    source = WorldSettlement.Tile,
-                    goods = goods,
-                    customDescription = eventText,
-                    timeTillTrigger = Find.TickManager.TicksGame + travelTicks
-                };
-                DeliveryEvent.CreateDeliveryEvent(eventParams);
-                string travelDays = ((float)travelTicks / GenDate.TicksPerDay).ToString("0.#");
-                pendingDeliveryMessage = "FCInjuredCaravanMembersReturning".Translate(playerPawns.Count, travelDays);
-            }
-
-            // No player pawns (or all downed and delivered) — immediate map removal.
-            // Notify_MyMapAboutToBeRemoved handles Empire pawn cleanup.
-            CameraJumper.TryJump(WorldSettlement.Tile);
-            Current.Game.CurrentMap = Find.AnyPlayerHomeMap;
-            Current.Game.DeinitAndRemoveMap(map, false);
-        }
-
+        /// <summary>Thin delegation to <see cref="BattlefieldContext.StartDefense"/>. Looks up the op
+        /// linked to <paramref name="evt"/> and routes the start-defense flow through it.
+        /// External callers (manual Defend gizmo, CaravanDefend, debug actions) keep using this
+        /// entry point for source compatibility.</summary>
         public void StartDefence(FCEvent evt, Action after)
         {
-            // Consume the event from the faction queue exactly once, regardless of entry point
-            // (manual Defend button, caravan defend, or timer-driven ProcessEvents). Prevents
-            // ProcessEvents from re-triggering a second defense after this one resolves.
-            FactionCache.FactionComp?.RemoveEvent(evt);
-
-            // Path 1: Add wave to active battle
-            if (battleMapInitialized && Map is object && isUnderAttack)
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is null)
             {
-                var wave = new DefenseWave(evt, evt.militaryForceAttacking, evt.militaryForceDefending, evt.militaryForceAttackingFaction);
-                activeWaves.Add(wave);
-
-                LongEventHandler.QueueLongEvent(() =>
-                {
-                    SpawnWaveAttackers(wave);
-                    GenerateWaveReinforcements(wave);
-
-                    string enemyName = wave.attackerFaction?.Name ?? "Unknown";
-                    Find.LetterStack.ReceiveLetter(
-                        "FCNewWaveArrived".Translate(WorldSettlement.Name),
-                        "FCNewWaveArrivedDesc".Translate(WorldSettlement.Name, enemyName),
-                        LetterDefOf.ThreatBig,
-                        new LookTargets(WorldSettlement));
-                    after.Invoke();
-                }, "GeneratingMap", false, null);
+                LogUtil.Error($"StartDefence: no MilitaryManager available for {WorldSettlement?.Name}.");
+                FactionCache.FactionComp?.RemoveEvent(evt);
+                return;
+            }
+            MilitaryOperation op = evt.linkedOperation;
+            if (op is null)
+            {
+                LogUtil.Error($"StartDefence: warning event for {WorldSettlement?.Name} has no linked op.");
+                FactionCache.FactionComp?.RemoveEvent(evt);
                 return;
             }
 
-            // Determine auto-resolve
-            bool shouldAutoResolve = false;
-            if (FCSettings.battleMode == BattleMode.Auto || !WorldSettlement.settlementDef.supportsManualBattle)
+            // Player-initiated defense (Defend gizmo / caravan arrival) jumps the warning-event
+            // timer. Without this, the op stays in Scheduled phase and CompleteBattle silently
+            // bails at battle end, with no result letter. OnEventFired's auto-trigger path runs the
+            // same transition before calling StartDefense.
+            if (op.phase == MilitaryOperationPhase.Scheduled
+                || op.phase == MilitaryOperationPhase.Traveling)
             {
-                shouldAutoResolve = true;
-            }
-            else if (FCSettings.battleMode == BattleMode.Hybrid)
-            {
-                shouldAutoResolve = !battleMapInitialized && !IsPlayerCaravanOnTile();
-            }
-
-            // Concurrent battle limit check
-            if (!shouldAutoResolve && FCSettings.maxConcurrentBattleMaps > 0
-                && CountOtherSettlementBattleMaps() >= FCSettings.maxConcurrentBattleMaps)
-                shouldAutoResolve = true;
-
-            if (shouldAutoResolve)
-            {
-                initialDefenderCount = (int)evt.militaryForceDefending.forceRemaining;
-                BattleResult battleResult = SimulateBattleFc.FightBattle(evt.militaryForceAttacking, evt.militaryForceDefending);
-                EndBattle(battleResult.DefenderVictory, (int)evt.militaryForceDefending.forceRemaining, battleResult);
-                return;
+                op.BeginEngagement();
             }
 
-            // Path 2: Reuse post-battle map (player still on it)
-            if (Map is object && !isUnderAttack)
-            {
-                isUnderAttack = true;
-                battleMapInitialized = true;
-
-                var wave = new DefenseWave(evt, evt.militaryForceAttacking, evt.militaryForceDefending, evt.militaryForceAttackingFaction);
-                activeWaves.Add(wave);
-
-                LongEventHandler.QueueLongEvent(() =>
-                {
-                    // Re-recruit surviving Empire NPC defenders from their idle lord
-                    RecruitIdleDefenders();
-                    SpawnWaveAttackers(wave);
-                    GenerateWaveReinforcements(wave);
-                    Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
-
-                    string enemyName = wave.attackerFaction?.Name ?? "Unknown";
-                    Find.LetterStack.ReceiveLetter(
-                        "FCManualBattleStarted".Translate(WorldSettlement.Name),
-                        "FCManualBattleStartedDesc".Translate(WorldSettlement.Name, enemyName),
-                        LetterDefOf.ThreatBig,
-                        new LookTargets(WorldSettlement));
-                    after.Invoke();
-                }, "GeneratingMap", false, null);
-                return;
-            }
-
-            // Path 3: Fresh battle — generate map
-            if (evt.militaryForceDefending is null)
-            {
-                LogUtil.Warning($"StartDefence: defenderForce is null for {WorldSettlement.Name}, settlement loses by default.");
-                EndBattle(false, 0, null);
-                return;
-            }
-
-            var initialWave = new DefenseWave(evt, evt.militaryForceAttacking, evt.militaryForceDefending, evt.militaryForceAttackingFaction);
-            activeWaves.Add(initialWave);
-
-            LongEventHandler.QueueLongEvent(() =>
-            {
-                if (Map == null)
-                    MapGenerator.GenerateMap(new IntVec3(70 + WorldSettlement.settlementLevel * 10, 1, 70 + WorldSettlement.settlementLevel * 10),
-                                             WorldSettlement, WorldSettlement.MapGeneratorDef, WorldSettlement.ExtraGenStepDefs);
-
-                ZoomIntoTile(evt);
-                SetupAttack(evt);
-                after.Invoke();
-            },
-                "GeneratingMap", false, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
+            BattlefieldContext bf = manager.GetOrCreateBattlefield(WorldSettlement.Tile);
+            bf.StartDefense(op, after);
         }
 
-        private void SetupAttack(FCEvent temp)
-        {
-            // ZoomIntoTile may have aborted via EndBattle (null event / null force); don't
-            // spawn attackers into a cleaned-up state.
-            if (!isUnderAttack) return;
-
-            if (Map is null)
-            {
-                LogUtil.Error($"SetupAttack: {WorldSettlement.Name} has no map. Resetting battle state.");
-                EndBattle(false, 0, null);
-                return;
-            }
-
-            if (temp.militaryForceAttacking is null || temp.militaryForceAttackingFaction is null)
-            {
-                LogUtil.Error($"SetupAttack: Missing attacking force or faction for {WorldSettlement.Name}. Resetting battle state.");
-                EndBattle(false, 0, null);
-                return;
-            }
-
-            // Find the wave that was created in StartDefence (the last one added)
-            DefenseWave wave = activeWaves.Count > 0 ? activeWaves[activeWaves.Count - 1] : null;
-            if (wave is null)
-            {
-                // Shouldn't happen — StartDefence always adds a wave before calling SetupAttack
-                wave = new DefenseWave(temp, temp.militaryForceAttacking, temp.militaryForceDefending, temp.militaryForceAttackingFaction);
-                activeWaves.Add(wave);
-            }
-
-            SpawnWaveAttackers(wave);
-        }
-
-        /// <summary>
-        /// Spawns attackers for a single wave onto the current map.
-        /// Adds them to both the wave's <c>waveAttackers</c> and the comp's flat <c>attackers</c> list.
-        /// </summary>
-        private void SpawnWaveAttackers(DefenseWave wave)
-        {
-            if (Map is null || wave.attackerForce is null) return;
-
-            IncidentParms parms = new IncidentParms
-            {
-                target = Map,
-                faction = wave.attackerFaction,
-                generateFightersOnly = true,
-                raidStrategy = RaidStrategyDefOf.ImmediateAttack,
-                raidNeverFleeIndividual = true
-            };
-            parms.points = Math.Max(
-                IncidentWorker_Raid.AdjustedRaidPoints(
-                    (float)wave.attackerForce.forceRemaining * 175,
-                    PawnsArrivalModeDefOf.EdgeWalkIn, parms.raidStrategy,
-                    parms.faction, PawnGroupKindDefOf.Combat,
-                    parms.target),
-                300f);
-            parms.raidArrivalMode = ResolveRaidArriveMode(parms) ?? PawnsArrivalModeDefOf.EdgeWalkIn;
-            parms.raidArrivalMode.Worker.TryResolveRaidSpawnCenter(parms);
-
-            List<Pawn> newAttackers = PawnGroupMakerUtility.GeneratePawns(
-                IncidentParmsUtility.GetDefaultPawnGroupMakerParms(
-                    PawnGroupKindDefOf.Combat, parms, true)).ToList();
-            if (!newAttackers.Any())
-            {
-                LogUtil.Error("Got no pawns spawning wave attackers from parms " + parms);
-                if (!attackers.Any())
-                    LongEventHandler.QueueLongEvent(EndAttack, "EndingAttack", false, null);
-                return;
-            }
-
-            double attackerEfficiency = wave.attackerForce.militaryEfficiency;
-            foreach (Pawn attacker in newAttackers)
-            {
-                MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(attacker, attackerEfficiency);
-            }
-
-            parms.raidArrivalMode.Worker.Arrive(newAttackers, parms);
-
-            wave.waveAttackers.AddRange(newAttackers);
-            attackers.AddRange(newAttackers);
-            LordMaker.MakeNewLord(
-                parms.faction,
-                new LordJob_HuntColonists(WorldSettlement, parms.raidArrivalMode != PawnsArrivalModeDefOf.CenterDrop),
-                Map, newAttackers);
-        }
-
-        /// <summary>
-        /// Spawns reinforcement defenders for a wave if a foreign defending settlement's squad is available.
-        /// Does NOT generate random pawns if the squad is deployed — the settlement fights with existing defenders.
-        /// </summary>
-        private void GenerateWaveReinforcements(DefenseWave wave)
-        {
-            if (Map is null || wave.defenderForce is null) return;
-
-            var homeComp = wave.defenderForce.homeSettlement?.MilitaryComp;
-            if (homeComp is null) return;
-            // Don't spawn reinforcements from the home settlement defending itself — already handled
-            if (wave.defenderForce.homeSettlement == WorldSettlement) return;
-
-            bool hasSquad = homeComp.militarySquad != null
-                && homeComp.militarySquad.outfit != null
-                && homeComp.militarySquad.mercenaries.Any();
-            if (!hasSquad) return;
-            if (homeComp.militarySquad.IsPhysicallyDeployed()) return;
-
-            var squad = homeComp.militarySquad;
-            squad.CheckInitialization();
-            squad.OutfitSquad(squad.outfit);
-            squad.UpdateSquadStats(wave.defenderForce.homeSettlement.settlementMilitaryLevel);
-            squad.ResetNeeds();
-
-            double efficiency = wave.defenderForce.militaryEfficiency;
-            foreach (Pawn merc in squad.AllEquippedMercenaryPawns)
-            {
-                MilitaryEfficiencyUtil.ShiftPawnGearQuality(merc, efficiency);
-                MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(merc, efficiency);
-            }
-
-            List<Pawn> reinforcements = squad.AllEquippedMercenaryPawns.ToList();
-            Lord defenseLord = defenders.Count > 0 ? defenders[0].GetLord() : null;
-            var spawnedReinforcements = new List<Pawn>();
-
-            foreach (Pawn friendly in reinforcements)
-            {
-                if (friendly.IsWildMan()) continue;
-                friendly.ApplyIdeologyRitualWounds();
-
-                IntVec3 loc;
-                if (!CellFinder.TryFindRandomCellNear(Map.Center, Map, 20, c => c.Standable(Map), out loc))
-                    loc = Map.Center;
-
-                try
-                {
-                    GenSpawn.Spawn(friendly, loc, Map, new Rot4());
-                    friendly.drafter = new Pawn_DraftController(friendly);
-                    Map.mapPawns.RegisterPawn(friendly);
-                    spawnedReinforcements.Add(friendly);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Warning($"Failed to spawn reinforcement {friendly.LabelShort}: {e}");
-                }
-            }
-
-            if (spawnedReinforcements.Any())
-            {
-                if (defenseLord is object)
-                {
-                    foreach (Pawn pawn in spawnedReinforcements)
-                        defenseLord.AddPawn(pawn);
-                }
-                else
-                {
-                    LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction,
-                        new LordJob_DefendColony(WorldSettlement, new Dictionary<Pawn, Pawn>()),
-                        Map, spawnedReinforcements);
-                }
-
-                wave.waveDefenders.AddRange(spawnedReinforcements);
-                defenders.AddRange(spawnedReinforcements);
-                initialDefenderCount += spawnedReinforcements.Count;
-            }
-        }
-
-        /// <summary>
-        /// Re-recruits surviving Empire NPC defenders from their idle lord into a new defense lord.
-        /// Used when reusing a post-battle map for a new attack (Path 2).
-        /// </summary>
-        private void RecruitIdleDefenders()
-        {
-            if (Map is null) return;
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
-            var idleDefenders = new List<Pawn>();
-
-            foreach (Pawn pawn in Map.mapPawns.AllPawnsSpawned)
-            {
-                if (pawn.Dead || pawn.Downed) continue;
-                if (pawn.Faction != empireFaction && pawn.Faction != Faction.OfPlayer) continue;
-                if (pawn.IsPrisonerOfColony) continue;
-                idleDefenders.Add(pawn);
-            }
-
-            // Remove from any existing idle lords
-            foreach (Pawn pawn in idleDefenders)
-            {
-                Lord lord = pawn.GetLord();
-                if (lord != null)
-                    lord.Notify_PawnLost(pawn, PawnLostCondition.LeftVoluntarily);
-            }
-
-            if (idleDefenders.Any())
-            {
-                LordMaker.MakeNewLord(empireFaction,
-                    new LordJob_DefendColony(WorldSettlement, new Dictionary<Pawn, Pawn>()),
-                    Map, idleDefenders);
-                defenders.AddRange(idleDefenders);
-                initialDefenderCount = defenders.Count;
-            }
-        }
-
-        private static PawnsArrivalModeDef ResolveRaidArriveMode(IncidentParms parms)
-        {
-            return parms.raidStrategy.arriveModes
-                .Where(mode => mode.Worker.CanUseWith(parms))
-                .TryRandomElementByWeight(mode => mode.Worker.GetSelectionWeight(parms), out PawnsArrivalModeDef output)
-                ? output
-                : PawnsArrivalModeDefOf.EdgeWalkIn;
-        }
-
-        private void ZoomIntoTile(FCEvent evt)
-        {
-            SoundDefOf.Tick_High.PlayOneShotOnCamera();
-            if (!battleMapInitialized)
-            {
-                if (evt == null)
-                {
-                    LogUtil.Warning("Aborting defense, null FCEvent! Resetting battle state.");
-                    EndBattle(false, 0, null);
-                    return;
-                }
-
-                var force = MilitaryUtilFC.ReturnDefendingMilitaryForce(evt);
-                if (force == null)
-                {
-                    LogUtil.Warning($"Aborting defense for {WorldSettlement?.Name}, null defending force. Resetting battle state.");
-                    EndBattle(false, 0, null);
-                    return;
-                }
-
-                battleMapInitialized = true;
-
-                if (force.homeSettlement?.MilitaryComp != null)
-                    force.homeSettlement.MilitaryComp.militaryBusy = true;
-
-                Map.fogGrid.ClearAllFog();
-
-                // Remove pawns spawned by KCSG/VBGE that don't belong to Empire or the player.
-                // KCSG's SymbolResolver_Settlement spawns generic faction pawns during map gen
-                // that conflict with Empire's lord-based military system.
-                Faction empireFaction = FactionCache.PlayerColonyFaction;
-                List<Pawn> toRemove = new List<Pawn>();
-                foreach (Pawn pawn in Map.mapPawns.AllPawnsSpawned)
-                {
-                    if (!pawn.RaceProps.Humanlike) continue;
-                    if (pawn.Faction == empireFaction) continue;
-                    if (pawn.Faction == Faction.OfPlayer) continue;
-                    toRemove.Add(pawn);
-                }
-                foreach (Pawn pawn in toRemove)
-                {
-                    pawn.Destroy();
-                }
-                if (toRemove.Count > 0)
-                    LogUtil.Message($"Cleaned up {toRemove.Count} unrelated pawns from {WorldSettlement.Name}");
-
-                GenerateFriendlies(force, evt);
-                RecruitMapInhabitants();
-                Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
-
-                string enemyName = attackerForce?.homeFaction?.Name ?? "Unknown";
-                GlobalTargetInfo jumpTarget = defenders.Any()
-                    ? new GlobalTargetInfo(defenders[0])
-                    : new GlobalTargetInfo(new IntVec3(Map.Size.x / 2, 0, Map.Size.z / 2), Map);
-                Find.LetterStack.ReceiveLetter(
-                    "FCManualBattleStarted".Translate(WorldSettlement.Name),
-                    "FCManualBattleStartedDesc".Translate(WorldSettlement.Name, enemyName),
-                    LetterDefOf.ThreatBig,
-                    new LookTargets(jumpTarget));
-            }
-        }
-
-        public static IntVec3 FindNearEdgeCell(Map map)
-        {
-            bool BaseValidator(IntVec3 x)
-            {
-                return x.Standable(map) && !x.Fogged(map);
-            }
-
-            var hostFaction = map.ParentFaction;
-            if (CellFinder.TryFindRandomEdgeCellWith(x =>
-            {
-                if (!BaseValidator(x))
-                    return false;
-                if (hostFaction != null && map.reachability.CanReachFactionBase(x, hostFaction))
-                    return true;
-                return hostFaction == null && map.reachability.CanReachBiggestMapEdgeDistrict(x);
-            }, map, CellFinder.EdgeRoadChance_Neutral, out var result))
-                return CellFinder.RandomClosewalkCellNear(result, map, 5);
-            if (CellFinder.TryFindRandomEdgeCellWith(BaseValidator, map, CellFinder.EdgeRoadChance_Neutral, out result))
-                return CellFinder.RandomClosewalkCellNear(result, map, 5);
-            LogUtil.Warning("Could not find any valid edge cell.");
-            return CellFinder.RandomCell(map);
-        }
-
-        private void GenerateFriendlies(MilitaryForce force, FCEvent battleEvent = null)
-        {
-            var points = Math.Max((float)(force.forceRemaining * 100), 50f);
-            List<Pawn> friendlies = null;
-            var riders = new Dictionary<Pawn, Pawn>();
-
-            // Try external defender pawns (VOE outposts, etc.)
-            if (force.homeSettlement == null && battleEvent?.externalDefenderSource != null)
-            {
-                IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(
-                    battleEvent.externalDefenderSource);
-                friendlies = extDefender?.GetDefendingPawns();
-            }
-
-            if (friendlies != null && friendlies.Count > 0)
-            {
-                // External defender provided real pawns — skip squad/random generation
-            }
-            else
-            {
-                var homeComp = force.homeSettlement?.MilitaryComp;
-                bool hasSquad = homeComp?.militarySquad != null
-                    && homeComp.militarySquad.outfit != null
-                    && homeComp.militarySquad.mercenaries.Any();
-                bool squadDeployed = hasSquad && homeComp.militarySquad.IsPhysicallyDeployed();
-                bool squadAvailable = hasSquad && !squadDeployed
-                    && (homeComp.militaryJob == null
-                        || homeComp.militaryJob == MilitaryJobDefOf.Undefined
-                        || homeComp.militaryJob == MilitaryJobDefOf.DefendFriendlySettlement);
-
-                if (squadAvailable)
-                {
-                    var squad = force.homeSettlement.MilitaryComp.militarySquad;
-                    squad.CheckInitialization();
-
-                    squad.OutfitSquad(squad.outfit);
-                    squad.UpdateSquadStats(force.homeSettlement.settlementMilitaryLevel);
-                    squad.ResetNeeds();
-
-                    double efficiency = force.militaryEfficiency;
-                    foreach (Pawn merc in squad.AllEquippedMercenaryPawns)
-                    {
-                        MilitaryEfficiencyUtil.ShiftPawnGearQuality(merc, efficiency);
-                        MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(merc, efficiency);
-                    }
-
-                    friendlies = squad.AllEquippedMercenaryPawns.ToList();
-
-                    foreach (var animal in squad.animals)
-                    {
-                        if (animal.handler?.pawn is object)
-                            riders.Add(animal.handler.pawn, animal.pawn);
-                    }
-                }
-                else if (!hasSquad)
-                {
-                    // No squad configured — generate random pawns as fallback
-                    var parms = new IncidentParms
-                    {
-                        target = Map,
-                        faction = FactionCache.PlayerColonyFaction,
-                        generateFightersOnly = true,
-                        raidStrategy = RaidStrategyDefOf.ImmediateAttackFriendly
-                    };
-                    parms.points = IncidentWorker_Raid.AdjustedRaidPoints(points,
-                        PawnsArrivalModeDefOf.EdgeWalkIn, parms.raidStrategy,
-                        parms.faction, PawnGroupKindDefOf.Combat,
-                        parms.target // new required parameter
-                    );
-                    friendlies = PawnGroupMakerUtility.GeneratePawns(
-                        IncidentParmsUtility.GetDefaultPawnGroupMakerParms(
-                            PawnGroupKindDefOf.Combat, parms, true)).ToList();
-                    if (!friendlies.Any()) LogUtil.Error("Got no pawns spawning raid from parms " + parms);
-
-                    double efficiency = force.militaryEfficiency;
-                    foreach (Pawn defender in friendlies)
-                    {
-                        MilitaryEfficiencyUtil.ApplyCombatEfficiencyHediff(defender, efficiency);
-                    }
-                }
-                // else: squad exists but is physically deployed — no defenders from this source.
-                // Settlement fights with inhabitants only (RecruitMapInhabitants).
-            } // end else (no external defender pawns)
-
-            void tryFindLoc(out IntVec3 loc, Pawn friendly)
-            {
-                var min = (70 + WorldSettlement.settlementLevel * 10) / 2 - 5 - 5 * WorldSettlement.settlementLevel;
-                var size = 10 + WorldSettlement.settlementLevel * 10;
-                CellFinder.TryFindRandomCellInsideWith(new CellRect(min, min, size, size),
-                    testing => testing.Standable(Map) && Map.reachability.CanReachMapEdge(testing,
-                        TraverseParms.For(TraverseMode.PassDoors)), out loc);
-                if (loc.x == -1000)
-                {
-                    LogUtil.Message("Failed with " + friendly + ", " + loc);
-                    CellFinder.TryFindRandomCellNear(new IntVec3(min + 10 + WorldSettlement.settlementLevel, 1,
-                            min + 10 + WorldSettlement.settlementLevel), Map, 75,
-                        testing => testing.Standable(Map), out loc);
-                }
-            }
-
-            if (friendlies is null) friendlies = new List<Pawn>();
-
-            var spawnedFriendlies = new List<Pawn>();
-            foreach (var friendly in friendlies)
-            {
-                if (friendly.IsWildMan()) continue;
-
-                friendly.ApplyIdeologyRitualWounds();
-
-                IntVec3 loc;
-                if (friendly.AnimalOrWildMan())
-                {
-                    Pawn rider = null;
-                    if (riders.Count > 0)
-                    {
-                        var pair = riders.FirstOrDefault(p => p.Value.thingIDNumber == friendly.thingIDNumber);
-                        rider = pair.Key;
-                    }
-
-                    if (rider is object)
-                    {
-                        CellFinder.TryFindRandomCellInsideWith(new CellRect((int)rider.DrawPos.x - 5,
-                                (int)rider.DrawPos.z - 5, 10, 10),
-                            testing => testing.Standable(Map) && Map.reachability.CanReachMapEdge(testing,
-                                TraverseParms.For(TraverseMode.PassDoors)), out loc);
-                    }
-                    else
-                    {
-                        LogUtil.Warning($"Defender animal {friendly.LabelShort} ({friendly.thingIDNumber}) has no rider pair; placing as a standalone defender.");
-                        tryFindLoc(out loc, friendly);
-                    }
-                }
-                else
-                {
-                    tryFindLoc(out loc, friendly);
-                }
-
-                try
-                {
-                    GenSpawn.Spawn(friendly, loc, Map, new Rot4());
-                    friendly.drafter = new Pawn_DraftController(friendly);
-                    Map.mapPawns.RegisterPawn(friendly);
-                    spawnedFriendlies.Add(friendly);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Warning($"Failed to spawn defender {friendly.LabelShort} (likely a mod conflict): {e}");
-                }
-            }
-
-            LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DefendColony(WorldSettlement, riders), Map, spawnedFriendlies);
-
-            defenders = spawnedFriendlies;
-            initialDefenderCount = defenders.Count;
-
-            // Track external defender pawns on the arriving wave so EndAttack can return them
-            // via IAutoDefender.ReturnDefendingPawns.
-            if (force.homeSettlement == null && battleEvent?.externalDefenderSource != null)
-            {
-                DefenseWave wave = activeWaves.FirstOrDefault(w => w.sourceEvent == battleEvent);
-                if (wave is null)
-                {
-                    wave = activeWaves.FirstOrDefault();
-                    if (wave is object)
-                        LogUtil.Warning($"GenerateFriendlies: no wave matched battleEvent for external defender at {WorldSettlement.Name}; falling back to first active wave.");
-                    else
-                        LogUtil.Error($"GenerateFriendlies: no active waves to track external defender pawns at {WorldSettlement.Name}; outpost will lose its pawns at battle end.");
-                }
-                wave?.waveDefenders.AddRange(spawnedFriendlies);
-            }
-        }
-
-        private void RecruitMapInhabitants()
-        {
-            if (Map == null || !defenders.Any()) return;
-
-            Lord defenseLord = defenders[0].GetLord();
-            if (defenseLord == null) return;
-
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
-            var inhabitants = new List<Pawn>();
-
-            foreach (Pawn pawn in Map.mapPawns.AllPawnsSpawned)
-            {
-                if (defenders.Contains(pawn)) continue;
-                if (!pawn.RaceProps.Humanlike) continue;
-                if (pawn.Downed || pawn.Dead) continue;
-                if (pawn.Faction != empireFaction) continue;
-                if (pawn.IsPrisonerOfColony) continue;
-                inhabitants.Add(pawn);
-            }
-
-            int targetCount = (int)WorldSettlement.workers;
-
-            // Remove excess civilians
-            while (inhabitants.Count > targetCount)
-            {
-                Pawn excess = inhabitants[inhabitants.Count - 1];
-                inhabitants.RemoveAt(inhabitants.Count - 1);
-                if (excess.Spawned) excess.Destroy();
-            }
-
-            // Spawn additional civilians if needed
-            int spawnAttempts = 0;
-            while (inhabitants.Count < targetCount && spawnAttempts < targetCount * 2)
-            {
-                spawnAttempts++;
-                Pawn civilian = PawnGenerator.GeneratePawn(FCPawnGenerator.CivilianRequest());
-                IntVec3 loc;
-                if (!CellFinder.TryFindRandomCellNear(Map.Center, Map, 15, c => c.Standable(Map), out loc))
-                    loc = Map.Center;
-                try
-                {
-                    GenSpawn.Spawn(civilian, loc, Map);
-                    inhabitants.Add(civilian);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Warning($"Failed to spawn civilian (likely a mod conflict): {e}");
-                }
-            }
-
-            // Strip weapons from most civilians so they are visually distinct from guards (~12% keep weapons)
-            for (int i = 0; i < inhabitants.Count; i++)
-            {
-                if (i % 8 != 0)
-                    inhabitants[i].equipment.DestroyAllEquipment();
-            }
-
-            foreach (Pawn inhabitant in inhabitants)
-            {
-                Lord existingLord = inhabitant.GetLord();
-                if (existingLord != null)
-                    existingLord.Notify_PawnLost(inhabitant, PawnLostCondition.LeftVoluntarily);
-
-                defenseLord.AddPawn(inhabitant);
-                defenders.Add(inhabitant);
-            }
-
-            if (inhabitants.Count > 0)
-            {
-                initialDefenderCount = defenders.Count;
-                LogUtil.Message($"Added {inhabitants.Count} settlement inhabitants to defenders at {WorldSettlement.Name}");
-            }
-        }
 
         public void EndBattle(bool won, int remaining, BattleResult battleResult = null)
         {
             var faction = FactionCache.FactionComp;
 
+            // Reset before per-op dispatch so the post-flush check below can detect whether the
+            // accumulator flush (or an immediate-emit fallback) successfully sent a result letter.
+            DefensiveBattleEffects.letterEmitted = false;
+
             LogUtil.Message("WorldSettlementFC.EndBattle: Handling combat resolution...");
-            try
+
+            // Op completion runs first so manager state catches up before any side effect
+            // queries it. Each op fires its own LifecycleRegistry.OnBattleResolved and schedules
+            // its own cooldown event linked back to itself.
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            if (manager is object)
             {
-                if (won)
+                var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
+                if (opsAtTile.Count == 0)
                 {
-                    WinBattle(faction);
+                    LogUtil.Warning($"WorldSettlementFC.EndBattle: no manager ops at tile {WorldSettlement.Tile}; battle resolution dropped.");
                 }
                 else
                 {
-                    LoseBattle(faction);
+                    int defenderInitial = Battlefield?.initialDefenderCount ?? remaining;
+
+                    // Open the condensed-letter accumulator: each op's CompleteBattle ->
+                    // MilitaryJobHandler_Defend.ApplyResult appends its outcome fragment instead
+                    // of emitting a letter; FlushAccumulator below sends one condensed letter
+                    // holding every concurrent attack's result, with one report button per attack.
+                    DefensiveBattleEffects.activeAccumulator =
+                        new DefenseLetterAccumulator(WorldSettlement, won);
+                    try
+                    {
+                        // Snapshot to avoid enumeration mutation if CompleteBattle unregisters.
+                        var snapshot = new List<MilitaryOperation>(opsAtTile);
+                        foreach (MilitaryOperation op in snapshot)
+                        {
+                            if (op is null) continue;
+                            if (!op.IsDefensive) continue;
+                            if (op.phase == MilitaryOperationPhase.CooldownPending
+                                || op.phase == MilitaryOperationPhase.Resolved) continue;
+
+                            // Manual-battle path: each concurrent attack gets its OWN BattleResult
+                            // so it archives independently (WorldComponent_Archive.RecordBattleReport
+                            // stamps reportId in place — a shared object can't carry N distinct ids)
+                            // and its battle report shows that attack's own attacker context
+                            // (filled from the op by BattleArchiveUtil). Defender-side / force-count
+                            // fields mirror the original synthetic stub, so overwhelming-victory /
+                            // crushing-defeat detection is unchanged. The auto-resolve path arrives
+                            // with battleResult already populated by the per-round auto-resolve engine.
+                            BattleResult resultForOp = battleResult ?? new BattleResult
+                            {
+                                winner = won ? BattleWinner.Defender : BattleWinner.Attacker,
+                                defenderInitialForce = defenderInitial,
+                                defenderForceRemaining = remaining,
+                                wasManualBattle = true
+                            };
+                            try { op.CompleteBattle(resultForOp); }
+                            catch (Exception innerEx)
+                            {
+                                LogUtil.Error($"EndBattle: op id={op.id} threw in CompleteBattle: {innerEx}");
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        // Always flush — FlushAccumulator clears activeAccumulator itself, so the
+                        // context never leaks into the next battle even if the loop threw.
+                        DefensiveBattleEffects.FlushAccumulator();
+                    }
                 }
-                LogUtil.Message("WorldSettlementFC.EndBattle: Handling foreign defenders...");
-                CooldownMilitary(remaining, won);
             }
-            catch (Exception e)
+
+            // Settlement-side effects (building destruction, stat changes) run inside
+            // op.CompleteBattle via MilitaryJobHandler_Defend.ApplyResult — once per op. Multi-op
+            // battles apply one full penalty set per concurrent attacker, treating each op as a
+            // logically distinct attack on the settlement. The result LETTER, however, is
+            // condensed: every op appends a fragment to DefensiveBattleEffects.activeAccumulator
+            // and FlushAccumulator (above) sends a single letter for the whole battle.
+            // isUnderAttack is computed from manager state; the op completing already drove it.
+            // BattlefieldContext.EndBattle resets battleMapInitialized after this call returns.
+
+            // Every battle resolution should produce a result letter via the accumulator flush
+            // (or an immediate-emit fallback). If none did, then the upstream pipeline has a
+            // silent-skip bug; log as an error. Earlier log lines ("ignoring re-entry on op id=N
+            // in phase X", "no manager ops at tile", etc.) identify which skip point fired.
+            if (!DefensiveBattleEffects.letterEmitted)
             {
-                LogUtil.Error($"Encountered an error while trying to resolve combat in Empire{Environment.NewLine}{e}");
+                LogUtil.Error($"EndBattle: no per-op handler sent a result letter at tile {WorldSettlement?.Tile} (won={won}). ");
             }
-            isUnderAttack = false;
-            battleMapInitialized = false;
-            LifecycleRegistry.InvokeOnBattleResolved(WorldSettlement, MilitaryJobDefOf.DefendFriendlySettlement, won, battleResult);
+
+            _ = remaining; // parameter retained for source compatibility with external callers.
+            _ = faction;
         }
 
-        private void ClearAttackState()
+        public void ClearAttackState()
         {
-            // Notify foreign defender so they don't keep a stale
-            // militaryJob = DefendFriendlySettlement / militaryLocation pointed here.
-            if (defenderForce?.homeSettlement is object
-                && defenderForce.homeSettlement != WorldSettlement)
+            // Foreign-defender squad-injury bookkeeping already ran inside op.CompleteBattle
+            // (which registers both aggressor and defender squads). No need to re-fire it here.
+            // isUnderAttack is computed from manager state — battle pawn lists and flags live on
+            // BattlefieldContext, so clear them through it.
+            BattlefieldContext bf = Battlefield;
+            if (bf is object)
             {
-                defenderForce.homeSettlement.MilitaryComp?.ReturnMilitary(false);
+                bf.endingBattle = false;
+                bf.battleMapInitialized = false;
+                bf.shuttleLandingPending = false;
+                bf.draftedNPCs?.Clear();
+                bf.ClearAllOpPawns();
             }
-
-            isUnderAttack = false;
-            endingBattle = false;
-            battleMapInitialized = false;
-            shuttleLandingPending = false;
-            attackers?.Clear();
-            defenders?.Clear();
-            draftedNPCs?.Clear();
-            activeWaves?.Clear();
-            _pendingAttackerForce = null;
-            _pendingDefenderForce = null;
         }
 
         public void PostSettlementLoadInit(WorldSettlementFC settlement)
@@ -1513,302 +698,35 @@ namespace FactionColonies
         {
             // Tile-less deploy: SendMilitary sets job + location together, so this is broken state.
             if (militaryLocation == PlanetTile.Invalid) return true;
-            
+
             // Active warning event for the target; defense is actually in progress.
             if (MilitaryUtilFC.ReturnMilitaryEventByLocation(militaryLocation) is object) return false;
-            
+
             // Target world object is gone (settlement destroyed, outpost despawned, etc.): stale.
             var targetComp = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(militaryLocation)?.MilitaryComp;
             if (targetComp is null) return true;
-            
+
             // Target exists, no event, not under attack: stale.
             return !targetComp.isUnderAttack;
         }
 
-        private void CooldownMilitary(int remaining, bool won)
-        {
-            // Track which settlements we've already processed (a settlement may defend multiple waves)
-            var processedSettlements = new HashSet<WorldSettlementFC>();
-            int battleDeaths = Math.Max(0, initialDefenderCount - remaining);
-            bool overwhelming = won && remaining >= initialDefenderCount;
-
-            foreach (DefenseWave wave in activeWaves)
-            {
-                MilitaryForce waveDefForce = wave.defenderForce;
-
-                // External auto-defender (no homeSettlement)
-                if (waveDefForce is null || waveDefForce.homeSettlement is null)
-                {
-                    if (wave.externalDefenderSource is object)
-                    {
-                        IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(wave.externalDefenderSource);
-                        extDefender?.OnDefenseComplete(won, null);
-                    }
-                    continue;
-                }
-
-                WorldSettlementFC defHome = waveDefForce.homeSettlement;
-                if (processedSettlements.Contains(defHome)) continue;
-                processedSettlements.Add(defHome);
-
-                var homeComp = defHome.MilitaryComp;
-                if (homeComp is null) continue;
-
-                // If defending settlement is itself under attack, defer cooldown — its own battle will handle it
-                if (defHome != WorldSettlement && homeComp.isUnderAttack) continue;
-                // If squad is still physically deployed on another map, defer
-                if (defHome != WorldSettlement && homeComp.militarySquad?.IsPhysicallyDeployed() == true) continue;
-
-                // If squad was busy with a non-defense job (raid, capture, etc.), generated pawns were used — skip
-                if (homeComp.militaryJob != null
-                    && homeComp.militaryJob != MilitaryJobDefOf.Undefined
-                    && homeComp.militaryJob != MilitaryJobDefOf.DefendFriendlySettlement)
-                {
-                    continue;
-                }
-
-                if (overwhelming)
-                {
-                    homeComp.ReturnMilitary(true);
-                }
-                else
-                {
-                    homeComp.CooldownMilitaryFinal(battleDeaths);
-                }
-            }
-
-            if (overwhelming && processedSettlements.Count > 0)
-            {
-                Find.LetterStack.ReceiveLetter("FCOverwhelmingVictory".Translate(), "FCOverwhelmingVictoryDesc".Translate(), LetterDefOf.PositiveEvent);
-            }
-        }
-
-        private void LoseBattle(FactionFC faction)
-        {
-            faction.threatAdaptation.Notify_BattleLost();
-
-            var happinessLostMultiplier = WorldSettlement.GetStatValue(FCStatDefOf.happinessLostMultiplier);
-            var loyaltyLostMultiplier = WorldSettlement.GetStatValue(FCStatDefOf.loyaltyLostMultiplier);
-
-            var (prosperityLoss, happinessLoss, loyaltyLoss) = SettlementFormulas.CalculateBattleLossPenalties(happinessLostMultiplier, loyaltyLostMultiplier);
-            prosperityLoss *= faction.GetStatValue(FCStatDefOf.battleProsperityLossMultiplier);
-            happinessLoss *= faction.GetStatValue(FCStatDefOf.battleHappinessLossMultiplier);
-            loyaltyLoss *= faction.GetStatValue(FCStatDefOf.battleLoyaltyLossMultiplier);
-            var canDestroyBuildings = !faction.AnyPolicyPreventsBuildingDestruction();
-
-            // buildingDestructionChance stat scales the survival threshold:
-            // stat=1.0 -> threshold 7 (36% destruction, default)
-            // stat<1.0 -> higher threshold (less destruction)
-            // stat>1.0 -> lower threshold (more destruction)
-            double destructionStat = faction.GetStatValue(FCStatDefOf.buildingDestructionChance);
-            int deconstructChance = Math.Max(0, Math.Min(11, (int)Math.Round(11 - 4 * destructionStat)));
-
-            WorldSettlement.prosperity -= prosperityLoss;
-            WorldSettlement.happiness -= happinessLoss;
-            WorldSettlement.loyalty -= loyaltyLoss;
-
-            string str = "FCDefenseFailureFull".Translate(WorldSettlement.Name);
-
-            // Penalty summary
-            str += "\n\n" + "FCDefenseFailurePenaltiesHeader".Translate();
-
-            int displayProsperity = (int)Math.Round(prosperityLoss);
-            int displayHappiness = (int)Math.Round(happinessLoss);
-            int displayLoyalty = (int)Math.Round(loyaltyLoss);
-
-            if (displayProsperity > 0)
-            {
-                str += "\n  - " + "FCDefenseFailureProsperityLoss".Translate(displayProsperity);
-            }
-            if (displayHappiness > 0)
-            {
-                str += "\n  - " + "FCDefenseFailureHappinessLoss".Translate(displayHappiness);
-            }
-            if (displayLoyalty > 0)
-            {
-                str += "\n  - " + "FCDefenseFailureLoyaltyLoss".Translate(displayLoyalty);
-            }
-
-            if (canDestroyBuildings && WorldSettlement?.BuildingsComp != null)
-            {
-                // Collect candidate slots for demolition
-                List<int> candidates = new List<int>();
-                for (var k = 0; k < 4; k++)
-                {
-                    var deconstructRoll = new IntRange(0, 10).RandomInRange;
-                    if (deconstructRoll < deconstructChance ||
-                        !WorldSettlement.BuildingsComp.BuildingSlotIsBuilding(k))
-                    {
-                        continue;
-                    }
-                    candidates.Add(k);
-                }
-
-                // Sort so buildings that depend on other buildings are demolished first
-                candidates.Sort((a, b) =>
-                {
-                    BuildingFCDef defA = WorldSettlement.BuildingsComp.GetBuildingInSlot(a);
-                    BuildingFCDef defB = WorldSettlement.BuildingsComp.GetBuildingInSlot(b);
-                    bool aRequiresB = FactionCache.SatisfiesAnyRequirement(defB, defA.requiredBuildings);
-                    bool bRequiresA = FactionCache.SatisfiesAnyRequirement(defA, defB.requiredBuildings);
-                    if (aRequiresB) return -1; // a depends on b, demolish a first
-                    if (bRequiresA) return 1;  // b depends on a, demolish b first
-                    // Buildings with any requirements go before those without
-                    int aReqCount = defA.requiredBuildings?.Count ?? 0;
-                    int bReqCount = defB.requiredBuildings?.Count ?? 0;
-                    return bReqCount.CompareTo(aReqCount);
-                });
-
-                foreach (int k in candidates)
-                {
-                    str += "\n  - " + "FCBuildingDestroyedInRaid".Translate(WorldSettlement.BuildingsComp.BuildingLabel(k));
-                    WorldSettlement.DeconstructBuilding(k);
-                }
-            }
-
-            if (!canDestroyBuildings)
-            {
-                str += "\n  - " + "FCDefenseFailureBuildingsProtected".Translate();
-            }
-
-            // level remover checker — uses same destruction stat scaling
-            if (WorldSettlement?.settlementLevel > 1 && canDestroyBuildings)
-            {
-                var num = new IntRange(0, 10).RandomInRange;
-                if (num >= deconstructChance)
-                {
-                    str += "\n  - " + "FCSettlementDeleveledRaid".Translate();
-                    WorldSettlement.DelevelSettlement();
-                }
-            }
-
-            if (!string.IsNullOrEmpty(pendingDeliveryMessage))
-            {
-                str += "\n\n" + pendingDeliveryMessage;
-            }
-            if (Map != null)
-            {
-                str += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
-            }
-            Find.LetterStack.ReceiveLetter("FCDefenseFailure".Translate(), str, LetterDefOf.Death,
-                new LookTargets(WorldSettlement));
-        }
-
-        private void WinBattle(FactionFC faction)
-        {
-            faction.AddExperienceToFactionLevel(5f);
-            faction.threatAdaptation.Notify_BattleWon();
-            string text = "FCDefenseSuccessfulFull".Translate(WorldSettlement.Name);
-            if (!string.IsNullOrEmpty(pendingDeliveryMessage))
-            {
-                text += "\n\n" + pendingDeliveryMessage;
-            }
-            if (Map != null)
-            {
-                text += "\n\n" + "FCDefenseBattleOverLeaveMap".Translate();
-            }
-            Find.LetterStack.ReceiveLetter("FCDefenseSuccessful".Translate(),
-                text,
-                LetterDefOf.PositiveEvent, new LookTargets(WorldSettlement));
-        }
-
-        public void EndAttack()
-        {
-            bool won = defenders.Any();
-            int remaining = defenders.Count;
-
-            // Return external defender pawns per wave before map cleanup destroys them
-            foreach (DefenseWave wave in activeWaves)
-            {
-                if (wave.externalDefenderSource is null) continue;
-                IAutoDefender extDefender = AutoDefenderRegistry.FindByWorldObject(wave.externalDefenderSource);
-                if (extDefender is null) continue;
-
-                List<Pawn> survivingPawns = new List<Pawn>();
-                foreach (Pawn pawn in wave.waveDefenders)
-                {
-                    if (pawn != null && !pawn.Dead && !pawn.Destroyed)
-                    {
-                        if (pawn.Spawned) pawn.DeSpawn();
-                        survivingPawns.Add(pawn);
-                        defenders.Remove(pawn);
-                    }
-                }
-                extDefender.ReturnDefendingPawns(survivingPawns);
-            }
-
-            // Strip combat efficiency hediffs from surviving defenders (squad mercs persist between battles)
-            foreach (Pawn defender in defenders)
-            {
-                if (defender != null && !defender.Dead && !defender.Destroyed)
-                    MilitaryEfficiencyUtil.RemoveCombatEfficiencyHediff(defender);
-            }
-
-            DeleteMap(won);
-            EndBattle(won, remaining);
-
-            defenders.Clear();
-            attackers.Clear();
-            activeWaves.Clear();
-            _pendingAttackerForce = null;
-            _pendingDefenderForce = null;
-            endingBattle = false;
-            pendingDeliveryMessage = null;
-        }
-
-        public void RemoveAttacker(Pawn downed)
-        {
-            attackers.Remove(downed);
-            attackers.RemoveAll(IsPawnTrulyGone);
-
-            // Remove from the specific wave's attacker list; mark wave resolved if empty
-            foreach (DefenseWave wave in activeWaves)
-            {
-                if (wave.resolved) continue;
-                if (wave.waveAttackers.Remove(downed) && !wave.waveAttackers.Any())
-                {
-                    wave.resolved = true;
-                }
-            }
-
-            attackers.RemoveAll(IsPawnTrulyGone);
-            // Guard: don't declare victory while any wave still has pod-bound attackers inbound.
-            if (attackers.Any() || HasPendingPodAttackers() || endingBattle || !isUnderAttack) return;
-
-            endingBattle = true;
-            LongEventHandler.QueueLongEvent(EndAttack,
-                "EndingAttack", false, error =>
-                {
-                    DelayedErrorWindowRequest.Add("FCErrorEndingAttack".Translate(),
-                        "FCErrorEndingAttackDescription".Translate());
-                    LogUtil.Error(error.Message);
-                });
-        }
-
-        public void RemoveDefender(Pawn defender)
-        {
-            defenders.Remove(defender);
-            defenders.RemoveAll(IsPawnTrulyGone);
-            if (defenders.Any() || endingBattle || !isUnderAttack) return;
-
-            endingBattle = true;
-            LongEventHandler.QueueLongEvent(EndAttack,
-                "EndingAttack", false, error =>
-                {
-                    DelayedErrorWindowRequest.Add("FCErrorEndingAttack".Translate(),
-                        "FCErrorEndingAttackDescription".Translate());
-                    LogUtil.Error(error.Message);
-                });
-        }
+        // Battle pawn-list mutations live on BattlefieldContext. These shims exist because lord
+        // jobs (LordJob_HuntColonists / LordJob_DefendColony / LordJob_ColonistsIdle) call them
+        // by name on the settlement comp; treat them as load-bearing public API.
+        public void EndAttack() => Battlefield?.EndAttack();
+        public void RemoveAttacker(Pawn downed) => Battlefield?.RemoveAttacker(downed);
+        public void RemoveDefender(Pawn defender) => Battlefield?.RemoveDefender(defender);
 
         public override void PostCaravanFormed(Caravan caravan)
         {
+            BattlefieldContext bf = Battlefield;
             foreach (var pawn in caravan.pawns)
             {
                 var lord = pawn.GetLord();
                 if (lord != null)
                     lord.Notify_PawnLost(pawn, PawnLostCondition.LeftVoluntarily);
-                defenders.Remove(pawn);
+                // Routes through bf.RemoveDefender so per-op pawn lists stay in sync.
+                bf?.RemoveDefender(pawn);
             }
 
             if (Map is object)
@@ -1818,20 +736,69 @@ namespace FactionColonies
             base.PostCaravanFormed(caravan);
         }
 
+        /// <summary>Squad-first entry point. Routes <paramref name="squad"/> through the manager
+        /// to launch a handler-driven offensive op.</summary>
+        public void SendMilitary(MercenarySquadFC squad, PlanetTile location, MilitaryJobDef job, int timeToFinish, Faction enemy)
+        {
+            if (squad is null)
+            {
+                LogUtil.Warning("SendMilitary: null squad parameter; aborting.");
+                return;
+            }
+            if (IsTargetOccupied(location)) return;
+
+            if (job?.Handler is object)
+            {
+                MilitaryOperationManager manager = FactionCache.MilitaryManager;
+                if (manager is null)
+                {
+                    LogUtil.Error("SendMilitary: MilitaryManager unavailable; aborting offensive op.");
+                    return;
+                }
+                WorldObject target = ResolveTargetWorldObject(location);
+                if (target is null)
+                {
+                    LogUtil.Warning($"SendMilitary: no world object found at tile {location}; aborting.");
+                    return;
+                }
+                PaymentUtil.CreateDeploymentCostBill(squad);
+                manager.CreateOffensiveOp(squad, target, job, enemy, timeToFinish);
+                return;
+            }
+        }
+
+        /// <summary>Compatibility shim that resolves the settlement's primary stationed squad
+        /// (via the obsolete <see cref="militarySquad"/> accessor) and forwards. Callers should
+        /// pick a specific squad via <see cref="WorldSettlementFC.StationedSquads"/> or the
+        /// source-picker dialog.</summary>
+        [System.Obsolete("Pass an explicit MercenarySquadFC squad. Resolves to the primary stationed squad as a fallback.")]
         public void SendMilitary(PlanetTile location, MilitaryJobDef job, int timeToFinish, Faction enemy)
         {
-            if (IsMilitaryBusy() || IsTargetOccupied(location)) return;
+            MercenarySquadFC squad = WorldSettlement?.StationedSquads.FirstOrDefault();
+            if (squad is null)
+            {
+                Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+            SendMilitary(squad, location, job, timeToFinish, enemy);
+        }
 
-            militaryBusy = true;
-            militaryJob = job;
-            militaryLocation = location;
-
-            if (enemy != null) militaryEnemy = enemy;
-            if (job.occupiesTarget) FactionCache.FactionComp.AddMilitaryTarget(location);
-
-            job.Handler?.OnDeployed(this, location, timeToFinish, enemy);
-
-            LifecycleRegistry.InvokeOnSquadDeployed(WorldSettlement, job);
+        /// <summary>
+        /// Look up the WorldObject at <paramref name="tile"/> in priority order: Empire settlement,
+        /// any other Settlement (raid target), or any registered <see cref="IRaidTarget"/>'s
+        /// world object. Returns null if nothing matches.
+        /// </summary>
+        private static WorldObject ResolveTargetWorldObject(PlanetTile tile)
+        {
+            WorldObject target = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(tile);
+            if (target is object) return target;
+            target = Find.WorldObjects.SettlementAt(tile);
+            if (target is object) return target;
+            foreach (IRaidTarget rt in RaidTargetRegistry.Targets)
+            {
+                if (rt?.WorldObject is object && rt.Tile == tile.tileId) return rt.WorldObject;
+            }
+            return null;
         }
 
         public Settlement ReturnMilitaryTarget()
@@ -1839,101 +806,36 @@ namespace FactionColonies
             return !militaryLocation.Valid ? null : Find.WorldObjects.SettlementAt(militaryLocation);
         }
 
-        public void ProcessMilitaryEvent()
-        {
-            if (militaryJob is null || militaryJob == MilitaryJobDefOf.Undefined || militaryJob == MilitaryJobDefOf.Cooldown)
-            {
-                LogUtil.Warning($"ProcessMilitaryEvent: {WorldSettlement.Name} has no active operation (job={militaryJob?.defName ?? "null"}). Skipping.");
-                return;
-            }
-
-            FactionFC faction = FactionCache.FactionComp;
-            if (faction.HasMilitaryTarget(militaryLocation))
-            {
-                faction.RemoveMilitaryTarget(militaryLocation);
-            }
-
-            BattleResult result = null;
-            MilitaryJobDef resolvedJob = militaryJob;
-
-            if (militaryJob.Handler != null)
-            {
-                if (militaryJob.Handler.ResolvesManually)
-                {
-                    militaryJob.Handler.OnManualResolve(this);
-                    return; // Handler owns cooldown timing and lifecycle notification
-                }
-                result = militaryJob.Handler.OnResolved(this);
-            }
-
-            bool victory = result != null && result.AttackerVictory;
-            LifecycleRegistry.InvokeOnBattleResolved(WorldSettlement, resolvedJob, victory, result);
-            CooldownMilitaryFinal();
-        }
-
+        /// <summary>
+        /// Registers squad injuries and optionally shows the player a "military cooldown" letter.
+        /// Called by debug actions, settlement-removal sweep, and load-time stale-deploy repair.
+        /// Most release / cooldown work now lives on <see cref="MilitaryOperation"/> (Resolve
+        /// fires lifecycle hooks and unregisters); this method only handles the residual squad-
+        /// injury bookkeeping.
+        /// </summary>
         public void ReturnMilitary(bool alert)
         {
-            if (!militaryBusy) return; // Already returned; duplicate cooldown event
+            if (!militaryBusy) return; // No active op — nothing to do
 
-            militaryBusy = false;
-            militaryJob = MilitaryJobDefOf.Undefined;
-            militaryLocation = PlanetTile.Invalid;
-            militaryEnemy = null;
-
-            LifecycleRegistry.InvokeOnSquadRecalled(WorldSettlement);
-
-            if (militarySquad != null)
-                FactionCache.FactionComp?.militaryCustomizationUtil?.RegisterSquadInjuries(militarySquad);
+            // Register injuries across every stationed squad so injured pawns get healed.
+            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            if (util != null)
+            {
+                List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+                if (stationed != null)
+                {
+                    for (int i = 0; i < stationed.Count; i++)
+                    {
+                        if (stationed[i] != null) util.RegisterSquadInjuries(stationed[i]);
+                    }
+                }
+            }
 
             if (alert)
             {
                 Find.LetterStack.ReceiveLetter("Military Cooldown", "FCMilitaryCooldown".Translate(WorldSettlement.Name),
                     LetterDefOf.PositiveEvent);
             }
-        }
-
-        public void CooldownMilitaryFinal(int battleDeaths = 0)
-        {
-            FactionFC faction = FactionCache.FactionComp;
-
-            // Prevent duplicate cooldown events for the same settlement
-            if (faction.HasEventWithDefAndLocation(FCEventDefOf.cooldownMilitary, WorldSettlement.Tile))
-            {
-                LogUtil.Warning($"CooldownMilitaryFinal: cooldownMilitary event already exists for {WorldSettlement.Name}. Skipping duplicate.");
-                return;
-            }
-
-            int cooldown = GenDate.TicksPerDay * 3;
-            cooldown += (int)faction.GetStatValue(FCStatDefOf.militaryCooldownOffset);
-            if (militaryJob != null && militaryJob.cooldownStatDef != null)
-                cooldown += (int)faction.GetStatValue(militaryJob.cooldownStatDef);
-
-            // Dead pawn cooldown: use battleDeaths for defense, squad.dead for deployment
-            int deaths = battleDeaths;
-            if (deaths == 0 && militaryJob != null && militaryJob.deadPawnCooldown
-                && FCSettings.deadPawnsIncreaseMilitaryCooldown)
-            {
-                deaths = militarySquad != null ? militarySquad.dead : 0;
-            }
-            if (deaths > 0 && FCSettings.deadPawnsIncreaseMilitaryCooldown)
-            {
-                int deadMultiplier = 10000 + (int)faction.GetStatValue(FCStatDefOf.deadPawnCooldownOffset);
-                cooldown += deaths * deadMultiplier;
-            }
-            cooldown = Math.Max(cooldown, 0);
-            if (DebugSettings.godMode) cooldown = 1;
-
-            militaryJob = MilitaryJobDefOf.Cooldown;
-            militaryBusy = true;
-            militaryLocation = WorldSettlement.Tile;
-            militaryEnemy = null;
-
-            FCEvent tmp = FCEventMaker.MakeEvent(FCEventDefOf.cooldownMilitary);
-            tmp.hasCustomDescription = true;
-            tmp.timeTillTrigger = Find.TickManager.TicksGame + cooldown;
-            tmp.location = WorldSettlement.Tile;
-            tmp.customDescription = "FCMilitaryForcesReorganizing".Translate(WorldSettlement.Name); // + 
-            FactionCache.FactionComp.AddEvent(tmp);
         }
 
         public bool IsMilitaryBusy(bool silent = false)
@@ -1948,38 +850,28 @@ namespace FactionColonies
 
         public bool IsMilitarySquadValid()
         {
-            if (militarySquad != null)
+            List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
+            if (stationed is null || stationed.Count == 0)
             {
-                militarySquad.CheckInitialization();
-                if (militarySquad.outfit != null)
-                {
-                    if (militarySquad.EquippedMercenaries.Any())
-                    {
-                        return true;
-                    }
-
-                    Messages.Message("FCNoSquadEquipped".Translate(),
-                        MessageTypeDefOf.RejectInput);
-                    return false;
-                }
-
-                Messages.Message("FCNoSquadLoadoutAssigned".Translate(),
-                    MessageTypeDefOf.RejectInput);
+                Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
                 return false;
             }
 
-            Messages.Message("FCNoSquadAssigned".Translate(), MessageTypeDefOf.RejectInput);
+            // Valid if any stationed squad has an outfit and equipped mercs ready to deploy.
+            bool anyHasOutfit = false;
+            for (int i = 0; i < stationed.Count; i++)
+            {
+                MercenarySquadFC s = stationed[i];
+                if (s is null) continue;
+                s.CheckInitialization();
+                if (s.outfit is null) continue;
+                anyHasOutfit = true;
+                if (s.EquippedMercenaries.Any()) return true;
+            }
+
+            Messages.Message((anyHasOutfit ? "FCNoSquadEquipped" : "FCNoSquadLoadoutAssigned").Translate(),
+                MessageTypeDefOf.RejectInput);
             return false;
-        }
-
-        public bool IsMilitarySquadValidSilent()
-        {
-            return !(militarySquad is null);
-        }
-
-        public bool IsMilitaryBusySilent()
-        {
-            return militaryBusy;
         }
 
         public bool IsMilitaryValid()
@@ -1989,7 +881,9 @@ namespace FactionColonies
 
         public bool IsTargetOccupied(PlanetTile location)
         {
-            if (FactionCache.FactionComp.HasMilitaryTarget(location))
+            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            IReadOnlyList<MilitaryOperation> opsAtTile = manager?.GetOpsAt(location);
+            if (opsAtTile is object && opsAtTile.Count > 0)
             {
                 Messages.Message("FCTargetAlreadyBeingAttacked".Translate(), MessageTypeDefOf.RejectInput);
                 return true;

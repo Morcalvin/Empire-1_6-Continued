@@ -31,6 +31,9 @@
 	<FCMilitarySentRaid>The military forces of {0} have been sent to raid {1}</FCMilitarySentRaid>
 	<FCMilitarySentEnslave>The military forces of {0} have been sent to enslave the population of {1}</FCMilitarySentEnslave>
 	<FCMilitaryForcesReorganizing>{0}'s military forces are re-organizing after their last mission.</FCMilitaryForcesReorganizing>
+	<FCSquadTraveling>Squad {0} is returning to {1} after their last mission.</FCSquadTraveling>
+	<FCSquadCooldown>Squad {0} is re-organizing at {1} after their last mission.</FCSquadCooldown>
+	<FCTravelingSquadLabel>Traveling squad</FCTravelingSquadLabel>
 	<FCMilitaryCooldown>The military forces of {0} are ready to be used again</FCMilitaryCooldown>
 	<FCNoFactionForMilitary>You cannot make a military without a faction!</FCNoFactionForMilitary>
 
@@ -41,8 +44,12 @@
 	<FCRaidEnemySettlementFailure>The raid on {0} has resulted in failure</FCRaidEnemySettlementFailure>
 	<FCCaptureEnemySettlementSuccess>{0}'s military forces have successfully captured {1}. Due to the previous faction's tech level, the starting settlement level of the new settlement is {2}.</FCCaptureEnemySettlementSuccess>
 	<FCCaptureEnemySettlementFailure>{0}'s military forces has failed to capture {1}</FCCaptureEnemySettlementFailure>
+	<FCCaptureBlockedFallbackToRaid>{0}'s military forces overwhelmed {1}'s defenders, but were unable to permanently neutralize the settlement. The squad raided what supplies they could and is returning home.</FCCaptureBlockedFallbackToRaid>
 	<FCOverwhelmingVictory>Overwhelming Victory</FCOverwhelmingVictory>
-	<FCOverwhelmingVictoryDesc>Due to your military force's overwhelming victory, the military force is still available for deployment.</FCOverwhelmingVictoryDesc>
+	<FCOverwhelmingVictoryDesc>Your military force routed the enemy without taking a single casualty.</FCOverwhelmingVictoryDesc>
+	<FCOverwhelmingVictoryRewardLine>News of the victory reached {0}, granting +{1} happiness and +{2} loyalty.</FCOverwhelmingVictoryRewardLine>
+	<FCCrushingDefeat>Crushing Defeat</FCCrushingDefeat>
+	<FCCrushingDefeatDesc>Your military force has been routed without inflicting a single casualty. The squad has suffered devastating losses and will require significant time to recover.</FCCrushingDefeatDesc>
 
 	<!-- Defense -->
 	<FCDefenseSuccessful>Defense Successful</FCDefenseSuccessful>
@@ -50,9 +57,60 @@
 	<FCDefenseFailure>Defense Failure</FCDefenseFailure>
 	<FCDefenseFailureFull>The defense of our settlement, {0}, has been crushed.</FCDefenseFailureFull>
 	<FCDefenseBattleOverLeaveMap>The battle is over. Gather your forces and leave the settlement when ready.</FCDefenseBattleOverLeaveMap>
+	<!-- Condensed multi-attack defense letter -->
+	<FCDefenseMultiAttackHeader>{0} weathered {1} separate attacks this battle:</FCDefenseMultiAttackHeader>
+	<FCDefenseAttackRepelledEntry>  - {0}: attack repelled.</FCDefenseAttackRepelledEntry>
+	<FCDefenseAttackPenaltiesEntry>{0} - penalties suffered:</FCDefenseAttackPenaltiesEntry>
 	<FCReformCaravanBattleStillActive>The battle isn't over until every hostile has died or left the map.</FCReformCaravanBattleStillActive>
 	<FCManualBattleStarted>Battle for {0}</FCManualBattleStarted>
 	<FCManualBattleStartedDesc>{0} is under attack by {1}! Take command of the settlement's defenses.</FCManualBattleStartedDesc>
+	<FCAutoBattleCommenced>Battle commenced at {0}</FCAutoBattleCommenced>
+	<FCAutoBattleCommencedDesc>The defenders of {0} have engaged forces from {1}. The settlement remains militarily committed until the battle resolves.</FCAutoBattleCommencedDesc>
+
+	<!-- Per-round auto-resolve battle (BattleProgressWindow + archived report viewer) -->
+	<FCBattleProgressWindowTitle>Battle for {0}</FCBattleProgressWindowTitle>
+	<FCBattleProgressNoBattle>No battle in progress.</FCBattleProgressNoBattle>
+	<FCBattlePhasePreparing>Preparing for battle</FCBattlePhasePreparing>
+	<FCBattlePhaseEngaged>Engaged</FCBattlePhaseEngaged>
+	<FCBattlePhaseRolling>Round {0} resolved</FCBattlePhaseRolling>
+	<FCBattlePhaseResolved>Battle concluded</FCBattlePhaseResolved>
+	<FCBattleSideAttacker>Attacker</FCBattleSideAttacker>
+	<FCBattleSideDefender>Defender</FCBattleSideDefender>
+	<FCBattleForceLine>Force: {0} / {1}</FCBattleForceLine>
+	<FCBattleEfficiencyLine>Efficiency: x{0}</FCBattleEfficiencyLine>
+	<FCBattleColRound>Round</FCBattleColRound>
+	<FCBattleColAttacker>Attacker</FCBattleColAttacker>
+	<FCBattleColDefender>Defender</FCBattleColDefender>
+	<FCBattleColRollRaw>Raw</FCBattleColRollRaw>
+	<FCBattleColRollFinal>Final</FCBattleColRollFinal>
+	<FCBattleColForce>Force</FCBattleColForce>
+	<FCBattleNextRoundIn>Next round in {0}s</FCBattleNextRoundIn>
+	<FCBattleProgressGizmoLabel>Battle in progress</FCBattleProgressGizmoLabel>
+	<FCBattleProgressGizmoDesc>Open the live battle progress window for this settlement.</FCBattleProgressGizmoDesc>
+
+	<!-- Battle report archive (post-battle letter button + military Battle Reports tab) -->
+	<FCBattleReportButton>View battle report</FCBattleReportButton>
+	<FCBattleReportButtonNumbered>View battle report (attack {0})</FCBattleReportButtonNumbered>
+	<FCBattleReportNoRoundDetail>Manual battle; no per-round detail recorded.</FCBattleReportNoRoundDetail>
+	<FCBattleReportEvicted>That battle report has been removed from the archive.</FCBattleReportEvicted>
+	<FCMilitaryTabBattleReports>Battle Reports</FCMilitaryTabBattleReports>
+	<FCBattleArchiveCount>{0} reports</FCBattleArchiveCount>
+	<FCBattleArchiveColKind>Kind</FCBattleArchiveColKind>
+	<FCBattleArchiveColTarget>Opposing Faction</FCBattleArchiveColTarget>
+	<FCBattleArchiveColOurForce>Our Force</FCBattleArchiveColOurForce>
+	<FCBattleArchiveColDate>Date</FCBattleArchiveColDate>
+	<FCBattleArchiveColOutcome>Outcome</FCBattleArchiveColOutcome>
+	<FCBattleArchiveForceSuffix> (Force: {0})</FCBattleArchiveForceSuffix>
+	<FCBattleArchiveEmpty>No battles have been recorded yet.</FCBattleArchiveEmpty>
+	<FCBattleArchiveOutcomeVictory>Victory</FCBattleArchiveOutcomeVictory>
+	<FCBattleArchiveOutcomeOverwhelmingVictory>Overwhelming Victory</FCBattleArchiveOutcomeOverwhelmingVictory>
+	<FCBattleArchiveOutcomeDefeat>Defeat</FCBattleArchiveOutcomeDefeat>
+	<FCBattleArchiveOutcomeCrushingDefeat>Crushing Defeat</FCBattleArchiveOutcomeCrushingDefeat>
+	<FCBattleArchiveSettingsHeader>Battle Archive</FCBattleArchiveSettingsHeader>
+	<FCBattleArchiveMaxEntriesLabel>Max battle reports archived</FCBattleArchiveMaxEntriesLabel>
+	<FCBattleArchiveMaxEntriesTip>How many of the most recent battle reports to keep around. Older reports are evicted when the cap is reached. Letters that reference an evicted report show a "no longer available" message on click.</FCBattleArchiveMaxEntriesTip>
+	<FCBattleArchiveUnlimited>Unlimited battle reports</FCBattleArchiveUnlimited>
+	<FCBattleArchiveUnlimitedTip>Keep every battle report instead of capping the archive. Older reports are never evicted. May grow your save file over a long playthrough.</FCBattleArchiveUnlimitedTip>
 	<FCNewWaveArrived>New Wave at {0}</FCNewWaveArrived>
 	<FCNewWaveArrivedDesc>A new wave of attackers from {1} has arrived at {0}! Reinforcements may be on the way.</FCNewWaveArrivedDesc>
 	<FCDefendColony>Defend</FCDefendColony>
@@ -88,9 +146,8 @@
 	<FCEndingAttack>Ending attack...</FCEndingAttack>
 	<FCErrorEndingAttack>Error ending attack</FCErrorEndingAttack>
 	<FCErrorEndingAttackDescription>There was a problem ending the attack. Most likely, the map didn't delete correctly.
-		Please report this if you don't get your colonists sent to defend back, or your military never comes off
-		cooldown.
-	</FCErrorEndingAttackDescription>
+		
+Please report this if you don't get your colonists sent to defend back, or your military never comes off cooldown.</FCErrorEndingAttackDescription>
 
 	<!-- Deployment -->
 	<FCSendToSettlement>Send To Settlement</FCSendToSettlement>
@@ -107,9 +164,11 @@
 	<FCSelectDeploymentPosition>Select Deployment Position</FCSelectDeploymentPosition>
 	<FCSelectedPosOutOfBounds>The position you selected is out of bounds for this map!</FCSelectedPosOutOfBounds>
 	<FCSelectedPosTooCloseToEdge>The position you selected is to close to the map edge!</FCSelectedPosTooCloseToEdge>
-	<FCDeploymentSuccessLabel>Military deployed</FCDeploymentSuccessLabel>
-	<FCDeploymentSuccessDesc>The military forces of {0} have been deployed to {1}</FCDeploymentSuccessDesc>
+	<FCDeploymentSuccessLabel>Military Deployed</FCDeploymentSuccessLabel>
+	<FCDeploymentSuccessDesc>Squad {0} from {1} has been deployed to {2}.\n\nThe deployment cost {3} silver. A bill for this amount has been issued and must be paid within {4} days.</FCDeploymentSuccessDesc>
+	<FCDeploymentSuccessDescNoBill>Squad {0} from {1} has been deployed to {2}.</FCDeploymentSuccessDescNoBill>
 	<FCMilitaryPawnsLeavingTimeOut>A squad is leaving, because it's available time ran out!</FCMilitaryPawnsLeavingTimeOut>
+	<FCDeployCost>Deploy Cost: ${0}</FCDeployCost>
 
 	<!-- Battle Commands -->
 	<FCCommandAttack>Attack</FCCommandAttack>
@@ -160,17 +219,219 @@
 	<FCMilStatusCapturing>Capturing</FCMilStatusCapturing>
 	<FCMilStatusDefending>Defending</FCMilStatusDefending>
 	<FCMilStatusDefendingTarget>Defending {0}</FCMilStatusDefendingTarget>
-	<FCMilStatusCooldown>Deployment Cooldown</FCMilStatusCooldown>
+	<FCMilStatusTraveling>Returning Home</FCMilStatusTraveling>
 	<FCMilStatusBusy>Busy</FCMilStatusBusy>
 	<FCMilStatusReady>Ready</FCMilStatusReady>
 	<FCMilStatusNoSquad>No Squad</FCMilStatusNoSquad>
 	<FCMilAutoDefend>Auto-Defend</FCMilAutoDefend>
 	<FCMilBtnSetSquadTip>Assign a military squad to this settlement</FCMilBtnSetSquadTip>
 	<FCMilBtnDeployTip>Deploy the assigned squad to a map location</FCMilBtnDeployTip>
+	<FCMilBtnDeployTipWithCost>Deploy the assigned squad to a map location. Will create a {0} silver bill, due in {1} days.</FCMilBtnDeployTipWithCost>
 	<FCMilBtnResetTip>Reset and regenerate squad members</FCMilBtnResetTip>
 	<FCMilBtnFireSupportTip>Call in artillery fire support</FCMilBtnFireSupportTip>
 	<FCMilBtnAutoDefendTip>Automatically send this settlement's forces to defend other settlements under attack</FCMilBtnAutoDefendTip>
 	<FCMilAutoDefendDisabled>This settlement's military level is too low to auto-defend. Upgrade the settlement to increase its military level.</FCMilAutoDefendDisabled>
-	<FCMilBadge>Atk {0} / Def {1}  &#x2022;  ${2}</FCMilBadge>
+	<FCMilBadge>Def {0}  &#x2022;  Max Deploy Cost: ${1}</FCMilBadge>
+	<FCMilPowerTipSquad>Power from {0}</FCMilPowerTipSquad>
+	<FCMilPowerTipSquadShort>Power source: stationed squad</FCMilPowerTipSquadShort>
+	<FCMilPowerTipAllBusy>None of the squads stationed at this settlement are available. Until one becomes available, this settlement will defend at half power.</FCMilPowerTipAllBusy>
+	<FCMilPowerTipGhost>Defending at half power due to not having an assigned squad.</FCMilPowerTipGhost>
+	<FCMilPowerTipNoMilitary>This settlement type has no military capacity.</FCMilPowerTipNoMilitary>
+	<FCMilPowerTipUnderAttack>This settlement is under attack.</FCMilPowerTipUnderAttack>
+
+	<!-- Defender squad picker (Dialog_DefendSettlement) -->
+	<FCDefenderPickerTitle>Choose Defender for {0}</FCDefenderPickerTitle>
+	<FCDefenderPickerIncoming>Incoming attacker: Level {0}, Efficiency x{1}, Force ~{2}</FCDefenderPickerIncoming>
+	<FCDefenderPickerCurrentDefender>Currently defending: {0} (Force {1})</FCDefenderPickerCurrentDefender>
+	<FCDefenderPickerCurrentExternal>Currently defending: {0} (external, Force {1})</FCDefenderPickerCurrentExternal>
+	<FCDefenderPickerExternal>External Defenders</FCDefenderPickerExternal>
+	<FCDefenderPickerTiles>tiles</FCDefenderPickerTiles>
+
+	<!-- Squad-first refactor (hire / assign / cap / dialogs) -->
+	<FCMilitaryTabBySettlement>Settlements</FCMilitaryTabBySettlement>
+	<FCMilitaryTabBySquad>Squads</FCMilitaryTabBySquad>
+	<FCSquadsHeaderCount>Squads: {0} / {1}</FCSquadsHeaderCount>
+
+	<FCSquadHired>Squad "{0}" has been hired for ${1} silver.</FCSquadHired>
+	<FCSquadHireInsufficientSilver>You do not have enough silver ({0} required) to hire that squad.</FCSquadHireInsufficientSilver>
+	<FCSquadDismissed>Squad "{0}" has been dismissed.</FCSquadDismissed>
+	<FCSquadAssigned>Squad "{0}" assigned to {1}.</FCSquadAssigned>
+	<FCCannotReassignBusySquad>"{0}" is busy and cannot be reassigned right now.</FCCannotReassignBusySquad>
+	<FCCannotUnassignBusySquad>"{0}" is busy and cannot be unassigned right now.</FCCannotUnassignBusySquad>
+	<FCCannotDismissBusySquad>"{0}" is busy and cannot be dismissed right now.</FCCannotDismissBusySquad>
+	<FCSquadCannotUpgradeBusy>The squad is busy and cannot be upgraded right now.</FCSquadCannotUpgradeBusy>
+	<FCSquadCannotModifyBusyTip>Squad cannot be modified while it is busy.</FCSquadCannotModifyBusyTip>
+	<FCSquadUpgradeInsufficientSilver>You do not have enough silver ({0} required) to upgrade that squad.</FCSquadUpgradeInsufficientSilver>
+	<FCSquadUpgradeFirePersonalizedConfirm>Upgrading this squad to its template will dismiss one or more pawns with a personalized loadout, since their race or xenotype no longer matches any template slot. Their custom loadouts will be lost. Continue?</FCSquadUpgradeFirePersonalizedConfirm>
+	<FCSquadCapReached>{0} is already at squad capacity ({1}/{2}).</FCSquadCapReached>
+	<FCSquadSizeExceeded>This squad has more mercenaries ({1}) than {0}'s allowed maximum squad size ({2}).</FCSquadSizeExceeded>
+	<FCSquadValueExceeded>{0}'s budget can't cover this squad. Deploy cost ${1} exceeds max deploy cost ${2}.</FCSquadValueExceeded>
+	<FCSquadUnderfunded>{0} is underfunded at {1}: deploy cost ${2} exceeds max deploy cost ${3}. It can't deploy until you downgrade it, dismiss expensive mercs, or upgrade {1}.</FCSquadUnderfunded>
+	<FCMilSlotUnderfundedTip>This squad is underfunded for {0}. Deploy cost ${1} exceeds the settlement's max deploy cost ${2}. It can't take part in military operations until the cost fits.</FCMilSlotUnderfundedTip>
+	<FCUnnamedSquad>Unnamed squad</FCUnnamedSquad>
+
+	<FCRenameSquad>Rename squad</FCRenameSquad>
+	<FCHireSquadButton>Hire (${0})</FCHireSquadButton>
+	<FCHireSquadButtonTip>Hire this squad as a fresh mercenary unit. Cost: {0} silver.</FCHireSquadButtonTip>
+
+	<FCDialogHireSquadHeader>Hire and assign squad to {0}</FCDialogHireSquadHeader>
+	<FCDialogHireSquadAffordableOnly>Affordable only</FCDialogHireSquadAffordableOnly>
+	<FCDialogHireSquadSilver>Silver: ${0}</FCDialogHireSquadSilver>
+	<FCDialogHireSquadConfirm>Hire</FCDialogHireSquadConfirm>
+	<FCDialogHireSquadConfirmCost>Hire (${0})</FCDialogHireSquadConfirmCost>
+
+	<FCDialogSquadAssignmentHeader>Reassign "{0}"</FCDialogSquadAssignmentHeader>
+	<FCDialogSquadAssignmentCostHeader>Deployment cost: ${0}</FCDialogSquadAssignmentCostHeader>
+	<FCDialogSquadAssignmentUnassign>Unassign (return to pool)</FCDialogSquadAssignmentUnassign>
+
+	<FCSquadPickerTitle>Attack Settlement</FCSquadPickerTitle>
+	<FCSquadPickerTarget>Target</FCSquadPickerTarget>
+	<FCSquadPickerEstimatedDefender>Estimated Military Level: {0} (Combat Efficiency x{1})</FCSquadPickerEstimatedDefender>
+	<FCSquadPickerAvailableOnly>Available only</FCSquadPickerAvailableOnly>
+	<FCSquadPickerSort>Sort: {0}</FCSquadPickerSort>
+	<FCSquadPickerOperation>Operation</FCSquadPickerOperation>
+	<FCSquadPickerRewards>Rewards</FCSquadPickerRewards>
+	<FCSquadPickerSelectSquad>Select Squad</FCSquadPickerSelectSquad>
+
+	<FCSquadColName>Squad</FCSquadColName>
+	<FCSquadColTemplate>Template</FCSquadColTemplate>
+	<FCSquadColBillet>Settlement</FCSquadColBillet>
+	<FCSquadColTravel>Travel</FCSquadColTravel>
+	<FCSquadColWinChance>Win chance</FCSquadColWinChance>
+	<FCSquadColPower>Power</FCSquadColPower>
+	<FCSquadColEfficiency>Eff</FCSquadColEfficiency>
+	<FCSquadColCost>Cost</FCSquadColCost>
+	<FCSquadColDeploymentCost>Deploy Cost</FCSquadColDeploymentCost>
+	<FCSquadColUpgrade>Upgrade</FCSquadColUpgrade>
+	<FCSquadColActions>Actions</FCSquadColActions>
+
+	<FCSquadStatusReady>Ready</FCSquadStatusReady>
+	<FCSquadStatusUnassigned>Unassigned</FCSquadStatusUnassigned>
+	<FCSquadStatusTraveling>Traveling {0}</FCSquadStatusTraveling>
+	<FCSquadStatusHealing>Healing {0}</FCSquadStatusHealing>
+	<FCSquadStatusEmptySlots>Slots empty: {0}</FCSquadStatusEmptySlots>
+	<FCSquadStatusBusyOp>Busy: {0} ({1} d)</FCSquadStatusBusyOp>
+	<FCSquadStatusInjured>{0} Injured</FCSquadStatusInjured>
+
+	<FCSquadActReassign>Reassign</FCSquadActReassign>
+	<FCSquadActUpgrade>Upgrade</FCSquadActUpgrade>
+	<FCSquadActDismiss>Dismiss</FCSquadActDismiss>
+	<FCSquadActDismissConfirm>Dismiss "{0}"?</FCSquadActDismissConfirm>
+
+	<FCHireSquadsHeader>Squad pool</FCHireSquadsHeader>
+	<FCHireSquadsEmpty>No squads hired.</FCHireSquadsEmpty>
+	<FCHireSquadsCount>{0} squads</FCHireSquadsCount>
+	<FCSetSquadCurrent>(current)</FCSetSquadCurrent>
+
+	<FCSettlementMilHeader>Squads: {0} / {1}  &#x2022;  Max squad size: {2}</FCSettlementMilHeader>
+	<FCSettlementMilSquadEntry>{0} (auto-defend: {1})</FCSettlementMilSquadEntry>
+	<FCSettlementMilHireAndAssign>Hire Squad &amp; Assign Here</FCSettlementMilHireAndAssign>
+
+	<FCAssignSquadPickerTitle>Assign squad to {0}</FCAssignSquadPickerTitle>
+	<FCAssignSquadPickerMaxDeploy>Max squad deploy cost: ${0}</FCAssignSquadPickerMaxDeploy>
+	<FCAssignSquadPickerCurrentSlot>Current slot occupant: {0}</FCAssignSquadPickerCurrentSlot>
+	<FCAssignSquadPickerSlotEmpty>Slot is empty</FCAssignSquadPickerSlotEmpty>
+	<FCAssignSquadPickerStationed>Stationed: {0} / {1}</FCAssignSquadPickerStationed>
+	<FCSquadPickerUnassignSlot>Unassign — empty this slot</FCSquadPickerUnassignSlot>
+	<FCSquadSwapBusyReject>Cannot swap: {0} is busy.</FCSquadSwapBusyReject>
+	<FCDialogSquadAssignmentDisplaceLabel>Displace {0}</FCDialogSquadAssignmentDisplaceLabel>
+	<FCDialogSquadAssignmentAllBusyTip>All squads at this settlement are busy.</FCDialogSquadAssignmentAllBusyTip>
+	<FCDialogSquadAssignmentCostExceededTip>Squad deploy cost ${0} exceeds this settlement's max of ${1}.</FCDialogSquadAssignmentCostExceededTip>
+	<FCDialogSquadAssignmentBudgetLabel>Max Deployment Budget: ${0}</FCDialogSquadAssignmentBudgetLabel>
+
+	<FCSquadMenuToggleAutoDefend>Auto-defend: {0}</FCSquadMenuToggleAutoDefend>
+	<FCSquadMenuReassign>Reassign...</FCSquadMenuReassign>
+	<FCSquadMenuUpgrade>Upgrade (${0} silver)</FCSquadMenuUpgrade>
+	<FCSquadMenuDismiss>Dismiss</FCSquadMenuDismiss>
+	<FCSquadMenuInspect>Inspect...</FCSquadMenuInspect>
+
+	<FCOn>On</FCOn>
+	<FCOff>Off</FCOff>
+
+	<FCTraitDesc_squadCapPerSettlement>Increases the number of squads each settlement can host. Base cap is 1.</FCTraitDesc_squadCapPerSettlement>
+	<FCTraitDesc_maxSquadSize>Modifies the maximum number of mercenaries a squad assigned here may have. Base size is 30.</FCTraitDesc_maxSquadSize>
+
+	<!-- Squad Fill Empty Slots -->
+	<FCSquadFillSlotsInsufficient>Not enough silver (${0} required) to fill empty slots.</FCSquadFillSlotsInsufficient>
+
+	<!-- Military tab: 1+N row layout -->
+	<FCMilitaryTableNoMilitary>No military</FCMilitaryTableNoMilitary>
+	<FCMilitaryTableSquadsCounter>Squads: {0} / {1}</FCMilitaryTableSquadsCounter>
+	<FCMilitaryTableSlotPrefix>Slot {0}:</FCMilitaryTableSlotPrefix>
+	<FCMilitaryTableSlotEmpty>(empty)</FCMilitaryTableSlotEmpty>
+	<FCMilitaryTableChangeSquad>Change</FCMilitaryTableChangeSquad>
+	<FCMilitaryTableInspect>Inspect</FCMilitaryTableInspect>
+	<FCMilBtnInspectTip>Inspect this squad's mercenaries</FCMilBtnInspectTip>
+
+	<!-- Squad Inspection window -->
+	<FCSquadInspectionTitle>Squad: {0}</FCSquadInspectionTitle>
+	<FCSquadInspectionNoSquad>(no squad selected)</FCSquadInspectionNoSquad>
+	<FCSquadInspectionRenameSquadTip>Rename squad</FCSquadInspectionRenameSquadTip>
+	<FCSquadInspectionRenamePawnTip>Rename pawn</FCSquadInspectionRenamePawnTip>
+	<FCSquadInspectionTemplate>Template: {0}</FCSquadInspectionTemplate>
+	<FCSquadInspectionTemplateNone>Template: (none)</FCSquadInspectionTemplateNone>
+	<FCSquadInspectionPickTemplate>Pick template</FCSquadInspectionPickTemplate>
+	<FCSquadInspectionSettlement>Settlement: {0}</FCSquadInspectionSettlement>
+	<FCSquadInspectionClearTemplate>Clear template</FCSquadInspectionClearTemplate>
+	<FCSquadInspectionFillEmptySlots>Fill {0} empty slot(s) (${1})</FCSquadInspectionFillEmptySlots>
+	<FCSquadInspectionFillEmptyNone>No empty slots</FCSquadInspectionFillEmptyNone>
+	<FCSquadInspectionUpgradeAll>Upgrade all (${0})</FCSquadInspectionUpgradeAll>
+	<FCSquadInspectionUpgradeAllUpToDate>Upgrade all (up to date)</FCSquadInspectionUpgradeAllUpToDate>
+	<FCSquadInspectionUpgradeAllNoTemplate>Upgrade all (no template)</FCSquadInspectionUpgradeAllNoTemplate>
+	<FCSquadInspectionUpgradeAllTooltip>Upgrade existing mercs: +${0}\nHire fresh: +${1}\nNet: ${2}</FCSquadInspectionUpgradeAllTooltip>
+	<FCSquadInspectionEmptyPawn>(empty)</FCSquadInspectionEmptyPawn>
+	<FCSquadInspectionSlotLabel>Slot {0}</FCSquadInspectionSlotLabel>
+	<FCSquadInspectionLoadoutLabel>Loadout: {0}</FCSquadInspectionLoadoutLabel>
+	<FCSquadInspectionStatusLabel>Status: {0}</FCSquadInspectionStatusLabel>
+	<FCSquadInspectionDivergedTip>This pawn has a personal loadout that differs from the unit template. Reset in the editor to restore inheritance.</FCSquadInspectionDivergedTip>
+	<FCSquadInspectionStatusOk>OK</FCSquadInspectionStatusOk>
+	<FCSquadInspectionStatusInjured>Injured ({0})</FCSquadInspectionStatusInjured>
+	<FCSquadInspectionStatusDowned>Downed</FCSquadInspectionStatusDowned>
+	<FCSquadInspectionStatusEmpty>EMPTY</FCSquadInspectionStatusEmpty>
+	<FCSquadInspectionStatusDead>Dead</FCSquadInspectionStatusDead>
+	<FCSquadInspectionEditLoadout>Edit Loadout</FCSquadInspectionEditLoadout>
+	<FCSquadInspectionPerSlotUpgrade>Upgrade ${0}</FCSquadInspectionPerSlotUpgrade>
+	<FCSquadInspectionPerSlotFill>Fill (${0})</FCSquadInspectionPerSlotFill>
+	<FCSquadInspectionPerSlotRemove>Remove</FCSquadInspectionPerSlotRemove>
+	<FCSquadInspectionPerSlotRemoveTip>Remove this empty slot from the squad.</FCSquadInspectionPerSlotRemoveTip>
+	<FCSquadInspectionPersonalLoadoutDefaultName>Custom loadout</FCSquadInspectionPersonalLoadoutDefaultName>
+	<FCSquadInspectionContextSettlementCaption>Home Settlement</FCSquadInspectionContextSettlementCaption>
+	<FCSquadInspectionContextTemplateCaption>Template</FCSquadInspectionContextTemplateCaption>
+	<FCSquadInspectionContextSettlementUnassigned>Unassigned</FCSquadInspectionContextSettlementUnassigned>
+	<FCSquadInspectionContextTemplateNone>(none)</FCSquadInspectionContextTemplateNone>
+	<FCSquadActDismissSquad>Dismiss squad</FCSquadActDismissSquad>
+	<FCMercDismiss>Dismiss</FCMercDismiss>
+	<FCMercDismissTip>Fire this mercenary and clear the slot so it can be refilled.</FCMercDismissTip>
+	<FCMercDismissConfirm>Dismiss {0}?</FCMercDismissConfirm>
+	<FCMercDismissed>Mercenary dismissed.</FCMercDismissed>
+	<FCCannotDismissBusyMerc>Cannot dismiss {0}: squad is busy</FCCannotDismissBusyMerc>
+
+	<FCSquadInspectionPowerLine>Power: {0} ({1}/{2} slots)</FCSquadInspectionPowerLine>
+	<FCSquadInspectionStatsValueCaption>Current value</FCSquadInspectionStatsValueCaption>
+	<FCSquadInspectionStatsValueLine>${0}</FCSquadInspectionStatsValueLine>
+	<FCSquadInspectionStatsDeployCaption>Deployment cost</FCSquadInspectionStatsDeployCaption>
+	<FCSquadInspectionStatsDeployLine>${0}</FCSquadInspectionStatsDeployLine>
+	<FCSquadInspectionStatsPowerCaption>Power</FCSquadInspectionStatsPowerCaption>
+	<FCSquadInspectionStatsPowerLine>{0}</FCSquadInspectionStatsPowerLine>
+	<FCSquadInspectionStatsSlotsCaption>Slots</FCSquadInspectionStatsSlotsCaption>
+	<FCSquadInspectionStatsSlotsLine>{0} / {1}</FCSquadInspectionStatsSlotsLine>
+	<FCSquadInspectionAddUnit>Add unit</FCSquadInspectionAddUnit>
+	<FCSquadInspectionAddUnitOption>{0} (${1})</FCSquadInspectionAddUnitOption>
+	<FCSquadInspectionAddUnitTip>Hire a new unit from your saved unit blueprints. Clears the squad's template association.</FCSquadInspectionAddUnitTip>
+	<FCSquadInspectionAddUnitBusy>Cannot add a unit while the squad is busy.</FCSquadInspectionAddUnitBusy>
+	<FCSquadInspectionAddUnitNoBlueprints>No saved unit blueprints. Design one in the Unit Templates window first.</FCSquadInspectionAddUnitNoBlueprints>
+	<FCSquadInspectionAddUnitFull>Squad has no empty slots. Dismiss a unit first.</FCSquadInspectionAddUnitFull>
+
+	<!-- Per-pawn loadout dialog -->
+	<FCDialogPawnLoadoutTitle>Edit pawn: {0}</FCDialogPawnLoadoutTitle>
+	<FCDialogPawnLoadoutTitleEmpty>Edit empty slot</FCDialogPawnLoadoutTitleEmpty>
+	<FCDialogPawnLoadoutInheritedSubtitle>Inherits from unit template: {0}</FCDialogPawnLoadoutInheritedSubtitle>
+	<FCDialogPawnLoadoutDivergedSubtitle>Personal loadout (template association broken)</FCDialogPawnLoadoutDivergedSubtitle>
+	<FCDialogPawnLoadoutPickFromPool>Pick from unit template...</FCDialogPawnLoadoutPickFromPool>
+	<FCDialogPawnLoadoutResetToPool>Reset to unit template</FCDialogPawnLoadoutResetToPool>
+	<FCDialogPawnLoadoutApply>Apply</FCDialogPawnLoadoutApply>
+	<FCDialogPawnLoadoutClose>Close</FCDialogPawnLoadoutClose>
+
+	<FCNoUnitAvailable>No units available</FCNoUnitAvailable>
 
 </LanguageData>

@@ -67,7 +67,7 @@ namespace FactionColonies.VF
             comp.AddToDefenceFromList(vehiclePawns, vehicleCaravan.Tile, assignToLord: false);
 
             Map map = comp.Map;
-            IntVec3 enterCell = WorldObjectComp_SettlementMilitary.FindNearEdgeCell(map);
+            IntVec3 enterCell = BattlefieldContext.FindNearEdgeCell(map);
 
             // Spawn vehicles BEFORE destroying the caravan. VehicleCaravan.Destroy()
             // explicitly calls vehicle.Destroy() on every VehiclePawn still inside,

@@ -1,7 +1,6 @@
 ﻿using FactionColonies.util;
 using HarmonyLib;
 using RimWorld;
-using RimWorld.Planet;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
@@ -84,13 +83,15 @@ namespace FactionColonies
                         {
                             found.SetFaction(FactionCache.PlayerColonyFaction);
                             milComp.draftedNPCs.Remove(found);
-                            // Re-add to defenders list and defense lord after undrafting
+                            // Re-add to defenders list and defense lord after undrafting. Routes
+                            // through the BattlefieldContext so per-op pawn lists stay aligned.
                             if (milComp.defenders.Any())
                             {
-                                if (!milComp.defenders.Contains(found))
-                                    milComp.defenders.Add(found);
+                                BattlefieldContext bf = FactionCache.MilitaryManager?.GetBattlefield(milComp.WorldSettlement.Tile);
+                                bf?.RegisterPawnsAsDefenders(new List<Pawn> { found }, assignToLord: false);
 
-                                var defenderLord = milComp.defenders[0].GetLord();
+                                Pawn anchor = milComp.defenders.FirstOrDefault();
+                                Lord defenderLord = anchor?.GetLord();
                                 if (defenderLord != null && !defenderLord.ownedPawns.Contains(found))
                                 {
                                     defenderLord.AddPawn(found);

@@ -1,6 +1,7 @@
 ﻿using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
@@ -19,6 +20,9 @@ namespace FactionColonies
         public const string Reason_TaxPayment = "tax_payment";
         public const string Reason_SilverPayment = "silver_payment";
         public const string Reason_PolicyRepick = "policy_repick";
+        public const string Reason_SquadHire = "squad_hire";
+        public const string Reason_SquadUpgrade = "squad_upgrade";
+        public const string Reason_SquadFillSlot = "squad_fill_slot";
 
         public static (List<BillFC>, List<BillFC>) returnBillTypes(List<BillFC> bills)
         {
@@ -135,24 +139,33 @@ namespace FactionColonies
 
         public static void PlaceThing(Thing thing)
         {
-            Map taxMap = GetActiveTaxDeliveryMap();
-
-            IntVec3 intvec;
-            if (CheckForActiveTaxDeliverySpot(out intvec, out taxMap))
+            /* Active tax delivery spot (a Building_TaxSpot the player toggled on) wins
+               outright -- its position and map override the default tax map. */
+            if (CheckForActiveTaxDeliverySpot(out IntVec3 activeSpot, out Map activeMap))
             {
-                // Found an active tax delivery spot, use it
-                GenPlace.TryPlaceThing(thing, intvec, taxMap, ThingPlaceMode.Near);
+                GenPlace.TryPlaceThing(thing, activeSpot, activeMap, ThingPlaceMode.Near);
+                return;
             }
-            else if (CheckForTaxSpot(taxMap, out intvec))
+
+            /* Otherwise drop onto the canonical tax map (capital -> current -> any home).
+               Distinct out-locals above so the fallback taxMap is never clobbered. */
+            Map taxMap = GetActiveTaxDeliveryMap();
+            if (taxMap is null)
             {
-                // Found regular tax spot on the tax map
-                GenPlace.TryPlaceThing(thing, intvec, taxMap, ThingPlaceMode.Near);
+                LogUtil.Warning("PaymentUtil.PlaceThing: no tax map available; thing not placed: "
+                    + (thing?.LabelCap ?? "<null>"));
+                if (thing is object && !thing.Destroyed) thing.Destroy();
+                return;
+            }
+
+            if (CheckForTaxSpot(taxMap, out IntVec3 taxSpot))
+            {
+                GenPlace.TryPlaceThing(thing, taxSpot, taxMap, ThingPlaceMode.Near);
             }
             else
             {
-                // Fallback to drop spot on tax map
-                intvec = DropCellFinder.TradeDropSpot(taxMap);
-                GenPlace.TryPlaceThing(thing, intvec, taxMap, ThingPlaceMode.Near);
+                IntVec3 dropSpot = DropCellFinder.TradeDropSpot(taxMap);
+                GenPlace.TryPlaceThing(thing, dropSpot, taxMap, ThingPlaceMode.Near);
             }
         }
 
@@ -203,6 +216,43 @@ namespace FactionColonies
 
             return true;
         }
+        /// <summary>Create a deployment-cost bill against <paramref name="squad"/>'s home
+        /// settlement. The bill is appended to <c>FactionFC.Bills</c> and obligates the
+        /// player for <c>SquadCostCalculator.DeploymentCost(squad)</c> silver, due in
+        /// <c>FCSettings.deploymentBillLifespan_days</c> days. No-op when cost is zero
+        /// (slider at 0%) or godMode is on.</summary>
+        /// <returns>The created <see cref="BillFC"/>, or <c>null</c> when no bill was
+        /// created (no squad, zero cost, godMode, no home settlement, or no faction).</returns>
+        public static BillFC CreateDeploymentCostBill(MercenarySquadFC squad)
+        {
+            if (squad is null) return null;
+            int cost = SquadCostCalculator.DeploymentCost(squad);
+            if (cost <= 0 || DebugSettings.godMode) return null;
+
+            WorldSettlementFC home = squad.settlement;
+            if (home is null)
+            {
+                LogUtil.Warning($"CreateDeploymentCostBill: squad {squad.GetUniqueLoadID()} has no home settlement; skipping bill.");
+                return null;
+            }
+
+            FactionFC fc = FactionCache.FactionComp;
+            if (fc is null) return null;
+
+            int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
+            BillFC bill = new BillFC(home, lifespanTicks);
+            bill.label = "FCBillKindSquadDeployment".Translate();
+            bill.taxes.silverAmount = -cost;
+            /* silverAmount must be set BEFORE the Scaled helpers -- they read it for
+             * the linear scaling computation. */
+            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Unrest, 10);
+            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Happiness, 10);
+            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Unrest, 4);
+            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Happiness, 4);
+            fc.Bills.Add(bill);
+            return bill;
+        }
+
         public static int GetSilver()
         {
             int silver = 0;

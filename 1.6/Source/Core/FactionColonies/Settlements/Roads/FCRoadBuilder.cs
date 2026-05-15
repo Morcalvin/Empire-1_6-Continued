@@ -1,8 +1,8 @@
 ﻿using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
-using Verse;
 using System.Collections.Generic;
+using Verse;
 
 namespace FactionColonies
 {
@@ -71,7 +71,7 @@ namespace FactionColonies
                 wasRoadBuildingDisabled = true;
                 return;
             }
-            
+
             FactionFC faction = FactionCache.FactionComp;
 
             if (roadQueue == null)

@@ -34,7 +34,7 @@ public interface ILifecycleParticipant
 }
 ```
 
-`OnMercenaryDeath` is called before auto-replacement of killed mercenaries. Set `evt.CancelReplacement = true` to prevent the squad from auto-filling the empty slot.
+`OnMercenaryDeath` is a notification fired when a mercenary is killed. There is no built-in auto-replacement to gate — refilling empty slots is a player-driven action via `MercenarySquadFC.FillEmptySlots`.
 
 **Convenience base class**: `LifecycleParticipantBase` — all methods are empty virtuals. Extend this to avoid stubbing unused methods.
 
@@ -79,19 +79,48 @@ public interface ITaxTickParticipant
 
 ---
 
-### IBattleModifier
+### IFactionPowerModifier / ISettlementPowerModifier / IBattleModifier
 
 **Registry**: `BattleModifierRegistry`
-**Purpose**: Modify military forces before battle simulation.
+**Owner of invocation**: `WorldComponent_EnemyPower` (accessed via `FactionCache.EnemyPower`). No code outside the worldcomp invokes the registry.
+**Purpose**: Three modifier sites covering the lifecycle of an enemy power value.
 
 ```csharp
+// (1) Cache-time, faction-level. Mutates the EnemyPower baseline derived from
+//     tech + ETL + threatAdaptation. Use for faction-wide effects.
+public interface IFactionPowerModifier
+{
+    void ModifyFactionPower(Faction faction, EnemyPower power);
+}
+
+// (2) Cache-time, per-settlement. Mutates a settlement's mirrored entry. Use
+//     for settlement-attribute-derived effects (e.g. read CompViralSpread,
+//     RimWarSettlementComp). The WD/WDExp/RW patches live here.
+public interface ISettlementPowerModifier
+{
+    void ModifySettlementPower(Settlement settlement, EnemyPower power);
+}
+
+// (3) Attack-time. Mutates a force snapshot at engagement or display. Use for
+//     battle-context effects: terrain, fortification at the battle tile,
+//     traveling fatigue, weather, defensive artillery. Per-settlement static
+//     properties belong in (2) so they cache.
 public interface IBattleModifier
 {
-    void ModifyForce(militaryForce force, bool isAttacker);
+    void ModifyForce(BattleForceContext ctx, MilitaryForce force, bool isAttacker);
+}
+
+public class BattleForceContext
+{
+    public MilitaryJobDef kind;            // raid / capture / enslave / etc.
+    public PlanetTile targetTile;
+    public WorldObject targetObject;
+    public MilitaryOperationParticipant aggressor;
+    public MilitaryOperationParticipant defender;
 }
 ```
 
-Called twice per battle — once for the attacker force, once for the defender force. You can modify `force.militaryLevel`, `force.militaryEfficiency`, or `force.forceRemaining`.
+All three are pure transformations: read the input, mutate the value argument, no side effects. The same modifier may be invoked from a real engagement OR from the squad-attack picker's estimate display, so persistence/logging/notify work belongs in `ILifecycleParticipant` op hooks instead. A modifier may implement multiple of these interfaces if its effect spans phases; register each instance via the matching `BattleModifierRegistry.Register(...)` overload.
 
 ---
 
