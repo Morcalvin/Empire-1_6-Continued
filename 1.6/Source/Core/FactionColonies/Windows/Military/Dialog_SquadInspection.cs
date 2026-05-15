@@ -166,8 +166,8 @@ namespace FactionColonies
                 UIUtil.DrawColoredVerticalLine(x, rect.y + 4f, rect.height - 8f, Color.gray);
             }
 
-            int currentValue = (int)Math.Round(squad.GetCurrentLoadoutCost());
-            int deployCost = squad.DeploymentCost;
+            int currentValue = (int)Math.Round(SquadCostCalculator.GetCurrentLoadoutCost(squad));
+            int deployCost = SquadCostCalculator.DeploymentCost(squad);
             double power = SquadPowerRegistry.Resolve(squad).militaryLevel;
             int filled = (squad.mercenaries?.Count(m => m?.pawn != null)) ?? 0;
             int max = (squad.mercenaries?.Count) ?? 0;
@@ -320,7 +320,7 @@ namespace FactionColonies
 
         private void DrawActionBar(Rect rect)
         {
-            int fillCost = squad.FillEmptySlotsCost;
+            int fillCost = SquadCostCalculator.FillEmptySlotsCost(squad);
             int emptyCount = squad.EmptySlotCount;
             bool canFill = emptyCount > 0;
 

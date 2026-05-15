@@ -89,7 +89,7 @@ namespace FactionColonies
             // bill was created, also surface the cost and payment deadline; otherwise omit that
             // sentence (no bill when cost is 0% or godMode is on).
             string deploymentDesc = bill is object
-                ? "FCDeploymentSuccessDesc".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap, squad.DeploymentCost, FCSettings.deploymentBillLifespan_days)
+                ? "FCDeploymentSuccessDesc".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap, SquadCostCalculator.DeploymentCost(squad), FCSettings.deploymentBillLifespan_days)
                 : "FCDeploymentSuccessDescNoBill".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap);
             Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), deploymentDesc, LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
 

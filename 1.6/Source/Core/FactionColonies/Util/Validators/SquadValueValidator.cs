@@ -4,7 +4,7 @@ namespace FactionColonies
 {
     /// <summary>
     /// Built-in <see cref="ISquadAssignmentValidator"/>. Rejects assignment when the squad's
-    /// <see cref="MercenarySquadFC.DeploymentCost"/> exceeds the target settlement's max
+    /// <see cref="SquadCostCalculator.DeploymentCost"/> exceeds the target settlement's max
     /// deploy cost.
     /// </summary>
     public class SquadValueValidator : ISquadAssignmentValidator

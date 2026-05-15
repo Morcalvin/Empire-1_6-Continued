@@ -131,10 +131,10 @@ namespace FactionColonies
         /// <summary>True when this squad is in any active op (offensive, defensive, deploy, or cooldown).</summary>
         public bool IsBusy => Operation is object;
 
-        /// <summary>True when the squad's <see cref="DeploymentCost"/> exceeds its assigned
-        /// settlement's max deploy cost. An underfunded squad stays assigned but can't take
-        /// part in military operations. Distinct from <see cref="IsBusy"/>: this is a structural
-        /// (cost) constraint, not a temporary deployment state.</summary>
+        /// <summary>True when the squad's <see cref="SquadCostCalculator.DeploymentCost"/> exceeds
+        /// its assigned settlement's max deploy cost. An underfunded squad stays assigned but
+        /// can't take part in military operations. Distinct from <see cref="IsBusy"/>: this is a
+        /// structural (cost) constraint, not a temporary deployment state.</summary>
         public bool IsUnderfunded
             => settlement is object
                && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(this, settlement, out _, out _);
@@ -148,61 +148,6 @@ namespace FactionColonies
         /// op" gate.</summary>
         public bool IsAvailable
             => IsAssigned && !IsBusy && !IsUnderfunded && nextAvailableTick <= Find.TickManager.TicksGame;
-
-        /// <summary>Sum of equipment market values across all currently-equipped mercenaries,
-        /// read from each merc's <see cref="Mercenary.EffectiveLoadout"/> (the source of truth
-        /// for what's actually equipped, falling back to the blueprint when no equip snapshot
-        /// exists yet). Pool-unit mutations after a hire/fill/upgrade are not reflected here
-        /// — only what was applied to the pawn. Dead mercs are excluded from the total; they
-        /// remain in the squad roster (so future revival mechanics have something to hook
-        /// onto) but contribute nothing to the squad's displayed value or deployment cost
-        /// since they are not actually being deployed. Downed/injured but living mercs still
-        /// count at full cost; only <see cref="GetEffectiveLoadoutCost"/> scales by health.</summary>
-        public double GetCurrentLoadoutCost()
-        {
-            double total = 0;
-            if (mercenaries is null) return total;
-            foreach (Mercenary merc in mercenaries)
-            {
-                if (merc is null || merc.IsEmptySlot) continue;
-                if (merc.pawn is object && merc.pawn.Dead) continue;
-                MilUnitFC current = merc.EffectiveLoadout;
-                if (current is null) continue;
-                total += current.getTotalCost;
-            }
-            return total;
-        }
-
-        /// <summary>Loadout cost weighted by per-pawn combat effectiveness — a downed pawn
-        /// contributes 0 (effectively an empty slot for power-projection), an injured pawn
-        /// contributes a fraction (worst of consciousness/manipulation/moving), and a healthy
-        /// pawn contributes their full loadout value. Used by
-        /// <see cref="SquadPowerRegistry.ComputeBasePower"/> so squad combat power scales with
-        /// pawn health. Cost displays (deployment / upgrade / inspection) keep using
-        /// <see cref="GetCurrentLoadoutCost"/> — only the power projection cares about health.</summary>
-        public double GetEffectiveLoadoutCost()
-        {
-            double total = 0;
-            if (mercenaries is null) return total;
-            foreach (Mercenary merc in mercenaries)
-            {
-                if (merc is null || merc.IsEmptySlot) continue;
-                MilUnitFC current = merc.EffectiveLoadout;
-                if (current is null) continue;
-                double effectiveness = SquadEffectivenessUtil.PawnEffectiveness(merc.pawn);
-                if (effectiveness <= 0) continue;
-                total += current.getTotalCost * effectiveness;
-            }
-            return total;
-        }
-
-        /// <summary>Silver cost to deploy this squad on an offensive op or to a player map.
-        /// Computed as <c>FCSettings.squadDeploymentCostPercentage * GetCurrentLoadoutCost()</c>,
-        /// rounded to int. Defensive ops do not charge this cost. The cost is collected via
-        /// a <see cref="BillFC"/> created at deploy time, due after
-        /// <c>FCSettings.deploymentBillLifespan_days</c> days. Surfaced in deploy UI so the
-        /// player sees what they're committing to.</summary>
-        public int DeploymentCost => MilitaryUtil.CalculateDeploymentCost(GetCurrentLoadoutCost());
 
         /* Race + xenotype identity tuple comparison. With Biotech off, race alone is
          * enough; with Biotech on, xenotype (or custom xenotype name) must match too.
@@ -883,28 +828,6 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Total silver to refill all fillable empty slots, summed over each slot's
-        /// blueprint cost × <see cref="FCSettings.squadHireCostMultiplier"/>. The blueprint
-        /// is the merc's <see cref="Mercenary.BlueprintLoadout"/> (personalization snapshot
-        /// or pool reference). Slots whose blueprint is null or blank contribute zero — they
-        /// are pure placeholders kept around to keep slot indices aligned with the template.</summary>
-        public int FillEmptySlotsCost
-        {
-            get
-            {
-                int total = 0;
-                if (mercenaries is null) return total;
-                foreach (Mercenary m in mercenaries)
-                {
-                    if (m is null || !m.IsEmptySlot) continue;
-                    MilUnitFC blueprint = m.BlueprintLoadout;
-                    if (blueprint is null || blueprint.isBlank) continue;
-                    total += (int)Math.Round(blueprint.getTotalCost * FCSettings.squadHireCostMultiplier);
-                }
-                return total;
-            }
-        }
-
         /// <summary>Number of empty slots that <see cref="FillEmptySlots"/> would actually fill
         /// — pawn is null AND <see cref="Mercenary.BlueprintLoadout"/> is non-null and not blank.
         /// Pure placeholder slots (blank blueprint, kept to align indices with the template) are
@@ -926,12 +849,12 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Pays <see cref="FillEmptySlotsCost"/> silver and generates fresh pawns into
-        /// every empty slot, equipping each from its resolved loadout. Slots with no loadout are
-        /// skipped. Returns false (no payment) if the player can't afford the total.</summary>
+        /// <summary>Pays <see cref="SquadCostCalculator.FillEmptySlotsCost"/> silver and generates fresh
+        /// pawns into every empty slot, equipping each from its resolved loadout. Slots with no
+        /// loadout are skipped. Returns false (no payment) if the player can't afford the total.</summary>
         public bool FillEmptySlots()
         {
-            int total = FillEmptySlotsCost;
+            int total = SquadCostCalculator.FillEmptySlotsCost(this);
             if (total > 0 && PaymentUtil.GetSilver() < total)
             {
                 Messages.Message("FCSquadFillSlotsInsufficient".Translate(total),

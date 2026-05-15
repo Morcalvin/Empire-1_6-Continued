@@ -188,7 +188,7 @@ namespace FactionColonies
                     status = status,
                     statusColor = statusColor,
                     available = available,
-                    deploymentCost = squad.DeploymentCost,
+                    deploymentCost = SquadCostCalculator.DeploymentCost(squad),
                     injuredCount = injuredCount
                 });
             }

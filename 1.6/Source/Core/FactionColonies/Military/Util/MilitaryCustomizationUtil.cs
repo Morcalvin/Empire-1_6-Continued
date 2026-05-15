@@ -134,13 +134,13 @@ namespace FactionColonies
 
         /* Shared predicate for the assignment validator, the IsUnderfunded computed
          * property, and the post-hire/post-upgrade notification hook. Compares in
-         * deploy-cost units (squad.DeploymentCost vs the settlement's budget scaled by
+         * deploy-cost units (SquadCostCalculator.DeploymentCost vs the settlement's budget scaled by
          * the deploy-cost percentage) so the numbers match what the player sees in
          * deploy windows and on the settlement badge. */
         public static bool SquadExceedsSettlementBudget(MercenarySquadFC squad,
             WorldSettlementFC settlement, out int squadDeploy, out int maxDeploy)
         {
-            squadDeploy = squad.DeploymentCost;
+            squadDeploy = SquadCostCalculator.DeploymentCost(squad);
             double budget = CalculateSquadBudget(settlement.settlementMilitaryLevel);
             maxDeploy = MilitaryUtil.CalculateDeploymentCost(budget);
             return squadDeploy > maxDeploy;

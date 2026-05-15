@@ -36,7 +36,7 @@ namespace FactionColonies
 
         public override void DoWindowContents(Rect inRect)
         {
-            int squadDeploy = squad?.DeploymentCost ?? 0;
+            int squadDeploy = SquadCostCalculator.DeploymentCost(squad);
 
             Rect titleHighlightRect = new Rect(0, 0, inRect.width, TitleHeight);
             Widgets.DrawHighlight(titleHighlightRect);
