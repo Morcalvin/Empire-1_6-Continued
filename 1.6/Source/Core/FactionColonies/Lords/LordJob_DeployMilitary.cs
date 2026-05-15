@@ -49,7 +49,7 @@ namespace FactionColonies
 
             whenToForceLeave = maxDeploymentTime + Find.TickManager.TicksGame;
             timeDeployed = Find.TickManager.TicksGame;
-            currentMap = squad.map;
+            currentMap = squad.Deployment.Map;
 
             Init();
         }
@@ -57,7 +57,7 @@ namespace FactionColonies
         /// <summary>
         /// Initializes some variables after loading is complete or when the deployment is first started.
         /// Ensures the deployment command menu window is open; the menu reads/writes
-        /// <see cref="MercenarySquadFC.militaryOrder"/> / <see cref="MercenarySquadFC.orderLocation"/>
+        /// <see cref="SquadDeploymentState.MilitaryOrder"/> / <see cref="SquadDeploymentState.OrderLocation"/>
         /// directly, so this lord doesn't keep a reference to it.
         /// </summary>
         private void Init()
@@ -111,8 +111,7 @@ namespace FactionColonies
             base.Notify_AddedToLord();
             if (squad is object)
             {
-                squad.lord = lord;
-                squad.hasLord = true;
+                squad.Deployment.Lord = lord;
             }
         }
 
@@ -122,7 +121,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref currentOrderPosition, "currentOrderPosition");
             Scribe_Values.Look(ref timeDeployed, "timeDeployed");
             Scribe_Values.Look(ref whenToForceLeave, "whenToForceLeave");
-            // currentOrder used to be persisted here. It moved to MercenarySquadFC.militaryOrder.
+            // currentOrder used to be persisted here. It moved to SquadDeploymentState.MilitaryOrder.
             // Old-save value is silently ignored on load.
             Scribe_References.Look(ref squad, "squad");
             Scribe_References.Look(ref currentMap, "currentMap");
@@ -133,14 +132,14 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Grabs a new currentOrderPosition from <see cref="MercenarySquadFC.orderLocation"/>
+        /// Grabs a new currentOrderPosition from <see cref="SquadDeploymentState.OrderLocation"/>
         /// and pushes it into the toils' data. Runs as a preAction so the data is fresh before
         /// <c>GotoToil</c> calls <c>UpdateAllDuties</c> on the target toil.
         /// </summary>
         private void UpdateOrderPositionData()
         {
             if (squad is null) return;
-            IntVec3 newPos = squad.orderLocation;
+            IntVec3 newPos = squad.Deployment.OrderLocation;
             currentOrderPosition = newPos;
 
             lordToil_DefendPoint.SetDefendPoint(newPos);
@@ -184,7 +183,7 @@ namespace FactionColonies
                     {
                         new TransitionAction_Custom(delegate()
                         {
-                            if (squad is object) squad.militaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
+                            if (squad is object) squad.Deployment.MilitaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
                             Messages.Message("FCMilitaryPawnsLeavingTimeOut".Translate(), lord.ownedPawns, MessageTypeDefOf.NeutralEvent);
                         })
                     }
@@ -211,7 +210,7 @@ namespace FactionColonies
                     {
                         triggers = new List<Trigger>(1)
                         {
-                            new Trigger_Custom((TriggerSignal _) => squad is object && squad.militaryOrder == (MilitaryOrder)k + 1 && ReadyForCommands)
+                            new Trigger_Custom((TriggerSignal _) => squad is object && squad.Deployment.MilitaryOrder == (MilitaryOrder)k + 1 && ReadyForCommands)
                         },
                         preActions = new List<TransitionAction>(1)
                         {
@@ -245,7 +244,7 @@ namespace FactionColonies
                         return op is object
                             && op.kind == MilitaryJobDefOf.Deploy
                             && op.phase == MilitaryOperationPhase.Engaged
-                            && squad.orderLocation != currentOrderPosition;
+                            && squad.Deployment.OrderLocation != currentOrderPosition;
                     })
                 },
                 preActions = new List<TransitionAction>(1)

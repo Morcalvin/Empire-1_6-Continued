@@ -251,7 +251,7 @@ namespace FactionColonies
             foreach (MercenarySquadFC squad in mercenarySquads)
             {
                 if (squad?.animals is null || squad.animals.Count == 0) continue;
-                if (squad.IsPhysicallyDeployed()) continue; // never swap a pawn mid-battle
+                if (squad.Deployment.IsPhysicallyDeployed()) continue; // never swap a pawn mid-battle
 
                 for (int i = 0; i < squad.animals.Count; i++)
                 {
@@ -307,7 +307,7 @@ namespace FactionColonies
             injuredMercsByPawn = new Dictionary<Pawn, Mercenary>();
             foreach (MercenarySquadFC squad in mercenarySquads)
             {
-                if (squad.IsPhysicallyDeployed()) continue;
+                if (squad.Deployment.IsPhysicallyDeployed()) continue;
                 RegisterSquadInjuries(squad);
             }
         }
@@ -387,7 +387,7 @@ namespace FactionColonies
                     : squad.mercenaries);
 
         public IEnumerable<MercenarySquadFC> DeployedSquads =>
-            mercenarySquads.Where(squad => squad.IsPhysicallyDeployed());
+            mercenarySquads.Where(squad => squad.Deployment.IsPhysicallyDeployed());
 
         /// <summary>Squads currently participating in an Engaged Deploy op. Distinct from
         /// <see cref="DeployedSquads"/>: that one walks pawn-on-map state (false during the

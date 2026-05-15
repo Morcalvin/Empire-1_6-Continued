@@ -84,7 +84,7 @@ namespace FactionColonies
             }
 
             equippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
-            squad.orderLocation = dropPosition;
+            squad.Deployment.OrderLocation = dropPosition;
             // Squad-first: name the deployed squad and its home settlement. When a deployment-cost
             // bill was created, also surface the cost and payment deadline; otherwise omit that
             // sentence (no bill when cost is 0% or godMode is on).

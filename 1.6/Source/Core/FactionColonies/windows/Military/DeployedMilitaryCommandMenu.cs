@@ -79,7 +79,7 @@ namespace FactionColonies
         {
             if (selectedSquad != null)
             {
-                selectedSquad.militaryOrder = MilitaryOrder.Hunt;
+                selectedSquad.Deployment.MilitaryOrder = MilitaryOrder.Hunt;
                 Messages.Message("FCAttackSuccess".Translate(selectedSquad.DisplayName), MessageTypeDefOf.NeutralEvent);
             }
         }
@@ -97,8 +97,8 @@ namespace FactionColonies
                 {
                     Position = UI.MouseCell();
 
-                    selectedSquad.orderLocation = Position;
-                    selectedSquad.militaryOrder = MilitaryOrder.DefendPoint;
+                    selectedSquad.Deployment.OrderLocation = Position;
+                    selectedSquad.Deployment.MilitaryOrder = MilitaryOrder.DefendPoint;
                     Messages.Message("FCMoveSuccess".Translate(selectedSquad.DisplayName), MessageTypeDefOf.NeutralEvent);
 
                     DebugTools.curTool = null;
@@ -114,7 +114,7 @@ namespace FactionColonies
         {
             if (selectedSquad != null)
             {
-                selectedSquad.militaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
+                selectedSquad.Deployment.MilitaryOrder = MilitaryOrder.RecoverWoundedAndLeave;
                 Messages.Message("FCCommandLeave".Translate(selectedSquad.DisplayName, selectedSquad.dead), MessageTypeDefOf.NeutralEvent);
             }
         }

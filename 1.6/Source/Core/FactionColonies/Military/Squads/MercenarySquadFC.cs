@@ -18,21 +18,10 @@ namespace FactionColonies
         public List<Mercenary> animals = new List<Mercenary>();
         public WorldSettlementFC settlement;
         public bool isExtraSquad;
-        /// <summary>Current target tile for the squad's deployment lord. Initially set to the
-        /// drop position by <c>MilitaryUtil.SpawnSquad</c>; updated when the player issues a
-        /// "move here" command via <see cref="DeployedMilitaryCommandMenu"/>.</summary>
-        public IntVec3 orderLocation;
-        /// <summary>Player-issued behavior order for the squad's deployment lord.
-        /// <see cref="MilitaryOrder.Undefined"/> until the player issues a command (Attack /
-        /// Move / Leave). Read by <c>LordJob_DeployMilitary</c>'s state-graph triggers.</summary>
-        public MilitaryOrder militaryOrder = MilitaryOrder.Undefined;
-        public bool hitMap;
         public int dead;
         public MilSquadFC outfit;
         public SquadEquipmentTracker Equipment;
-        public bool hasLord;
-        public Map map;
-        public Lord lord;
+        public SquadDeploymentState Deployment;
 
         /* -*-*-*-*- Squad-first refactor fields -*-*-*-*-
          * nextAvailableTick: per-squad cooldown expiry. Updated in MilitaryOperation.EnterCooldown.
@@ -43,18 +32,25 @@ namespace FactionColonies
         public int hiredAtTick;
         public bool autoDefend;
 
-        /* Migration buffers — pre-refactor saves wrote UsedWeaponList / UsedApparelList as top-level
-           Scribe nodes. Read into these in LoadingVars and drained into Equipment in PostLoadInit. */
+        /* Migration buffers — pre-refactor saves wrote these as top-level Scribe nodes.
+           Read in LoadingVars; drained into the matching sub-object in PostLoadInit. */
         [Unsaved] private List<ThingWithComps> _legacyUsedWeaponList;
         [Unsaved] private List<Apparel> _legacyUsedApparelList;
+        [Unsaved] private Lord _legacyLord;
+        [Unsaved] private Map _legacyMap;
+        [Unsaved] private bool _legacyHitMap;
+        [Unsaved] private MilitaryOrder _legacyMilitaryOrder = MilitaryOrder.Undefined;
+        [Unsaved] private IntVec3 _legacyOrderLocation;
 
         public MercenarySquadFC()
         {
             Equipment = CreateEquipment();
+            Deployment = CreateDeployment();
         }
 
-        /* Factory hook so subclasses can install a custom SquadEquipmentTracker. */
+        /* Factory hooks so subclasses can install custom sub-objects. */
         protected virtual SquadEquipmentTracker CreateEquipment() => new SquadEquipmentTracker(this);
+        protected virtual SquadDeploymentState CreateDeployment() => new SquadDeploymentState(this);
 
         /* Raw squad name, or null if unset. Use DisplayName for UI; only use Name when
            the caller explicitly needs the raw value (e.g., seeding a rename text box). */
@@ -75,16 +71,11 @@ namespace FactionColonies
             Scribe_Collections.Look(ref mercenaries, "mercenaries", LookMode.Deep);
             Scribe_Collections.Look(ref animals, "animals", LookMode.Deep);
             Scribe_Values.Look(ref isExtraSquad, "isExtraSquad");
-            Scribe_Values.Look(ref hitMap, "hitMap");
             Scribe_References.Look(ref outfit, "outfit");
             Scribe_Values.Look(ref dead, "dead");
             Scribe_Deep.Look(ref Equipment, "equipment", new object[] { this });
+            Scribe_Deep.Look(ref Deployment, "deployment", new object[] { this });
             Scribe_References.Look(ref settlement, "Settlement");
-            Scribe_Values.Look(ref orderLocation, "orderLocation");
-            Scribe_Values.Look(ref militaryOrder, "militaryOrder", MilitaryOrder.Undefined);
-            Scribe_Values.Look(ref hasLord, "hasLord");
-            Scribe_References.Look(ref map, "map");
-            Scribe_References.Look(ref lord, "lord");
             Scribe_Values.Look(ref nextAvailableTick, "nextAvailableTick", 0);
             Scribe_Values.Look(ref hiredAtTick, "hiredAtTick", 0);
             Scribe_Values.Look(ref autoDefend, "autoDefend", false);
@@ -95,6 +86,11 @@ namespace FactionColonies
                    Capture into [Unsaved] buffers; drained in PostLoadInit. */
                 Scribe_Collections.Look(ref _legacyUsedWeaponList, "UsedWeaponList", LookMode.Reference);
                 Scribe_Collections.Look(ref _legacyUsedApparelList, "UsedApparelList", LookMode.Reference);
+                Scribe_References.Look(ref _legacyLord, "lord");
+                Scribe_References.Look(ref _legacyMap, "map");
+                Scribe_Values.Look(ref _legacyHitMap, "hitMap");
+                Scribe_Values.Look(ref _legacyMilitaryOrder, "militaryOrder", MilitaryOrder.Undefined);
+                Scribe_Values.Look(ref _legacyOrderLocation, "orderLocation");
             }
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
@@ -103,6 +99,16 @@ namespace FactionColonies
                 Equipment.AdoptLegacyLists(_legacyUsedWeaponList, _legacyUsedApparelList);
                 _legacyUsedWeaponList = null;
                 _legacyUsedApparelList = null;
+
+                if (Deployment is null) Deployment = CreateDeployment();
+                /* Always-drain: a fresh-hire squad has all-default legacy buffers, which
+                   match SquadDeploymentState's own defaults — adopting is a no-op. */
+                Deployment.AdoptLegacyValues(_legacyLord, _legacyMap, _legacyHitMap,
+                                             _legacyMilitaryOrder, _legacyOrderLocation);
+                _legacyLord = null;
+                _legacyMap = null; _legacyHitMap = false;
+                _legacyMilitaryOrder = MilitaryOrder.Undefined;
+                _legacyOrderLocation = default(IntVec3);
             }
         }
 
@@ -143,12 +149,6 @@ namespace FactionColonies
 
         public IEnumerable<Mercenary> DeployedMercenaryAnimals =>
             animals.Where(merc => merc?.pawn?.Map != null);
-
-        /// <summary>True if any mercenary pawn is currently spawned on a map. Walks the
-        /// merc list rather than reading <c>Operation.battlefieldRef</c> so it works for
-        /// squads spawned outside an op (legacy paths, drop pods that haven't yet wired up
-        /// their op).</summary>
-        public bool IsPhysicallyDeployed() => mercenaries.Any(m => m?.pawn?.Map != null);
 
         /// <summary>The <see cref="MilitaryOperation"/> this squad is currently part of, if any.
         /// Returned via the <see cref="MilitaryOperationManager"/>'s squad index, so this is O(1)

@@ -170,9 +170,9 @@ namespace FactionColonies
             var allMercs = util.AllMercenaries.ToList();
             for (int i = allMercs.Count - 1; i >= 0; i--)
             {
-                if (allMercs[i].squad.hasLord)
+                if (allMercs[i].squad.Deployment.HasLord)
                 {
-                    allMercs[i].squad.map.lordManager.RemoveLord(allMercs[i].squad.lord);
+                    allMercs[i].squad.Deployment.Map.lordManager.RemoveLord(allMercs[i].squad.Deployment.Lord);
                 }
 
                 allMercs[i].pawn.Destroy();
@@ -451,9 +451,9 @@ namespace FactionColonies
             for (int i = util.mercenarySquads.Count - 1; i >= 0; i--)
             {
                 MercenarySquadFC squad = util.mercenarySquads[i];
-                if (squad.hasLord)
+                if (squad.Deployment.HasLord)
                 {
-                    squad.map?.lordManager.RemoveLord(squad.lord);
+                    squad.Deployment.Map?.lordManager.RemoveLord(squad.Deployment.Lord);
                 }
 
                 foreach (Mercenary merc in squad.mercenaries.Concat(squad.animals).ToList())
@@ -581,12 +581,12 @@ namespace FactionColonies
                             IntVec3 dropPosition = UI.MouseCell();
                             parms.spawnCenter = dropPosition;
 
-                            squad.orderLocation = dropPosition;
+                            squad.Deployment.OrderLocation = dropPosition;
 
                             var debugEquippedPawns = squad.AllEquippedMercenaryPawns.ToList();
                             PawnsArrivalModeWorkerUtility.DropInDropPodsNearSpawnCenter(parms, debugEquippedPawns);
                             debugEquippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
-                            // Register the deploy op so squad.IsPhysicallyDeployed reflects the state.
+                            // Register the deploy op so squad.Deployment.IsPhysicallyDeployed reflects the state.
                             // Squad-first: pass the squad, not the settlement.
                             FactionCache.MilitaryManager?.CreateDeployOp(squad, Find.CurrentMap.Tile);
                             DebugTools.curTool = null;
@@ -1045,7 +1045,7 @@ namespace FactionColonies
                     int deployedCount = 0;
                     for (int i = 0; i < stationed.Count; i++)
                     {
-                        if (stationed[i] != null && stationed[i].IsPhysicallyDeployed()) deployedCount++;
+                        if (stationed[i] != null && stationed[i].Deployment.IsPhysicallyDeployed()) deployedCount++;
                     }
                     squadInfo = $"Squads:{stationed.Count} Deployed:{deployedCount} Job:{comp.militaryJob}";
                 }

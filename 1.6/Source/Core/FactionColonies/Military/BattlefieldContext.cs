@@ -654,7 +654,7 @@ namespace FactionColonies
             if (squad is null
                 || squad.outfit is null
                 || !squad.mercenaries.Any()
-                || squad.IsPhysicallyDeployed()) return;
+                || squad.Deployment.IsPhysicallyDeployed()) return;
 
             squad.CheckInitialization();
             squad.UpdateSquadStats(op.defender.force.homeSettlement.settlementMilitaryLevel);
@@ -829,7 +829,7 @@ namespace FactionColonies
                 bool hasSquad = squad != null
                     && squad.outfit != null
                     && squad.mercenaries.Any();
-                bool squadDeployed = hasSquad && squad.IsPhysicallyDeployed();
+                bool squadDeployed = hasSquad && squad.Deployment.IsPhysicallyDeployed();
                 bool squadAvailable = hasSquad && !squadDeployed;
 
                 if (squadAvailable)

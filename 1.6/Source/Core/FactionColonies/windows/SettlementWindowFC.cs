@@ -1229,7 +1229,7 @@ namespace FactionColonies
                         delegate { util?.DismissSquad(squad); }));
                 }));
 
-            if (!squad.IsPhysicallyDeployed())
+            if (!squad.Deployment.IsPhysicallyDeployed())
             {
                 list.Add(new FloatMenuOption("fcResetSquadPawns".Translate(), delegate
                 {
