@@ -670,26 +670,6 @@ namespace FactionColonies.util
                 SetupSecurityGuards(xenoName);
             }
         }
-
-        public static bool NameNeedsSecurityGuards(string name)
-        {
-            string xenotypeName = name.ToLower();
-
-            // Common non-violent or weak xenotypes that would benefit from security guards
-            if (xenotypeName.Contains("pacifist") ||
-                xenotypeName.Contains("gentle") ||
-                xenotypeName.Contains("weak") ||
-                xenotypeName.Contains("frail") ||
-                xenotypeName.Contains("nearsighted") ||
-                xenotypeName.Contains("peaceful"))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
         public static bool GenesNeedSecurityGuards(List<GeneDef> genes)
         {
             if (!CanGeneListDoViolentWork(genes))
@@ -755,13 +735,6 @@ namespace FactionColonies.util
                 return false;
             }
 
-            // Simple heuristic: Check the xenotype name for known non-violent types
-            // Common non-violent or weak xenotypes that would benefit from security guards
-            if (NameNeedsSecurityGuards(xenotype.defName))
-            {
-                return true;
-            }
-
             // Check for genes that explicitly reduce combat effectiveness
             if (GenesNeedSecurityGuards(xenotype.genes))
             {
@@ -780,13 +753,6 @@ namespace FactionColonies.util
                 return false;
             }
             if (xenotype?.genes is null) return false;
-
-            // Simple heuristic: Check the xenotype name for known non-violent types
-            // Common non-violent or weak xenotypes that would benefit from security guards
-            if (NameNeedsSecurityGuards(xenotype.name))
-            {
-                return true;
-            }
 
             // Check for genes that explicitly reduce combat effectiveness
             if (GenesNeedSecurityGuards(xenotype.genes))
