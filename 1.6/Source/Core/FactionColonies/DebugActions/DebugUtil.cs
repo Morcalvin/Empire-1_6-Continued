@@ -475,26 +475,51 @@ namespace FactionColonies
             util.CheckMilitaryUtilForErrors();
         }
 
-        [DebugAction("Empire", "Reset All Military Cooldowns", allowedGameStates = AllowedGameStates.Playing)]
-        private static void ResetAllMilitaryCooldowns()
+        [DebugAction("Empire", "Reset All Squad Cooldowns", allowedGameStates = AllowedGameStates.Playing)]
+        private static void ResetAllSquadCooldowns()
         {
-            LogUtil.MessageForce("Debug - Reset All Military Cooldowns");
+            LogUtil.MessageForce("Debug - Reset All Squad Cooldowns");
             FactionFC faction = FactionCache.FactionComp;
-            int count = 0;
 
-            foreach (WorldSettlementFC settlement in faction.settlements)
+            /* Squad-first model: a squad's cooldown is a cooldownMilitary ("traveling") FCEvent
+             * linked to a MilitaryOperation in CooldownPending phase, plus the per-squad
+             * nextAvailableTick gate. Clear all three layers. */
+
+            // 1. Resolve every op stuck in a return-trip cooldown. Snapshot first — Resolve()
+            //    unregisters the op, which mutates the manager's active list.
+            int opsResolved = 0;
+            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            if (mgr is object)
             {
-                if (settlement.MilitaryComp is null || settlement.MilitaryComp.militaryJob != MilitaryJobDefOf.Cooldown)
-                    continue;
-
-                faction.RemoveEventsWhere(e =>
-                    e.def == FCEventDefOf.cooldownMilitary && e.location == settlement.Tile);
-
-                settlement.MilitaryComp.ReturnMilitary(false);
-                count++;
+                List<MilitaryOperation> snapshot = new List<MilitaryOperation>(mgr.active);
+                foreach (MilitaryOperation op in snapshot)
+                {
+                    if (op is null || op.phase != MilitaryOperationPhase.CooldownPending) continue;
+                    op.Resolve();
+                    opsResolved++;
+                }
             }
 
-            LogUtil.MessageForce($"Debug - Reset {count} military cooldown(s)");
+            // 2. Sweep all cooldownMilitary ("traveling") events from the faction queue,
+            //    including any orphans whose linked op is already gone.
+            int eventsCleared = faction.RemoveEventsWhere(e => e.def == FCEventDefOf.cooldownMilitary);
+
+            // 3. Clear the per-squad cooldown gate so squads are immediately available.
+            int squadsCleared = 0;
+            List<MercenarySquadFC> pool = faction.militaryCustomizationUtil?.mercenarySquads;
+            if (pool is object)
+            {
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC squad = pool[i];
+                    if (squad is null || squad.nextAvailableTick <= Find.TickManager.TicksGame) continue;
+                    squad.nextAvailableTick = Find.TickManager.TicksGame;
+                    squadsCleared++;
+                }
+            }
+
+            LogUtil.MessageForce($"Debug - Resolved {opsResolved} cooldown op(s), cleared " +
+                $"{eventsCleared} traveling event(s), reset {squadsCleared} squad cooldown(s)");
         }
 
         [DebugAction("Empire", "Clear Old Bills", allowedGameStates = AllowedGameStates.Playing)]
@@ -598,6 +623,31 @@ namespace FactionColonies
                 list.Add(new DebugMenuOption(
                     $"{local.Name} (Lv{local.settlementLevel})",
                     DebugMenuOptionMode.Action, () => callback(local)));
+            }
+            Find.WindowStack.Add(new Dialog_DebugOptionListLister(list));
+        }
+
+        private static void WithSquadChoice(Action<MercenarySquadFC> callback)
+        {
+            List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+            List<DebugMenuOption> list = new List<DebugMenuOption>();
+            if (pool is object)
+            {
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    MercenarySquadFC squad = pool[i];
+                    if (squad is null) continue;
+                    MercenarySquadFC local = squad;
+                    string where = local.settlement?.Name ?? "(unassigned)";
+                    list.Add(new DebugMenuOption(
+                        $"{local.DisplayName} @ {where} - {local.CountInjuredMercs()} injured merc(s)",
+                        DebugMenuOptionMode.Action, () => callback(local)));
+                }
+            }
+            if (list.Count == 0)
+            {
+                LogUtil.MessageForce("Debug - No squads available");
+                return;
             }
             Find.WindowStack.Add(new Dialog_DebugOptionListLister(list));
         }
@@ -1045,6 +1095,26 @@ namespace FactionColonies
             LogUtil.MessageForce("Debug - Running military error check");
             FactionCache.FactionComp.militaryCustomizationUtil.CheckMilitaryUtilForErrors();
             LogUtil.MessageForce("Debug - Military error check complete");
+        }
+
+        [DebugAction("Empire", "Heal Squad to Full", allowedGameStates = AllowedGameStates.Playing)]
+        private static void HealSquadToFull()
+        {
+            WithSquadChoice(squad =>
+            {
+                int healed = 0;
+                IEnumerable<Mercenary> all = (squad.mercenaries ?? Enumerable.Empty<Mercenary>())
+                    .Concat(squad.animals ?? Enumerable.Empty<Mercenary>());
+                foreach (Mercenary merc in all)
+                {
+                    // Skip empty slots and dead/destroyed pawns — there is no revival system,
+                    // dead mercs are already empty slots. HealPawn does merc.pawn.health.Reset().
+                    if (merc?.pawn is null || merc.pawn.Dead || merc.pawn.Destroyed) continue;
+                    squad.HealPawn(merc);
+                    healed++;
+                }
+                LogUtil.MessageForce($"Debug - Healed {healed} pawn(s) in squad {squad.DisplayName}");
+            });
         }
 
         // ============================
