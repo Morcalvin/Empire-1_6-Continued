@@ -169,7 +169,7 @@ namespace FactionColonies
                 bool isReady;
                 ComputeStatus(squad, now, out status, out statusColor, out isReady);
 
-                int injuredCount = squad.CountInjuredMercs();
+                int injuredCount = SquadHealthUtil.CountInjuredMercs(squad);
                 if (isReady && injuredCount > 0)
                 {
                     status = "FCSquadStatusInjured".Translate(injuredCount);

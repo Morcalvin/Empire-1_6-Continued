@@ -121,7 +121,7 @@ namespace FactionColonies
 
             squad.CheckInitialization();
             squad.UpdateSquadStats(settlement.settlementMilitaryLevel);
-            squad.ResetNeeds();
+            SquadHealthUtil.ResetNeeds(squad);
 
             IntVec3 dropPosition;
             DebugTool tool = new DebugTool("FCSelectDeploymentPosition".Translate(), delegate

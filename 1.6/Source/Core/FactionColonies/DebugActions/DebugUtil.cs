@@ -640,7 +640,7 @@ namespace FactionColonies
                     MercenarySquadFC local = squad;
                     string where = local.settlement?.Name ?? "(unassigned)";
                     list.Add(new DebugMenuOption(
-                        $"{local.DisplayName} @ {where} - {local.CountInjuredMercs()} injured merc(s)",
+                        $"{local.DisplayName} @ {where} - {SquadHealthUtil.CountInjuredMercs(local)} injured merc(s)",
                         DebugMenuOptionMode.Action, () => callback(local)));
                 }
             }
@@ -1110,7 +1110,7 @@ namespace FactionColonies
                     // Skip empty slots and dead/destroyed pawns — there is no revival system,
                     // dead mercs are already empty slots. HealPawn does merc.pawn.health.Reset().
                     if (merc?.pawn is null || merc.pawn.Dead || merc.pawn.Destroyed) continue;
-                    squad.HealPawn(merc);
+                    SquadHealthUtil.HealPawn(merc);
                     healed++;
                 }
                 LogUtil.MessageForce($"Debug - Healed {healed} pawn(s) in squad {squad.DisplayName}");

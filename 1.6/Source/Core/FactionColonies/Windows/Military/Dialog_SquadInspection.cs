@@ -602,7 +602,7 @@ namespace FactionColonies
             if (merc is null || merc.IsEmptySlot) return "FCSquadInspectionStatusEmpty".Translate();
             if (merc.pawn.Dead) return "FCSquadInspectionStatusDead".Translate();
             if (merc.pawn.Downed) return "FCSquadInspectionStatusDowned".Translate();
-            int injuries = MercenarySquadFC.CountActiveInjuries(merc.pawn);
+            int injuries = SquadHealthUtil.CountActiveInjuries(merc.pawn);
             if (injuries > 0) return "FCSquadInspectionStatusInjured".Translate(injuries);
             return "FCSquadInspectionStatusOk".Translate();
         }
@@ -615,7 +615,7 @@ namespace FactionColonies
             if (merc is null || merc.IsEmptySlot) return AccentUtil.MilInactive;
             if (merc.pawn.Dead) return AccentUtil.MilInactive;
             if (merc.pawn.Downed) return AccentUtil.MilUnderAttack;
-            int injuries = MercenarySquadFC.CountActiveInjuries(merc.pawn);
+            int injuries = SquadHealthUtil.CountActiveInjuries(merc.pawn);
             if (injuries >= 3) return AccentUtil.MilActiveMission;
             if (injuries >= 1) return AccentUtil.MilCooldown;
             return AccentUtil.MilReady;

@@ -658,7 +658,7 @@ namespace FactionColonies
 
             squad.CheckInitialization();
             squad.UpdateSquadStats(op.defender.force.homeSettlement.settlementMilitaryLevel);
-            squad.ResetNeeds();
+            SquadHealthUtil.ResetNeeds(squad);
 
             // SpawnableMercenaryPawns filters downed mercs out of the reinforcement wave —
             // they stay at base to recover from the previous engagement.
@@ -836,7 +836,7 @@ namespace FactionColonies
                 {
                     squad.CheckInitialization();
                     squad.UpdateSquadStats(homeSettlement.settlementMilitaryLevel);
-                    squad.ResetNeeds();
+                    SquadHealthUtil.ResetNeeds(squad);
 
                     // SpawnableMercenaryPawns filters downed mercs out of the initial defender
                     // wave — they stay at base instead of being dropped into a fight they can't
