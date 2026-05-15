@@ -851,4 +851,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_60</defName>
+		<label>Xenotype Filtering Update</label>
+		<description>Removes the naive name filter that would mark any xenotype as non-violent if its defName contained &quot;pacifist&quot;, &quot;gentle&quot;, &quot;weak&quot;, &quot;frail&quot;, &quot;nearsighted&quot;, or &quot;peaceful&quot;.</description>
+		<releaseDate>2026-05-15</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Removes the naive name filter for xenotypes</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
