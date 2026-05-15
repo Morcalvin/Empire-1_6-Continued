@@ -43,7 +43,7 @@ namespace FactionColonies
                         FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
                     }
 
-                    squad.RemoveDroppedEquipment();
+                    squad.Equipment.RemoveDroppedEquipment();
                 }
                 else
                 {

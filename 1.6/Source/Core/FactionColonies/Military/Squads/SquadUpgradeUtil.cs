@@ -239,15 +239,17 @@ namespace FactionColonies
                 PaymentUtil.PaySilver(net, PaymentUtil.Reason_SquadUpgrade, squad.settlement);
             }
 
-            squad.UsedWeaponList = new List<ThingWithComps>();
-            squad.UsedApparelList = new List<Apparel>();
+            // Reset the equipment tracker's snapshots; Equipment.EquipPawn will repopulate
+            // them as we re-equip each slot below.
+            squad.Equipment.UsedWeaponList = new List<ThingWithComps>();
+            squad.Equipment.UsedApparelList = new List<Apparel>();
 
             // Fire pass: strip + destroy each fired merc's pawn. Merc instances are dropped
             // from the rebuilt mercenaries list below.
             foreach (Mercenary m in plan.Fires)
             {
                 if (m is null) continue;
-                squad.StripPawn(m);
+                squad.Equipment.StripPawn(m);
                 if (m.pawn != null && !m.pawn.Destroyed) m.pawn.Destroy();
                 m.pawn = null;
                 if (m.animal != null)
@@ -271,8 +273,8 @@ namespace FactionColonies
                 if (dec.claim != null)
                 {
                     merc = dec.claim;
-                    squad.StripPawn(merc);
-                    squad.EquipPawn(merc, target);
+                    squad.Equipment.StripPawn(merc);
+                    squad.Equipment.EquipPawn(merc, target);
                     /* Re-sync the pool pointer to the live template slot (repairs a stale
                        'loadout' after a SwapTemplate). ownedLoadout is deliberately left
                        intact — a bulk upgrade APPLIES personalization, it doesn't discard it. */
@@ -288,7 +290,7 @@ namespace FactionColonies
                         LogUtil.Warning($"UpgradeToTemplate: failed to generate fresh pawn for slot {dec.slotIndex}");
                         continue;
                     }
-                    squad.EquipPawn(merc, target);
+                    squad.Equipment.EquipPawn(merc, target);
                     merc.squad = squad;
                     merc.settlement = squad.settlement;
                     merc.loadout = slotUnit;
@@ -296,12 +298,7 @@ namespace FactionColonies
                     merc.currentLoadout = target.Clone();
                 }
 
-                squad.ReconcileAnimal(merc, target);
-
-                if (merc.pawn?.equipment?.AllEquipmentListForReading != null)
-                    squad.UsedWeaponList.AddRange(merc.pawn.equipment.AllEquipmentListForReading);
-                if (merc.pawn?.apparel?.WornApparel != null)
-                    squad.UsedApparelList.AddRange(merc.pawn.apparel.WornApparel);
+                squad.Equipment.ReconcileAnimal(merc, target);
 
                 rebuilt.Add(merc);
             }

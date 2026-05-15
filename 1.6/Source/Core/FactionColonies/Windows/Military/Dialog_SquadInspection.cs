@@ -659,11 +659,11 @@ namespace FactionColonies
             // ownedLoadout and loadout are preserved — assigned loadout is unchanged,
             // only the pawn's equipped state is being synced to it.
             merc.currentLoadout = target.Clone();
-            squad.StripPawn(merc);
-            squad.EquipPawn(merc, merc.currentLoadout);
+            squad.Equipment.StripPawn(merc);
+            squad.Equipment.EquipPawn(merc, merc.currentLoadout);
             // EquipPawn handles apparel + weapons only — sync the companion animal too so
             // an animal-only personalization actually takes effect.
-            squad.ReconcileAnimal(merc, target);
+            squad.Equipment.ReconcileAnimal(merc, target);
         }
 
         private void FillSingleSlot(Mercenary merc, int cost, MilUnitFC blueprint)
@@ -678,7 +678,7 @@ namespace FactionColonies
             if (cost > 0) PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadFillSlot, squad.settlement);
             Mercenary slot = merc;
             MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
-            if (slot.pawn != null) squad.EquipPawn(slot, blueprint);
+            if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
             FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
         }
@@ -761,7 +761,7 @@ namespace FactionColonies
             target.ownedLoadout = null;
             Mercenary slot = target;
             MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
-            if (slot.pawn != null) squad.EquipPawn(slot, blueprint);
+            if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
 
             if (squad.outfit != null) SquadUpgradeUtil.SwapTemplate(squad, null);

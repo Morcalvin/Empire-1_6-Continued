@@ -9,7 +9,7 @@ namespace FactionColonies
     /// Applies faction colors to apparel on Empire pawns generated through vanilla's
     /// pawn generation pipeline (e.g. trader caravans, visitors).
     /// Military pawns are unaffected — their generation-time apparel is stripped and
-    /// replaced by MercenarySquadFC.EquipPawn() which applies colors independently.
+    /// replaced by SquadEquipmentTracker.EquipPawn() which applies colors independently.
     /// </summary>
     [HarmonyPatch(typeof(PawnApparelGenerator))]
     [HarmonyPatch("PostProcessApparel")]

@@ -161,7 +161,7 @@ namespace FactionColonies
             // Copy the outfit from the settlement's primary stationed squad (any squad with an
             // outfit will do — we just need a template to clone the gear from).
             MilSquadFC mainOutfit = settlement?.PrimaryStationedSquad?.outfit;
-            if (mainOutfit != null) squad.OutfitSquad(mainOutfit);
+            if (mainOutfit != null) squad.Equipment.OutfitSquad(mainOutfit);
             CallinAlliedForces(settlement, DropPod, squad);
         }
         public static void FireSupport(WorldSettlementFC settlement, MilitaryFireSupport support)

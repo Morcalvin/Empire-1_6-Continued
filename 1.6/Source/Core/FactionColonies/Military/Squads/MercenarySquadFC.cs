@@ -29,8 +29,7 @@ namespace FactionColonies
         public bool hitMap;
         public int dead;
         public MilSquadFC outfit;
-        public List<ThingWithComps> UsedWeaponList;
-        public List<Apparel> UsedApparelList;
+        public SquadEquipmentTracker Equipment;
         public bool hasLord;
         public Map map;
         public Lord lord;
@@ -43,6 +42,19 @@ namespace FactionColonies
         public int nextAvailableTick;
         public int hiredAtTick;
         public bool autoDefend;
+
+        /* Migration buffers — pre-refactor saves wrote UsedWeaponList / UsedApparelList as top-level
+           Scribe nodes. Read into these in LoadingVars and drained into Equipment in PostLoadInit. */
+        [Unsaved] private List<ThingWithComps> _legacyUsedWeaponList;
+        [Unsaved] private List<Apparel> _legacyUsedApparelList;
+
+        public MercenarySquadFC()
+        {
+            Equipment = CreateEquipment();
+        }
+
+        /* Factory hook so subclasses can install a custom SquadEquipmentTracker. */
+        protected virtual SquadEquipmentTracker CreateEquipment() => new SquadEquipmentTracker(this);
 
         /* Raw squad name, or null if unset. Use DisplayName for UI; only use Name when
            the caller explicitly needs the raw value (e.g., seeding a rename text box). */
@@ -66,8 +78,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref hitMap, "hitMap");
             Scribe_References.Look(ref outfit, "outfit");
             Scribe_Values.Look(ref dead, "dead");
-            Scribe_Collections.Look(ref UsedWeaponList, "UsedWeaponList", LookMode.Reference);
-            Scribe_Collections.Look(ref UsedApparelList, "UsedApparelList", LookMode.Reference);
+            Scribe_Deep.Look(ref Equipment, "equipment", new object[] { this });
             Scribe_References.Look(ref settlement, "Settlement");
             Scribe_Values.Look(ref orderLocation, "orderLocation");
             Scribe_Values.Look(ref militaryOrder, "militaryOrder", MilitaryOrder.Undefined);
@@ -77,6 +88,22 @@ namespace FactionColonies
             Scribe_Values.Look(ref nextAvailableTick, "nextAvailableTick", 0);
             Scribe_Values.Look(ref hiredAtTick, "hiredAtTick", 0);
             Scribe_Values.Look(ref autoDefend, "autoDefend", false);
+
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                /* Pre-refactor saves stored these as top-level fields on the squad.
+                   Capture into [Unsaved] buffers; drained in PostLoadInit. */
+                Scribe_Collections.Look(ref _legacyUsedWeaponList, "UsedWeaponList", LookMode.Reference);
+                Scribe_Collections.Look(ref _legacyUsedApparelList, "UsedApparelList", LookMode.Reference);
+            }
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                if (Equipment is null) Equipment = CreateEquipment();
+                Equipment.AdoptLegacyLists(_legacyUsedWeaponList, _legacyUsedApparelList);
+                _legacyUsedWeaponList = null;
+                _legacyUsedApparelList = null;
+            }
         }
 
         public string GetUniqueLoadID()
@@ -149,56 +176,13 @@ namespace FactionColonies
         public bool IsAvailable
             => IsAssigned && !IsBusy && !IsUnderfunded && nextAvailableTick <= Find.TickManager.TicksGame;
 
-        /// <summary>Syncs a merc's companion animal to <paramref name="target"/>'s animal:
-        /// creates, replaces, or destroys the animal-merc as needed and keeps
-        /// <see cref="animals"/> consistent (no orphaned entries). Shared by the per-pawn
-        /// Upgrade path and the bulk <see cref="SquadUpgradeUtil.UpgradeToTemplate"/> — <c>EquipPawn</c> only
-        /// touches apparel + weapons, so the animal has to be reconciled separately. A
-        /// fresh-hire merc (<c>animal == null</c>) is handled too: it just creates the
-        /// animal when the target has one.</summary>
-        public void ReconcileAnimal(Mercenary merc, MilUnitFC target)
-        {
-            if (merc is null) return;
-            PawnKindDef wanted = target?.animal;
-
-            /* No animal wanted — drop any existing one. */
-            if (wanted is null)
-            {
-                if (merc.animal != null)
-                {
-                    if (merc.animal.pawn != null && !merc.animal.pawn.Destroyed) merc.animal.pawn.Destroy();
-                    animals?.Remove(merc.animal);
-                    merc.animal = null;
-                }
-                return;
-            }
-
-            /* Correct animal already present — leave it. */
-            if (merc.animal?.pawn?.kindDef == wanted) return;
-
-            /* Wrong / missing animal — destroy the old one (if any), create the wanted one. */
-            if (merc.animal != null)
-            {
-                if (merc.animal.pawn != null && !merc.animal.pawn.Destroyed) merc.animal.pawn.Destroy();
-                animals?.Remove(merc.animal);
-                merc.animal = null;
-            }
-
-            Mercenary animal = new Mercenary(true);
-            MercenaryPawnFactory.CreateNewAnimal(this, ref animal, wanted);
-            animal.handler = merc;
-            merc.animal = animal;
-            if (animals is null) animals = new List<Mercenary>();
-            animals.Add(animal);
-        }
-
         /* The squad's billet. settlement is the canonical source of truth in the squad-first
          * model; the property exists only as a stable accessor for external callers. */
         public WorldSettlementFC getSettlement => settlement;
 
         /// <summary>
         /// Initial population pass: creates 30 mercs (one per template slot, or blank if no
-        /// outfit) and equips them via <see cref="OutfitSquad"/>. The canonical first call
+        /// outfit) and equips them via <see cref="SquadEquipmentTracker.OutfitSquad"/>. The canonical first call
         /// is from <see cref="MilitaryCustomizationUtil.HireSquad"/>, where a freshly-
         /// constructed squad has <c>mercenaries.Count == 0</c> so the early-return guard
         /// does not fire.
@@ -211,8 +195,6 @@ namespace FactionColonies
             if (mercenaries != null && mercenaries.Count > 0) return;
 
             mercenaries = new List<Mercenary>();
-            UsedApparelList = new List<Apparel>();
-            UsedWeaponList = new List<ThingWithComps>();
 
             int cap = MilSquadFC.MaxSquadSize;
             int templateCount = (outfit?.Units != null) ? outfit.Units.Count : 0;
@@ -249,7 +231,7 @@ namespace FactionColonies
 
             if (outfit != null)
             {
-                OutfitSquad(outfit);
+                Equipment.OutfitSquad(outfit);
             }
             else
             {
@@ -266,39 +248,6 @@ namespace FactionColonies
         public void CheckInitialization()
         {
             if (mercenaries is null) InitiateSquad();
-        }
-
-        public void RemoveDroppedEquipment()
-        {
-            for (int i = UsedApparelList.Count - 1; i >= 0; i--)
-            {
-                Apparel apparel = UsedApparelList[i];
-                if (apparel.ParentHolder is Pawn_ApparelTracker tracker)
-                {
-                    Pawn pawn = tracker.pawn;
-                    if ((pawn.Faction == FactionCache.PlayerColonyFaction ||
-                         pawn.Faction == Find.FactionManager.OfPlayer) && !pawn.Dead)
-                        continue;
-                }
-                UsedApparelList.RemoveAt(i);
-                if (apparel != null && !apparel.Destroyed)
-                    apparel.Destroy();
-            }
-
-            for (int i = UsedWeaponList.Count - 1; i >= 0; i--)
-            {
-                ThingWithComps weapon = UsedWeaponList[i];
-                if (weapon.ParentHolder is Pawn_EquipmentTracker tracker)
-                {
-                    Pawn pawn = tracker.pawn;
-                    if ((pawn.Faction == FactionCache.PlayerColonyFaction ||
-                         pawn.Faction == Find.FactionManager.OfPlayer) && !pawn.Dead)
-                        continue;
-                }
-                UsedWeaponList.RemoveAt(i);
-                if (weapon != null && !weapon.Destroyed)
-                    weapon.Destroy();
-            }
         }
 
         public void UpdateSquadStats(int level)
@@ -354,8 +303,6 @@ namespace FactionColonies
 
             if (mercenaries != null)
             {
-                if (UsedWeaponList == null) UsedWeaponList = new List<ThingWithComps>();
-                if (UsedApparelList == null) UsedApparelList = new List<Apparel>();
                 foreach (Mercenary m in mercenaries)
                 {
                     if (m is null || !m.IsEmptySlot) continue;
@@ -363,13 +310,9 @@ namespace FactionColonies
                     if (blueprint is null || blueprint.isBlank) continue;
                     Mercenary slot = m;
                     MercenaryPawnFactory.CreateNewPawn(this, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
-                    if (slot.pawn != null) EquipPawn(slot, blueprint);
+                    if (slot.pawn != null) Equipment.EquipPawn(slot, blueprint);
                     // Sync currentLoadout with what we just equipped — re-snap from the blueprint.
                     slot.currentLoadout = blueprint.Clone();
-                    if (slot.pawn?.equipment?.AllEquipmentListForReading != null)
-                        UsedWeaponList.AddRange(slot.pawn.equipment.AllEquipmentListForReading);
-                    if (slot.pawn?.apparel?.WornApparel != null)
-                        UsedApparelList.AddRange(slot.pawn.apparel.WornApparel);
                 }
             }
 
@@ -394,7 +337,7 @@ namespace FactionColonies
             }
 
             /* Strip + destroy. Mirrors SquadUpgradeUtil.UpgradeToTemplate's fire-pass cleanup. */
-            StripPawn(merc);
+            Equipment.StripPawn(merc);
             if (merc.pawn != null && !merc.pawn.Destroyed) merc.pawn.Destroy();
             merc.pawn = null;
             if (merc.animal?.pawn != null && !merc.animal.pawn.Destroyed) merc.animal.pawn.Destroy();
@@ -435,190 +378,6 @@ namespace FactionColonies
         {
             LogUtil.Warning("MercenarySquadFC.PassPawnToDeadMercenaries was called but is a no-op. " +
                             "Use FillEmptySlots to refill empty slots after a death.");
-        }
-
-        public void StripSquad()
-        {
-            for (int count = 0; count < mercenaries.Count && count < MilSquadFC.MaxSquadSize; count++)
-            {
-                if (mercenaries[count]?.pawn != null)
-                {
-                    StripPawn(mercenaries[count]);
-                }
-            }
-        }
-
-        /// <summary>Re-equips every mercenary slot from <paramref name="outfit"/>'s units,
-        /// generating fresh pawns for empty / mismatched slots and stripping/re-applying gear
-        /// on existing pawns. Called only from explicit player actions: <see cref="InitiateSquad"/>
-        /// at hire, <see cref="SquadUpgradeUtil.UpgradeToTemplate"/>, <see cref="FillEmptySlots"/>, and the per-pawn
-        /// editor in <c>Dialog_PawnLoadout</c>. Per the strict-manual outfit policy, no automatic
-        /// path (death replacement, template propagation, pre-deploy refresh) re-enters this method.
-        /// External submods may call it during their own player-driven flows.</summary>
-        public virtual void OutfitSquad(MilSquadFC outfit)
-        {
-            int count = 0;
-            this.outfit = outfit;
-            UsedWeaponList = new List<ThingWithComps>();
-            UsedApparelList = new List<Apparel>();
-            animals = new List<Mercenary>();
-            foreach (MilUnitFC loadout in outfit.Units)
-            {
-                try
-                {
-                    if (loadout == null)
-                    {
-                        count++;
-                        continue;
-                    }
-
-                    // Ensure we have enough mercenaries in the list
-                    while (mercenaries.Count <= count)
-                    {
-                        Mercenary newMerc = new Mercenary(true);
-                        MercenaryPawnFactory.CreateNewPawn(this, ref newMerc, loadout?.pawnKind, loadout?.xenotype, loadout?.customXenotypeName);
-                        if (newMerc?.pawn != null)
-                        {
-                            mercenaries.Add(newMerc);
-                        }
-                        else
-                        {
-                            LogUtil.Warning($"Could not create mercenary for slot {count}.");
-                            break;
-                        }
-                    }
-
-                    // Skip if we still don't have enough mercenaries
-                    if (count >= mercenaries.Count || mercenaries[count]?.pawn == null)
-                    {
-                        LogUtil.Warning($"Skipping outfit slot {count} - no valid mercenary available.");
-                        count++;
-                        continue;
-                    }
-
-                    if (mercenaries[count].pawn.kindDef != loadout.pawnKind || mercenaries[count].pawn.Dead)
-                    {
-                        Mercenary pawn = new Mercenary(true);
-                        MercenaryPawnFactory.CreateNewPawn(this, ref pawn, loadout.pawnKind, loadout.xenotype, loadout.customXenotypeName);
-                        // Only replace if new pawn was successfully created
-                        if (pawn?.pawn != null)
-                        {
-                            mercenaries.Replace(mercenaries[count], pawn);
-                        }
-                        else
-                        {
-                            LogUtil.Warning($"Failed to create replacement pawn for slot {count}.");
-                        }
-                    }
-
-                    // Skip operations if pawn is null
-                    if (mercenaries[count]?.pawn == null)
-                    {
-                        count++;
-                        continue;
-                    }
-
-                    StripPawn(mercenaries[count]);
-                    if (loadout != null)
-                    {
-                        EquipPawn(mercenaries[count], loadout);
-                        if (loadout.animal != null)
-                        {
-                            Mercenary animal = new Mercenary(true);
-                            MercenaryPawnFactory.CreateNewAnimal(this, ref animal, loadout.animal);
-                            animal.handler = mercenaries[count];
-                            mercenaries[count].animal = animal;
-                            animals.Add(animal);
-                        }
-
-                        mercenaries[count].loadout = loadout;
-                        // Sync currentLoadout with what we just equipped — clear any prior
-                        // divergence since this is a fresh outfit pass.
-                        mercenaries[count].ownedLoadout = null;
-                        mercenaries[count].currentLoadout = loadout.Clone();
-                    }
-
-                    if (mercenaries[count]?.pawn?.equipment?.AllEquipmentListForReading != null)
-                    {
-                        UsedWeaponList.AddRange(mercenaries[count].pawn.equipment.AllEquipmentListForReading);
-                    }
-
-                    if (mercenaries[count]?.pawn?.apparel?.WornApparel != null)
-                    {
-                        UsedApparelList.AddRange(mercenaries[count].pawn.apparel.WornApparel);
-                    }
-
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"Something went wrong when outfitting a squad (slot {count}): {e}");
-                    if (!mercenaries.NullOrEmpty())
-                    {
-                        LogUtil.Error($"Number of Mercs: {mercenaries.Count}, Any null pawn: {mercenaries.Any(m => m?.pawn == null)}");
-                    }
-                }
-                count++;
-            }
-
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
-        }
-
-
-        public virtual void StripPawn(Mercenary merc)
-        {
-            if (merc?.pawn == null) return;
-
-            try
-            {
-                merc.pawn.apparel?.DestroyAll();
-                merc.pawn.equipment?.DestroyAllEquipment();
-                merc.pawn.inventory?.innerContainer?.ClearAndDestroyContents();
-            }
-            catch (Exception e)
-            {
-                LogUtil.Error($"Error stripping pawn equipment (mod conflict likely): {e}");
-            }
-            CombatExtendedUtil.UpdateInventory(merc.pawn);
-        }
-
-        public virtual void EquipPawn(Mercenary merc, MilUnitFC loadout)
-        {
-            if (merc?.pawn == null || loadout == null) return;
-
-            if (merc.pawn.apparel != null)
-            {
-                FactionFC factionComp = FactionCache.FactionComp;
-                foreach (SavedThing apparelDef in loadout.apparel)
-                {
-                    Thing thing = apparelDef.CreateThing();
-                    if (thing is Apparel ap)
-                    {
-                        Color resolved = factionComp?.ResolveApparelColor(apparelDef) ?? Color.white;
-                        thing.SetColor(resolved, reportFailure: false);
-                        merc.pawn.apparel.Wear(ap);
-                    }
-                }
-            }
-
-            if (merc.pawn.equipment != null)
-            {
-                foreach (SavedThing weaponDef in loadout.weapons)
-                {
-                    Thing weaponThing = weaponDef.CreateThing();
-                    if (weaponThing is ThingWithComps twc)
-                    {
-                        merc.pawn.equipment.AddEquipment(twc);
-                    }
-                }
-
-                if (CombatExtendedUtil.IsCELoaded && merc.pawn.equipment.Primary != null)
-                {
-                    if (loadout.preferredAmmo != null)
-                        CombatExtendedUtil.EquipWeaponWithSpecificAmmo(merc.pawn, merc.pawn.equipment.Primary, loadout.preferredAmmo);
-                    else
-                        CombatExtendedUtil.EquipWeaponWithAmmo(merc.pawn, merc.pawn.equipment.Primary);
-                }
-            }
         }
 
         public void DebugMercenarySquad()
