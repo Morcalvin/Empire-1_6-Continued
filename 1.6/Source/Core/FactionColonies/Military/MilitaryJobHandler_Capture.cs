@@ -25,17 +25,6 @@ namespace FactionColonies
                 LetterDefOf.NeutralEvent);
         }
 
-        public override BattleResult OnAutoResolve(MilitaryOperation op)
-        {
-            // See MilitaryJobHandler_Raid.OnAutoResolve for the force-resolution fallback chain.
-            MilitaryForce attacker = op.aggressor?.force
-                ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
-                ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
-            MilitaryForce defender = op.defender?.force
-                ?? FactionCache.EnemyPower?.ResolveDefenderForceForOp(op, op.BuildBattleContext());
-            return SimulateBattleFc.FightBattle(attacker, defender);
-        }
-
         public override void ApplyResult(MilitaryOperation op, BattleResult result)
         {
             if (result is null || op.aggressor?.homeSettlement is null) return;

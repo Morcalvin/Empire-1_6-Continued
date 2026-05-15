@@ -5,10 +5,11 @@ namespace FactionColonies
     /// <summary>
     /// Server-style handler for a <see cref="MilitaryJobDef"/>. The manager calls these methods
     /// against an active <see cref="MilitaryOperation"/> at the appropriate phase transitions.
-    /// Use the four virtual methods to implement a job: <see cref="OnOpCreated"/> (schedule
-    /// arrival event, send letters), <see cref="OnAutoResolve"/> (compute the battle result),
-    /// <see cref="ApplyResult"/> (loot / prisoners / settlement capture / XP), and
-    /// <see cref="OnManualResolve"/> + <see cref="ResolvesManually"/> for player-driven battles.
+    /// Use the virtual methods to implement a job: <see cref="OnOpCreated"/> (schedule
+    /// arrival event, send letters), <see cref="OnAutoResolve"/> (kick off auto-resolution —
+    /// defaults to the per-round engine), <see cref="ApplyResult"/> (loot / prisoners /
+    /// settlement capture / XP), and <see cref="OnManualResolve"/> + <see cref="ResolvesManually"/>
+    /// for player-driven battles.
     /// </summary>
     public abstract class MilitaryJobHandler
     {
@@ -33,10 +34,14 @@ namespace FactionColonies
         public virtual bool ResolvesManually(MilitaryOperation op) => false;
 
         /// <summary>
-        /// Op-aware auto-resolution. Returns the <see cref="BattleResult"/>; side effects
-        /// (loot, prisoners, settlement capture) live in <see cref="ApplyResult"/>.
+        /// Op-aware auto-resolution entry point. The default kicks off the per-round auto-resolve
+        /// engine (<see cref="MilitaryOperation.BeginAutoResolveProgress"/>), which rolls one round
+        /// per hour and calls <see cref="MilitaryOperation.CompleteBattle"/> when it finishes.
+        /// Submods wanting instant resolution can override this and call
+        /// <c>op.CompleteBattle(result)</c> directly. Outcome side effects (loot, prisoners,
+        /// settlement capture) live in <see cref="ApplyResult"/>, not here.
         /// </summary>
-        public abstract BattleResult OnAutoResolve(MilitaryOperation op);
+        public virtual void OnAutoResolve(MilitaryOperation op) => op?.BeginAutoResolveProgress();
 
         /// <summary>
         /// Op-aware manual resolution. Submods that opt in via <see cref="ResolvesManually"/>

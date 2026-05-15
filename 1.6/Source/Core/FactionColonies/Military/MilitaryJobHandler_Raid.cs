@@ -4,7 +4,6 @@ using RimWorld.Planet;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
-using static UnityEngine.GraphicsBuffer;
 
 namespace FactionColonies
 {
@@ -25,20 +24,6 @@ namespace FactionColonies
             Find.LetterStack.ReceiveLetter("FCMilitaryAction".Translate(),
                 "FCMilitarySentRaid".Translate(home.Name, targetSettlement?.LabelCap ?? (TaggedString)""),
                 LetterDefOf.NeutralEvent);
-        }
-
-        public override BattleResult OnAutoResolve(MilitaryOperation op)
-        {
-            // Forces are populated in CreateOffensiveOp + BeginEngagement. Use them directly so
-            // BattleModifierRegistry / op-aware modifiers see the same instances. The fallback
-            // chain reconstructs a force from the squad or an unstaffed billet if the op
-            // somehow reaches this point without one.
-            MilitaryForce attacker = op.aggressor?.force
-                ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
-                ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
-            MilitaryForce defender = op.defender?.force
-                ?? FactionCache.EnemyPower?.ResolveDefenderForceForOp(op, op.BuildBattleContext());
-            return SimulateBattleFc.FightBattle(attacker, defender);
         }
 
         public override void ApplyResult(MilitaryOperation op, BattleResult result)

@@ -186,23 +186,18 @@ Override `ExposeData()` to save/load custom state. Uses standard `Scribe_*` meth
 </FactionColonies.MilitaryJobDef>
 ```
 
-### Abstract Methods (must implement)
-
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `OnAutoResolve` | `BattleResult OnAutoResolve(MilitaryOperation op)` | Compute the battle result. Auto-resolve runs the simulator (`SimulateBattleFc.FightBattle`) over the op's participant forces and returns the resulting `BattleResult`. |
-
 ### Virtual Methods
 
 | Method | Signature | Default | Description |
 |--------|-----------|---------|-------------|
+| `OnAutoResolve` | `void OnAutoResolve(MilitaryOperation op)` | calls `op.BeginAutoResolveProgress()` | Kick off auto-resolution. The default drives the per-round engine: one round per in-game hour via `SimulateBattleFc.ResolveOneRound`, ending in `op.CompleteBattle`. Override to short-circuit with an instant result (compute a `BattleResult` and call `op.CompleteBattle(result)` directly). |
 | `OnOpCreated` | `void OnOpCreated(MilitaryOperation op)` | no-op | Called immediately after `MilitaryOperationManager` registers the op. Use it to schedule the arrival event (`op.ScheduleEvent(...)`) and send the player a "we're sending forces" letter. |
 | `ApplyResult` | `void ApplyResult(MilitaryOperation op, BattleResult result)` | no-op | Side effects after a battle resolves: loot, prisoners, settlement capture, faction XP, delivery events. Called by `op.CompleteBattle(result)` regardless of whether the battle was auto-resolved or manually played, so the same outcome handling applies to both. |
 | `ResolvesManually` | `bool ResolvesManually(MilitaryOperation op)` | `false` | Return true to delegate resolution to `OnManualResolve` instead of `OnAutoResolve`. The handler is then responsible for calling `op.CompleteBattle(result)` when the player-driven battle resolves. |
 | `OnManualResolve` | `void OnManualResolve(MilitaryOperation op)` | no-op | Spawn pawns / lords on the op's `BattlefieldContext` (typically via `op.AttachToBattlefield()` and `bf.SpawnParticipantOnMap(op, ParticipantSide.X)`). Submods own when `op.CompleteBattle` fires. |
 | `IsValidTarget` | `bool IsValidTarget(Faction targetFaction)` | `true` | Return false to exclude a faction from valid targets for this job. Used to filter hostile menu options. |
 
-**Base mod examples**: `MilitaryJobHandler_Raid` (loot + prisoners), `MilitaryJobHandler_Capture` (converts settlement), `MilitaryJobHandler_Enslave` (1-2 prisoners).
+**Base mod examples**: `MilitaryJobHandler_Raid` (loot + prisoners), `MilitaryJobHandler_Capture` (converts settlement), `MilitaryJobHandler_Enslave` (1-3 prisoners), `MilitaryJobHandler_Defend` (settlement defense, routes through `BattlefieldContext.StartDefense`).
 
 ---
 

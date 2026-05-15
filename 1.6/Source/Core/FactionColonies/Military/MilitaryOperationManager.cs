@@ -180,7 +180,7 @@ namespace FactionColonies
             int newId = nextOperationId++;
             // Defensive ops use MilitaryJobHandler_Defend. The handler routes through
             // BattlefieldContext.StartDefense for settlement targets (which decides auto vs manual
-            // internally) and through SimulateBattleFc.FightBattle for external IRaidTarget.
+            // internally) and through the per-round auto-resolve engine for external IRaidTarget.
             // ApplyResult applies settlement-side effects (loyalty / happiness / building destruction)
             // per-op — multiple concurrent defensive ops on the same tile each apply their own
             // penalty set, treating each attacker as a logically distinct battle.

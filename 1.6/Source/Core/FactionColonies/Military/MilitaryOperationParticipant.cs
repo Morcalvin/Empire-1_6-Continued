@@ -20,7 +20,7 @@ namespace FactionColonies
         /// <summary>Squad assigned to this participation, if any. Null for non-squad forces (auto-defenders, ad-hoc militia).</summary>
         public MercenarySquadFC squad;
 
-        /// <summary>Snapshot of force strength used by <see cref="SimulateBattleFc.FightBattle"/>.</summary>
+        /// <summary>Snapshot of force strength used by the battle simulator (<see cref="SimulateBattleFc"/>).</summary>
         public MilitaryForce force;
 
         /// <summary>Faction this side belongs to.</summary>

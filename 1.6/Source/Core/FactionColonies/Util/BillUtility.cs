@@ -17,7 +17,8 @@ namespace FactionColonies
                 if (factionfc.Bills[i].dueTick < Find.TickManager.TicksGame)
                 {
                     BillFC bill = factionfc.Bills[i];
-                    bool owedMoney = bill.taxes.silverAmount < 0;
+                    // taxes is null on a default-constructed BillFC; a bill with no taxes owes nothing.
+                    bool owedMoney = bill.taxes is object && bill.taxes.silverAmount < 0;
                     WorldSettlementFC settlement = bill.settlement;
 
                     /* When the player has disabled late payments, owed-silver bills skip

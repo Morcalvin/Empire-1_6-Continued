@@ -147,13 +147,6 @@ namespace FactionColonies
          */
 
         /// <summary>
-        /// Move the op from its pre-engagement phase (Scheduled / Traveling) into Engaged.
-        /// Computes any missing forces (e.g. defender side for an offensive op fights a faction-
-        /// derived force), runs <see cref="BattleModifierRegistry"/> in op-aware mode, and fires
-        /// <see cref="IAutoDefender.OnDefenseStarted"/> if an external auto-defender supplied the
-        /// defending force.
-        /// </summary>
-        /// <summary>
         /// Builds a <see cref="BattleForceContext"/> snapshot from this op's current state.
         /// Used by <see cref="BeginEngagement"/> and by job-handler fallbacks that need to
         /// invoke worldcomp battle helpers.
@@ -170,6 +163,13 @@ namespace FactionColonies
             };
         }
 
+        /// <summary>
+        /// Move the op from its pre-engagement phase (Scheduled / Traveling) into Engaged.
+        /// Computes any missing forces (e.g. defender side for an offensive op fights a faction-
+        /// derived force), runs <see cref="BattleModifierRegistry"/> in op-aware mode, and fires
+        /// <see cref="IAutoDefender.OnDefenseStarted"/> if an external auto-defender supplied the
+        /// defending force.
+        /// </summary>
         public void BeginEngagement()
         {
             phase = MilitaryOperationPhase.Engaged;
@@ -238,11 +238,10 @@ namespace FactionColonies
             MilitaryForce atk = aggressor.force;
             MilitaryForce def = defender.force;
 
-            // Apply defender advantage in place on the live defender.forceRemaining so
-            // MilitaryForce-based readers like CalculateDefenderWinChance see the same
-            // post-advantage baseline. The result object snapshots this value as
-            // defenderInitialForce.
-            def.forceRemaining = Math.Round(def.forceRemaining * FCSettings.defenderAdvantage);
+            // Apply defender advantage in place on the live defender force so MilitaryForce-based
+            // readers (e.g. CalculateDefenderWinChance) see the same post-advantage baseline. The
+            // result object snapshots this value as defenderInitialForce.
+            SimulateBattleFc.ApplyDefenderAdvantage(def);
 
             battleResult = new BattleResult
             {
@@ -298,44 +297,15 @@ namespace FactionColonies
                 return;
             }
 
-            // Engaged or RollsInProgress: roll one round.
+            // Engaged or RollsInProgress: roll one round via the shared per-round primitive.
+            // ResolveOneRound sets winner / totalRounds / subPhase once a side is depleted.
             battleResult.subPhase = BattleSubPhase.RollsInProgress;
-            SimulateBattleFc.RoundOutcome outcome = SimulateBattleFc.SimulateRound(aggressor.force, defender.force);
-            if (outcome.attackerWonRound)
-            {
-                defender.force.forceRemaining -= 1;
-                battleResult.defenderForceRemaining -= 1;
-            }
-            else
-            {
-                aggressor.force.forceRemaining -= 1;
-                battleResult.attackerForceRemaining -= 1;
-            }
-
-            battleResult.rounds.Add(new RoundEntry
-            {
-                roundNumber = battleResult.rounds.Count + 1,
-                attackerRawRoll = outcome.attackerRawRoll,
-                defenderRawRoll = outcome.defenderRawRoll,
-                attackerScore = outcome.attackerScore,
-                defenderScore = outcome.defenderScore,
-                attackerWonRound = outcome.attackerWonRound,
-                attackerForceAfter = battleResult.attackerForceRemaining,
-                defenderForceAfter = battleResult.defenderForceRemaining
-            });
+            SimulateBattleFc.ResolveOneRound(battleResult, aggressor.force, defender.force);
 
             if (battleResult.IsComplete)
-            {
-                battleResult.winner = battleResult.attackerForceRemaining <= 0
-                    ? BattleWinner.Defender : BattleWinner.Attacker;
-                battleResult.totalRounds = battleResult.rounds.Count;
-                battleResult.subPhase = BattleSubPhase.Resolved;
                 CompleteBattle(battleResult);
-            }
             else
-            {
                 ScheduleNextRoundEvent();
-            }
         }
 
         /// <summary>
@@ -622,18 +592,18 @@ namespace FactionColonies
                         catch (Exception e)
                         {
                             LogUtil.Error($"MilitaryOperation.OnEventFired: handler {handler.GetType().Name} threw in OnManualResolve: {e}");
-                            AutoResolveAndComplete();
+                            handler.OnAutoResolve(this);
                         }
                         return;
                     }
-                    AutoResolveAndComplete();
+                    handler.OnAutoResolve(this);
                     return;
                 }
 
                 // Handler-less op (only Deploy / Cooldown state defs reach here, and neither
                 // schedules wakeup events that hit this branch). Auto-resolve as a safety net.
                 LogUtil.Warning($"MilitaryOperation.OnEventFired: handler-less op id={id} kind={kind?.defName} reached engagement path; auto-resolving.");
-                AutoResolveAndComplete();
+                BeginAutoResolveProgress();
                 return;
             }
 
@@ -652,18 +622,6 @@ namespace FactionColonies
 
             LogUtil.Warning($"MilitaryOperation.OnEventFired: ignoring event '{evt.def?.defName}' " +
                             $"on op id={id} in unexpected phase {phase}.");
-        }
-
-        private void AutoResolveAndComplete()
-        {
-            if (aggressor?.force is null || defender?.force is null)
-            {
-                LogUtil.Error($"MilitaryOperation.AutoResolveAndComplete: missing force on op id={id} " +
-                              $"(aggressor={(aggressor?.force is object)}, defender={(defender?.force is object)}).");
-                CompleteBattle(new BattleResult { winner = BattleWinner.Error });
-                return;
-            }
-            BeginAutoResolveProgress();
         }
     }
 }

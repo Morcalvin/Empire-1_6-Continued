@@ -34,8 +34,6 @@ namespace FactionColonies
         public bool hasLord;
         public Map map;
         public Lord lord;
-        public XenotypeDef xenotype1;
-        public List<Gene> GeneList;
 
         /* -*-*-*-*- Squad-first refactor fields -*-*-*-*-
          * nextAvailableTick: per-squad cooldown expiry. Updated in MilitaryOperation.EnterCooldown.
@@ -1121,7 +1119,6 @@ namespace FactionColonies
             UsedWeaponList = new List<ThingWithComps>();
             UsedApparelList = new List<Apparel>();
             animals = new List<Mercenary>();
-            GeneList = new List<Gene>();
             foreach (MilUnitFC loadout in outfit.Units)
             {
                 try
@@ -1181,8 +1178,6 @@ namespace FactionColonies
                     StripPawn(mercenaries[count]);
                     if (loadout != null)
                     {
-                        //mercenaries[count];
-                        //StripPawn(mercenaries[count]);
                         EquipPawn(mercenaries[count], loadout);
                         if (loadout.animal != null)
                         {
@@ -1203,8 +1198,6 @@ namespace FactionColonies
                     if (mercenaries[count]?.pawn?.equipment?.AllEquipmentListForReading != null)
                     {
                         UsedWeaponList.AddRange(mercenaries[count].pawn.equipment.AllEquipmentListForReading);
-
-                        //add single check at start of load and mark variable
                     }
 
                     if (mercenaries[count]?.pawn?.apparel?.WornApparel != null)

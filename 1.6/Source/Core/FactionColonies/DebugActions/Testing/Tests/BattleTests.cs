@@ -105,14 +105,14 @@ namespace FactionColonies
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_StrongerForceWins()
+        public static void AutoResolve_StrongerForceWins()
         {
             var mfa = CreateForce(10, 1.0, 10);
             var mfb = CreateForce(3, 1.0, 3);
             // A always rolls high, B always rolls low
             var rand = new AlternatingRandProvider(15, 2);
 
-            BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+            BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
 
             TestAssert.AreEqual(BattleWinner.Attacker, result.winner, message: "Attacker should win");
             TestAssert.IsTrue(result.AttackerVictory);
@@ -124,14 +124,14 @@ namespace FactionColonies
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_DefenderWins_ReturnsOne()
+        public static void AutoResolve_DefenderWins_ReturnsOne()
         {
             var mfa = CreateForce(3, 1.0, 3);
             var mfb = CreateForce(10, 1.0, 10);
             // A always rolls low, B always rolls high
             var rand = new AlternatingRandProvider(2, 15);
 
-            BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+            BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
 
             TestAssert.AreEqual(BattleWinner.Defender, result.winner, message: "Defender should win");
             TestAssert.IsTrue(result.DefenderVictory);
@@ -145,7 +145,7 @@ namespace FactionColonies
         // ============================
 
         [EmpireTest("Battle")]
-        public static void FightBattle_WithBattleModifier_AffectsOutcome()
+        public static void AutoResolve_WithBattleModifier_AffectsOutcome()
         {
             var modifier = new BoostAttackerModifier(100);
             BattleModifierRegistry.Register(modifier);
@@ -154,12 +154,12 @@ namespace FactionColonies
                 var mfa = CreateForce(1, 1.0, 1);
                 var mfb = CreateForce(5, 1.0, 5);
                 // Attacker starts weak but modifier adds +100 forceRemaining. Modifiers are
-                // applied by op.BeginEngagement at runtime, not inside FightBattle. Tests that
+                // applied by op.BeginEngagement at runtime, not inside the simulator. Tests that
                 // bypass the op flow apply them manually to mirror runtime behavior.
                 BattleModifierRegistry.InvokeBattleModifiers(null, mfa, true);
                 BattleModifierRegistry.InvokeBattleModifiers(null, mfb, false);
                 var rand = new AlternatingRandProvider(15, 2);
-                BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+                BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
                 TestAssert.IsTrue(result.AttackerVictory,
                     "Attacker with +100 modifier should beat weak defender");
             }
@@ -170,26 +170,26 @@ namespace FactionColonies
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_ZeroForce_ImmediateResult()
+        public static void AutoResolve_ZeroForce_ImmediateResult()
         {
             var mfa = CreateForce(5, 1.0, 5);
             var mfb = CreateForce(0, 1.0, 0);
             var rand = new FixedRandProvider(10);
 
-            BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+            BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
 
             TestAssert.IsTrue(result.AttackerVictory, "Attacker should win when defender has 0 force");
             TestAssert.AreEqual(0, result.totalRounds, "No rounds should be fought");
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_EqualForces_Terminates()
+        public static void AutoResolve_EqualForces_Terminates()
         {
             var mfa = CreateForce(5, 1.0, 5);
             var mfb = CreateForce(5, 1.0, 5);
             var rand = new AlternatingRandProvider(10, 8);
 
-            BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+            BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
 
             TestAssert.IsTrue(result.winner == BattleWinner.Attacker || result.winner == BattleWinner.Defender,
                 "Battle with equal forces should produce a winner (not Error)");
@@ -197,13 +197,13 @@ namespace FactionColonies
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_Rounds_CountMatchesTotalRounds()
+        public static void AutoResolve_Rounds_CountMatchesTotalRounds()
         {
             var mfa = CreateForce(8, 1.0, 8);
             var mfb = CreateForce(3, 1.0, 3);
             var rand = new AlternatingRandProvider(12, 5);
 
-            BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+            BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
 
             TestAssert.IsNotNull(result.rounds);
             TestAssert.AreEqual(result.totalRounds, result.rounds.Count,
@@ -211,7 +211,7 @@ namespace FactionColonies
         }
 
         [EmpireTest("Battle")]
-        public static void FightBattle_DefenderAdvantage_BoostsDefender()
+        public static void AutoResolve_DefenderAdvantage_BoostsDefender()
         {
             // With defender advantage > 1, the defender's forceRemaining is multiplied
             // before combat. Verify that a marginally weaker defender can win thanks to it.
@@ -224,7 +224,7 @@ namespace FactionColonies
             // Rolls alternate evenly — outcome depends on force remaining
             var rand = new AlternatingRandProvider(10, 11);
 
-            BattleResult result = SimulateBattleFc.FightBattle(mfa, mfb, rand);
+            BattleResult result = SimulateBattleFc.ResolveSynchronously(mfa, mfb, rand);
 
             // After advantage, defender's 4 becomes Round(4 * advantage).
             // With default 1.1, that's 4 → 4. So we mainly test it doesn't crash

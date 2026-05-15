@@ -605,7 +605,7 @@ namespace FactionColonies
                             // (filled from the op by BattleArchiveUtil). Defender-side / force-count
                             // fields mirror the original synthetic stub, so overwhelming-victory /
                             // crushing-defeat detection is unchanged. The auto-resolve path arrives
-                            // with battleResult already populated by SimulateBattleFc.FightBattle.
+                            // with battleResult already populated by the per-round auto-resolve engine.
                             BattleResult resultForOp = battleResult ?? new BattleResult
                             {
                                 winner = won ? BattleWinner.Defender : BattleWinner.Attacker,

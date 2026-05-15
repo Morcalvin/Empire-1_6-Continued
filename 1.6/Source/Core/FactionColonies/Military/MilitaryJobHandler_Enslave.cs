@@ -26,17 +26,6 @@ namespace FactionColonies
                 LetterDefOf.NeutralEvent);
         }
 
-        public override BattleResult OnAutoResolve(MilitaryOperation op)
-        {
-            // See MilitaryJobHandler_Raid.OnAutoResolve for the force-resolution fallback chain.
-            MilitaryForce attacker = op.aggressor?.force
-                ?? MilitaryForce.CreateMilitaryForceFromSquad(op.aggressor?.squad, isAttacking: true)
-                ?? MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(op.aggressor?.homeSettlement, isAttacking: true);
-            MilitaryForce defender = op.defender?.force
-                ?? FactionCache.EnemyPower?.ResolveDefenderForceForOp(op, op.BuildBattleContext());
-            return SimulateBattleFc.FightBattle(attacker, defender);
-        }
-
         public override void ApplyResult(MilitaryOperation op, BattleResult result)
         {
             if (result is null || op.aggressor?.homeSettlement is null) return;
@@ -77,7 +66,7 @@ namespace FactionColonies
             string text = "";
 
             int num = new IntRange(1, 3).RandomInRange;
-            for (int i = 0; i <= num; i++)
+            for (int i = 0; i < num; i++)
             {
                 Pawn prisoner = PaymentUtil.GeneratePrisoner(enemyFaction);
                 text += "FCPrisonerCaptureInfo".Translate(prisoner.Name.ToString(), home.Name) + "\n";

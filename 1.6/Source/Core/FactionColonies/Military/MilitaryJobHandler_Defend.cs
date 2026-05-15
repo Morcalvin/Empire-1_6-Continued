@@ -9,10 +9,10 @@ namespace FactionColonies
 {
     /// <summary>
     /// Handler for defensive ops created by <see cref="MilitaryOperationManager.CreateDefensiveOp"/>.
-    /// Promotes defensive ops to first-class handler-driven ops so the unified phase machine in
-    /// <see cref="MilitaryOperation.OnEventFired"/> covers them — no special-case branch needed.
-    /// <para><see cref="OnAutoResolve"/> runs the simulator (used for external <see cref="IRaidTarget"/>
-    /// objects with no map). <see cref="OnManualResolve"/> hands off to
+    /// <para>External <see cref="IRaidTarget"/> objects (no settlement map) have
+    /// <see cref="ResolvesManually"/> return false, so they auto-resolve through the inherited
+    /// <see cref="MilitaryJobHandler.OnAutoResolve"/> (the per-round engine). Settlement targets
+    /// return true, and <see cref="OnManualResolve"/> hands off to
     /// <see cref="BattlefieldContext.StartDefense"/>, which decides auto-vs-manual internally based
     /// on <c>FCSettings.battleMode</c> and the settlement's <c>supportsManualBattle</c>.
     /// <see cref="ApplyResult"/> applies the settlement-side outcome (loyalty / happiness / building
@@ -47,7 +47,7 @@ namespace FactionColonies
             if (bf is null)
             {
                 LogUtil.Error($"MilitaryJobHandler_Defend.OnManualResolve: no battlefield context for op id={op.id} at tile {op.targetTile}; falling back to auto-resolve.");
-                op.CompleteBattle(OnAutoResolve(op));
+                op.BeginAutoResolveProgress();
                 return;
             }
 
@@ -55,17 +55,6 @@ namespace FactionColonies
             // op.CompleteBattle. Manual sub-path drives a real battle that resolves the same way.
             // Either way, op.CompleteBattle gets called.
             bf.StartDefense(op);
-        }
-
-        public override BattleResult OnAutoResolve(MilitaryOperation op)
-        {
-            if (op?.aggressor?.force is null || op.defender?.force is null)
-            {
-                LogUtil.Warning($"MilitaryJobHandler_Defend.OnAutoResolve: missing force(s) on op id={op?.id} " +
-                                $"(aggressor={(op?.aggressor?.force is object)}, defender={(op?.defender?.force is object)}).");
-                return new BattleResult { winner = BattleWinner.Error };
-            }
-            return SimulateBattleFc.FightBattle(op.aggressor.force, op.defender.force);
         }
 
         public override void ApplyResult(MilitaryOperation op, BattleResult result)
@@ -235,6 +224,9 @@ namespace FactionColonies
                 {
                     BuildingFCDef defA = settlement.BuildingsComp.GetBuildingInSlot(a);
                     BuildingFCDef defB = settlement.BuildingsComp.GetBuildingInSlot(b);
+                    // candidates is pre-filtered to building slots, so these are normally
+                    // non-null. Guard anyway since the comparator dereferences both.
+                    if (defA is null || defB is null) return 0;
                     bool aRequiresB = FactionCache.SatisfiesAnyRequirement(defB, defA.requiredBuildings);
                     bool bRequiresA = FactionCache.SatisfiesAnyRequirement(defA, defB.requiredBuildings);
                     if (aRequiresB) return -1;

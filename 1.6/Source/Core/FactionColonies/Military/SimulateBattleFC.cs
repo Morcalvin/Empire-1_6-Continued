@@ -1,63 +1,99 @@
 using FactionColonies.util;
 using System;
-using System.Collections.Generic;
 
 namespace FactionColonies
 {
     public class SimulateBattleFc
     {
-        public static BattleResult FightBattle(MilitaryForce MFA, MilitaryForce MFB, IRandProvider rand = null)
+        /// <summary>Applies <see cref="FCSettings.defenderAdvantage"/> to the defending force in
+        /// place. The single source of truth for the defender bonus; applied once when an
+        /// auto-resolve battle is seeded (op-driven or synchronous), never per round.</summary>
+        public static void ApplyDefenderAdvantage(MilitaryForce defender)
+        {
+            if (defender is null) return;
+            defender.forceRemaining = Math.Round(defender.forceRemaining * FCSettings.defenderAdvantage);
+        }
+
+        /// <summary>
+        /// Resolves one battle round in place: rolls via <see cref="SimulateRound"/>, decrements the
+        /// losing side on both the live <see cref="MilitaryForce"/> objects and <paramref name="result"/>'s
+        /// force counters, and appends a <see cref="RoundEntry"/>. On the round that depletes a side it
+        /// also sets <paramref name="result"/>'s <c>winner</c>, <c>totalRounds</c>, and <c>subPhase</c>.
+        /// This is the single per-round implementation, shared by the per-round op engine
+        /// (<see cref="MilitaryOperation.AdvanceBattleProgress"/>) and the synchronous resolver
+        /// (<see cref="ResolveSynchronously"/>).
+        /// </summary>
+        public static void ResolveOneRound(BattleResult result, MilitaryForce atk, MilitaryForce def,
+            IRandProvider rand = null)
+        {
+            RoundOutcome outcome = SimulateRound(atk, def, rand);
+            if (outcome.attackerWonRound)
+            {
+                def.forceRemaining -= 1;
+                result.defenderForceRemaining -= 1;
+            }
+            else
+            {
+                atk.forceRemaining -= 1;
+                result.attackerForceRemaining -= 1;
+            }
+
+            result.rounds.Add(new RoundEntry
+            {
+                roundNumber = result.rounds.Count + 1,
+                attackerRawRoll = outcome.attackerRawRoll,
+                defenderRawRoll = outcome.defenderRawRoll,
+                attackerScore = outcome.attackerScore,
+                defenderScore = outcome.defenderScore,
+                attackerWonRound = outcome.attackerWonRound,
+                attackerForceAfter = result.attackerForceRemaining,
+                defenderForceAfter = result.defenderForceRemaining
+            });
+
+            if (result.IsComplete)
+            {
+                result.winner = result.attackerForceRemaining <= 0
+                    ? BattleWinner.Defender : BattleWinner.Attacker;
+                result.totalRounds = result.rounds.Count;
+                result.subPhase = BattleSubPhase.Resolved;
+            }
+        }
+
+        /// <summary>
+        /// Synchronous full-battle resolution. Seeds a <see cref="BattleResult"/> (applying the
+        /// defender advantage), then loops <see cref="ResolveOneRound"/> to completion. Actual
+        /// battles run through the per-round op engine
+        /// (<see cref="MilitaryOperation.BeginAutoResolveProgress"/>); this function shares the same
+        /// <see cref="ResolveOneRound"/> primitive and only exists for tests, which need a deterministic,
+        /// one-shot result.
+        /// </summary>
+        internal static BattleResult ResolveSynchronously(MilitaryForce atk, MilitaryForce def,
+            IRandProvider rand = null)
         {
             var result = new BattleResult();
             try
             {
-                // Battle modifiers are applied by op.BeginEngagement before this point in the
-                // op-driven flow; callers that invoke FightBattle directly (tests, win-chance
-                // probes) get the unmodified baseline.
+                ApplyDefenderAdvantage(def);
 
-                // Defender advantage: defenders are inherently harder to dislodge
-                MFB.forceRemaining = Math.Round(MFB.forceRemaining * FCSettings.defenderAdvantage);
+                result.attackerInitialForce = atk.forceRemaining;
+                result.defenderInitialForce = def.forceRemaining;
+                result.attackerForceRemaining = atk.forceRemaining;
+                result.defenderForceRemaining = def.forceRemaining;
+                result.attackerEfficiency = atk.militaryEfficiency;
+                result.defenderEfficiency = def.militaryEfficiency;
+                result.subPhase = BattleSubPhase.RollsInProgress;
 
-                result.attackerInitialForce = MFA.forceRemaining;
-                result.defenderInitialForce = MFB.forceRemaining;
-                result.attackerEfficiency = MFA.militaryEfficiency;
-                result.defenderEfficiency = MFB.militaryEfficiency;
-                result.rounds = new List<RoundEntry>();
+                while (!result.IsComplete)
+                    ResolveOneRound(result, atk, def, rand);
 
-                LogUtil.Message("SimulateBattleFc.FightBattle: Starting battle");
-                while (MFA.forceRemaining > 0 && MFB.forceRemaining > 0)
+                if (result.rounds.Count == 0)
                 {
-                    RoundOutcome outcome = SimulateRound(MFA, MFB, rand);
-                    if (outcome.attackerWonRound) MFB.forceRemaining -= 1;
-                    else MFA.forceRemaining -= 1;
-                    result.rounds.Add(new RoundEntry
-                    {
-                        roundNumber = result.rounds.Count + 1,
-                        attackerRawRoll = outcome.attackerRawRoll,
-                        defenderRawRoll = outcome.defenderRawRoll,
-                        attackerScore = outcome.attackerScore,
-                        defenderScore = outcome.defenderScore,
-                        attackerWonRound = outcome.attackerWonRound,
-                        attackerForceAfter = MFA.forceRemaining,
-                        defenderForceAfter = MFB.forceRemaining
-                    });
+                    // A side started at zero force — battle decided with no rounds rolled.
+                    result.winner = result.attackerForceRemaining <= 0
+                        ? BattleWinner.Defender : BattleWinner.Attacker;
                 }
-
-                result.attackerForceRemaining = MFA.forceRemaining;
-                result.defenderForceRemaining = MFB.forceRemaining;
                 result.totalRounds = result.rounds.Count;
                 result.subPhase = BattleSubPhase.Resolved;
-
-                if (MFA.forceRemaining <= 0)
-                {
-                    LogUtil.Message("SimulateBattleFc.FightBattle: Defending Force has won.");
-                    result.winner = BattleWinner.Defender;
-                }
-                else
-                {
-                    LogUtil.Message("SimulateBattleFc.FightBattle: Attacking Force has won.");
-                    result.winner = BattleWinner.Attacker;
-                }
             }
             catch (Exception e)
             {
@@ -132,14 +168,6 @@ namespace FactionColonies
             return 1.0 + (efficiency - 1.0) * FCSettings.efficiencyDamping;
         }
 
-        /// <summary>
-        /// Calculates the probability that the defender wins using the binomial tail sum for a
-        /// Bernoulli race (attrition model). The attacker needs <c>defenderHP</c> round-wins to deplete
-        /// the defender; the defender needs <c>attackerHP</c> round-wins to deplete the attacker.
-        /// <c>P(attacker wins) = P(X &gt;= defenderHP)</c> where <c>X ~ Binomial(attackerHP+defenderHP-1, p)</c>.
-        /// Does not account for <see cref="BattleModifierRegistry"/> modifications.
-        /// </summary>
-        /// <returns>Defender win probability in [0, 1].</returns>
         /// <summary>Mirror of <see cref="CalculateDefenderWinChance"/> from the attacker's side.
         /// Returns the probability that the attacker depletes the defender's HP before being
         /// depleted itself. Stable across calls (deterministic given the two force snapshots).</summary>
@@ -149,6 +177,14 @@ namespace FactionColonies
             return 1.0 - CalculateDefenderWinChance(attacker, defender);
         }
 
+        /// <summary>
+        /// Calculates the probability that the defender wins using the binomial tail sum for a
+        /// Bernoulli race (attrition model). The attacker needs <c>defenderHP</c> round-wins to deplete
+        /// the defender; the defender needs <c>attackerHP</c> round-wins to deplete the attacker.
+        /// <c>P(attacker wins) = P(X &gt;= defenderHP)</c> where <c>X ~ Binomial(attackerHP+defenderHP-1, p)</c>.
+        /// Does not account for <see cref="BattleModifierRegistry"/> modifications.
+        /// </summary>
+        /// <returns>Defender win probability in [0, 1].</returns>
         public static double CalculateDefenderWinChance(MilitaryForce attacker, MilitaryForce defender)
         {
             if (attacker.forceRemaining <= 0) return 1.0;

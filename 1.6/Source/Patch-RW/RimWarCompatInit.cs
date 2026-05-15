@@ -40,20 +40,18 @@ namespace FactionColonies.RW
     /// Uses sqrt(points) / 20 scaling:
     ///   400 pts -> level 1, 3600 -> 3, 10000 -> 5, 19600 -> 7, 32400 -> 9
     /// </summary>
-    public class RWStrengthSettlementModifier : ISettlementPowerModifier
+    public class RWStrengthSettlementModifier : SettlementPowerModifierBase
     {
-        public void ModifySettlementPower(Settlement settlement, EnemyPower power)
+        protected override string LogLabel => "RW strength";
+
+        protected override bool TryGetLevel(Settlement settlement, out double level)
         {
-            if (settlement is null || power is null) return;
+            level = 0;
             RimWarSettlementComp rwsc = settlement.GetComponent<RimWarSettlementComp>();
-            if (rwsc is null || rwsc.RimWarPoints <= 0) return;
+            if (rwsc is null || rwsc.RimWarPoints <= 0) return false;
 
-            double rwLevel = Math.Sqrt(rwsc.RimWarPoints) / 20.0;
-            rwLevel = Math.Max(rwLevel, 1.0);
-
-            power.level = rwLevel;
-
-            LogUtil.Message("RW strength " + rwsc.RimWarPoints + " -> EnemyPower level " + rwLevel.ToString("0.0") + " for " + settlement.Name);
+            level = Math.Max(Math.Sqrt(rwsc.RimWarPoints) / 20.0, 1.0);
+            return true;
         }
     }
 }

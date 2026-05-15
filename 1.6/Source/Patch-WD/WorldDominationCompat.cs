@@ -73,20 +73,20 @@ namespace FactionColonies.WD
     // the cached EnemyPower entry at recompute time — squad-attack window
     // and actual battle agree without per-engagement work.
     // ================================================================
-    public class WDStrengthSettlementModifier : ISettlementPowerModifier
+    public class WDStrengthSettlementModifier : SettlementPowerModifierBase
     {
         public const double SCALE_FACTOR = 100.0;
 
-        public void ModifySettlementPower(Settlement settlement, EnemyPower power)
+        protected override string LogLabel => "WD strength";
+
+        protected override bool TryGetLevel(Settlement settlement, out double level)
         {
-            if (settlement is null || power is null) return;
+            level = 0;
             CompViralSpread comp = settlement.GetComponent<CompViralSpread>();
-            if (comp == null || comp.strength <= 0f) return;
+            if (comp == null || comp.strength <= 0f) return false;
 
-            double wdLevel = comp.strength / SCALE_FACTOR;
-            power.level = wdLevel;
-
-            LogUtil.Message("WD strength " + comp.strength.ToString("F0") + " (tier " + comp.tier + ") -> EnemyPower level " + wdLevel.ToString("0.0") + " for " + settlement.Name);
+            level = comp.strength / SCALE_FACTOR;
+            return true;
         }
     }
 
