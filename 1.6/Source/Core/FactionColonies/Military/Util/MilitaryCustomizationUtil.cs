@@ -270,7 +270,7 @@ namespace FactionColonies
 
                     try
                     {
-                        squad.CreateNewAnimal(ref animalMerc, race);
+                        MercenaryPawnFactory.CreateNewAnimal(squad, ref animalMerc, race);
                     }
                     catch (Exception e)
                     {

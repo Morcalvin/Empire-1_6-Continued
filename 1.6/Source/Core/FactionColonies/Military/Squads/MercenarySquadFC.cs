@@ -429,7 +429,7 @@ namespace FactionColonies
                 else
                 {
                     merc = new Mercenary(true);
-                    CreateNewPawn(ref merc, slotUnit.pawnKind, slotUnit.xenotype, slotUnit.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref merc, slotUnit.pawnKind, slotUnit.xenotype, slotUnit.customXenotypeName);
                     if (merc.pawn == null)
                     {
                         LogUtil.Warning($"UpgradeToTemplate: failed to generate fresh pawn for slot {dec.slotIndex}");
@@ -495,7 +495,7 @@ namespace FactionColonies
             }
 
             Mercenary animal = new Mercenary(true);
-            CreateNewAnimal(ref animal, wanted);
+            MercenaryPawnFactory.CreateNewAnimal(this, ref animal, wanted);
             animal.handler = merc;
             merc.animal = animal;
             if (animals is null) animals = new List<Mercenary>();
@@ -538,7 +538,7 @@ namespace FactionColonies
                 // FillEmptySlots / Upgrade when the player assigns a real unit later.
                 if (slot != null && !slot.isBlank)
                 {
-                    CreateNewPawn(ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName);
                     if (placeholder.pawn == null)
                     {
                         LogUtil.Warning($"Failed to create mercenary {k + 1}/{slotCount} for unit {slot.name ?? "unknown"}; leaving slot empty.");
@@ -611,207 +611,6 @@ namespace FactionColonies
             }
         }
 
-        public void CreateNewAnimal(ref Mercenary merc, PawnKindDef race)
-        {
-            Pawn newPawn = PawnGenerator.GeneratePawn(FCPawnGenerator.AnimalRequest(race));
-
-            merc.squad = this;
-            merc.settlement = settlement;
-            merc.pawn = newPawn;
-        }
-
-        /// <summary>
-        /// If the mercenary's xenotype is non-violent and has security guards configured,
-        /// auto-assigns a random guard animal from the xenotype's SecurityGuardList.
-        /// </summary>
-        private void TryAssignSecurityGuard(Mercenary merc)
-        {
-            if (merc?.pawn?.genes == null) return;
-            // Don't overwrite a manually-assigned animal
-            if (merc.animal != null) return;
-
-            FactionFC factionFc = FactionCache.FactionComp;
-            if (factionFc?.xenotypeFilter == null) return;
-
-            XenotypeFilter xenoFilter = factionFc.xenotypeFilter;
-            List<PawnKindDef> guardOptions = null;
-
-            XenotypeDef mercXenotype = merc.pawn.genes.Xenotype;
-            if (mercXenotype != null && FactionCache.XenotypeIsNonViolent(mercXenotype))
-            {
-                guardOptions = xenoFilter.GetSecurityGuardsForXenotype(mercXenotype);
-            }
-            else if (merc.pawn.genes.CustomXenotype != null)
-            {
-                string customName = merc.pawn.genes.CustomXenotype.name;
-                if (FactionCache.CustomXenotypeIsNonViolent(customName))
-                {
-                    guardOptions = xenoFilter.GetSecurityGuardsForCustomXenotype(customName);
-                }
-            }
-
-            if (guardOptions != null && guardOptions.Any())
-            {
-                PawnKindDef guardKind = guardOptions.RandomElement();
-                Mercenary guardAnimal = new Mercenary(true);
-                CreateNewAnimal(ref guardAnimal, guardKind);
-                guardAnimal.handler = merc;
-                merc.animal = guardAnimal;
-                animals.Add(guardAnimal);
-            }
-        }
-
-        public void CreateNewPawn(ref Mercenary merc, PawnKindDef race, XenotypeDef _xenotype, string _customXenotypeName = null)
-        {
-            XenotypeDef xenotypeChoice = _xenotype;
-            PawnKindDef raceChoice = race;
-            FactionFC factionFc = FactionCache.FactionComp;
-
-            if (race == null || factionFc.xenotypeFilter.GetRaceWeight(raceChoice.race) <= 0)
-            {
-                raceChoice = PawnKindTemplateUtil.GetFighterForRace(ThingDefOf.Human);
-            }
-
-            // Try to generate pawn with the requested kind
-            Pawn newPawn = null;
-            try
-            {
-                PawnGenerationRequest request;
-                if (_customXenotypeName != null)
-                {
-                    CustomXenotype custom = null;
-                    FactionCache.CustomXenotypesDecoder?.TryGetValue(_customXenotypeName, out custom);
-
-                    if (custom != null)
-                        request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, custom);
-                    else
-                    {
-                        LogUtil.Warning($"Custom xenotype '{_customXenotypeName}' not found, falling back to Baseliner");
-                        request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, XenotypeDefOf.Baseliner);
-                    }
-                }
-                else
-                {
-                    request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, xenotypeChoice);
-                }
-                newPawn = FCPawnGenerator.GenerateWithForcedXenotype(request);
-
-                // Set faction after generation (since we generate without faction to avoid xenotype forcing)
-                if (newPawn != null && newPawn.Faction == null)
-                {
-                    var empireFaction = FactionCache.PlayerColonyFaction;
-                    if (empireFaction != null)
-                    {
-                        newPawn.SetFaction(empireFaction);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogUtil.Warning($"Failed to generate pawn with kind {raceChoice?.defName}: {ex.Message}");
-            }
-
-            // Fallback 1: Try with Baseliner xenotype and NO faction (avoids faction xenotype forcing)
-            if (newPawn == null)
-            {
-                LogUtil.Warning($"Pawn generation failed for {raceChoice?.defName}. Trying Baseliner fallback without faction.");
-                try
-                {
-                    var simpleRequest = new PawnGenerationRequest(
-                        kind: PawnKindDefOf.Colonist,
-                        faction: null, // NO faction - this prevents faction xenotype forcing
-                        context: PawnGenerationContext.NonPlayer,
-                        tile: -1,
-                        forceGenerateNewPawn: false,
-                        allowDead: false,
-                        allowDowned: false,
-                        canGeneratePawnRelations: false, // No relations for factionless pawns
-                        mustBeCapableOfViolence: true,
-                        colonistRelationChanceFactor: 0,
-                        forceAddFreeWarmLayerIfNeeded: false,
-                        allowGay: true,
-                        allowFood: true,
-                        allowAddictions: false,
-                        forcedXenotype: XenotypeDefOf.Baseliner // Force Baseliner - guaranteed violence capable
-                    );
-                    newPawn = PawnGenerator.GeneratePawn(simpleRequest);
-
-                    // Set the faction after generation
-                    if (newPawn != null)
-                    {
-                        var empireFaction = FactionCache.PlayerColonyFaction;
-                        if (empireFaction != null)
-                        {
-                            newPawn.SetFaction(empireFaction);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogUtil.Warning($"Baseliner fallback also failed: {ex.Message}");
-                }
-            }
-
-            // Fallback 2: Absolute minimal request - no faction, no xenotype, no violence requirement
-            if (newPawn == null)
-            {
-                LogUtil.Warning("All standard generation failed. Trying minimal fallback.");
-                try
-                {
-                    var fallbackRequest = new PawnGenerationRequest(
-                        kind: PawnKindDefOf.Colonist,
-                        faction: null, // NO faction
-                        context: PawnGenerationContext.NonPlayer,
-                        tile: -1,
-                        forceGenerateNewPawn: false,
-                        allowDead: false,
-                        allowDowned: false,
-                        canGeneratePawnRelations: false,
-                        mustBeCapableOfViolence: false, // Allow non-violent as absolute last resort
-                        colonistRelationChanceFactor: 0,
-                        forceAddFreeWarmLayerIfNeeded: false,
-                        allowGay: true,
-                        allowFood: true,
-                        allowAddictions: false
-                    );
-                    newPawn = PawnGenerator.GeneratePawn(fallbackRequest);
-
-                    // Set the faction after generation
-                    if (newPawn != null)
-                    {
-                        var empireFaction = FactionCache.PlayerColonyFaction;
-                        if (empireFaction != null)
-                        {
-                            newPawn.SetFaction(empireFaction);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogUtil.Error($"Critical - all pawn generation attempts failed: {ex.Message}");
-                }
-            }
-
-            // Final check - if still null, we cannot proceed
-            if (newPawn == null)
-            {
-                LogUtil.Error("Critical error - could not generate any pawn for mercenary squad. Skipping this mercenary.");
-                return;
-            }
-
-            if (newPawn.kindDef == null)
-            {
-                newPawn.kindDef = raceChoice ?? PawnKindDefOf.Colonist;
-                LogUtil.Warning($"MercenarySquadFC.CreateNewPawn: detected null kindDef, setting to default");
-            }
-
-            newPawn.apparel?.DestroyAll();
-            newPawn.equipment?.DestroyAllEquipment();
-            merc.squad = this;
-            merc.settlement = settlement;
-            merc.pawn = newPawn;
-
-        }
         public void UpdateSquadStats(int level)
         {
             foreach (Mercenary merc in mercenaries)
@@ -873,7 +672,7 @@ namespace FactionColonies
                     MilUnitFC blueprint = m.BlueprintLoadout;
                     if (blueprint is null || blueprint.isBlank) continue;
                     Mercenary slot = m;
-                    CreateNewPawn(ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
                     if (slot.pawn != null) EquipPawn(slot, blueprint);
                     // Sync currentLoadout with what we just equipped — re-snap from the blueprint.
                     slot.currentLoadout = blueprint.Clone();
@@ -987,7 +786,7 @@ namespace FactionColonies
                     while (mercenaries.Count <= count)
                     {
                         Mercenary newMerc = new Mercenary(true);
-                        CreateNewPawn(ref newMerc, loadout?.pawnKind, loadout?.xenotype, loadout?.customXenotypeName);
+                        MercenaryPawnFactory.CreateNewPawn(this, ref newMerc, loadout?.pawnKind, loadout?.xenotype, loadout?.customXenotypeName);
                         if (newMerc?.pawn != null)
                         {
                             mercenaries.Add(newMerc);
@@ -1010,7 +809,7 @@ namespace FactionColonies
                     if (mercenaries[count].pawn.kindDef != loadout.pawnKind || mercenaries[count].pawn.Dead)
                     {
                         Mercenary pawn = new Mercenary(true);
-                        CreateNewPawn(ref pawn, loadout.pawnKind, loadout.xenotype, loadout.customXenotypeName);
+                        MercenaryPawnFactory.CreateNewPawn(this, ref pawn, loadout.pawnKind, loadout.xenotype, loadout.customXenotypeName);
                         // Only replace if new pawn was successfully created
                         if (pawn?.pawn != null)
                         {
@@ -1036,7 +835,7 @@ namespace FactionColonies
                         if (loadout.animal != null)
                         {
                             Mercenary animal = new Mercenary(true);
-                            CreateNewAnimal(ref animal, loadout.animal);
+                            MercenaryPawnFactory.CreateNewAnimal(this, ref animal, loadout.animal);
                             animal.handler = mercenaries[count];
                             mercenaries[count].animal = animal;
                             animals.Add(animal);
