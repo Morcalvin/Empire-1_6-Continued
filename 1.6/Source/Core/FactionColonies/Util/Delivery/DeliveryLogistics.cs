@@ -1,4 +1,4 @@
-﻿using RimWorld;
+using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,12 @@ using Verse.AI.Group;
 
 namespace FactionColonies.util
 {
-    public static class DeliveryEvent
+    /* Caravan / drop pod / shuttle spawning for FCEvent-driven deliveries. Each Send*
+       path resolves the destination via FactionCache.FactionComp.TaxMap, emits the
+       delivery letter/message via DeliveryNotification, and falls back to the tax spot
+       on failure. DoDelayCaravanDueToDanger and the shuttle landing-zone check both
+       reschedule via DeliveryEvent.CreateDeliveryEvent when the world isn't ready. */
+    public static class DeliveryLogistics
     {
         public static TraverseParms DeliveryTraverseParms => new TraverseParms()
         {
@@ -21,68 +26,18 @@ namespace FactionColonies.util
             mode = TraverseMode.ByPawn
         };
 
-        public static void CreateDeliveryEvent(List<Thing> things, PlanetTile source, Letter let = null, Message msg = null)
+        public static TaxDeliveryMode TaxDeliveryModeForSettlement(bool canUseShuttle, PlanetTile sourceTile)
         {
-            CreateDeliveryEvent(new FCEvent()
+            WorldSettlementFC settlement = FactionCache.FactionComp.settlements.FirstOrFallback((WorldSettlementFC s) => s.Tile == sourceTile);
+            if (settlement != null)
             {
-                source = source,
-                goods = things,
-                customDescription = "",
-                timeTillTrigger = Find.TickManager.TicksGame + 10,
-                let = let,
-                msg = msg
-            });
-        }
-
-        public static void Action(FCEvent evt)
-        {
-            Action(evt, FactionCache.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false);
-        }
-
-        public static void Action(FCEvent evt, Letter let, Message msg = null, bool CanUseShuttle = false)
-        {
-            evt.let = let;
-            evt.msg = msg;
-            Action(evt, CanUseShuttle || (FactionCache.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false));
-        }
-
-        private static void MakeDeliveryLetterAndMessage(FCEvent evt)
-        {
-            try
-            {
-                var notificationMode = FCSettings.taxNotificationMode;
-                bool showLetter = notificationMode == TaxNotificationMode.All || notificationMode == TaxNotificationMode.LetterOnly;
-                bool showMessage = notificationMode == TaxNotificationMode.All || notificationMode == TaxNotificationMode.MessageOnly;
-
-                if (showLetter)
-                {
-                    if (evt.let != null)
-                    {
-                        evt.let.lookTargets = evt.goods;
-                        Find.LetterStack.ReceiveLetter(evt.let);
-                    }
-                    else
-                    {
-                        string eventLabel = evt.def?.label?.ToLower() ?? "delivery";
-                        Find.LetterStack.ReceiveLetter("FCGoodsReceivedFollowing".Translate(eventLabel), evt.goods.ToLetterString(), LetterDefOf.PositiveEvent, evt.goods);
-                    }
-                }
-
-                if (showMessage && evt.msg != null)
-                {
-                    evt.msg.lookTargets = evt.goods;
-                    Messages.Message(evt.msg);
-                }
-
-                if (evt.isDelayed) Messages.Message("FCDeliveryHeldUpArriving".Translate(), evt.goods, MessageTypeDefOf.PositiveEvent);
+                return settlement.settlementDef.GetTaxDeliveryMode(canUseShuttle, sourceTile);
             }
-            catch (Exception ex)
-            {
-                LogUtil.ErrorOnce("MakeDeliveryLetterAndMessage failed to attach targets to the message: " + ex, 908347458);
-            }
+            LogUtil.Error($"Trying to deliver taxes for a null settlement!");
+            return TaxDeliveryMode.Caravan;
         }
 
-        private static void SendShuttle(FCEvent evt)
+        public static void SendShuttle(FCEvent evt)
         {
             if (!ModsConfig.RoyaltyActive)
             {
@@ -98,7 +53,7 @@ namespace FactionColonies.util
 
             if (!landingZones.Any() || landingZones.Any(zone => zone.Clear))
             {
-                MakeDeliveryLetterAndMessage(evt);
+                DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
                 Thing shuttle = ThingMaker.MakeThing(ThingDefOf.Shuttle);
                 TransportShip transportShip = TransportShipMaker.MakeTransportShip(TransportShipDefOf.Ship_Shuttle, evt.goods, shuttle);
 
@@ -120,14 +75,14 @@ namespace FactionColonies.util
                 if (!evt.source.Valid) evt.source = playerHomeMap.Tile;
 
                 evt.timeTillTrigger = Find.TickManager.TicksGame + 1000;
-                CreateDeliveryEvent(evt);
+                DeliveryEvent.CreateDeliveryEvent(evt);
             }
         }
 
-        private static void SendDropPod(FCEvent evt)
+        public static void SendDropPod(FCEvent evt)
         {
             Map playerHomeMap = FactionCache.FactionComp.TaxMap;
-            MakeDeliveryLetterAndMessage(evt);
+            DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
             IntVec3 dropCell;
             if (!PaymentUtil.CheckForTaxSpot(playerHomeMap, out dropCell))
             {
@@ -136,7 +91,7 @@ namespace FactionColonies.util
             DropPodUtility.DropThingsNear(dropCell, playerHomeMap, evt.goods, 110, false, false, false, false);
         }
 
-        private static bool DoDelayCaravanDueToDanger(FCEvent evt)
+        public static bool DoDelayCaravanDueToDanger(FCEvent evt)
         {
             Map playerHomeMap = FactionCache.FactionComp.TaxMap;
             if (playerHomeMap.dangerWatcher.DangerRating != StoryDanger.None)
@@ -151,19 +106,19 @@ namespace FactionColonies.util
                 if (!evt.source.Valid) evt.source = playerHomeMap.Tile;
 
                 evt.timeTillTrigger = Find.TickManager.TicksGame + 1000;
-                CreateDeliveryEvent(evt);
+                DeliveryEvent.CreateDeliveryEvent(evt);
                 return true;
             }
 
             return false;
         }
 
-        private static void SendCaravan(FCEvent evt)
+        public static void SendCaravan(FCEvent evt)
         {
             Map playerHomeMap = FactionCache.FactionComp.TaxMap;
             if (DoDelayCaravanDueToDanger(evt)) return;
 
-            MakeDeliveryLetterAndMessage(evt);
+            DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
             List<Pawn> pawns = new List<Pawn>();
             List<Pawn> securityGuards = new List<Pawn>();
 
@@ -299,7 +254,7 @@ namespace FactionColonies.util
             }
 
             // Add guard animals (like wolves) for protection - always add at least 2 as it's good protection! Keep your highmate-only faction safe!!
-            // This protects deliveries by keeping it immersive, adhering to xenotype preferences. Bears and wargs are problematic. 
+            // This protects deliveries by keeping it immersive, adhering to xenotype preferences. Bears and wargs are problematic.
             var guardPool = FactionCache.FactionComp?.animalFilter?.AllowedCombatAnimals ?? FactionCache.AllCombatAnimalKindDefs;
             var guardAnimals = guardPool
                 .OrderByDescending(def => def.combatPower)
@@ -374,7 +329,7 @@ namespace FactionColonies.util
                         var humanPawn = lord.ownedPawns.FirstOrDefault(p => !p.RaceProps.Animal);
                         if (humanPawn != null)
                         {
-                            // let's make sure the guard animal stays close to the caravan 
+                            // let's make sure the guard animal stays close to the caravan
                             guard.mindState.duty = new PawnDuty(DutyDefOf.Follow, humanPawn, 3f); // 3 tile radius
                         }
                     }
@@ -383,100 +338,10 @@ namespace FactionColonies.util
 
         }
 
-        private static void SpawnOnTaxSpot(FCEvent evt)
+        public static void SpawnOnTaxSpot(FCEvent evt)
         {
-            MakeDeliveryLetterAndMessage(evt);
+            DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
             evt.goods.ForEach(thing => PaymentUtil.PlaceThing(thing));
-        }
-
-        public static TaxDeliveryMode TaxDeliveryModeForSettlement(bool canUseShuttle, PlanetTile sourceTile)
-        {
-            WorldSettlementFC settlement = FactionCache.FactionComp.settlements.FirstOrFallback((WorldSettlementFC s) => s.Tile == sourceTile);
-            if (settlement != null)
-            {
-                return settlement.settlementDef.GetTaxDeliveryMode(canUseShuttle, sourceTile);
-            }
-            LogUtil.Error($"Trying to deliver taxes for a null settlement!");
-            return TaxDeliveryMode.Caravan;
-        }
-
-        public static void Action(FCEvent evt, bool canUseShuttle)
-        {
-            try
-            {
-                TaxDeliveryMode taxDeliveryMode = evt.deliveryMode != TaxDeliveryMode.None
-                    ? evt.deliveryMode
-                    : TaxDeliveryModeForSettlement(canUseShuttle, evt.source);
-
-                switch (taxDeliveryMode)
-                {
-                    case TaxDeliveryMode.Caravan:
-                        SendCaravan(evt);
-                        break;
-                    case TaxDeliveryMode.DropPod:
-                        SendDropPod(evt);
-                        break;
-                    case TaxDeliveryMode.Shuttle:
-                        SendShuttle(evt);
-                        break;
-                    default:
-                        SpawnOnTaxSpot(evt);
-                        break;
-                }
-            }
-            catch (Exception e)
-            {
-                LogUtil.ErrorOnce("Critical delivery failure, spawning things on tax spot instead! Message: " + e.Message + " StackTrace: " + e.StackTrace + " Source: " + e.Source, 77239232);
-                evt.goods.ForEach(thing => PaymentUtil.PlaceThing(thing));
-            }
-        }
-
-        public static void CreateDeliveryEvent(FCEvent evtParams)
-        {
-            FCEvent evt = FCEventMaker.MakeEvent(FCEventDefOf.deliveryArrival);
-            evt.source = evtParams.source;
-            evt.goods = evtParams.goods;
-            evt.customDescription = evtParams.customDescription;
-            evt.hasCustomDescription = true;
-            evt.timeTillTrigger = evtParams.timeTillTrigger;
-            evt.let = evtParams.let;
-            evt.msg = evtParams.msg;
-            evt.isDelayed = evtParams.isDelayed;
-            evt.deliveryMode = evtParams.deliveryMode;
-
-            FactionCache.FactionComp.AddEvent(evt);
-        }
-
-        public static string ShuttleEventInjuredString
-        {
-            get
-            {
-                if (FactionCache.TechTransportPods.IsFinished)
-                {
-                    if (ModsConfig.RoyaltyActive)
-                    {
-                        return "FCTransportingInjuredShuttle".Translate();
-                    }
-                    return "FCTransportingInjuredDropPod".Translate();
-                }
-                return "FCTransportingInjuredCaravan".Translate();
-            }
-        }
-
-        public static string ShuttleEventInjuredLostString
-        {
-            get
-            {
-                if (FactionCache.TechTransportPods.IsFinished)
-                {
-                    if (ModsConfig.RoyaltyActive)
-                    {
-                        return "FCTransportingInjuredShuttleLost".Translate();
-                    }
-                    return "FCTransportingInjuredDropPodLost".Translate();
-                }
-                return "FCTransportingInjuredCaravanLost".Translate();
-            }
         }
 
         public static IntVec3 GetDeliveryCell(TraverseParms traverseParms, Map map)
@@ -556,4 +421,3 @@ namespace FactionColonies.util
         }
     }
 }
-

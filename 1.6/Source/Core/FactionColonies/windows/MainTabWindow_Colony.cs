@@ -1981,7 +1981,7 @@ namespace FactionColonies
             {
                 double powerLevel = SquadPowerRegistry.Resolve(squad).militaryLevel;
                 string powerLbl = (string)"FCSquadColPower".Translate() + ": " + powerLevel.ToString("0.0");
-                string costLbl = "FCDeployCost".Translate(SquadCostCalculator.DeploymentCost(squad));
+                string costLbl = "FCDeployCost".Translate(squad.DeploymentCost());
                 Widgets.Label(powerLabel, powerLbl);
                 Widgets.Label(depCostLabel, costLbl);
             }
@@ -2033,7 +2033,7 @@ namespace FactionColonies
             string deployTip;
             if (slotBusy) deployTip = "FCSquadCannotModifyBusyTip".Translate();
             else if (slotUnderfunded) deployTip = "FCMilSlotUnderfundedTip".Translate(settlement.Name, underSquadDeploy, underMaxDeploy);
-            else if (squad is object && SquadCostCalculator.DeploymentCost(squad) > 0) deployTip = "FCMilBtnDeployTipWithCost".Translate(SquadCostCalculator.DeploymentCost(squad), FCSettings.deploymentBillLifespan_days);
+            else if (squad is object && squad.DeploymentCost() > 0) deployTip = "FCMilBtnDeployTipWithCost".Translate(squad.DeploymentCost(), FCSettings.deploymentBillLifespan_days);
             else deployTip = "FCMilBtnDeployTip".Translate();
             TooltipHandler.TipRegion(deployRect, deployTip);
             bx += btnW + btnGap;
@@ -2141,7 +2141,7 @@ namespace FactionColonies
         {
             MercenarySquadFC primary = settlement?.FirstAvailableStationedSquad
                                     ?? settlement?.PrimaryStationedSquad;
-            int cost = SquadCostCalculator.DeploymentCost(primary);
+            int cost = primary.DeploymentCost();
             string costSuffix = cost > 0 ? " ($" + cost + ")" : "";
             return new List<FloatMenuOption>
             {
@@ -2158,7 +2158,7 @@ namespace FactionColonies
         /// the per-slot Deploy button on the 1+N settlement card layout.</summary>
         private List<FloatMenuOption> SquadDeploymentOptions(WorldSettlementFC settlement, MercenarySquadFC squad)
         {
-            int cost = SquadCostCalculator.DeploymentCost(squad);
+            int cost = squad.DeploymentCost();
             string costSuffix = cost > 0 ? " ($" + cost + ")" : "";
 
             List<FloatMenuOption> opts = new List<FloatMenuOption>();
@@ -2187,7 +2187,7 @@ namespace FactionColonies
         {
             MercenarySquadFC primary = settlement?.FirstAvailableStationedSquad
                                     ?? settlement?.PrimaryStationedSquad;
-            int cost = SquadCostCalculator.DeploymentCost(primary);
+            int cost = primary.DeploymentCost();
             string costSuffix = cost > 0 ? " ($" + cost + ")" : "";
 
             bool medievalOnly = FCSettings.medievalTechOnly;

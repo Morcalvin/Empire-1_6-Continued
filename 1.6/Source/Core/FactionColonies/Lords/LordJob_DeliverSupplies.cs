@@ -68,9 +68,9 @@ namespace FactionColonies
                 new TransitionAction_Custom(delegate()
                 {
                     if (lord.ownedPawns.NullOrEmpty()) return;
-                    var traverseParms = DeliveryEvent.DeliveryTraverseParms;
+                    var traverseParms = DeliveryLogistics.DeliveryTraverseParms;
                     traverseParms.pawn = lord.ownedPawns[0];
-                    ((LordToil_DefendPoint)stateGraph.lordToils[1]).SetDefendPoint(defendPosition.IsValid ? defendPosition : (defendPosition = DeliveryEvent.GetDeliveryCell(traverseParms, lord.Map)));
+                    ((LordToil_DefendPoint)stateGraph.lordToils[1]).SetDefendPoint(defendPosition.IsValid ? defendPosition : (defendPosition = DeliveryLogistics.GetDeliveryCell(traverseParms, lord.Map)));
                 })
             }
         };

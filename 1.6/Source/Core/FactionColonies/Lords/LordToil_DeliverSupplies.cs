@@ -81,7 +81,7 @@ namespace FactionColonies
                 // Try to get a proper delivery cell
                 try
                 {
-                    TraverseParms traverseParms = DeliveryEvent.DeliveryTraverseParms;
+                    TraverseParms traverseParms = DeliveryLogistics.DeliveryTraverseParms;
                     traverseParms.pawn = leadPawn;
 
                     // First try to find tax spot
@@ -112,7 +112,7 @@ namespace FactionColonies
                     else
                     {
                         // No tax spot, use the GetDeliveryCell method
-                        deliveryCell = DeliveryEvent.GetDeliveryCell(traverseParms, lord.Map);
+                        deliveryCell = DeliveryLogistics.GetDeliveryCell(traverseParms, lord.Map);
 
                         // Validate the result
                         if (!deliveryCell.IsValid || !deliveryCell.InBounds(lord.Map))
@@ -149,7 +149,7 @@ namespace FactionColonies
                     }
                     else
                     {
-                        TraverseParms traverseParms = DeliveryEvent.DeliveryTraverseParms;
+                        TraverseParms traverseParms = DeliveryLogistics.DeliveryTraverseParms;
                         traverseParms.pawn = pawn;
                         pawn.mindState.duty = new PawnDuty(DefDatabase<DutyDef>.GetNamed("FCFollowAndDeliverItem"))
                         {

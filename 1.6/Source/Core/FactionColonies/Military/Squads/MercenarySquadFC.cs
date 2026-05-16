@@ -156,7 +156,7 @@ namespace FactionColonies
         /// <summary>True when this squad is in any active op (offensive, defensive, deploy, or cooldown).</summary>
         public bool IsBusy => Operation is object;
 
-        /// <summary>True when the squad's <see cref="SquadCostCalculator.DeploymentCost"/> exceeds
+        /// <summary>True when the squad's <see cref="SquadCostExtensions.DeploymentCost"/> exceeds
         /// its assigned settlement's max deploy cost. An underfunded squad stays assigned but
         /// can't take part in military operations. Distinct from <see cref="IsBusy"/>: this is a
         /// structural (cost) constraint, not a temporary deployment state.</summary>
@@ -285,12 +285,12 @@ namespace FactionColonies
             }
         }
 
-        /// <summary>Pays <see cref="SquadCostCalculator.FillEmptySlotsCost"/> silver and generates fresh
+        /// <summary>Pays <see cref="SquadCostExtensions.FillEmptySlotsCost"/> silver and generates fresh
         /// pawns into every empty slot, equipping each from its resolved loadout. Slots with no
         /// loadout are skipped. Returns false (no payment) if the player can't afford the total.</summary>
         public bool FillEmptySlots()
         {
-            int total = SquadCostCalculator.FillEmptySlotsCost(this);
+            int total = this.FillEmptySlotsCost();
             if (total > 0 && PaymentUtil.GetSilver() < total)
             {
                 Messages.Message("FCSquadFillSlotsInsufficient".Translate(total),

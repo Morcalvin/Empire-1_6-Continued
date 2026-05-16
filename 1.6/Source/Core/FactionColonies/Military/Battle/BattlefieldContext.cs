@@ -1199,8 +1199,8 @@ namespace FactionColonies
                     }
 
                 string eventText = won
-                    ? DeliveryEvent.ShuttleEventInjuredString
-                    : DeliveryEvent.ShuttleEventInjuredLostString;
+                    ? DeliveryNotification.ShuttleEventInjuredString
+                    : DeliveryNotification.ShuttleEventInjuredLostString;
                 int travelTicks = TravelUtil.ReturnTicksToArrive(settlement.Tile, Find.AnyPlayerHomeMap.Tile);
                 if (!won) travelTicks += GenDate.TicksPerDay;
 

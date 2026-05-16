@@ -218,7 +218,7 @@ namespace FactionColonies
         }
         /// <summary>Create a deployment-cost bill against <paramref name="squad"/>'s home
         /// settlement. The bill is appended to <c>FactionFC.Bills</c> and obligates the
-        /// player for <c>SquadCostCalculator.DeploymentCost(squad)</c> silver, due in
+        /// player for <c>squad.DeploymentCost()</c> silver, due in
         /// <c>FCSettings.deploymentBillLifespan_days</c> days. No-op when cost is zero
         /// (slider at 0%) or godMode is on.</summary>
         /// <returns>The created <see cref="BillFC"/>, or <c>null</c> when no bill was
@@ -226,7 +226,7 @@ namespace FactionColonies
         public static BillFC CreateDeploymentCostBill(MercenarySquadFC squad)
         {
             if (squad is null) return null;
-            int cost = SquadCostCalculator.DeploymentCost(squad);
+            int cost = squad.DeploymentCost();
             if (cost <= 0 || DebugSettings.godMode) return null;
 
             WorldSettlementFC home = squad.settlement;

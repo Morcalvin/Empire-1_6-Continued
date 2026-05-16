@@ -1,0 +1,87 @@
+using RimWorld.Planet;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Verse;
+
+namespace FactionColonies.util
+{
+    /* Thin dispatcher for FCEvent-driven deliveries. Owns the public Action /
+       CreateDeliveryEvent entry points; the actual logistics live in
+       DeliveryLogistics and the letter/message generation lives in
+       DeliveryNotification. */
+    public static class DeliveryEvent
+    {
+        public static void CreateDeliveryEvent(List<Thing> things, PlanetTile source, Letter let = null, Message msg = null)
+        {
+            CreateDeliveryEvent(new FCEvent()
+            {
+                source = source,
+                goods = things,
+                customDescription = "",
+                timeTillTrigger = Find.TickManager.TicksGame + 10,
+                let = let,
+                msg = msg
+            });
+        }
+
+        public static void CreateDeliveryEvent(FCEvent evtParams)
+        {
+            FCEvent evt = FCEventMaker.MakeEvent(FCEventDefOf.deliveryArrival);
+            evt.source = evtParams.source;
+            evt.goods = evtParams.goods;
+            evt.customDescription = evtParams.customDescription;
+            evt.hasCustomDescription = true;
+            evt.timeTillTrigger = evtParams.timeTillTrigger;
+            evt.let = evtParams.let;
+            evt.msg = evtParams.msg;
+            evt.isDelayed = evtParams.isDelayed;
+            evt.deliveryMode = evtParams.deliveryMode;
+
+            FactionCache.FactionComp.AddEvent(evt);
+        }
+
+        public static void Action(FCEvent evt)
+        {
+            Action(evt, FactionCache.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false);
+        }
+
+        public static void Action(FCEvent evt, Letter let, Message msg = null, bool CanUseShuttle = false)
+        {
+            evt.let = let;
+            evt.msg = msg;
+            Action(evt, CanUseShuttle || (FactionCache.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false));
+        }
+
+        public static void Action(FCEvent evt, bool canUseShuttle)
+        {
+            try
+            {
+                TaxDeliveryMode taxDeliveryMode = evt.deliveryMode != TaxDeliveryMode.None
+                    ? evt.deliveryMode
+                    : DeliveryLogistics.TaxDeliveryModeForSettlement(canUseShuttle, evt.source);
+
+                switch (taxDeliveryMode)
+                {
+                    case TaxDeliveryMode.Caravan:
+                        DeliveryLogistics.SendCaravan(evt);
+                        break;
+                    case TaxDeliveryMode.DropPod:
+                        DeliveryLogistics.SendDropPod(evt);
+                        break;
+                    case TaxDeliveryMode.Shuttle:
+                        DeliveryLogistics.SendShuttle(evt);
+                        break;
+                    default:
+                        DeliveryLogistics.SpawnOnTaxSpot(evt);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                LogUtil.ErrorOnce("Critical delivery failure, spawning things on tax spot instead! Message: " + e.Message + " StackTrace: " + e.StackTrace + " Source: " + e.Source, 77239232);
+                evt.goods.ForEach(thing => PaymentUtil.PlaceThing(thing));
+            }
+        }
+    }
+}
