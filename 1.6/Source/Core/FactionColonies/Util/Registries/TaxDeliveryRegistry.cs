@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
@@ -23,15 +22,12 @@ namespace FactionColonies
 
     public static class TaxDeliveryRegistry
     {
-        private static readonly List<ITaxDeliveryInterceptor> _interceptors = new List<ITaxDeliveryInterceptor>();
+        private static readonly RegistryList<ITaxDeliveryInterceptor> _list = new RegistryList<ITaxDeliveryInterceptor>();
 
-        public static void Register(ITaxDeliveryInterceptor interceptor)
-        {
-            if (!_interceptors.Contains(interceptor)) _interceptors.Add(interceptor);
-        }
-        public static void Unregister(ITaxDeliveryInterceptor interceptor) => _interceptors.Remove(interceptor);
-        public static void ClearAll() => _interceptors.Clear();
-        public static IReadOnlyList<ITaxDeliveryInterceptor> Interceptors => _interceptors;
+        internal static void Register(ITaxDeliveryInterceptor interceptor) => _list.Register(interceptor);
+        internal static void Unregister(ITaxDeliveryInterceptor interceptor) => _list.Unregister(interceptor);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<ITaxDeliveryInterceptor> Interceptors => _list.Items;
 
         /// <summary>
         /// Invokes <see cref="ITaxDeliveryInterceptor.OnTaxEventCreated"/> on all interceptors,
@@ -39,18 +35,11 @@ namespace FactionColonies
         /// </summary>
         public static void InvokeOnTaxEventCreated(TaxDeliveryContext context)
         {
-            foreach (ITaxDeliveryInterceptor interceptor in _interceptors)
+            RegistryDispatch.First(_list.Items, interceptor =>
             {
-                try
-                {
-                    interceptor.OnTaxEventCreated(context);
-                    if (context.Redirected) return;
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"ITaxDeliveryInterceptor {interceptor.GetType().Name} threw in OnTaxEventCreated: {e}");
-                }
-            }
+                interceptor.OnTaxEventCreated(context);
+                return context.Redirected;
+            }, nameof(ITaxDeliveryInterceptor.OnTaxEventCreated));
         }
 
         /// <summary>
@@ -60,20 +49,13 @@ namespace FactionColonies
         /// </summary>
         public static bool InvokeTryDeliverGoods(TaxDeliveryContext context)
         {
-            foreach (ITaxDeliveryInterceptor interceptor in _interceptors)
+            ITaxDeliveryInterceptor winner = RegistryDispatch.First(_list.Items,
+                interceptor => interceptor.TryDeliverGoods(context),
+                nameof(ITaxDeliveryInterceptor.TryDeliverGoods));
+            if (winner is object)
             {
-                try
-                {
-                    if (interceptor.TryDeliverGoods(context))
-                    {
-                        context.Delivered = true;
-                        return true;
-                    }
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"ITaxDeliveryInterceptor {interceptor.GetType().Name} threw in TryDeliverGoods: {e}");
-                }
+                context.Delivered = true;
+                return true;
             }
             return false;
         }

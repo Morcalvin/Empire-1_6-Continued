@@ -24,11 +24,11 @@ EmpireRegistry.Register(new MyExtension());
 
 The facade routes that single call to `LifecycleRegistry`, `TaxTickRegistry`, and `SilverPaymentRegistry` simultaneously. There's no need to know which interface belongs to which registry. A participant that matches no registered interface logs `EmpireRegistry.Register: <type> matched no registry; ignored`.
 
-The per-domain typed `XxxRegistry.Register(IXxx)` methods listed in the sections below still exist for explicit registration — `EmpireRegistry` is additive, not a replacement.
+**`EmpireRegistry` is the only public registration path.** The per-domain typed `XxxRegistry.Register(IXxx)` methods that documented this in the past are now `internal` to the base mod — submods cannot reach them. Any registration from a submod must go through `EmpireRegistry.Register(object)`. (The base mod itself and `RegistryTests` still see the typed methods because they share an assembly.)
 
 `EmpireRegistry.ClearAll()` is called from `EmpireCacheUtil.InvalidateAll` (on `Game.Dispose` / `Game.ClearCaches`). Submods needing to re-register after invalidation should hook `EmpireCacheUtil.RegisterCacheInvalidator(key, callback)` and call `EmpireRegistry.Register(...)` from the callback.
 
-**Exception — `MilitaryWindowRegistry`**: its slot-keyed `Register(SlotKey, factory)` API doesn't fit the interface-probe pattern. Call it directly; `EmpireRegistry.ClearAll()` does not clear it.
+**Exception — `MilitaryWindowRegistry`**: its slot-keyed `Register(SlotKey, factory)` API doesn't fit the interface-probe pattern. Its `Register` stays `public` and is called directly. `EmpireRegistry.ClearAll()` does not clear it.
 
 ---
 
@@ -39,7 +39,7 @@ The per-domain typed `XxxRegistry.Register(IXxx)` methods listed in the sections
 **Registry**: `LifecycleRegistry`
 **Purpose**: Hook into settlement, military operation, mercenary squad, and research events.
 
-Four domain-specific listener interfaces. Implement only the ones you care about — a single class can implement multiple, and a single `LifecycleRegistry.Register(this)` call adds it to every matching dispatch list.
+Four domain-specific listener interfaces. Implement only the ones you care about — a single class can implement multiple, and a single `EmpireRegistry.Register(this)` call adds it to every matching dispatch list.
 
 ```csharp
 public interface ISettlementListener
@@ -98,7 +98,7 @@ public class MyLifecycleHook : ISettlementListener, IResearchListener
 }
 
 // In your mod's static constructor:
-EmpireRegistry.Register(new MyLifecycleHook());  // or LifecycleRegistry.Register(...) for typed registration
+EmpireRegistry.Register(new MyLifecycleHook());
 ```
 
 A class implementing none of the four listener interfaces logs a warning and is ignored.
@@ -692,3 +692,41 @@ Every facade-managed registry is cleared by `EmpireRegistry.ClearAll()` on cache
 | `SettlementButtonRegistry` | `.Entries` |
 | `SquadInspectionRegistry` | `.Sections` |
 | `BuildingFilterRegistry` | `.Filters` |
+
+---
+
+## Internal: registry implementation pattern
+
+This section is for base-mod contributors adding or modifying a registry. Submods don't need it.
+
+Per-domain registries share two helpers in `util/Registries/_Internal/`:
+
+- **`RegistryList<T>`** — encapsulates `Register`/`Unregister`/`ClearAll`/`Items`/`Count`. Use as a `private static readonly` field; the registry's public methods are thin delegating wrappers (marked `internal` after the visibility lockdown).
+- **`RegistryDispatch`** — static helpers for the dispatch idioms, each wrapping `try/catch + LogUtil.Error` with a consistent format:
+  - `Each(items, action, call)` — iterate, no aggregation
+  - `EachInvalidating(items, action, invalidate, call)` — iterate + invalidate-between (e.g. settlement-cache invalidation)
+  - `All(items, predicate, call)` — short-circuit on first false
+  - `Aggregate(items, seed, reducer, call)` — fold (product, sum, etc.)
+  - `First(items, predicate, call)` — first item matching predicate, or null
+  - `FirstNonNull(items, selector, call)` — first item whose selector yields non-null
+
+A standard registry then looks like:
+
+```csharp
+public static class FooRegistry
+{
+    private static readonly RegistryList<IFoo> _list = new RegistryList<IFoo>();
+
+    internal static void Register(IFoo p) => _list.Register(p);
+    internal static void Unregister(IFoo p) => _list.Unregister(p);
+    internal static void ClearAll() => _list.ClearAll();
+    public static IReadOnlyList<IFoo> Items => _list.Items;
+
+    public static void InvokeDoSomething(...)
+        => RegistryDispatch.Each(_list.Items, p => p.DoSomething(...), nameof(IFoo.DoSomething));
+}
+```
+
+Then add the new interface to the probe in `EmpireRegistry.Register / Unregister` and to the fan-out in `EmpireRegistry.ClearAll`. That's the only place outside the registry file that needs editing.
+
+**Edge cases:** registries with non-list storage (e.g. `MilitaryWindowRegistry`'s slot-keyed dictionary), priority sorts (`SquadPowerRegistry`, `SquadInspectionRegistry`), or unusual semantics keep their custom storage and dispatch — the helpers are a convenience, not a requirement.

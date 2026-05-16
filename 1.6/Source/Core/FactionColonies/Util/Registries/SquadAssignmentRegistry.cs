@@ -1,38 +1,34 @@
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
 {
     public static class SquadAssignmentRegistry
     {
-        private static readonly List<ISquadAssignmentValidator> _validators = new List<ISquadAssignmentValidator>();
+        private static readonly RegistryList<ISquadAssignmentValidator> _list = new RegistryList<ISquadAssignmentValidator>();
 
-        public static void Register(ISquadAssignmentValidator validator)
-        {
-            if (!_validators.Contains(validator)) _validators.Add(validator);
-        }
-        public static void Unregister(ISquadAssignmentValidator validator) => _validators.Remove(validator);
-        public static void ClearAll() => _validators.Clear();
+        internal static void Register(ISquadAssignmentValidator validator) => _list.Register(validator);
+        internal static void Unregister(ISquadAssignmentValidator validator) => _list.Unregister(validator);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<ISquadAssignmentValidator> Validators => _list.Items;
 
         /// <summary>
         /// Returns true if all registered validators allow the assignment.
         /// On first rejection, outputs the reason string.
+        /// <para>The <c>out</c> parameter on <see cref="ISquadAssignmentValidator.CanAssign"/>
+        /// can't flow through an <c>Action&lt;T&gt;</c> closure cleanly, so the rejection
+        /// reason is captured to a local and copied out at the end.</para>
         /// </summary>
         public static bool CanAssign(WorldSettlementFC settlement, MercenarySquadFC squad, out string reason)
         {
-            reason = null;
-            foreach (ISquadAssignmentValidator validator in _validators)
+            string captured = null;
+            bool allowed = RegistryDispatch.All(_list.Items, v =>
             {
-                try
-                {
-                    if (!validator.CanAssign(settlement, squad, out reason)) return false;
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"ISquadAssignmentValidator {validator.GetType().Name} threw in CanAssign: {e}");
-                }
-            }
-            return true;
+                bool ok = v.CanAssign(settlement, squad, out string r);
+                if (!ok) captured = r;
+                return ok;
+            }, nameof(ISquadAssignmentValidator.CanAssign));
+            reason = captured;
+            return allowed;
         }
     }
 }

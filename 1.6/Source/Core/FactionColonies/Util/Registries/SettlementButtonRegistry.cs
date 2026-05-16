@@ -4,14 +4,11 @@ namespace FactionColonies
 {
     public static class SettlementButtonRegistry
     {
-        private static readonly List<ISettlementWindowButton> _entries = new List<ISettlementWindowButton>();
+        private static readonly RegistryList<ISettlementWindowButton> _list = new RegistryList<ISettlementWindowButton>();
 
-        public static void Register(ISettlementWindowButton entry)
-        {
-            if (!_entries.Contains(entry)) _entries.Add(entry);
-        }
-        public static void Unregister(ISettlementWindowButton entry) => _entries.Remove(entry);
-        public static void ClearAll() => _entries.Clear();
-        public static IReadOnlyList<ISettlementWindowButton> Entries => _entries;
+        internal static void Register(ISettlementWindowButton entry) => _list.Register(entry);
+        internal static void Unregister(ISettlementWindowButton entry) => _list.Unregister(entry);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<ISettlementWindowButton> Entries => _list.Items;
     }
 }

@@ -1,5 +1,4 @@
 using RimWorld;
-using System;
 using System.Collections.Generic;
 using Verse;
 
@@ -11,35 +10,26 @@ namespace FactionColonies
      * default internally, so callers only ever invoke PickMedicine, never PickDefaultMedicine. */
     public static class MercAutoTendRegistry
     {
-        private static readonly List<IMercAutoTendProvider> _providers = new List<IMercAutoTendProvider>();
+        private static readonly RegistryList<IMercAutoTendProvider> _list = new RegistryList<IMercAutoTendProvider>();
 
-        public static void Register(IMercAutoTendProvider provider)
-        {
-            if (!_providers.Contains(provider)) _providers.Add(provider);
-        }
-        public static void Unregister(IMercAutoTendProvider provider) => _providers.Remove(provider);
-        public static void ClearAll() => _providers.Clear();
-        public static IReadOnlyList<IMercAutoTendProvider> Providers => _providers;
+        internal static void Register(IMercAutoTendProvider provider) => _list.Register(provider);
+        internal static void Unregister(IMercAutoTendProvider provider) => _list.Unregister(provider);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<IMercAutoTendProvider> Providers => _list.Items;
 
         /// <summary>
         /// First non-null doctor wins. Returns null if no provider supplies one.
         /// </summary>
         public static Pawn PickDoctor(Mercenary patient, WorldSettlementFC settlement)
         {
-            foreach (IMercAutoTendProvider t in _providers)
+            Pawn doctor = null;
+            RegistryDispatch.First(_list.Items, t =>
             {
-                try
-                {
-                    Pawn doctor = t.ProvideTendingDoctor(patient, settlement);
-                    if (doctor != null) return doctor;
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"IMercAutoTendProvider {t.GetType().Name} threw in ProvideTendingDoctor: {e}");
-                }
-            }
-
-            return null;
+                Pawn d = t.ProvideTendingDoctor(patient, settlement);
+                if (d is object) { doctor = d; return true; }
+                return false;
+            }, nameof(IMercAutoTendProvider.ProvideTendingDoctor));
+            return doctor;
         }
 
         /// <summary>
@@ -49,17 +39,9 @@ namespace FactionColonies
         public static ThingDef PickMedicine(Mercenary patient, WorldSettlementFC settlement)
         {
             ThingDef current = PickDefaultMedicine();
-            foreach (IMercAutoTendProvider t in _providers)
-            {
-                try
-                {
-                    current = t.OverrideTendingMedicine(patient, settlement, current);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"IMercAutoTendProvider {t.GetType().Name} threw in OverrideTendingMedicine: {e}");
-                }
-            }
+            RegistryDispatch.Each(_list.Items,
+                t => current = t.OverrideTendingMedicine(patient, settlement, current),
+                nameof(IMercAutoTendProvider.OverrideTendingMedicine));
             return current;
         }
 

@@ -1,5 +1,4 @@
 using RimWorld.Planet;
-using System;
 using System.Collections.Generic;
 using Verse;
 
@@ -7,41 +6,27 @@ namespace FactionColonies
 {
     public static class AutoDefenderRegistry
     {
-        private static readonly List<IAutoDefender> _defenders = new List<IAutoDefender>();
+        private static readonly RegistryList<IAutoDefender> _list = new RegistryList<IAutoDefender>();
 
-        public static void Register(IAutoDefender defender)
-        {
-            if (!_defenders.Contains(defender)) _defenders.Add(defender);
-        }
-        public static void Unregister(IAutoDefender defender) => _defenders.Remove(defender);
-        public static void ClearAll() => _defenders.Clear();
-        public static IReadOnlyList<IAutoDefender> Defenders => _defenders;
+        internal static void Register(IAutoDefender defender) => _list.Register(defender);
+        internal static void Unregister(IAutoDefender defender) => _list.Unregister(defender);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<IAutoDefender> Defenders => _list.Items;
 
         /// <summary>
         /// Finds the strongest available <see cref="IAutoDefender"/> that can defend the given tile
         /// and is stronger than <paramref name="minMilitaryLevel"/>.
         /// </summary>
         public static IAutoDefender FindBestDefender(PlanetTile targetTile, int minMilitaryLevel)
-        {
-            IAutoDefender best = null;
-            foreach (IAutoDefender defender in _defenders)
+            => RegistryDispatch.Aggregate<IAutoDefender, IAutoDefender>(_list.Items, null, (best, defender) =>
             {
-                try
-                {
-                    if (!defender.CanAutoDefend) continue;
-                    if (defender.MilitaryLevel <= minMilitaryLevel) continue;
-                    int distance = Find.WorldGrid.TraversalDistanceBetween(defender.WorldObject.Tile, targetTile);
-                    if (distance > defender.Range) continue;
-                    if (best == null || defender.MilitaryLevel > best.MilitaryLevel)
-                        best = defender;
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"IAutoDefender {defender.GetType().Name} threw in FindBestDefender: {e}");
-                }
-            }
-            return best;
-        }
+                if (!defender.CanAutoDefend) return best;
+                if (defender.MilitaryLevel <= minMilitaryLevel) return best;
+                int distance = Find.WorldGrid.TraversalDistanceBetween(defender.WorldObject.Tile, targetTile);
+                if (distance > defender.Range) return best;
+                return (best == null || defender.MilitaryLevel > best.MilitaryLevel) ? defender : best;
+            }, "FindBestDefender");
+
         /// <summary>
         /// Finds the <see cref="IAutoDefender"/> wrapping the given <see cref="WorldObject"/>, or null.
         /// Used to notify an external auto-defender of battle completion.
@@ -49,18 +34,7 @@ namespace FactionColonies
         public static IAutoDefender FindByWorldObject(WorldObject obj)
         {
             if (obj == null) return null;
-            foreach (IAutoDefender defender in _defenders)
-            {
-                try
-                {
-                    if (defender.WorldObject == obj) return defender;
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"IAutoDefender {defender.GetType().Name} threw in FindByWorldObject: {e}");
-                }
-            }
-            return null;
+            return RegistryDispatch.First(_list.Items, d => d.WorldObject == obj, nameof(IAutoDefender.WorldObject));
         }
     }
 }

@@ -17,7 +17,7 @@ namespace FactionColonies
         private static int _nextRegIndex = 0;
         private static List<ISquadInspectionSection> _sortedCache;
 
-        public static void Register(ISquadInspectionSection section)
+        internal static void Register(ISquadInspectionSection section)
         {
             if (section is null) return;
             for (int i = 0; i < _entries.Count; i++)
@@ -28,7 +28,7 @@ namespace FactionColonies
             _sortedCache = null;
         }
 
-        public static void Unregister(ISquadInspectionSection section)
+        internal static void Unregister(ISquadInspectionSection section)
         {
             for (int i = 0; i < _entries.Count; i++)
             {
@@ -41,7 +41,7 @@ namespace FactionColonies
             }
         }
 
-        public static void ClearAll()
+        internal static void ClearAll()
         {
             _entries.Clear();
             _nextRegIndex = 0;

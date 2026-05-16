@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Verse;
 
@@ -13,23 +12,20 @@ namespace FactionColonies
     /// </summary>
     public static class LifecycleRegistry
     {
-        private static readonly List<ISettlementListener>        _settlement = new List<ISettlementListener>();
-        private static readonly List<IMilitaryOperationListener> _militaryOp = new List<IMilitaryOperationListener>();
-        private static readonly List<IMercenarySquadListener>    _mercSquad  = new List<IMercenarySquadListener>();
-        private static readonly List<IResearchListener>          _research   = new List<IResearchListener>();
+        private static readonly RegistryList<ISettlementListener>        _settlement = new RegistryList<ISettlementListener>();
+        private static readonly RegistryList<IMilitaryOperationListener> _militaryOp = new RegistryList<IMilitaryOperationListener>();
+        private static readonly RegistryList<IMercenarySquadListener>    _mercSquad  = new RegistryList<IMercenarySquadListener>();
+        private static readonly RegistryList<IResearchListener>          _research   = new RegistryList<IResearchListener>();
 
-        public static void Register(object participant)
+        internal static void Register(object participant)
         {
             if (participant is null) return;
-            bool any = false;
-            if (participant is ISettlementListener s        && !_settlement.Contains(s)) { _settlement.Add(s); any = true; }
-            if (participant is IMilitaryOperationListener m && !_militaryOp.Contains(m)) { _militaryOp.Add(m); any = true; }
-            if (participant is IMercenarySquadListener q    && !_mercSquad.Contains(q))  { _mercSquad.Add(q);  any = true; }
-            if (participant is IResearchListener r          && !_research.Contains(r))   { _research.Add(r);   any = true; }
 
-            // If the object already implements an interface but was already in every list,
-            // any will remain false. The "implements at least one listener" test is the
-            // type check above — gate the warning on that, not on whether anything was added.
+            if (participant is ISettlementListener s)        _settlement.Register(s);
+            if (participant is IMilitaryOperationListener m) _militaryOp.Register(m);
+            if (participant is IMercenarySquadListener q)    _mercSquad.Register(q);
+            if (participant is IResearchListener r)          _research.Register(r);
+
             bool implementsAny = participant is ISettlementListener
                 || participant is IMilitaryOperationListener
                 || participant is IMercenarySquadListener
@@ -40,94 +36,76 @@ namespace FactionColonies
             }
         }
 
-        public static void Unregister(object participant)
+        internal static void Unregister(object participant)
         {
             if (participant is null) return;
-            if (participant is ISettlementListener s)        _settlement.Remove(s);
-            if (participant is IMilitaryOperationListener m) _militaryOp.Remove(m);
-            if (participant is IMercenarySquadListener q)    _mercSquad.Remove(q);
-            if (participant is IResearchListener r)          _research.Remove(r);
+            if (participant is ISettlementListener s)        _settlement.Unregister(s);
+            if (participant is IMilitaryOperationListener m) _militaryOp.Unregister(m);
+            if (participant is IMercenarySquadListener q)    _mercSquad.Unregister(q);
+            if (participant is IResearchListener r)          _research.Unregister(r);
         }
 
-        public static void ClearAll()
+        internal static void ClearAll()
         {
-            _settlement.Clear();
-            _militaryOp.Clear();
-            _mercSquad.Clear();
-            _research.Clear();
+            _settlement.ClearAll();
+            _militaryOp.ClearAll();
+            _mercSquad.ClearAll();
+            _research.ClearAll();
         }
 
         /* Settlement */
         public static void InvokeOnSettlementCreated(WorldSettlementFC settlement)
         {
-            foreach (ISettlementListener p in _settlement)
-            {
-                try { p.OnSettlementCreated(settlement); }
-                catch (Exception e) { LogUtil.Error($"ISettlementListener {p.GetType().Name} threw in OnSettlementCreated: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_settlement.Items,
+                p => p.OnSettlementCreated(settlement),
+                () => settlement.InvalidateStatCache(),
+                nameof(ISettlementListener.OnSettlementCreated));
             settlement.InvalidateStatCache();
         }
 
         public static void InvokeOnSettlementRemoved(WorldSettlementFC settlement)
         {
-            foreach (ISettlementListener p in _settlement)
-            {
-                try { p.OnSettlementRemoved(settlement); }
-                catch (Exception e) { LogUtil.Error($"ISettlementListener {p.GetType().Name} threw in OnSettlementRemoved: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_settlement.Items,
+                p => p.OnSettlementRemoved(settlement),
+                () => settlement.InvalidateStatCache(),
+                nameof(ISettlementListener.OnSettlementRemoved));
             settlement.InvalidateStatCache();
         }
 
         public static void InvokeOnSettlementUpgraded(WorldSettlementFC settlement, int oldLevel, int newLevel)
         {
-            foreach (ISettlementListener p in _settlement)
-            {
-                try { p.OnSettlementUpgraded(settlement, oldLevel, newLevel); }
-                catch (Exception e) { LogUtil.Error($"ISettlementListener {p.GetType().Name} threw in OnSettlementUpgraded: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_settlement.Items,
+                p => p.OnSettlementUpgraded(settlement, oldLevel, newLevel),
+                () => settlement.InvalidateStatCache(),
+                nameof(ISettlementListener.OnSettlementUpgraded));
             settlement.InvalidateStatCache();
         }
 
         public static void InvokeOnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef)
         {
-            foreach (ISettlementListener p in _settlement)
-            {
-                try { p.OnSettlementTypeChanged(settlement, oldDef, newDef); }
-                catch (Exception e) { LogUtil.Error($"ISettlementListener {p.GetType().Name} threw in OnSettlementTypeChanged: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_settlement.Items,
+                p => p.OnSettlementTypeChanged(settlement, oldDef, newDef),
+                () => settlement.InvalidateStatCache(),
+                nameof(ISettlementListener.OnSettlementTypeChanged));
             settlement.InvalidateStatCache();
         }
 
         /* Building */
         public static void InvokeOnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
         {
-            foreach (ISettlementListener p in _settlement)
-            {
-                try { p.OnBuildingConstructed(settlement, building, slot); }
-                catch (Exception e) { LogUtil.Error($"ISettlementListener {p.GetType().Name} threw in OnBuildingConstructed: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_settlement.Items,
+                p => p.OnBuildingConstructed(settlement, building, slot),
+                () => settlement.InvalidateStatCache(),
+                nameof(ISettlementListener.OnBuildingConstructed));
             settlement.InvalidateStatCache();
         }
 
         public static void InvokeOnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
         {
-            foreach (ISettlementListener p in _settlement)
-            {
-                try { p.OnBuildingDeconstructed(settlement, building, slot); }
-                catch (Exception e) { LogUtil.Error($"ISettlementListener {p.GetType().Name} threw in OnBuildingDeconstructed: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_settlement.Items,
+                p => p.OnBuildingDeconstructed(settlement, building, slot),
+                () => settlement.InvalidateStatCache(),
+                nameof(ISettlementListener.OnBuildingDeconstructed));
             settlement.InvalidateStatCache();
         }
 
@@ -137,12 +115,10 @@ namespace FactionColonies
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
-            foreach (IMilitaryOperationListener p in _militaryOp)
-            {
-                try { p.OnOperationCreated(op); }
-                catch (Exception e) { LogUtil.Error($"IMilitaryOperationListener {p.GetType().Name} threw in OnOperationCreated: {e}"); }
-                if (settlement is object) settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_militaryOp.Items,
+                p => p.OnOperationCreated(op),
+                () => { if (settlement is object) settlement.InvalidateStatCache(); },
+                nameof(IMilitaryOperationListener.OnOperationCreated));
             if (settlement is object) settlement.InvalidateStatCache();
         }
 
@@ -150,12 +126,10 @@ namespace FactionColonies
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
-            foreach (IMilitaryOperationListener p in _militaryOp)
-            {
-                try { p.OnOperationResolved(op); }
-                catch (Exception e) { LogUtil.Error($"IMilitaryOperationListener {p.GetType().Name} threw in OnOperationResolved: {e}"); }
-                if (settlement is object) settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_militaryOp.Items,
+                p => p.OnOperationResolved(op),
+                () => { if (settlement is object) settlement.InvalidateStatCache(); },
+                nameof(IMilitaryOperationListener.OnOperationResolved));
             if (settlement is object) settlement.InvalidateStatCache();
         }
 
@@ -163,66 +137,43 @@ namespace FactionColonies
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
-            foreach (IMilitaryOperationListener p in _militaryOp)
-            {
-                try { p.OnBattleResolved(op, victory, result); }
-                catch (Exception e) { LogUtil.Error($"IMilitaryOperationListener {p.GetType().Name} threw in OnBattleResolved: {e}"); }
-                if (settlement is object) settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_militaryOp.Items,
+                p => p.OnBattleResolved(op, victory, result),
+                () => { if (settlement is object) settlement.InvalidateStatCache(); },
+                nameof(IMilitaryOperationListener.OnBattleResolved));
             if (settlement is object) settlement.InvalidateStatCache();
         }
 
         /* Mercenary */
         public static void InvokeOnMercenaryDeath(MercenaryDeathEvent evt)
-        {
-            foreach (IMercenarySquadListener p in _mercSquad)
-            {
-                try { p.OnMercenaryDeath(evt); }
-                catch (Exception e) { LogUtil.Error($"IMercenarySquadListener {p.GetType().Name} threw in OnMercenaryDeath: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_mercSquad.Items, p => p.OnMercenaryDeath(evt), nameof(IMercenarySquadListener.OnMercenaryDeath));
 
         /* Squad lifecycle */
         public static void InvokeOnSquadHired(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            foreach (IMercenarySquadListener p in _mercSquad)
-            {
-                try { p.OnSquadHired(squad); }
-                catch (Exception e) { LogUtil.Error($"IMercenarySquadListener {p.GetType().Name} threw in OnSquadHired: {e}"); }
-            }
+            RegistryDispatch.Each(_mercSquad.Items, p => p.OnSquadHired(squad), nameof(IMercenarySquadListener.OnSquadHired));
         }
 
         public static void InvokeOnSquadDismissed(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            foreach (IMercenarySquadListener p in _mercSquad)
-            {
-                try { p.OnSquadDismissed(squad); }
-                catch (Exception e) { LogUtil.Error($"IMercenarySquadListener {p.GetType().Name} threw in OnSquadDismissed: {e}"); }
-            }
+            RegistryDispatch.Each(_mercSquad.Items, p => p.OnSquadDismissed(squad), nameof(IMercenarySquadListener.OnSquadDismissed));
         }
 
         public static void InvokeOnSquadUpgraded(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            foreach (IMercenarySquadListener p in _mercSquad)
-            {
-                try { p.OnSquadUpgraded(squad); }
-                catch (Exception e) { LogUtil.Error($"IMercenarySquadListener {p.GetType().Name} threw in OnSquadUpgraded: {e}"); }
-            }
+            RegistryDispatch.Each(_mercSquad.Items, p => p.OnSquadUpgraded(squad), nameof(IMercenarySquadListener.OnSquadUpgraded));
         }
 
         /* Research */
         public static void InvokeOnResearchCompleted(ResearchProjectDef project)
         {
-            foreach (IResearchListener p in _research)
-            {
-                try { p.OnResearchCompleted(project); }
-                catch (Exception e) { LogUtil.Error($"IResearchListener {p.GetType().Name} threw in OnResearchCompleted: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                FactionCache.FactionComp?.InvalidateAllSettlementStatCaches();
-            }
+            RegistryDispatch.EachInvalidating(_research.Items,
+                p => p.OnResearchCompleted(project),
+                () => FactionCache.FactionComp?.InvalidateAllSettlementStatCaches(),
+                nameof(IResearchListener.OnResearchCompleted));
             FactionCache.FactionComp?.InvalidateAllSettlementStatCaches();
         }
     }

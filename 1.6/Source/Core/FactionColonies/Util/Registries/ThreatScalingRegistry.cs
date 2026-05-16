@@ -1,44 +1,27 @@
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
 {
     /// <summary>
     /// Allows submods to contribute additive or multiplicative modifiers to the Empire Threat Level (ETL).
-    /// Follows the same pattern as <see cref="BattleModifierRegistry"/>.
     /// </summary>
     public static class ThreatScalingRegistry
     {
-        private static readonly List<IThreatScalingContributor> _contributors = new List<IThreatScalingContributor>();
+        private static readonly RegistryList<IThreatScalingContributor> _list = new RegistryList<IThreatScalingContributor>();
 
-        public static void Register(IThreatScalingContributor contributor)
-        {
-            if (!_contributors.Contains(contributor)) _contributors.Add(contributor);
-        }
-        public static void Unregister(IThreatScalingContributor contributor) => _contributors.Remove(contributor);
-        public static void ClearAll() => _contributors.Clear();
-        public static IReadOnlyList<IThreatScalingContributor> Contributors => _contributors;
+        internal static void Register(IThreatScalingContributor contributor) => _list.Register(contributor);
+        internal static void Unregister(IThreatScalingContributor contributor) => _list.Unregister(contributor);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<IThreatScalingContributor> Contributors => _list.Items;
 
         public static double InvokeGetAdditiveContributions(FactionFC faction)
-        {
-            double total = 0;
-            foreach (IThreatScalingContributor contributor in _contributors)
-            {
-                try { total += contributor.GetAdditiveContribution(faction); }
-                catch (Exception e) { LogUtil.Error($"IThreatScalingContributor {contributor.GetType().Name} threw in GetAdditiveContribution: {e}"); }
-            }
-            return total;
-        }
+            => RegistryDispatch.Aggregate(_list.Items, 0.0,
+                (acc, c) => acc + c.GetAdditiveContribution(faction),
+                nameof(IThreatScalingContributor.GetAdditiveContribution));
 
         public static double InvokeGetMultiplierContributions(FactionFC faction)
-        {
-            double total = 1.0;
-            foreach (IThreatScalingContributor contributor in _contributors)
-            {
-                try { total *= contributor.GetMultiplicativeContribution(faction); }
-                catch (Exception e) { LogUtil.Error($"IThreatScalingContributor {contributor.GetType().Name} threw in GetMultiplicativeContribution: {e}"); }
-            }
-            return total;
-        }
+            => RegistryDispatch.Aggregate(_list.Items, 1.0,
+                (acc, c) => acc * c.GetMultiplicativeContribution(faction),
+                nameof(IThreatScalingContributor.GetMultiplicativeContribution));
     }
 }

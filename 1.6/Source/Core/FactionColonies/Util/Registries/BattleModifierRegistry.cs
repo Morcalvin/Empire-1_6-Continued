@@ -1,6 +1,5 @@
 using RimWorld;
 using RimWorld.Planet;
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
@@ -13,39 +12,30 @@ namespace FactionColonies
     /// </summary>
     public static class BattleModifierRegistry
     {
-        private static readonly List<IFactionPowerModifier> _factionModifiers = new List<IFactionPowerModifier>();
-        private static readonly List<ISettlementPowerModifier> _settlementModifiers = new List<ISettlementPowerModifier>();
-        private static readonly List<IBattleModifier> _battleModifiers = new List<IBattleModifier>();
+        private static readonly RegistryList<IFactionPowerModifier> _factionList = new RegistryList<IFactionPowerModifier>();
+        private static readonly RegistryList<ISettlementPowerModifier> _settlementList = new RegistryList<ISettlementPowerModifier>();
+        private static readonly RegistryList<IBattleModifier> _battleList = new RegistryList<IBattleModifier>();
 
         /* === Registration === */
 
-        public static void Register(IFactionPowerModifier modifier)
+        internal static void Register(IFactionPowerModifier modifier) => _factionList.Register(modifier);
+        internal static void Register(ISettlementPowerModifier modifier) => _settlementList.Register(modifier);
+        internal static void Register(IBattleModifier modifier) => _battleList.Register(modifier);
+
+        internal static void Unregister(IFactionPowerModifier modifier) => _factionList.Unregister(modifier);
+        internal static void Unregister(ISettlementPowerModifier modifier) => _settlementList.Unregister(modifier);
+        internal static void Unregister(IBattleModifier modifier) => _battleList.Unregister(modifier);
+
+        internal static void ClearAll()
         {
-            if (modifier is object && !_factionModifiers.Contains(modifier)) _factionModifiers.Add(modifier);
-        }
-        public static void Register(ISettlementPowerModifier modifier)
-        {
-            if (modifier is object && !_settlementModifiers.Contains(modifier)) _settlementModifiers.Add(modifier);
-        }
-        public static void Register(IBattleModifier modifier)
-        {
-            if (modifier is object && !_battleModifiers.Contains(modifier)) _battleModifiers.Add(modifier);
+            _factionList.ClearAll();
+            _settlementList.ClearAll();
+            _battleList.ClearAll();
         }
 
-        public static void Unregister(IFactionPowerModifier modifier) => _factionModifiers.Remove(modifier);
-        public static void Unregister(ISettlementPowerModifier modifier) => _settlementModifiers.Remove(modifier);
-        public static void Unregister(IBattleModifier modifier) => _battleModifiers.Remove(modifier);
-
-        public static void ClearAll()
-        {
-            _factionModifiers.Clear();
-            _settlementModifiers.Clear();
-            _battleModifiers.Clear();
-        }
-
-        public static IReadOnlyList<IFactionPowerModifier> FactionModifiers => _factionModifiers;
-        public static IReadOnlyList<ISettlementPowerModifier> SettlementModifiers => _settlementModifiers;
-        public static IReadOnlyList<IBattleModifier> BattleModifiers => _battleModifiers;
+        public static IReadOnlyList<IFactionPowerModifier> FactionModifiers => _factionList.Items;
+        public static IReadOnlyList<ISettlementPowerModifier> SettlementModifiers => _settlementList.Items;
+        public static IReadOnlyList<IBattleModifier> BattleModifiers => _battleList.Items;
 
         /* === Invocation (worldcomp-only) === */
 
@@ -54,38 +44,26 @@ namespace FactionColonies
         /// <c>ComputeFactionBaseline</c> populates a faction entry's level/efficiency.
         /// </summary>
         public static void InvokeFactionPowerModifiers(Faction faction, EnemyPower power)
-        {
-            foreach (IFactionPowerModifier modifier in _factionModifiers)
-            {
-                try { modifier.ModifyFactionPower(faction, power); }
-                catch (Exception e) { LogUtil.Error($"IFactionPowerModifier {modifier.GetType().Name} threw in ModifyFactionPower: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_factionList.Items,
+                m => m.ModifyFactionPower(faction, power),
+                nameof(IFactionPowerModifier.ModifyFactionPower));
 
         /// <summary>
         /// Settlement-level cache pass. Called by <see cref="WorldComponent_EnemyPower"/> after
         /// a settlement entry is mirrored from its faction's baseline.
         /// </summary>
         public static void InvokeSettlementPowerModifiers(Settlement settlement, EnemyPower power)
-        {
-            foreach (ISettlementPowerModifier modifier in _settlementModifiers)
-            {
-                try { modifier.ModifySettlementPower(settlement, power); }
-                catch (Exception e) { LogUtil.Error($"ISettlementPowerModifier {modifier.GetType().Name} threw in ModifySettlementPower: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_settlementList.Items,
+                m => m.ModifySettlementPower(settlement, power),
+                nameof(ISettlementPowerModifier.ModifySettlementPower));
 
         /// <summary>
         /// Attack-time pass. Called by <see cref="WorldComponent_EnemyPower"/>'s resolution
         /// helpers (ResolveDefenderForceForOp, ResolveDefenderBounds, ApplyBattleModifiers).
         /// </summary>
         public static void InvokeBattleModifiers(BattleForceContext ctx, MilitaryForce force, bool isAttacker)
-        {
-            foreach (IBattleModifier modifier in _battleModifiers)
-            {
-                try { modifier.ModifyForce(ctx, force, isAttacker); }
-                catch (Exception e) { LogUtil.Error($"IBattleModifier {modifier.GetType().Name} threw in ModifyForce: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_battleList.Items,
+                m => m.ModifyForce(ctx, force, isAttacker),
+                nameof(IBattleModifier.ModifyForce));
     }
 }

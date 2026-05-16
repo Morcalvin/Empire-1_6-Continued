@@ -1,27 +1,17 @@
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
 {
     public static class MainTableRegistry
     {
-        private static readonly List<IMainTabWindowOverview> _tabs = new List<IMainTabWindowOverview>();
+        private static readonly RegistryList<IMainTabWindowOverview> _list = new RegistryList<IMainTabWindowOverview>();
 
-        public static void Register(IMainTabWindowOverview tab)
-        {
-            if (!_tabs.Contains(tab)) _tabs.Add(tab);
-        }
-        public static void Unregister(IMainTabWindowOverview tab) => _tabs.Remove(tab);
-        public static void ClearAll() => _tabs.Clear();
-        public static IReadOnlyList<IMainTabWindowOverview> Tabs => _tabs;
+        internal static void Register(IMainTabWindowOverview tab) => _list.Register(tab);
+        internal static void Unregister(IMainTabWindowOverview tab) => _list.Unregister(tab);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<IMainTabWindowOverview> Tabs => _list.Items;
 
         public static void InvokePostCloseWindow()
-        {
-            foreach (IMainTabWindowOverview tab in _tabs)
-            {
-                try { tab.PostCloseWindow(); }
-                catch (Exception e) { LogUtil.Error($"IMainTabWindowOverview {tab.GetType().Name} threw in PostCloseWindow: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_list.Items, t => t.PostCloseWindow(), nameof(IMainTabWindowOverview.PostCloseWindow));
     }
 }

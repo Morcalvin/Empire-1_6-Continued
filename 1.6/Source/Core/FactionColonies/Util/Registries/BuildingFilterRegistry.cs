@@ -4,16 +4,11 @@ namespace FactionColonies
 {
     public static class BuildingFilterRegistry
     {
-        private static readonly List<BuildingFilter> _filters = new List<BuildingFilter>();
+        private static readonly RegistryList<BuildingFilter> _list = new RegistryList<BuildingFilter>();
 
-        public static void Register(BuildingFilter filter)
-        {
-            if (!_filters.Contains(filter)) _filters.Add(filter);
-        }
-
-        public static void Unregister(BuildingFilter filter) => _filters.Remove(filter);
-        public static void ClearAll() => _filters.Clear();
-
-        public static IReadOnlyList<BuildingFilter> Filters => _filters;
+        internal static void Register(BuildingFilter filter) => _list.Register(filter);
+        internal static void Unregister(BuildingFilter filter) => _list.Unregister(filter);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<BuildingFilter> Filters => _list.Items;
     }
 }

@@ -1,36 +1,20 @@
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
 {
     public static class DefenseValidatorRegistry
     {
-        private static readonly List<IDefenseValidator> _validators = new List<IDefenseValidator>();
+        private static readonly RegistryList<IDefenseValidator> _list = new RegistryList<IDefenseValidator>();
 
-        public static void Register(IDefenseValidator validator)
-        {
-            if (!_validators.Contains(validator)) _validators.Add(validator);
-        }
-        public static void Unregister(IDefenseValidator validator) => _validators.Remove(validator);
-        public static void ClearAll() => _validators.Clear();
+        internal static void Register(IDefenseValidator v) => _list.Register(v);
+        internal static void Unregister(IDefenseValidator v) => _list.Unregister(v);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<IDefenseValidator> Validators => _list.Items;
 
         /// <summary>
         /// Returns true if all registered validators allow the defense assignment.
         /// </summary>
         public static bool CanDefend(WorldSettlementFC defender, WorldSettlementFC target)
-        {
-            foreach (IDefenseValidator validator in _validators)
-            {
-                try
-                {
-                    if (!validator.CanDefend(defender, target)) return false;
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"IDefenseValidator {validator.GetType().Name} threw in CanDefend: {e}");
-                }
-            }
-            return true;
-        }
+            => RegistryDispatch.All(_list.Items, v => v.CanDefend(defender, target), nameof(IDefenseValidator.CanDefend));
     }
 }

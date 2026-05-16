@@ -13,13 +13,16 @@ namespace FactionColonies
     /// <see cref="ISquadPowerModifier.Priority"/> order. Each modifier receives
     /// the running power and returns the modified value, so multiple submods
     /// compose (veterancy + specialist + augmentation each contribute).</para>
+    /// <para>Storage is a raw <see cref="List{T}"/> rather than <see cref="RegistryList{T}"/>
+    /// because Register/Unregister/ClearAll must invalidate the cached priority-sorted
+    /// view; the standard wrapper has no hook for that.</para>
     /// </summary>
     public static class SquadPowerRegistry
     {
         private static readonly List<ISquadPowerModifier> _modifiers = new List<ISquadPowerModifier>();
         private static List<ISquadPowerModifier> _sortedCache;
 
-        public static void Register(ISquadPowerModifier modifier)
+        internal static void Register(ISquadPowerModifier modifier)
         {
             if (modifier is null) return;
             if (!_modifiers.Contains(modifier))
@@ -29,12 +32,12 @@ namespace FactionColonies
             }
         }
 
-        public static void Unregister(ISquadPowerModifier modifier)
+        internal static void Unregister(ISquadPowerModifier modifier)
         {
             if (_modifiers.Remove(modifier)) _sortedCache = null;
         }
 
-        public static void ClearAll()
+        internal static void ClearAll()
         {
             _modifiers.Clear();
             _sortedCache = null;
@@ -50,21 +53,11 @@ namespace FactionColonies
             if (squad?.settlement is null) return new SquadPower(1, 1);
 
             SquadPower power = ComputeBasePower(squad);
-
-            List<ISquadPowerModifier> sorted = GetSortedModifiers();
-            for (int i = 0; i < sorted.Count; i++)
-            {
-                ISquadPowerModifier modifier = sorted[i];
-                try
-                {
-                    power = modifier.ModifyPower(squad, power);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"ISquadPowerModifier {modifier.GetType().Name} threw in ModifyPower: {e}");
-                }
-            }
-            return power;
+            SquadPower running = power;
+            RegistryDispatch.Each(GetSortedModifiers(),
+                m => running = m.ModifyPower(squad, running),
+                nameof(ISquadPowerModifier.ModifyPower));
+            return running;
         }
 
         /// <summary>Inverse of <c>MilitaryCustomizationUtil.CalculateSquadBudget</c>:

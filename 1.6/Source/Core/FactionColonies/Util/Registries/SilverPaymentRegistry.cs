@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace FactionColonies
@@ -22,23 +21,16 @@ namespace FactionColonies
 
     public static class SilverPaymentRegistry
     {
-        private static readonly List<ISilverPaymentModifier> _modifiers = new List<ISilverPaymentModifier>();
+        private static readonly RegistryList<ISilverPaymentModifier> _list = new RegistryList<ISilverPaymentModifier>();
 
-        public static void Register(ISilverPaymentModifier modifier)
-        {
-            if (!_modifiers.Contains(modifier)) _modifiers.Add(modifier);
-        }
-        public static void Unregister(ISilverPaymentModifier modifier) => _modifiers.Remove(modifier);
-        public static void ClearAll() => _modifiers.Clear();
-        public static IReadOnlyList<ISilverPaymentModifier> Modifiers => _modifiers;
+        internal static void Register(ISilverPaymentModifier modifier) => _list.Register(modifier);
+        internal static void Unregister(ISilverPaymentModifier modifier) => _list.Unregister(modifier);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<ISilverPaymentModifier> Modifiers => _list.Items;
 
         public static SilverPaymentContext InvokeModifiers(SilverPaymentContext context)
         {
-            foreach (ISilverPaymentModifier modifier in _modifiers)
-            {
-                try { modifier.ModifyPayment(context); }
-                catch (Exception e) { LogUtil.Error($"ISilverPaymentModifier {modifier.GetType().Name} threw in ModifyPayment: {e}"); }
-            }
+            RegistryDispatch.Each(_list.Items, m => m.ModifyPayment(context), nameof(ISilverPaymentModifier.ModifyPayment));
             return context;
         }
     }

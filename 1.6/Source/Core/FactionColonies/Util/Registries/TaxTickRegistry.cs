@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Verse;
 
@@ -6,55 +5,38 @@ namespace FactionColonies
 {
     public static class TaxTickRegistry
     {
-        private static readonly List<ITaxTickParticipant> _taxers = new List<ITaxTickParticipant>();
+        private static readonly RegistryList<ITaxTickParticipant> _list = new RegistryList<ITaxTickParticipant>();
 
-        public static void Register(ITaxTickParticipant taxer)
-        {
-            if (!_taxers.Contains(taxer)) _taxers.Add(taxer);
-        }
-        public static void Unregister(ITaxTickParticipant taxer) => _taxers.Remove(taxer);
-        public static void ClearAll() => _taxers.Clear();
-        public static IReadOnlyList<ITaxTickParticipant> Taxers => _taxers;
+        internal static void Register(ITaxTickParticipant taxer) => _list.Register(taxer);
+        internal static void Unregister(ITaxTickParticipant taxer) => _list.Unregister(taxer);
+        internal static void ClearAll() => _list.ClearAll();
+        public static IReadOnlyList<ITaxTickParticipant> Taxers => _list.Items;
 
         public static void InvokePreTaxResolution(FactionFC faction)
-        {
-            foreach (ITaxTickParticipant taxer in _taxers)
-            {
-                try { taxer.PreTaxResolution(faction); }
-                catch (Exception e) { LogUtil.Error($"ITaxTickParticipant {taxer.GetType().Name} threw in PreTaxResolution: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_list.Items, t => t.PreTaxResolution(faction), nameof(ITaxTickParticipant.PreTaxResolution));
 
         public static void InvokePostTaxResolution(FactionFC faction)
-        {
-            foreach (ITaxTickParticipant taxer in _taxers)
-            {
-                try { taxer.PostTaxResolution(faction); }
-                catch (Exception e) { LogUtil.Error($"ITaxTickParticipant {taxer.GetType().Name} threw in PostTaxResolution: {e}"); }
-            }
-        }
+            => RegistryDispatch.Each(_list.Items, t => t.PostTaxResolution(faction), nameof(ITaxTickParticipant.PostTaxResolution));
 
         public static void InvokePreSettlementCreateTax(WorldSettlementFC settlement)
         {
-            foreach (ITaxTickParticipant taxer in _taxers)
-            {
-                try { taxer.PreSettlementCreateTax(settlement); }
-                catch (Exception e) { LogUtil.Error($"ITaxTickParticipant {taxer.GetType().Name} threw in PreSettlementCreateTax: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            RegistryDispatch.EachInvalidating(_list.Items,
+                t => t.PreSettlementCreateTax(settlement),
+                () => settlement.InvalidateStatCache(),
+                nameof(ITaxTickParticipant.PreSettlementCreateTax));
             settlement.InvalidateStatCache();
         }
 
         public static void InvokePostSettlementCreateTax(WorldSettlementFC settlement, ref int silverAmount, List<Thing> titheThings)
         {
-            foreach (ITaxTickParticipant taxer in _taxers)
-            {
-                try { taxer.PostSettlementCreateTax(settlement, ref silverAmount, titheThings); }
-                catch (Exception e) { LogUtil.Error($"ITaxTickParticipant {taxer.GetType().Name} threw in PostSettlementCreateTax: {e}"); }
-                // Intentional: invalidate per-participant so the next participant sees fresh cache
-                settlement.InvalidateStatCache();
-            }
+            // Local copies for the closure (out/ref params can't be captured directly across the iteration).
+            int silver = silverAmount;
+            List<Thing> tithe = titheThings;
+            RegistryDispatch.EachInvalidating(_list.Items,
+                t => t.PostSettlementCreateTax(settlement, ref silver, tithe),
+                () => settlement.InvalidateStatCache(),
+                nameof(ITaxTickParticipant.PostSettlementCreateTax));
+            silverAmount = silver;
             settlement.InvalidateStatCache();
         }
     }
