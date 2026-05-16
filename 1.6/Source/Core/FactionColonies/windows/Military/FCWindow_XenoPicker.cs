@@ -1,3 +1,4 @@
+using FactionColonies.util;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -73,18 +74,12 @@ namespace FactionColonies
 
             foreach (XenotypeDef def in FactionCache.ViolentXenotypeDefs)
             {
-                float factor = 1f;
-                foreach (GeneDef g in def.genes)
-                {
-                    if (g.marketValueFactor > 0)
-                        factor *= g.marketValueFactor;
-                }
                 xenoOptions.Add(new XenoOption
                 {
                     def = def,
                     label = (def.label ?? def.defName).CapitalizeFirst(),
                     icon = def.Icon,
-                    costFactor = factor
+                    costFactor = GeneValuationUtil.XenotypeFactor(def)
                 });
             }
 
@@ -96,18 +91,12 @@ namespace FactionColonies
                 {
                     foreach (CustomXenotype custom in violentCustom)
                     {
-                        float factor = 1f;
-                        foreach (GeneDef g in custom.genes)
-                        {
-                            if (g.marketValueFactor > 0)
-                                factor *= g.marketValueFactor;
-                        }
                         xenoOptions.Add(new XenoOption
                         {
                             custom = custom,
                             label = (custom.name ?? "???").CapitalizeFirst() + " (" + "Custom".Translate() + ")",
                             icon = custom.IconDef.Icon,
-                            costFactor = factor
+                            costFactor = GeneValuationUtil.XenotypeFactor(custom)
                         });
                     }
                 }
