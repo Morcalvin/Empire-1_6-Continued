@@ -1168,7 +1168,7 @@ namespace FactionColonies
 
             if (settlement.MilitaryComp.isUnderAttack)
             {
-                FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
+                FCEvent evt = MilitaryOperationsUtil.ReturnMilitaryEventByLocation(settlement.Tile);
                 MilitaryOperation op = evt?.linkedOperation;
                 MilitaryForce attackerForce = op?.aggressor?.force;
                 MilitaryForce defenderForce = op?.defender?.force;

@@ -132,7 +132,7 @@ namespace FactionColonies.util
                         FCEvent warning = op.sourceEvents?.Find(e => e?.def == FCEventDefOf.settlementBeingAttacked);
                         if (warning is object)
                         {
-                            MilitaryUtilFC.ChangeDefendingMilitaryForce(warning, targetSettlement);
+                            MilitaryOperationsUtil.ChangeDefendingMilitaryForce(warning, targetSettlement);
                             continue;
                         }
                     }

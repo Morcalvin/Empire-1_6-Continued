@@ -257,7 +257,7 @@ namespace FactionColonies
                             MilitaryUtil.GetTechLevelBaseline(enemyFaction.def.techLevel, out double _, out double efficiency);
                             MilitaryForce attackingForce = new MilitaryForce(chosenLevel, efficiency, null, enemyFaction);
                             LogUtil.MessageForce($"Debug - Attack Player Settlement - {settlement.Name} (level {chosenLevel}, efficiency {efficiency})");
-                            if (!MilitaryUtilFC.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
+                            if (!MilitaryOperationsUtil.AttackPlayerSettlement(attackingForce, settlement, enemyFaction))
                             {
                                 Messages.Message($"Debug attack on {settlement.Name} failed (no MilitaryComp or MilitaryManager).", MessageTypeDefOf.RejectInput);
                             }
@@ -385,7 +385,7 @@ namespace FactionColonies
                                         if (settlement.MilitaryComp.IsMilitaryBusy() == false)
                                         {
                                             LogUtil.MessageForce($"Debug - Change Player Settlement - {currentDefenderHome?.Name ?? "Unknown"} to {settlement.Name}");
-                                            MilitaryUtilFC.ChangeDefendingMilitaryForce(evt, settlement);
+                                            MilitaryOperationsUtil.ChangeDefendingMilitaryForce(evt, settlement);
                                         }
                                     }
                                 ));

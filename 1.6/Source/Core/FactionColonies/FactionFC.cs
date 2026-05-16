@@ -808,13 +808,13 @@ namespace FactionColonies
                                     WorldSettlementFC target = raidableSettlements.RandomElementByWeight(
                                         s => (float)GetMilitaryTargetWeight(s.settlementMilitaryLevel) * s.settlementDef.raidTargetingWeight
                                              * RaidWeightRegistry.GetCombinedWeight(s, enemy));
-                                    MilitaryUtilFC.AttackPlayerSettlement(attackingForce, target, enemy);
+                                    MilitaryOperationsUtil.AttackPlayerSettlement(attackingForce, target, enemy);
                                 }
                                 else if (validExternalTargets.Any())
                                 {
                                     IRaidTarget target = validExternalTargets.RandomElementByWeight(
                                         t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
-                                    MilitaryUtilFC.AttackRaidTarget(attackingForce, target, enemy);
+                                    MilitaryOperationsUtil.AttackRaidTarget(attackingForce, target, enemy);
                                 }
                             }
                         }

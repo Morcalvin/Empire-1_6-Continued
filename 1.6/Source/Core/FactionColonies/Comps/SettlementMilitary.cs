@@ -348,7 +348,7 @@ namespace FactionColonies
             if (isUnderAttack)
             {
                 // Show change-defender gizmos for each pending (not yet fired) attack event
-                IReadOnlyList<FCEvent> pendingEvents = MilitaryUtilFC.ReturnMilitaryEventsByLocation(WorldSettlement.Tile);
+                IReadOnlyList<FCEvent> pendingEvents = MilitaryOperationsUtil.ReturnMilitaryEventsByLocation(WorldSettlement.Tile);
                 for (int i = 0; i < pendingEvents.Count; i++)
                 {
                     yield return ChangeDefenderAction(pendingEvents[i]);
@@ -399,7 +399,7 @@ namespace FactionColonies
                 icon = TexLoad.iconMilitary,
                 action = delegate
                 {
-                    StartDefence(MilitaryUtilFC.ReturnMilitaryEventByLocation(WorldSettlement.Tile), () => { });
+                    StartDefence(MilitaryOperationsUtil.ReturnMilitaryEventByLocation(WorldSettlement.Tile), () => { });
                 }
             };
             /* If auto-battle is enabled, then disable the button. We leave it visible, though, so that the player knows that this is an option if
@@ -445,7 +445,7 @@ namespace FactionColonies
                 icon = TexLoad.iconMilitary,
                 action = () =>
                 {
-                    StartDefence(MilitaryUtilFC.ReturnMilitaryEventByLocation(WorldSettlement.Tile), () => CaravanDefend(caravan));
+                    StartDefence(MilitaryOperationsUtil.ReturnMilitaryEventByLocation(WorldSettlement.Tile), () => CaravanDefend(caravan));
                 }
             };
             /* If auto-battle is enabled, then disable the button. We leave it visible, though, so that the player knows that this is an option if
@@ -671,7 +671,7 @@ namespace FactionColonies
         public void PostSettlementLoadInit(WorldSettlementFC settlement)
         {
             if (isUnderAttack
-                && MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile) is null
+                && MilitaryOperationsUtil.ReturnMilitaryEventByLocation(settlement.Tile) is null
                 && !attackers.Any() && !defenders.Any())
             {
                 // Save taken mid-battle: event was removed from the queue but combatants are still
@@ -700,7 +700,7 @@ namespace FactionColonies
             if (militaryLocation == PlanetTile.Invalid) return true;
 
             // Active warning event for the target; defense is actually in progress.
-            if (MilitaryUtilFC.ReturnMilitaryEventByLocation(militaryLocation) is object) return false;
+            if (MilitaryOperationsUtil.ReturnMilitaryEventByLocation(militaryLocation) is object) return false;
 
             // Target world object is gone (settlement destroyed, outpost despawned, etc.): stale.
             var targetComp = Find.WorldObjects.WorldObjectAt<WorldSettlementFC>(militaryLocation)?.MilitaryComp;

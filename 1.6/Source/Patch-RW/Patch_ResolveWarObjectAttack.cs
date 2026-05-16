@@ -53,7 +53,7 @@ namespace FactionColonies.RW
             attackingForce.militaryLevel = level;
             attackingForce.forceRemaining = Math.Max(1, Math.Round(attackingForce.militaryLevel * attackingForce.militaryEfficiency));
 
-            MilitaryUtilFC.AttackPlayerSettlement(attackingForce, empireSettlement, attacker.Faction);
+            MilitaryOperationsUtil.AttackPlayerSettlement(attackingForce, empireSettlement, attacker.Faction);
 
             LogUtil.Message("RW attack on " + empireSettlement.Name + " by " + attacker.Faction.Name
                 + " (pts=" + attacker.RimWarPoints + " -> level=" + level.ToString("F1") + ")");

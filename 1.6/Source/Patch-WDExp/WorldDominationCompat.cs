@@ -81,7 +81,7 @@ namespace FactionColonies.WDExp
             attackingForce.forceRemaining = Math.Max(1, Math.Round(attackingForce.militaryLevel * attackingForce.militaryEfficiency));
 
             // Route through Empire's defense system (1-day warning + auto-battle/manual)
-            bool queued = MilitaryUtilFC.AttackPlayerSettlement(attackingForce, empireSettlement, traveler.Faction);
+            bool queued = MilitaryOperationsUtil.AttackPlayerSettlement(attackingForce, empireSettlement, traveler.Faction);
 
             if (queued)
             {

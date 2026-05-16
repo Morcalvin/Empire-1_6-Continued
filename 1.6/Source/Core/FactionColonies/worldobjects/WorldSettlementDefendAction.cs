@@ -18,7 +18,7 @@ namespace FactionColonies
             this.settlement = settlement;
         }
 
-        public override void Arrived(Caravan caravan) => settlement.MilitaryComp?.StartDefence(MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile), () => settlement.MilitaryComp?.CaravanDefend(caravan));
+        public override void Arrived(Caravan caravan) => settlement.MilitaryComp?.StartDefence(MilitaryOperationsUtil.ReturnMilitaryEventByLocation(settlement.Tile), () => settlement.MilitaryComp?.CaravanDefend(caravan));
 
         public override void ExposeData()
         {

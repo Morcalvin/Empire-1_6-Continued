@@ -13,8 +13,8 @@ namespace FactionColonies
     /// defender force, travel time to the besieged settlement, and predicted win chance
     /// against the actual incoming attacker. External <see cref="IAutoDefender"/> entries
     /// (VOE outposts, etc.) appear under the squad list. Confirm dispatches to
-    /// <see cref="MilitaryUtilFC.ChangeDefendingToSquad"/> or
-    /// <see cref="MilitaryUtilFC.ChangeDefendingToExternalForce"/>.
+    /// <see cref="MilitaryOperationsUtil.ChangeDefendingToSquad"/> or
+    /// <see cref="MilitaryOperationsUtil.ChangeDefendingToExternalForce"/>.
     /// <para>Card layout, scroll plumbing, sort/filter, and status helpers live on
     /// <see cref="Dialog_SquadPicker"/>.</para>
     /// </summary>
@@ -160,13 +160,13 @@ namespace FactionColonies
             if (op is null || evt is null) { Close(); return; }
             if (selectedExternal is object)
             {
-                MilitaryUtilFC.ChangeDefendingToExternalForce(evt, selectedExternal);
+                MilitaryOperationsUtil.ChangeDefendingToExternalForce(evt, selectedExternal);
                 Close();
                 return;
             }
             if (selected is object && selected.IsAvailable)
             {
-                MilitaryUtilFC.ChangeDefendingToSquad(evt, selected);
+                MilitaryOperationsUtil.ChangeDefendingToSquad(evt, selected);
                 Close();
                 return;
             }

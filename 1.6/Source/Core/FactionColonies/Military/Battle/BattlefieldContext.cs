@@ -178,7 +178,7 @@ namespace FactionColonies
             // and no warning event in queue.
             if (ticks % OrphanCheckTickInterval == 0 && map is null && !attackerPawns.Any() && !defenderPawns.Any())
             {
-                FCEvent evt = MilitaryUtilFC.ReturnMilitaryEventByLocation(settlement.Tile);
+                FCEvent evt = MilitaryOperationsUtil.ReturnMilitaryEventByLocation(settlement.Tile);
                 if (evt is null)
                 {
                     LogUtil.Warning($"Clearing orphaned isUnderAttack flag on {settlement.Name} " +
@@ -1253,7 +1253,7 @@ namespace FactionColonies
             }
 
             // Battle hasn't started yet — start it via the op linked to the warning event.
-            FCEvent warning = MilitaryUtilFC.ReturnMilitaryEventByLocation(new PlanetTile(destinationTile));
+            FCEvent warning = MilitaryOperationsUtil.ReturnMilitaryEventByLocation(new PlanetTile(destinationTile));
             if (warning is null)
             {
                 LogUtil.Warning("AddToDefenceFromList: no settlementBeingAttacked event at destination tile.");

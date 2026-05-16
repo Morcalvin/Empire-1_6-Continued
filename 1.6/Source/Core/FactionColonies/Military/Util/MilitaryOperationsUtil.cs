@@ -5,7 +5,7 @@ using Verse;
 
 namespace FactionColonies
 {
-    public static class MilitaryUtilFC
+    public static class MilitaryOperationsUtil
     {
         /// <summary>
         /// Schedules a defensive operation against an Empire settlement: creates a
