@@ -128,7 +128,6 @@ namespace FactionColonies
             _cachedAllowed = null;
             _cachedAllowedCombat = null;
             _cachedAllowedPack = null;
-            FactionCache.FactionComp?.xenotypeFilter?.InvalidateGuardAnimalCache();
         }
 
         public void ExposeData()

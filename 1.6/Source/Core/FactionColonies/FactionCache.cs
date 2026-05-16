@@ -221,6 +221,15 @@ namespace FactionColonies
                 return _cachedCustomXenotypeDecoder;
             }
         }
+        public static CustomXenotype GetCustomXenotype(string name)
+        {
+            CustomXenotype xenotype = null;
+            if (!CustomXenotypesDecoder.TryGetValue(name, out xenotype))
+            {
+                LogUtil.Warning($"Custom xenotype {name} does not appear in the xenotype decoder dictionary");
+            }
+            return xenotype;
+        }
         public static List<ThingDef> HumanlikeRaces
         {
             get
@@ -257,7 +266,7 @@ namespace FactionColonies
                     {
                         foreach (XenotypeDef xenotype in XenotypeDefs)
                         {
-                            if (XenotypeFilter.XenotypeNeedsSecurityGuards(xenotype))
+                            if (XenotypeFilter.IsXenotypeNonViolent(xenotype))
                             {
                                 _cachedNonViolentXenosExist = true;
                                 break;
@@ -268,7 +277,7 @@ namespace FactionColonies
                     {
                         foreach (CustomXenotype xenotype in CustomXenotypes)
                         {
-                            if (XenotypeFilter.CustomXenotypeNeedsSecurityGuards(xenotype.name))
+                            if (XenotypeFilter.IsCustomXenotypeNonViolent(xenotype.name))
                             {
                                 _cachedNonViolentXenosExist = true;
                                 break;
@@ -289,7 +298,7 @@ namespace FactionColonies
                     _cachedXenotypeViolenceDict = new Dictionary<XenotypeDef, bool>();
                     foreach (XenotypeDef xenotype in XenotypeDefs)
                     {
-                        _cachedXenotypeViolenceDict.Add(xenotype, !XenotypeFilter.XenotypeNeedsSecurityGuards(xenotype));
+                        _cachedXenotypeViolenceDict.Add(xenotype, !XenotypeFilter.IsXenotypeNonViolent(xenotype));
                     }
                 }
                 return _cachedXenotypeViolenceDict;
@@ -304,7 +313,7 @@ namespace FactionColonies
                     _cachedCustomXenotypeViolenceDict = new Dictionary<string, bool>();
                     foreach (CustomXenotype xenotype in CustomXenotypes)
                     {
-                        _cachedCustomXenotypeViolenceDict.Add(xenotype.name, !XenotypeFilter.CustomXenotypeNeedsSecurityGuards(xenotype.name));
+                        _cachedCustomXenotypeViolenceDict.Add(xenotype.name, !XenotypeFilter.IsCustomXenotypeNonViolent(xenotype.name));
                     }
                 }
                 return _cachedCustomXenotypeViolenceDict;
