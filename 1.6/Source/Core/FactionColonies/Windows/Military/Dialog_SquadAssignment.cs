@@ -9,9 +9,9 @@ namespace FactionColonies
     /// Settlement-picker dialog used by the HireSquadsWindow's per-row "Reassign" action.
     /// Lists every Empire settlement with an indicator showing remaining cap room, and the
     /// option to "Unassign" (return the squad to the pool). On confirm calls
-    /// <see cref="MilitaryCustomizationUtil.AttemptToAssign"/> or <see cref="MilitaryCustomizationUtil.Unassign"/>.
+    /// <see cref="MilitaryFC.AttemptToAssign"/> or <see cref="MilitaryFC.Unassign"/>.
     /// Settlements at cap open a sub-menu listing their current squads to displace, dispatched
-    /// via <see cref="MilitaryCustomizationUtil.AttemptToSwap"/>.
+    /// via <see cref="MilitaryFC.AttemptToSwap"/>.
     /// </summary>
     public class Dialog_SquadAssignment : Window
     {
@@ -79,8 +79,8 @@ namespace FactionColonies
         private void DrawList(Rect rect, int squadDeploy)
         {
             FactionFC fc = FactionCache.FactionComp;
-            MilitaryCustomizationUtil util = fc?.militaryCustomizationUtil;
-            if (fc is null || util is null) return;
+            MilitaryFC mfc = fc?.military;
+            if (fc is null || mfc is null) return;
 
             List<RowData> rows = new List<RowData>();
             if (fc.settlements is object)
@@ -97,11 +97,11 @@ namespace FactionColonies
                     };
                     r.atCap = !r.isHere && r.stationed >= r.cap;
                     r.allDisplaceableBusy = r.atCap && s.StationedSquads.All(q => q is null || q.IsBusy);
-                    r.tooExpensive = !r.isHere && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(
+                    r.tooExpensive = !r.isHere && MilitaryFC.SquadExceedsSettlementBudget(
                         squad, s, out _, out r.maxDeploy);
                     if (r.isHere)
                     {
-                        double budget = MilitaryCustomizationUtil.CalculateSquadBudget(s.settlementMilitaryLevel);
+                        double budget = MilitaryFC.CalculateSquadBudget(s.settlementMilitaryLevel);
                         r.maxDeploy = MilitaryUtil.CalculateDeploymentCost(budget);
                     }
                     rows.Add(r);
@@ -125,7 +125,7 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.UpperLeft;
             if (Widgets.ButtonInvisible(unassignRect))
             {
-                util.Unassign(squad);
+                mfc.Unassign(squad);
                 Close();
             }
             row++;
@@ -180,9 +180,9 @@ namespace FactionColonies
                 {
                     if (r.atCap)
                     {
-                        OpenDisplaceMenu(util, r.settlement);
+                        OpenDisplaceMenu(mfc, r.settlement);
                     }
-                    else if (util.AttemptToAssign(squad, r.settlement))
+                    else if (mfc.AttemptToAssign(squad, r.settlement))
                     {
                         Close();
                     }
@@ -195,8 +195,8 @@ namespace FactionColonies
 
         /// <summary>Opens a sub-menu listing the target settlement's current squads and lets the
         /// player pick which one to displace. Busy squads are greyed. Picking dispatches through
-        /// <see cref="MilitaryCustomizationUtil.AttemptToSwap"/>.</summary>
-        private void OpenDisplaceMenu(MilitaryCustomizationUtil util, WorldSettlementFC target)
+        /// <see cref="MilitaryFC.AttemptToSwap"/>.</summary>
+        private void OpenDisplaceMenu(MilitaryFC mfc, WorldSettlementFC target)
         {
             List<FloatMenuOption> opts = new List<FloatMenuOption>();
             foreach (MercenarySquadFC occupant in target.StationedSquads)
@@ -205,7 +205,7 @@ namespace FactionColonies
                 MercenarySquadFC capturedOccupant = occupant;
                 System.Action onPick = occupant.IsBusy ? (System.Action)null : delegate
                 {
-                    if (util.AttemptToSwap(squad, target, capturedOccupant))
+                    if (mfc.AttemptToSwap(squad, target, capturedOccupant))
                     {
                         Close();
                     }

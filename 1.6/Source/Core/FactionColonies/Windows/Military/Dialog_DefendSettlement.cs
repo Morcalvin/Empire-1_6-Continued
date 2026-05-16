@@ -178,7 +178,7 @@ namespace FactionColonies
             externalRows.Clear();
 
             FactionFC fc = FactionCache.FactionComp;
-            List<MercenarySquadFC> pool = fc?.militaryCustomizationUtil?.mercenarySquads;
+            List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
             if (pool is null || homeSettlement is null || attackerForce is null)
             {
                 rowsDirty = false;

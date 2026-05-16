@@ -10,7 +10,7 @@ namespace FactionColonies.util
         //TODO: once the new xenotype/race filter is working, add support for choosing the type of animals that the faction uses for caravans and security
         private FactionDef faction;
         private FactionFC factionFc;
-        private MilitaryCustomizationUtil militaryUtil;
+        private MilitaryFC militaryFC;
         private bool _initialized = false;
         public bool IsInitialized => _initialized;
 
@@ -159,7 +159,7 @@ namespace FactionColonies.util
         {
             LogUtil.Message("Creating new XenotypeFilter");
             this.factionFc = factionFc;
-            militaryUtil = factionFc.militaryCustomizationUtil;
+            militaryFC = factionFc.military;
             faction = FactionCache.EmpireFactionDef;
         }
 
@@ -170,7 +170,7 @@ namespace FactionColonies.util
         public void FinalizeInit(FactionFC factionFc)
         {
             this.factionFc = factionFc;
-            militaryUtil = factionFc.militaryCustomizationUtil;
+            militaryFC = factionFc.military;
             faction = FactionCache.EmpireFactionDef;
             LogUtil.Message("XenotypeFilter FinalizeInit");
 
@@ -1014,9 +1014,9 @@ namespace FactionColonies.util
 
         private void RefreshMercenaryPawnGenOptions()
         {
-            if (militaryUtil?.mercenarySquads == null || militaryUtil?.mercenarySquads.Count == 0) return;
+            if (militaryFC?.mercenarySquads == null || militaryFC?.mercenarySquads.Count == 0) return;
 
-            foreach (MercenarySquadFC mercenarySquadFc in militaryUtil.mercenarySquads)
+            foreach (MercenarySquadFC mercenarySquadFc in militaryFC.mercenarySquads)
             {
                 List<Mercenary> newMercs = new List<Mercenary>();
                 foreach (Mercenary mercenary in mercenarySquadFc.mercenaries)

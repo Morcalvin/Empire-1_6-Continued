@@ -208,7 +208,8 @@ namespace FactionColonies
         public List<ResourceDisplay> FactionResources => factionResources;
 
         /* Military & Roads */
-        public MilitaryCustomizationUtil militaryCustomizationUtil = new MilitaryCustomizationUtil();
+        public MilitaryFC military = new MilitaryFC();
+        private MilitaryFC _legacyMilitary = null;
         public EmpireThreatAdaptation threatAdaptation = new EmpireThreatAdaptation();
         public FCRoadBuilder roadBuilder = new FCRoadBuilder();
 
@@ -353,8 +354,22 @@ namespace FactionColonies
             //Update
             Scribe_Values.Look(ref nextSettlementFCID, "nextSettlementFCID");
 
-            //Military Customization Util
-            Scribe_Deep.Look(ref militaryCustomizationUtil, "militaryCustomizationUtil");
+            //Military Data
+            // Empire Refactored v1.5 renamed MilitaryCustomizationUtil to MilitaryFC. This block of code
+            // handles migrating save data from a pre-1.5 save.
+            Scribe_Deep.Look(ref military, "militaryFC");
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                Scribe_Deep.Look(ref _legacyMilitary, "militaryCustomizationUtil");
+            }
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                if (military is null && _legacyMilitary is object) military = _legacyMilitary;
+                if (military is null) military = new MilitaryFC();
+                _legacyMilitary = null;
+            }
+
+            //Load ID tracking
             Scribe_Values.Look(ref nextMilitaryFireSupportID, "nextMilitaryFireSupportID", 1);
             Scribe_Values.Look(ref nextUnitId, "nextUnitID", 1);
             Scribe_Values.Look(ref nextSquadId, "nextSquadID", 1);
@@ -622,7 +637,7 @@ namespace FactionColonies
                     faction.color = factionColorPrimary;
             }
 
-            militaryCustomizationUtil.CheckMilitaryUtilForErrors();
+            military.CheckMilitaryUtilForErrors();
 
             // Auto-open patch notes for each mod that has new entries exceeding the player's threshold
             if (FCSettings.patchNoteAutoOpenThreshold != PatchNoteType.Undefined)
@@ -697,8 +712,8 @@ namespace FactionColonies
             // Hourly tick
             if (ticksGame % MercenaryHealTickInterval == 0)
             {
-                militaryCustomizationUtil?.TickMercenaryHealing(MercenaryHealTickInterval);
-                militaryCustomizationUtil?.TickAnimalReplacement();
+                military?.TickMercenaryHealing(MercenaryHealTickInterval);
+                military?.TickAnimalReplacement();
             }
 
             // Daily tick
@@ -830,18 +845,18 @@ namespace FactionColonies
 
         public void FireSupportTick()
         {
-            if (militaryCustomizationUtil.fireSupport is null)
+            if (military.fireSupport is null)
             {
-                militaryCustomizationUtil.fireSupport = new List<MilitaryFireSupport>();
+                military.fireSupport = new List<MilitaryFireSupport>();
             }
-            if (militaryCustomizationUtil.fireSupport.Count == 0)
+            if (military.fireSupport.Count == 0)
             {
                 return;
             }
 
             //Process ongoing fire supports
-            militaryCustomizationUtil.fireSupport.RemoveAll(support => support.ShouldBeOver);
-            militaryCustomizationUtil.fireSupport.ForEach(support => support.Process());
+            military.fireSupport.RemoveAll(support => support.ShouldBeOver);
+            military.fireSupport.ForEach(support => support.Process());
         }
 
         public void TickActions()
@@ -1704,7 +1719,7 @@ namespace FactionColonies
         void ILifecycleParticipant.OnSquadUpgraded(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            MilitaryCustomizationUtil.NotifyIfUnderfunded(squad);
+            MilitaryFC.NotifyIfUnderfunded(squad);
             ForEachBehavior(b => b.OnSquadUpgraded(this, squad));
         }
 

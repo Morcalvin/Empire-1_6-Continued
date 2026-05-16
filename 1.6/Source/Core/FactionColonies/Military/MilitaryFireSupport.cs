@@ -88,7 +88,7 @@ namespace FactionColonies
 
         public void Delete()
         {
-            FactionCache.FactionComp.militaryCustomizationUtil.fireSupportDefs.Remove(this);
+            FactionCache.FactionComp.military.fireSupportDefs.Remove(this);
         }
 
         public ThingDef ExpendProjectile()

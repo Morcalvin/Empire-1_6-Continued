@@ -264,7 +264,7 @@ namespace FactionColonies
                     "FCSquadActDismissConfirm".Translate(captured.DisplayName),
                     delegate
                     {
-                        FactionCache.FactionComp?.militaryCustomizationUtil?.DismissSquad(captured);
+                        FactionCache.FactionComp?.military?.DismissSquad(captured);
                         Close();
                     }));
             }
@@ -369,8 +369,8 @@ namespace FactionColonies
             bx += btnW + gap;
 
             /* Add unit: pick from saved blueprints, fill an empty slot, break template association. */
-            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
-            bool hasBlueprints = util?.units != null && util.units.Any(u => u != null && !u.isBlank);
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            bool hasBlueprints = mfc?.units != null && mfc.units.Any(u => u != null && !u.isBlank);
             bool hasFreeSlot = squad.mercenaries != null && squad.mercenaries.Any(m => m != null && m.pawn is null);
             bool canAddUnit = !squad.IsBusy && hasBlueprints && hasFreeSlot;
 
@@ -680,18 +680,18 @@ namespace FactionColonies
             MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
             if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
         }
 
         /*-*-*-*-* Template menu *-*-*-*-*/
 
         private void OpenTemplateMenu()
         {
-            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
-            if (util?.squads is null) return;
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            if (mfc?.squads is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             options.Add(new FloatMenuOption("FCNone".Translate(), delegate { SquadUpgradeUtil.SwapTemplate(squad, null); }));
-            foreach (MilSquadFC template in util.squads)
+            foreach (MilSquadFC template in mfc.squads)
             {
                 MilSquadFC captured = template;
                 options.Add(new FloatMenuOption(template.name ?? "(?)", delegate { SquadUpgradeUtil.SwapTemplate(squad, captured); }));
@@ -703,10 +703,10 @@ namespace FactionColonies
 
         private void OpenAddUnitMenu()
         {
-            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
-            if (util?.units is null) return;
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            if (mfc?.units is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
-            foreach (MilUnitFC unit in util.units)
+            foreach (MilUnitFC unit in mfc.units)
             {
                 if (unit is null || unit.isBlank) continue;
                 MilUnitFC captured = unit;
@@ -766,7 +766,7 @@ namespace FactionColonies
 
             if (squad.outfit != null) SquadUpgradeUtil.SwapTemplate(squad, null);
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
         }
 
         /*-*-*-*-* Submod sections *-*-*-*-*/

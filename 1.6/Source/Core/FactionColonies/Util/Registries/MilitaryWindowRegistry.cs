@@ -5,7 +5,7 @@ namespace FactionColonies
 {
     public static class MilitaryWindowRegistry
     {
-        public delegate MilitaryWindow WindowFactory(MilitaryCustomizationUtil util, FactionFC faction);
+        public delegate MilitaryWindow WindowFactory(MilitaryFC mfc, FactionFC faction);
 
         private static WindowFactory _unitsFactory;
         private static WindowFactory _squadsFactory;
@@ -79,22 +79,22 @@ namespace FactionColonies
 
         /* Creation */
 
-        public static MilitaryWindow Create(MilitaryWindowSlot slot, MilitaryCustomizationUtil util, FactionFC faction)
+        public static MilitaryWindow Create(MilitaryWindowSlot slot, MilitaryFC mfc, FactionFC faction)
         {
             switch (slot)
             {
                 case MilitaryWindowSlot.Units:
                     return _unitsFactory is object
-                        ? _unitsFactory(util, faction)
-                        : new DesignUnitsWindow(util, faction);
+                        ? _unitsFactory(mfc, faction)
+                        : new DesignUnitsWindow(mfc, faction);
                 case MilitaryWindowSlot.Squads:
                     return _squadsFactory is object
-                        ? _squadsFactory(util, faction)
-                        : new DesignSquadsWindow(util);
+                        ? _squadsFactory(mfc, faction)
+                        : new DesignSquadsWindow(mfc);
                 case MilitaryWindowSlot.FireSupport:
                     return _fireSupportFactory is object
-                        ? _fireSupportFactory(util, faction)
-                        : new FireSupportWindow(util);
+                        ? _fireSupportFactory(mfc, faction)
+                        : new FireSupportWindow(mfc);
                 default:
                     throw new ArgumentOutOfRangeException(nameof(slot), slot, null);
             }
@@ -102,13 +102,13 @@ namespace FactionColonies
 
         /* Shorthand creation */
 
-        public static MilitaryWindow CreateUnits(MilitaryCustomizationUtil util, FactionFC faction)
-            => Create(MilitaryWindowSlot.Units, util, faction);
+        public static MilitaryWindow CreateUnits(MilitaryFC mfc, FactionFC faction)
+            => Create(MilitaryWindowSlot.Units, mfc, faction);
 
-        public static MilitaryWindow CreateSquads(MilitaryCustomizationUtil util, FactionFC faction)
-            => Create(MilitaryWindowSlot.Squads, util, faction);
+        public static MilitaryWindow CreateSquads(MilitaryFC mfc, FactionFC faction)
+            => Create(MilitaryWindowSlot.Squads, mfc, faction);
 
-        public static MilitaryWindow CreateFireSupport(MilitaryCustomizationUtil util, FactionFC faction)
-            => Create(MilitaryWindowSlot.FireSupport, util, faction);
+        public static MilitaryWindow CreateFireSupport(MilitaryFC mfc, FactionFC faction)
+            => Create(MilitaryWindowSlot.FireSupport, mfc, faction);
     }
 }

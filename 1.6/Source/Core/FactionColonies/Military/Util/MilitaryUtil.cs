@@ -156,7 +156,7 @@ namespace FactionColonies
         /// <param name="DropPod"></param>
         public static void CallinExtraForces(WorldSettlementFC settlement, bool DropPod)
         {
-            MercenarySquadFC squad = FactionCache.FactionComp.militaryCustomizationUtil.CreateMercenarySquad(settlement, true);
+            MercenarySquadFC squad = FactionCache.FactionComp.military.CreateMercenarySquad(settlement, true);
             if (squad == null) return;
             // Copy the outfit from the settlement's primary stationed squad (any squad with an
             // outfit will do — we just need a template to clone the gear from).
@@ -189,7 +189,7 @@ namespace FactionColonies
                         List<ThingDef> projectiles = new List<ThingDef>(support.projectiles);
                         MilitaryFireSupport fireSupport = new MilitaryFireSupport("fireSupport", map, target.Cell,
                             projectiles.Count() * 15, 600, support.accuracy, projectiles, settlement.Tile);
-                        FactionCache.FactionComp.militaryCustomizationUtil.fireSupport.Add(fireSupport);
+                        FactionCache.FactionComp.military.fireSupport.Add(fireSupport);
 
                         Messages.Message("FCFireSupportNameWillBeFiredOnPosition".Translate(support.name), MessageTypeDefOf.ThreatSmall);
                         if (settlement.MilitaryComp != null)

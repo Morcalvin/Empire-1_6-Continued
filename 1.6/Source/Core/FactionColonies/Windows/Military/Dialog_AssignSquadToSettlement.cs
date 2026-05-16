@@ -10,9 +10,9 @@ namespace FactionColonies
     /// assignment flow — no offensive op, no defense engagement, so travel time and win
     /// chance are hidden. When the slot already has an occupant, an extra "Unassign"
     /// card sits above the squad list. Confirm dispatches through
-    /// <see cref="MilitaryCustomizationUtil.AttemptToAssign"/>,
-    /// <see cref="MilitaryCustomizationUtil.AttemptToSwap"/>, or
-    /// <see cref="MilitaryCustomizationUtil.Unassign"/> depending on the selection.
+    /// <see cref="MilitaryFC.AttemptToAssign"/>,
+    /// <see cref="MilitaryFC.AttemptToSwap"/>, or
+    /// <see cref="MilitaryFC.Unassign"/> depending on the selection.
     /// </summary>
     public class Dialog_AssignSquadToSettlement : Dialog_SquadPicker
     {
@@ -36,7 +36,7 @@ namespace FactionColonies
             this.currentSlotSquad = currentSlotSquad;
             // Cache the destination's max deploy cost so the header and the over-budget tint
             // share one value. Settlement military level doesn't change while the dialog is open.
-            double budget = MilitaryCustomizationUtil.CalculateSquadBudget(target?.settlementMilitaryLevel ?? 0);
+            double budget = MilitaryFC.CalculateSquadBudget(target?.settlementMilitaryLevel ?? 0);
             maxDeployCost = MilitaryUtil.CalculateDeploymentCost(budget);
             // WinChance is the base default but it's pruned from the toolbar here, so seed sort
             // with a mode that's still visible. Power matches what most players will care about
@@ -110,12 +110,12 @@ namespace FactionColonies
 
         protected override void Confirm()
         {
-            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
-            if (util is null || target is null) { Close(); return; }
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            if (mfc is null || target is null) { Close(); return; }
 
             if (unassignSelected)
             {
-                if (currentSlotSquad is object) util.Unassign(currentSlotSquad);
+                if (currentSlotSquad is object) mfc.Unassign(currentSlotSquad);
                 Close();
                 return;
             }
@@ -133,11 +133,11 @@ namespace FactionColonies
             bool ok;
             if (atCap && currentSlotSquad is object && currentSlotSquad.settlement == target)
             {
-                ok = util.AttemptToSwap(selected, target, currentSlotSquad);
+                ok = mfc.AttemptToSwap(selected, target, currentSlotSquad);
             }
             else
             {
-                ok = util.AttemptToAssign(selected, target);
+                ok = mfc.AttemptToAssign(selected, target);
             }
             if (ok) Close();
         }
@@ -147,7 +147,7 @@ namespace FactionColonies
             rows.Clear();
 
             FactionFC fc = FactionCache.FactionComp;
-            List<MercenarySquadFC> pool = fc?.militaryCustomizationUtil?.mercenarySquads;
+            List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
             if (pool is null)
             {
                 rowsDirty = false;

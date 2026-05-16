@@ -21,9 +21,9 @@ namespace FactionColonies
 
         public override Vector2 InitialSize => new Vector2(450f, 550f);
 
-        public FCWindow_UnitPicker(MilitaryCustomizationUtil util, Action<MilUnitFC> onSelect)
+        public FCWindow_UnitPicker(MilitaryFC mfc, Action<MilUnitFC> onSelect)
         {
-            this.units = util.units.Where(u => !u.isBlank).ToList();
+            this.units = mfc.units.Where(u => !u.isBlank).ToList();
             this.onSelect = onSelect;
             draggable = true;
             doCloseX = true;

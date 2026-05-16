@@ -16,14 +16,14 @@ namespace FactionColonies
         public IReadOnlyList<MilUnitFC> Units => units;
         public double equipmentTotalCost;
         public int tickChanged;
-        /// <summary>Monotonically increasing count of <see cref="MilitaryCustomizationUtil.HireSquad"/>
+        /// <summary>Monotonically increasing count of <see cref="MilitaryFC.HireSquad"/>
         /// invocations against this template. Drives the per-template suffix in hired squad
         /// names so every hire produces a unique number even after dismissals.</summary>
         public int hiresEverMade;
 
         public static void UpdateEquipmentTotalCostOfSquadsContaining(MilUnitFC unit)
         {
-            FactionCache.FactionComp.militaryCustomizationUtil.squads.ForEach(delegate (MilSquadFC squad)
+            FactionCache.FactionComp.military.squads.ForEach(delegate (MilSquadFC squad)
             {
                 if (squad.units.Contains(unit))
                 {
@@ -93,7 +93,7 @@ namespace FactionColonies
             units = new List<MilUnitFC>();
             for (int sq = 0; sq < MaxSquadSize; sq++)
             {
-                units.Add(FactionCache.FactionComp.militaryCustomizationUtil.blankUnit);
+                units.Add(FactionCache.FactionComp.military.blankUnit);
             }
 
             UpdateEquipmentTotalCost();
@@ -136,7 +136,7 @@ namespace FactionColonies
 
         public void DeleteSquad()
         {
-            FactionCache.FactionComp.militaryCustomizationUtil.squads.Remove(this);
+            FactionCache.FactionComp.military.squads.Remove(this);
         }
 
         public string GetUniqueLoadID()

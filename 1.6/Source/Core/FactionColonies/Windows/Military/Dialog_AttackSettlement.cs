@@ -356,7 +356,7 @@ namespace FactionColonies
         {
             rows.Clear();
             FactionFC fc = FactionCache.FactionComp;
-            List<MercenarySquadFC> pool = fc?.militaryCustomizationUtil?.mercenarySquads;
+            List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
             if (pool is null) { rowsDirty = false; return; }
 
             int now = Find.TickManager.TicksGame;

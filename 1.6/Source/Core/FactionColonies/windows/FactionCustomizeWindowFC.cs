@@ -82,9 +82,9 @@ namespace FactionColonies
                 LogUtil.Error("PlayerColonyFaction is null - cannot sync faction name/icon!");
             }
 
-            if (faction.militaryCustomizationUtil?.units != null)
+            if (faction.military?.units != null)
             {
-                foreach (MilUnitFC unit in faction.militaryCustomizationUtil.units)
+                foreach (MilUnitFC unit in faction.military.units)
                     unit.MarkEquipmentDirty();
             }
         }

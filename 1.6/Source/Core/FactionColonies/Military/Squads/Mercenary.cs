@@ -34,7 +34,7 @@ namespace FactionColonies
         {
             get
             {
-                MilUnitFC blank = FactionCache.FactionComp?.militaryCustomizationUtil?.blankUnit;
+                MilUnitFC blank = FactionCache.FactionComp?.military?.blankUnit;
                 return blank != null && loadout != null && loadout != blank;
             }
         }

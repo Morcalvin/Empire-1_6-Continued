@@ -325,7 +325,7 @@ namespace FactionColonies
         {
             FactionFC fc = FactionCache.FactionComp;
             MilUnitFC unit = this.CreateMilUnit();
-            fc.militaryCustomizationUtil.units.Add(unit);
+            fc.military.units.Add(unit);
             return unit;
         }
 
@@ -423,7 +423,7 @@ namespace FactionColonies
             foreach (int i in units)
             {
                 if (i == -1)
-                    squad.AddUnit(fc.militaryCustomizationUtil.blankUnit);
+                    squad.AddUnit(fc.military.blankUnit);
                 else
                     squad.AddUnit(milUnits[i]);
             }
@@ -437,9 +437,9 @@ namespace FactionColonies
             MilSquadFC squad = this.CreateMilSquad();
             foreach (MilUnitFC unit in squad.Units.Distinct().Where(unit => !unit.isBlank))
             {
-                fc.militaryCustomizationUtil.units.Add(unit);
+                fc.military.units.Add(unit);
             }
-            fc.militaryCustomizationUtil.squads.Add(squad);
+            fc.military.squads.Add(squad);
             return squad;
         }
 
@@ -493,7 +493,7 @@ namespace FactionColonies
         public MilitaryFireSupport Import()
         {
             MilitaryFireSupport fs = CreateFireSupport();
-            FactionCache.FactionComp.militaryCustomizationUtil.fireSupportDefs.Add(fs);
+            FactionCache.FactionComp.military.fireSupportDefs.Add(fs);
             return fs;
         }
 

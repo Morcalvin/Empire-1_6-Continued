@@ -139,7 +139,7 @@ namespace FactionColonies
             }
             else
             {
-                MilitaryWindow dsw = MilitaryWindowRegistry.CreateSquads(fc.militaryCustomizationUtil, fc);
+                MilitaryWindow dsw = MilitaryWindowRegistry.CreateSquads(fc.military, fc);
                 FCWindow_Military newWindow = new FCWindow_Military(dsw, "Create Squads");
                 Find.WindowStack.Add(newWindow);
                 newWindow.SetActive(squad);
@@ -204,7 +204,7 @@ namespace FactionColonies
             }
             else
             {
-                MilitaryWindow duw = MilitaryWindowRegistry.CreateUnits(fc.militaryCustomizationUtil, fc);
+                MilitaryWindow duw = MilitaryWindowRegistry.CreateUnits(fc.military, fc);
                 FCWindow_Military newWindow = new FCWindow_Military(duw, "Create Units");
                 Find.WindowStack.Add(newWindow);
                 newWindow.SetActive(unit);
@@ -267,7 +267,7 @@ namespace FactionColonies
             else
             {
                 FactionFC fc = FactionCache.FactionComp;
-                MilitaryWindow fsw = MilitaryWindowRegistry.CreateFireSupport(fc.militaryCustomizationUtil, fc);
+                MilitaryWindow fsw = MilitaryWindowRegistry.CreateFireSupport(fc.military, fc);
                 FCWindow_Military newWindow = new FCWindow_Military(fsw, "FCMilitaryTableButtonCreateFireSupport".Translate());
                 Find.WindowStack.Add(newWindow);
                 newWindow.SetActive(fs);

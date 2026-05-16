@@ -137,7 +137,7 @@ namespace FactionColonies
                 count++;
             }
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
         }
 
         /// <summary>Applies <paramref name="loadout"/>'s apparel + weapons to <paramref name="merc"/>

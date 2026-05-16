@@ -162,7 +162,7 @@ namespace FactionColonies
         /// structural (cost) constraint, not a temporary deployment state.</summary>
         public bool IsUnderfunded
             => settlement is object
-               && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(this, settlement, out _, out _);
+               && MilitaryFC.SquadExceedsSettlementBudget(this, settlement, out _, out _);
 
         /// <summary>True when this squad is currently assigned to a billet (settlement). False
         /// when the squad sits in the unassigned hire pool.</summary>
@@ -181,7 +181,7 @@ namespace FactionColonies
         /// <summary>
         /// Initial population pass: creates 30 mercs (one per template slot, or blank if no
         /// outfit) and equips them via <see cref="SquadEquipmentTracker.OutfitSquad"/>. The canonical first call
-        /// is from <see cref="MilitaryCustomizationUtil.HireSquad"/>, where a freshly-
+        /// is from <see cref="MilitaryFC.HireSquad"/>, where a freshly-
         /// constructed squad has <c>mercenaries.Count == 0</c> so the early-return guard
         /// does not fire.
         /// <para>Strict-manual outfit policy: the guard exists for post-load reentry
@@ -233,7 +233,7 @@ namespace FactionColonies
             }
             else
             {
-                FactionCache.FactionComp.militaryCustomizationUtil.RebuildMercenaryPawnSet();
+                FactionCache.FactionComp.military.RebuildMercenaryPawnSet();
             }
         }
         /// <summary>
@@ -314,7 +314,7 @@ namespace FactionColonies
                 }
             }
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(this);
             return true;
         }
@@ -346,7 +346,7 @@ namespace FactionColonies
             merc.ownedLoadout = null;
             merc.currentLoadout = null;
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
             Messages.Message("FCMercDismissed".Translate(), MessageTypeDefOf.NeutralEvent, false);
             return true;
         }
@@ -362,7 +362,7 @@ namespace FactionColonies
             if (IsBusy) return false;
             if (!mercenaries.Remove(merc)) return false;
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
             return true;
         }
 

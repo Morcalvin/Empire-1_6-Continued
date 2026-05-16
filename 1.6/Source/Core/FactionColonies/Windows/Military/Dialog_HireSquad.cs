@@ -17,7 +17,7 @@ namespace FactionColonies
         public override Vector2 InitialSize => new Vector2(560f, 480f);
 
         private readonly WorldSettlementFC targetSettlement;
-        private readonly MilitaryCustomizationUtil util;
+        private readonly MilitaryFC mfc;
         private MilSquadFC selected;
         private Vector2 scroll;
         private bool affordableOnly = false;
@@ -25,7 +25,7 @@ namespace FactionColonies
         public Dialog_HireSquad(WorldSettlementFC targetSettlement)
         {
             this.targetSettlement = targetSettlement;
-            this.util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            this.mfc = FactionCache.FactionComp?.military;
             doCloseX = true;
             forcePause = false;
             absorbInputAroundWindow = true;
@@ -68,8 +68,8 @@ namespace FactionColonies
                 : (string)"FCDialogHireSquadConfirm".Translate();
             if (Widgets.ButtonText(new Rect(inRect.width - 160f, btnY, 150f, 32f), label, true, true, canConfirm && affordable))
             {
-                MercenarySquadFC hired = util?.HireSquad(selected);
-                if (hired is object && targetSettlement is object) util.AttemptToAssign(hired, targetSettlement);
+                MercenarySquadFC hired = mfc?.HireSquad(selected);
+                if (hired is object && targetSettlement is object) mfc.AttemptToAssign(hired, targetSettlement);
                 Close();
             }
             GUI.color = colorBefore;
@@ -77,7 +77,7 @@ namespace FactionColonies
 
         private void DrawList(Rect rect)
         {
-            List<MilSquadFC> templates = util?.squads ?? new List<MilSquadFC>();
+            List<MilSquadFC> templates = mfc?.squads ?? new List<MilSquadFC>();
             float silver = PaymentUtil.GetSilver();
 
             float rowH = 32f;

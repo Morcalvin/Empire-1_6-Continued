@@ -53,8 +53,8 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
 
             FactionFC fc = FactionCache.FactionComp;
-            MilitaryCustomizationUtil util = fc?.militaryCustomizationUtil;
-            List<MercenarySquadFC> pool = util?.mercenarySquads ?? new List<MercenarySquadFC>();
+            MilitaryFC mfc = fc?.military;
+            List<MercenarySquadFC> pool = mfc?.mercenarySquads ?? new List<MercenarySquadFC>();
 
             float innerX = rect.x + Pad;
             float innerW = rect.width - Pad * 2f;
@@ -92,7 +92,7 @@ namespace FactionColonies
                 MercenarySquadFC squad = pool[i];
                 if (squad is null) continue;
                 Rect cardRect = new Rect(0f, runningY, scrollRect.width, CardH);
-                DrawSquadCard(cardRect, squad, i, now, util);
+                DrawSquadCard(cardRect, squad, i, now, mfc);
                 runningY += CardH + RowGap;
             }
             ScrollUtil.EndScrollView();
@@ -104,8 +104,7 @@ namespace FactionColonies
         /* Per-squad card. Header row: accent strip, squad name (clickable), right-aligned
            status badge. Detail row: Template / Billet / Cost / Upgrade columns followed by
            four right-aligned action buttons (Inspect, Reassign, Upgrade, Dismiss). */
-        private void DrawSquadCard(Rect cardRect, MercenarySquadFC squad, int index, int now,
-            MilitaryCustomizationUtil util)
+        private void DrawSquadCard(Rect cardRect, MercenarySquadFC squad, int index, int now, MilitaryFC mfc)
         {
             // Alternating row background to match settlement-card list style
             bool isHighlighted = false;
@@ -229,7 +228,7 @@ namespace FactionColonies
             Rect dismissRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(dismissRect, "FCSquadActDismiss".Translate(), highlighted: isHighlighted, disabled: !canDismiss))
             {
-                MilitaryCustomizationUtil utilCaptured = util;
+                MilitaryFC utilCaptured = mfc;
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                     "FCSquadActDismissConfirm".Translate(capturedSquad.DisplayName),
                     delegate { utilCaptured.DismissSquad(capturedSquad); }));

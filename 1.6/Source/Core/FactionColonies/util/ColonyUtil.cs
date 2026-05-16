@@ -71,10 +71,10 @@ namespace FactionColonies.util
             // Squad-first: unassign any squads billeted here so they return to the pool rather
             // than dangling with a destroyed settlement reference. The faction-wide pool
             // survives settlement removal — squads aren't owned by settlements.
-            MilitaryCustomizationUtil mcu = faction.militaryCustomizationUtil;
-            if (mcu?.mercenarySquads is object)
+            MilitaryFC mfc = faction.military;
+            if (mfc?.mercenarySquads is object)
             {
-                foreach (MercenarySquadFC s in mcu.mercenarySquads)
+                foreach (MercenarySquadFC s in mfc.mercenarySquads)
                 {
                     if (s is object && s.settlement == settlement)
                     {

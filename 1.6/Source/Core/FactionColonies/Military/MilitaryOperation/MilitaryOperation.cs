@@ -366,12 +366,12 @@ namespace FactionColonies
             // Roll up squad injuries onto the loadout BEFORE listeners run, so OnBattleResolved
             // observers see post-battle injury counts. Pawn deaths are already reflected in
             // squad.dead via the Pawn.Kill harmony patch — this call records the wound list.
-            MilitaryCustomizationUtil mcu = FactionCache.FactionComp?.militaryCustomizationUtil;
-            if (mcu is object)
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            if (mfc is object)
             {
-                if (aggressor?.squad is object) mcu.RegisterSquadInjuries(aggressor.squad);
+                if (aggressor?.squad is object) mfc.RegisterSquadInjuries(aggressor.squad);
                 if (defender?.squad is object && defender.squad != aggressor?.squad)
-                    mcu.RegisterSquadInjuries(defender.squad);
+                    mfc.RegisterSquadInjuries(defender.squad);
             }
 
             LifecycleRegistry.InvokeOnBattleResolved(this, victory, battleResult);
@@ -522,12 +522,12 @@ namespace FactionColonies
             // Defense-in-depth: re-register injuries for participating squads. By Resolve time
             // (post-cooldown), pawns are off-map and any wounds carried back are catchable here.
             // HashSet.Add is idempotent, so this is a no-op for already-tracked mercs.
-            MilitaryCustomizationUtil mcu = FactionCache.FactionComp?.militaryCustomizationUtil;
-            if (mcu is object)
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            if (mfc is object)
             {
-                if (aggressor?.squad is object) mcu.RegisterSquadInjuries(aggressor.squad);
+                if (aggressor?.squad is object) mfc.RegisterSquadInjuries(aggressor.squad);
                 if (defender?.squad is object && defender.squad != aggressor?.squad)
-                    mcu.RegisterSquadInjuries(defender.squad);
+                    mfc.RegisterSquadInjuries(defender.squad);
             }
 
             LifecycleRegistry.InvokeOnOperationResolved(this);

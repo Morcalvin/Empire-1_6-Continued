@@ -12,7 +12,7 @@ namespace FactionColonies
     {
         public override MilitaryWindowSlot Slot => MilitaryWindowSlot.Units;
 
-        protected readonly MilitaryCustomizationUtil util;
+        protected readonly MilitaryFC mfc;
         protected readonly FactionFC faction;
         protected MilUnitFC selectedUnit;
 
@@ -29,14 +29,14 @@ namespace FactionColonies
         private const float margin = 5f;
         private const float ButtonHeight = 30f;
 
-        public DesignUnitsWindow(MilitaryCustomizationUtil util, FactionFC faction)
+        public DesignUnitsWindow(MilitaryFC mfc, FactionFC faction)
         {
-            this.util = util;
+            this.mfc = mfc;
             this.faction = faction;
 
             selectedText = "Select A Unit";
 
-            util.CheckMilitaryUtilForErrors();
+            mfc.CheckMilitaryUtilForErrors();
         }
 
         public override void Select(IExposable selecting)
@@ -112,8 +112,8 @@ namespace FactionColonies
             Widgets.DrawMenuSection(listOutRect);
 
             List<MilUnitFC> filteredUnits = string.IsNullOrEmpty(unitSearchTerm)
-                ? util.units
-                : util.units.Where(u => (u.name ?? "").IndexOf(unitSearchTerm, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                ? mfc.units
+                : mfc.units.Where(u => (u.name ?? "").IndexOf(unitSearchTerm, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
 
             float viewHeight = filteredUnits.Count * RowHeight;
             Rect scrollViewRect = ScrollUtil.BeginScrollView(listOutRect, ref unitListScrollPos, viewHeight);
@@ -162,10 +162,10 @@ namespace FactionColonies
             if (Widgets.ButtonText(createBtn, "FCCreateNewUnit".Translate()))
             {
                 MilUnitFC newUnit = MilTemplateFactory.CreateUnit(false);
-                newUnit.name = $"New Unit {util.units.Count + 1}";
+                newUnit.name = $"New Unit {mfc.units.Count + 1}";
                 selectedText = newUnit.name;
                 selectedUnit = newUnit;
-                util.units.Add(newUnit);
+                mfc.units.Add(newUnit);
             }
 
             if (Widgets.ButtonText(importBtn, "FCImportUnit".Translate()))
@@ -185,8 +185,8 @@ namespace FactionColonies
                         {
                             // Routes through DeleteUnit so any merc referencing the unit
                             // snapshots into ownedLoadout (gear preserved).
-                            util.DeleteUnit(unitToDelete);
-                            util.CheckMilitaryUtilForErrors();
+                            mfc.DeleteUnit(unitToDelete);
+                            mfc.CheckMilitaryUtilForErrors();
                             if (selectedUnit == unitToDelete)
                             {
                                 selectedUnit = null;

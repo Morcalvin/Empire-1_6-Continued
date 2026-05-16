@@ -462,9 +462,9 @@ namespace FactionColonies.util
             int fixedCount = 0;
 
             // Mercenaries (direct access — most important)
-            if (factionFc.militaryCustomizationUtil?.mercenarySquads != null)
+            if (factionFc.military?.mercenarySquads != null)
             {
-                foreach (MercenarySquadFC squad in factionFc.militaryCustomizationUtil.mercenarySquads)
+                foreach (MercenarySquadFC squad in factionFc.military.mercenarySquads)
                 {
                     if (squad?.mercenaries == null) continue;
                     foreach (Mercenary merc in squad.mercenaries)

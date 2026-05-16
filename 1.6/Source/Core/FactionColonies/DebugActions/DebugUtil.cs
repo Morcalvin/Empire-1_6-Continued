@@ -166,8 +166,8 @@ namespace FactionColonies
         private static void ResetAllMilitarySquads()
         {
             LogUtil.MessageForce("Debug - Reset All Military Squad Assignments");
-            MilitaryCustomizationUtil util = FactionCache.FactionComp.militaryCustomizationUtil;
-            var allMercs = util.AllMercenaries.ToList();
+            MilitaryFC mfc = FactionCache.FactionComp.military;
+            var allMercs = mfc.AllMercenaries.ToList();
             for (int i = allMercs.Count - 1; i >= 0; i--)
             {
                 if (allMercs[i].squad.Deployment.HasLord)
@@ -179,15 +179,15 @@ namespace FactionColonies
                 allMercs[i].squad.mercenaries.Remove(allMercs[i]);
             }
 
-            for (int k = util.mercenarySquads.Count() - 1; k >= 0; k--)
+            for (int k = mfc.mercenarySquads.Count() - 1; k >= 0; k--)
             {
-                MercenarySquadFC squad = util.mercenarySquads[k];
+                MercenarySquadFC squad = mfc.mercenarySquads[k];
                 if (squad?.settlement != null) squad.settlement = null;
-                util.mercenarySquads.RemoveAt(k);
+                mfc.mercenarySquads.RemoveAt(k);
             }
 
 
-            util.CheckMilitaryUtilForErrors();
+            mfc.CheckMilitaryUtilForErrors();
         }
 
 
@@ -446,7 +446,7 @@ namespace FactionColonies
         private static void ResetMilitarySquads()
         {
             LogUtil.MessageForce("Debug - Reset All Military Squads");
-            MilitaryCustomizationUtil util = FactionCache.FactionComp.militaryCustomizationUtil;
+            MilitaryFC util = FactionCache.FactionComp.military;
 
             for (int i = util.mercenarySquads.Count - 1; i >= 0; i--)
             {
@@ -506,7 +506,7 @@ namespace FactionColonies
 
             // 3. Clear the per-squad cooldown gate so squads are immediately available.
             int squadsCleared = 0;
-            List<MercenarySquadFC> pool = faction.militaryCustomizationUtil?.mercenarySquads;
+            List<MercenarySquadFC> pool = faction.military?.mercenarySquads;
             if (pool is object)
             {
                 for (int i = 0; i < pool.Count; i++)
@@ -629,7 +629,7 @@ namespace FactionColonies
 
         private static void WithSquadChoice(Action<MercenarySquadFC> callback)
         {
-            List<MercenarySquadFC> pool = FactionCache.FactionComp?.militaryCustomizationUtil?.mercenarySquads;
+            List<MercenarySquadFC> pool = FactionCache.FactionComp?.military?.mercenarySquads;
             List<DebugMenuOption> list = new List<DebugMenuOption>();
             if (pool is object)
             {
@@ -1093,7 +1093,7 @@ namespace FactionColonies
         private static void RunMilitaryErrorCheck()
         {
             LogUtil.MessageForce("Debug - Running military error check");
-            FactionCache.FactionComp.militaryCustomizationUtil.CheckMilitaryUtilForErrors();
+            FactionCache.FactionComp.military.CheckMilitaryUtilForErrors();
             LogUtil.MessageForce("Debug - Military error check complete");
         }
 
@@ -1542,7 +1542,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Fire Support (Pick Source)", allowedGameStates = AllowedGameStates.PlayingOnMap)]
         private static void FireSupportPickSource()
         {
-            MilitaryCustomizationUtil util = FactionCache.FactionComp.militaryCustomizationUtil;
+            MilitaryFC util = FactionCache.FactionComp.military;
             if (util.fireSupportDefs == null || !util.fireSupportDefs.Any())
             {
                 Messages.Message("No fire support definitions configured.", MessageTypeDefOf.RejectInput);

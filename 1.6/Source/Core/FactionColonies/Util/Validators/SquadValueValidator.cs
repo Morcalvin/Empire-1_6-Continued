@@ -15,7 +15,7 @@ namespace FactionColonies
             if (settlement is null || squad is null) return true;
             if (squad.settlement == settlement) return true;
 
-            if (MilitaryCustomizationUtil.SquadExceedsSettlementBudget(squad, settlement,
+            if (MilitaryFC.SquadExceedsSettlementBudget(squad, settlement,
                 out int squadDeploy, out int maxDeploy))
             {
                 reason = "FCSquadValueExceeded".Translate(settlement.Name, squadDeploy, maxDeploy);

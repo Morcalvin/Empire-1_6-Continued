@@ -18,12 +18,12 @@ namespace FactionColonies
     /// all currently-alive injured mercenary pawns: the squad is "fully effective" when
     /// the slowest member finishes healing. Animals are excluded; injured/downed/dead
     /// animals are auto-replaced with fresh pawns on the heal tick (see
-    /// <see cref="MilitaryCustomizationUtil.TickAnimalReplacement"/>), so they never sit
+    /// <see cref="MilitaryFC.TickAnimalReplacement"/>), so they never sit
     /// in a "healing" state long enough to delay the squad.</para>
     /// 
     /// <para>Per-tick heal rate matches the vanilla <c>Pawn_HealthTracker.HealthTickInterval</c>
     /// natural-heal formula: <c>8 * HealthScale * 0.01 * InjuryHealingFactor</c> HP per call.
-    /// <see cref="MilitaryCustomizationUtil.TickMercenaryHealing"/> invokes that method once
+    /// <see cref="MilitaryFC.TickMercenaryHealing"/> invokes that method once
     /// per in-game hour, so we divide the per-call heal by <see cref="GenDate.TicksPerHour"/>
     /// to get a per-tick rate. The <see cref="StatPart_EmpireMercHealRate"/> stat part is
     /// baked into the pawn's <see cref="StatDefOf.InjuryHealingFactor"/> for off-map registered

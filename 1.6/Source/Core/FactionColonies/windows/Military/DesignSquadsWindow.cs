@@ -13,7 +13,7 @@ namespace FactionColonies
         public override MilitaryWindowSlot Slot => MilitaryWindowSlot.Squads;
 
         private WorldSettlementFC settlementPointReference;
-        protected readonly MilitaryCustomizationUtil util;
+        protected readonly MilitaryFC mfc;
         protected MilSquadFC selectedSquad;
 
         private Vector2 squadListScrollPos;
@@ -29,17 +29,17 @@ namespace FactionColonies
         private const float ButtonHeight = 30f;
         private const float UnitRowHeight = 50f;
 
-        public DesignSquadsWindow(MilitaryCustomizationUtil util)
+        public DesignSquadsWindow(MilitaryFC mfc)
         {
-            this.util = util;
+            this.mfc = mfc;
             selectedText = "FCSelectASquad".Translate();
 
-            if (util.blankUnit is null)
+            if (mfc.blankUnit is null)
             {
-                util.blankUnit = MilTemplateFactory.CreateUnit(true);
+                mfc.blankUnit = MilTemplateFactory.CreateUnit(true);
             }
 
-            util.CheckMilitaryUtilForErrors();
+            mfc.CheckMilitaryUtilForErrors();
         }
 
         public override void Select(IExposable selecting)
@@ -113,8 +113,8 @@ namespace FactionColonies
             Widgets.DrawMenuSection(listOutRect);
 
             List<MilSquadFC> filteredSquads = string.IsNullOrEmpty(squadSearchTerm)
-                ? util.squads ?? new List<MilSquadFC>()
-                : (util.squads ?? new List<MilSquadFC>())
+                ? mfc.squads ?? new List<MilSquadFC>()
+                : (mfc.squads ?? new List<MilSquadFC>())
                     .Where(s => (s.name ?? "").IndexOf(squadSearchTerm, StringComparison.OrdinalIgnoreCase) >= 0)
                     .ToList();
 
@@ -162,17 +162,17 @@ namespace FactionColonies
 
             if (Widgets.ButtonText(createBtn, "FCCreateNewSquad".Translate()))
             {
-                if (util.squads is null)
+                if (mfc.squads is null)
                 {
-                    util.ResetSquads();
+                    mfc.ResetSquads();
                 }
 
                 MilSquadFC newSquad = MilTemplateFactory.CreateSquad(true);
-                newSquad.name = $"New Squad {(util.squads.Count + 1).ToString()}";
+                newSquad.name = $"New Squad {(mfc.squads.Count + 1).ToString()}";
                 selectedText = newSquad.name;
                 selectedSquad = newSquad;
                 selectedSquad.NewSquad();
-                util.squads.Add(newSquad);
+                mfc.squads.Add(newSquad);
             }
 
             if (Widgets.ButtonText(importBtn, "FCImportSquad".Translate()))
@@ -192,8 +192,8 @@ namespace FactionColonies
                         {
                             // Routes through DeleteTemplate so any mercenary squad referencing
                             // the template gets its outfit cleared (mercs keep their gear).
-                            util.DeleteTemplate(squadToDelete);
-                            util.CheckMilitaryUtilForErrors();
+                            mfc.DeleteTemplate(squadToDelete);
+                            mfc.CheckMilitaryUtilForErrors();
                             if (selectedSquad == squadToDelete)
                             {
                                 selectedSquad = null;
@@ -250,7 +250,7 @@ namespace FactionColonies
             string equipLabel = settlementPointReference != null
                 ? (string)"FCTotalSquadEquipmentCost".Translate(
                     selectedSquad.GetEquipmentTotalCost(),
-                    MilitaryCustomizationUtil.CalculateSquadBudget(settlementPointReference.settlementMilitaryLevel))
+                    MilitaryFC.CalculateSquadBudget(settlementPointReference.settlementMilitaryLevel))
                 : (string)"FCTotalSquadEquipmentCostNoRef".Translate(selectedSquad.GetEquipmentTotalCost());
 
             float equipWidth = Text.CalcSize(equipLabel).x;
@@ -403,7 +403,7 @@ namespace FactionColonies
             currentWindow?.Close();
 
             FactionFC fc = FactionCache.FactionComp;
-            MilitaryWindow duw = MilitaryWindowRegistry.CreateUnits(fc.militaryCustomizationUtil, fc);
+            MilitaryWindow duw = MilitaryWindowRegistry.CreateUnits(fc.military, fc);
             FCWindow_Military newWindow = new FCWindow_Military(
                 duw, "FCMilitaryTableButtonCreateUnit".Translate());
             Find.WindowStack.Add(newWindow);
@@ -426,7 +426,7 @@ namespace FactionColonies
             Rect addUnitBtn = new Rect(rect.x, rect.y, btnW, ButtonHeight);
             if (Widgets.ButtonText(addUnitBtn, "FCAddUnit".Translate()))
             {
-                Find.WindowStack.Add(new FCWindow_UnitPicker(util, AddUnitToSquad));
+                Find.WindowStack.Add(new FCWindow_UnitPicker(mfc, AddUnitToSquad));
             }
 
             // Set Point Ref button
@@ -472,7 +472,7 @@ namespace FactionColonies
             if (!canAffordHire) GUI.color = Color.gray;
             if (Widgets.ButtonText(hireBtn, "FCHireSquadButton".Translate(hireCost), true, true, canAffordHire))
             {
-                util.HireSquad(selectedSquad);
+                mfc.HireSquad(selectedSquad);
             }
             TooltipHandler.TipRegion(hireBtn, "FCHireSquadButtonTip".Translate(hireCost));
             GUI.color = colorBefore;
@@ -541,7 +541,7 @@ namespace FactionColonies
             }
             if (lastIndex == -1) return;
 
-            selectedSquad.SetUnit(lastIndex, util.blankUnit);
+            selectedSquad.SetUnit(lastIndex, mfc.blankUnit);
         }
 
         private void RemoveAllOfUnit(MilUnitFC unit)
@@ -550,7 +550,7 @@ namespace FactionColonies
             {
                 if (ReferenceEquals(selectedSquad.Units[i], unit))
                 {
-                    selectedSquad.SetUnit(i, util.blankUnit);
+                    selectedSquad.SetUnit(i, mfc.blankUnit);
                 }
             }
         }

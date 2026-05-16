@@ -15,7 +15,7 @@ namespace FactionColonies
 
         private WorldSettlementFC settlementPointReference;
         private MilitaryFireSupport selectedSupport;
-        private readonly MilitaryCustomizationUtil util;
+        private readonly MilitaryFC mfc;
 
         private Vector2 supportListScrollPos;
         private string supportSearchTerm = "";
@@ -31,11 +31,11 @@ namespace FactionColonies
         private const float ButtonHeight = 30f;
         private const float ProjectileRowHeight = 30f;
 
-        public FireSupportWindow(MilitaryCustomizationUtil util)
+        public FireSupportWindow(MilitaryFC mfc)
         {
-            this.util = util;
+            this.mfc = mfc;
             selectedText = "FCSelectAFireSupport".Translate();
-            util.CheckMilitaryUtilForErrors();
+            mfc.CheckMilitaryUtilForErrors();
         }
 
         public override void Select(IExposable selecting)
@@ -112,8 +112,8 @@ namespace FactionColonies
             Widgets.DrawMenuSection(listOutRect);
 
             List<MilitaryFireSupport> filteredSupports = string.IsNullOrEmpty(supportSearchTerm)
-                ? util.fireSupportDefs ?? new List<MilitaryFireSupport>()
-                : (util.fireSupportDefs ?? new List<MilitaryFireSupport>())
+                ? mfc.fireSupportDefs ?? new List<MilitaryFireSupport>()
+                : (mfc.fireSupportDefs ?? new List<MilitaryFireSupport>())
                     .Where(s => (s.name ?? "").IndexOf(supportSearchTerm, StringComparison.OrdinalIgnoreCase) >= 0)
                     .ToList();
 
@@ -160,12 +160,12 @@ namespace FactionColonies
             if (Widgets.ButtonText(createBtn, "FCCreateNewFireSupport".Translate()))
             {
                 MilitaryFireSupport newSupport = new MilitaryFireSupport();
-                newSupport.name = "New Fire Support " + (util.fireSupportDefs.Count + 1);
+                newSupport.name = "New Fire Support " + (mfc.fireSupportDefs.Count + 1);
                 newSupport.SetLoadID();
                 newSupport.projectiles = new List<ThingDef>();
                 selectedText = newSupport.name;
                 selectedSupport = newSupport;
-                util.fireSupportDefs.Add(newSupport);
+                mfc.fireSupportDefs.Add(newSupport);
             }
 
             if (Widgets.ButtonText(importBtn, "FCImportFireSupport".Translate()))
@@ -184,7 +184,7 @@ namespace FactionColonies
                         delegate
                         {
                             supportToDelete.Delete();
-                            util.CheckMilitaryUtilForErrors();
+                            mfc.CheckMilitaryUtilForErrors();
                             if (selectedSupport == supportToDelete)
                             {
                                 selectedSupport = null;
@@ -242,7 +242,7 @@ namespace FactionColonies
             {
                 Widgets.Label(costRect, "FCFireSupportCostRefLabel".Translate(
                     selectedSupport.ReturnTotalCost(),
-                    MilitaryCustomizationUtil.CalculateFireSupportBudget(settlementPointReference.settlementMilitaryLevel)));
+                    MilitaryFC.CalculateFireSupportBudget(settlementPointReference.settlementMilitaryLevel)));
             }
             else
             {

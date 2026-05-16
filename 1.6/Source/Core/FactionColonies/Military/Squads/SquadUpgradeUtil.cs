@@ -208,7 +208,7 @@ namespace FactionColonies
                 squad.mercenaries.RemoveAt(i);
             }
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
         }
 
         /// <summary>Race + xenotype-aware re-template. For each template slot:
@@ -304,7 +304,7 @@ namespace FactionColonies
             }
             squad.mercenaries = rebuilt;
 
-            FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(squad);
             return true;
         }

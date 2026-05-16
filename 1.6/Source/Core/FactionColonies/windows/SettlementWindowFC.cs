@@ -1198,7 +1198,7 @@ namespace FactionColonies
         private void BuildPerSquadMenu(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
             List<FloatMenuOption> list = new List<FloatMenuOption>();
 
             list.Add(new FloatMenuOption("FCSquadMenuInspect".Translate(),
@@ -1226,7 +1226,7 @@ namespace FactionColonies
                 {
                     Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                         "FCSquadActDismissConfirm".Translate(squad.DisplayName),
-                        delegate { util?.DismissSquad(squad); }));
+                        delegate { mfc?.DismissSquad(squad); }));
                 }));
 
             if (!squad.Deployment.IsPhysicallyDeployed())

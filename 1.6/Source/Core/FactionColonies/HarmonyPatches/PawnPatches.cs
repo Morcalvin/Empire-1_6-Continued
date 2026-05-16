@@ -12,12 +12,12 @@ namespace FactionColonies
             if (__instance.IsMercenary())
             {
                 if (__instance.Faction != FactionCache.PlayerColonyFaction) __instance.SetFaction(FactionCache.PlayerColonyFaction);
-                var util = FactionCache.FactionComp?.militaryCustomizationUtil;
-                if (util is null) return true;
-                MercenarySquadFC squad = util.ReturnSquadFromUnit(__instance);
+                var mfc = FactionCache.FactionComp?.military;
+                if (mfc is null) return true;
+                MercenarySquadFC squad = mfc.ReturnSquadFromUnit(__instance);
                 if (squad != null)
                 {
-                    Mercenary merc = util.ReturnMercenaryFromUnit(__instance, squad);
+                    Mercenary merc = mfc.ReturnMercenaryFromUnit(__instance, squad);
                     if (merc != null)
                     {
                         if (squad.settlement != null)
@@ -40,7 +40,7 @@ namespace FactionColonies
                         // Mark the slot empty — keep the Mercenary entry so its loadout reference
                         // survives for Fill, but null its pawn.
                         merc.pawn = null;
-                        FactionCache.FactionComp?.militaryCustomizationUtil?.RebuildMercenaryPawnSet();
+                        FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
                     }
 
                     squad.Equipment.RemoveDroppedEquipment();
@@ -65,7 +65,7 @@ namespace FactionColonies
     {
         static bool Prefix(Corpse corpse)
         {
-            if (FactionCache.FactionComp?.militaryCustomizationUtil?.IsMercenaryPawn(corpse.InnerPawn) == true)
+            if (FactionCache.FactionComp?.military?.IsMercenaryPawn(corpse.InnerPawn) == true)
             {
                 //corpse.InnerPawn.SetFaction(FactionColonies.getPlayerColonyFaction());
                 corpse.Destroy();
@@ -81,7 +81,7 @@ namespace FactionColonies
     {
         static bool Prefix(Pawn pawn)
         {
-            if (FactionCache.FactionComp?.militaryCustomizationUtil?.IsMercenaryPawn(pawn) == true)
+            if (FactionCache.FactionComp?.military?.IsMercenaryPawn(pawn) == true)
             {
                 return false;
             }

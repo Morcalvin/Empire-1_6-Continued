@@ -10,7 +10,7 @@ namespace FactionColonies
         static bool Prefix(Pawn pawn, PawnDiscardDecideMode discardMode = PawnDiscardDecideMode.Decide)
         {
             FactionFC faction = FactionCache.FactionComp;
-            return faction?.militaryCustomizationUtil == null || !faction.militaryCustomizationUtil.IsMercenaryPawn(pawn);
+            return faction?.military == null || !faction.military.IsMercenaryPawn(pawn);
         }
     }
 }

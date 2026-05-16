@@ -477,7 +477,7 @@ namespace FactionColonies
 
         public void RemoveUnit()
         {
-            FactionCache.FactionComp.militaryCustomizationUtil.units.Remove(this);
+            FactionCache.FactionComp.military.units.Remove(this);
         }
 
         /* Deep copy used by per-merc owned-loadout snapshots. The clone is owned by a

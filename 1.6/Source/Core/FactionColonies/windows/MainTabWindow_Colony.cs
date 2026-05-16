@@ -50,7 +50,7 @@ namespace FactionColonies
 
         // ===== MILITARY STATE =====
         private Vector2 militaryScroll;
-        private MilitaryCustomizationUtil militaryUtil;
+        private MilitaryFC militaryFC;
 
         // ===== SORTED LIST CACHES =====
         private List<BillFC> cachedSortedBills;
@@ -73,7 +73,7 @@ namespace FactionColonies
             }
 
             // Averages and profit are lazy-cached — no eager update needed
-            militaryUtil = faction.militaryCustomizationUtil;
+            militaryFC = faction.military;
 
             // Build tab list
             // Main overview tab
@@ -118,7 +118,7 @@ namespace FactionColonies
         {
             base.PostClose();
             selectingColonyFC = false;
-            militaryUtil?.CheckMilitaryUtilForErrors();
+            militaryFC?.CheckMilitaryUtilForErrors();
         }
 
         // ===== MAIN DRAW =====
@@ -1558,15 +1558,15 @@ namespace FactionColonies
             if (faction.settlements?.Count > 0)
             {
                 if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight), "FCMilitaryTableButtonCreateUnit".Translate()))
-                    OpenMilitaryWindow(MilitaryWindowRegistry.CreateUnits(militaryUtil, faction), "FCMilitaryTableButtonCreateUnit".Translate());
+                    OpenMilitaryWindow(MilitaryWindowRegistry.CreateUnits(militaryFC, faction), "FCMilitaryTableButtonCreateUnit".Translate());
                 bx += buttonWidth;
 
                 if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight), "FCMilitaryTableButtonCreateSquad".Translate()))
-                    OpenMilitaryWindow(MilitaryWindowRegistry.CreateSquads(militaryUtil, faction), "FCMilitaryTableButtonCreateSquad".Translate());
+                    OpenMilitaryWindow(MilitaryWindowRegistry.CreateSquads(militaryFC, faction), "FCMilitaryTableButtonCreateSquad".Translate());
                 bx += buttonWidth;
 
                 if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight), "FCMilitaryTableButtonCreateFireSupport".Translate()))
-                    OpenMilitaryWindow(MilitaryWindowRegistry.CreateFireSupport(militaryUtil, faction), "FCMilitaryTableButtonCreateFireSupport".Translate());
+                    OpenMilitaryWindow(MilitaryWindowRegistry.CreateFireSupport(militaryFC, faction), "FCMilitaryTableButtonCreateFireSupport".Translate());
             }
 
             y += buttonHeight + margin * 2;
@@ -1736,7 +1736,7 @@ namespace FactionColonies
                 anchorBefore = Text.Anchor;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                double rawBudget = MilitaryCustomizationUtil.CalculateSquadBudget(settlement.settlementMilitaryLevel);
+                double rawBudget = MilitaryFC.CalculateSquadBudget(settlement.settlementMilitaryLevel);
                 int maxDeploy = MilitaryUtil.CalculateDeploymentCost(rawBudget);
                 FactionFC fcBadge = FactionCache.FactionComp;
                 (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
@@ -1770,7 +1770,7 @@ namespace FactionColonies
                 Text.Anchor = anchorBefore;
 
                 // Header-right: Fire Support button (visibility decoupled from squad cap).
-                bool noFireSupport = militaryUtil.fireSupportDefs.Count == 0
+                bool noFireSupport = militaryFC.fireSupportDefs.Count == 0
                     || settlement.BuildingsComp?.HasBuilding(BuildingFCDefOf.artilleryOutpost) == false;
                 if (!noFireSupport)
                 {
@@ -1964,7 +1964,7 @@ namespace FactionColonies
             int underSquadDeploy = 0;
             int underMaxDeploy = 0;
             bool slotUnderfunded = squad is object
-                && MilitaryCustomizationUtil.SquadExceedsSettlementBudget(
+                && MilitaryFC.SquadExceedsSettlementBudget(
                     squad, settlement, out underSquadDeploy, out underMaxDeploy);
             UIUtil.DrawColoredLabel(squadNameLabel, squadName,
                 slotUnderfunded ? AccentUtil.MilUnderfunded : GUI.color);
@@ -1991,7 +1991,7 @@ namespace FactionColonies
 
             // Set / Change squad — disabled when no hired squads exist (templates alone aren't
             // enough; the menu lists the live pool, not templates), or when the slot's squad is busy.
-            bool noSquads = (militaryUtil.mercenarySquads?.Count ?? 0) == 0;
+            bool noSquads = (militaryFC.mercenarySquads?.Count ?? 0) == 0;
             bool slotBusy = squad != null && squad.IsBusy;
             Rect setRect = new Rect(bx, btnY, btnW, btnH);
             string setLabel = squad is null
@@ -2084,7 +2084,7 @@ namespace FactionColonies
         {
             List<FloatMenuOption> list = new List<FloatMenuOption>();
 
-            foreach (MilitaryFireSupport support in militaryUtil.fireSupportDefs)
+            foreach (MilitaryFireSupport support in militaryFC.fireSupportDefs)
             {
                 if (support.projectiles == null || support.projectiles.Count == 0)
                     continue;
@@ -2093,7 +2093,7 @@ namespace FactionColonies
                 list.Add(new FloatMenuOption(support.name + " - $" + cost, delegate
                 {
                     if (support.ReturnTotalCost() <=
-                        MilitaryCustomizationUtil.CalculateFireSupportBudget(settlement.settlementMilitaryLevel))
+                        MilitaryFC.CalculateFireSupportBudget(settlement.settlementMilitaryLevel))
                     {
                         if (settlement.BuildingsComp?.HasBuilding(BuildingFCDefOf.artilleryOutpost) == true)
                         {

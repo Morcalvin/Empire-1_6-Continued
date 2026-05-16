@@ -331,10 +331,10 @@ namespace FactionColonies
 
         private void OpenPickFromPoolMenu()
         {
-            MilitaryCustomizationUtil util = FactionCache.FactionComp?.militaryCustomizationUtil;
-            if (util?.units is null) return;
+            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            if (mfc?.units is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
-            foreach (MilUnitFC unit in util.units)
+            foreach (MilUnitFC unit in mfc.units)
             {
                 MilUnitFC captured = unit;
                 options.Add(new FloatMenuOption(captured.name, delegate

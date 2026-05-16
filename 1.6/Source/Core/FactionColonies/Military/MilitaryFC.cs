@@ -7,7 +7,7 @@ using Verse;
 namespace FactionColonies
 {
     //Mil customization class
-    public class MilitaryCustomizationUtil : IExposable
+    public class MilitaryFC : IExposable
     {
         public List<MilUnitFC> units = new List<MilUnitFC>();
         public List<MilSquadFC> squads = new List<MilSquadFC>();
@@ -43,7 +43,7 @@ namespace FactionColonies
             }
         }
 
-        public MilitaryCustomizationUtil()
+        public MilitaryFC()
         {
             //set load stuff here
             if (units == null)
