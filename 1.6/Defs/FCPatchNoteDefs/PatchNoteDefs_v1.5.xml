@@ -29,4 +29,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_1</defName>
+		<label>Minor Refactors</label>
+		<description>Various minor backend refactors to clean up the code. There shouldn&apos;t be any impact on gameplay.</description>
+		<releaseDate>2026-05-16</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Various backend refactors</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
