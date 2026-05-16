@@ -60,8 +60,8 @@ namespace FactionColonies
         /// </summary>
         public MilitaryForce SampleBattleForce(Faction faction, bool handicap = false)
         {
-            double rolledLevel = Math.Max(1, level + MilitaryUtil.RollVarianceOffset(levelVariance));
-            double rolledEfficiency = Math.Max(0.1, efficiency + MilitaryUtil.RollVarianceOffset(efficiencyVariance));
+            double rolledLevel = Math.Max(1, level + MilitaryDeploymentUtil.RollVarianceOffset(levelVariance));
+            double rolledEfficiency = Math.Max(0.1, efficiency + MilitaryDeploymentUtil.RollVarianceOffset(efficiencyVariance));
             if (handicap)
             {
                 rolledLevel = Math.Min(rolledLevel,

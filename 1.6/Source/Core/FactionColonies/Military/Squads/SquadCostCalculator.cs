@@ -54,7 +54,7 @@ namespace FactionColonies
         /// rounded to int.</summary>
         public static int DeploymentCost(MercenarySquadFC squad)
         {
-            return MilitaryUtil.CalculateDeploymentCost(GetCurrentLoadoutCost(squad));
+            return MilitaryDeploymentUtil.CalculateDeploymentCost(GetCurrentLoadoutCost(squad));
         }
 
         /// <summary>Total silver to refill all fillable empty slots, summed over each slot's

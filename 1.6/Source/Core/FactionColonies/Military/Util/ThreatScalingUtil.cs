@@ -131,7 +131,7 @@ namespace FactionColonies
             return enemies.RandomElementByWeight(f =>
             {
                 double factionStrength;
-                MilitaryUtil.GetTechLevelBaseline(
+                MilitaryDeploymentUtil.GetTechLevelBaseline(
                     f.def.techLevel, out factionStrength, out _);
                 // At ETL 1.0: all factions equal weight (~1.0)
                 // At ETL 2.0: Spacer(6) weight ~2.5, Neolithic(2) weight ~0.7

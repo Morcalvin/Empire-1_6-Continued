@@ -44,7 +44,7 @@ namespace FactionColonies.RW
                 double efficiency = 1.0;
                 if (attacker.Faction.def is object)
                 {
-                    MilitaryUtil.GetTechLevelBaseline(attacker.Faction.def.techLevel, out double _, out efficiency);
+                    MilitaryDeploymentUtil.GetTechLevelBaseline(attacker.Faction.def.techLevel, out double _, out efficiency);
                 }
                 attackingForce = new MilitaryForce(1, efficiency, null, attacker.Faction);
             }

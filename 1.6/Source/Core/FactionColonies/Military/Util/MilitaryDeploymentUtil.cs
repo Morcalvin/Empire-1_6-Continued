@@ -10,7 +10,7 @@ using Verse.AI.Group;
 
 namespace FactionColonies
 {
-    public static class MilitaryUtil
+    public static class MilitaryDeploymentUtil
     {
         /* Silver deploy-cost for a given equipment value, applying the configured
          * FCSettings.squadDeploymentCostPercentage. Single source of truth for the

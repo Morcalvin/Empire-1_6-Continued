@@ -72,7 +72,7 @@ namespace FactionColonies.WDExp
             MilitaryForce attackingForce = entry?.SampleBattleForce(traveler.Faction);
             if (attackingForce is null)
             {
-                MilitaryUtil.GetTechLevelBaseline(traveler.Faction.def.techLevel, out double _, out double efficiency);
+                MilitaryDeploymentUtil.GetTechLevelBaseline(traveler.Faction.def.techLevel, out double _, out double efficiency);
                 attackingForce = new MilitaryForce(1, efficiency, null, traveler.Faction);
             }
 

@@ -102,7 +102,7 @@ namespace FactionColonies
                     if (r.isHere)
                     {
                         double budget = MilitaryFC.CalculateSquadBudget(s.settlementMilitaryLevel);
-                        r.maxDeploy = MilitaryUtil.CalculateDeploymentCost(budget);
+                        r.maxDeploy = MilitaryDeploymentUtil.CalculateDeploymentCost(budget);
                     }
                     rows.Add(r);
                 }

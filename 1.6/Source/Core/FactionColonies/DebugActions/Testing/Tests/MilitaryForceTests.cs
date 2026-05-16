@@ -44,7 +44,7 @@ namespace FactionColonies
         [EmpireTest("MilitaryForce")]
         public static void TechLevelMapping_Neolithic_Level2_Eff1()
         {
-            MilitaryUtil.GetTechLevelBaseline(
+            MilitaryDeploymentUtil.GetTechLevelBaseline(
                 TechLevel.Neolithic, out double level, out double eff);
             TestAssert.AreEqual(2.0, level, message: "Neolithic level");
             TestAssert.AreEqual(0.9, eff, message: "Neolithic efficiency");
@@ -53,7 +53,7 @@ namespace FactionColonies
         [EmpireTest("MilitaryForce")]
         public static void TechLevelMapping_Spacer_Level6_Eff1Point3()
         {
-            MilitaryUtil.GetTechLevelBaseline(
+            MilitaryDeploymentUtil.GetTechLevelBaseline(
                 TechLevel.Spacer, out double level, out double eff);
             TestAssert.AreEqual(6.0, level, message: "Spacer level");
             TestAssert.AreEqual(1.2, eff, message: "Spacer efficiency");
@@ -62,7 +62,7 @@ namespace FactionColonies
         [EmpireTest("MilitaryForce")]
         public static void TechLevelMapping_Archotech_HighestValues()
         {
-            MilitaryUtil.GetTechLevelBaseline(
+            MilitaryDeploymentUtil.GetTechLevelBaseline(
                 TechLevel.Archotech, out double level, out double eff);
             TestAssert.AreEqual(9.0, level, message: "Archotech level");
             TestAssert.AreEqual(1.5, eff, message: "Archotech efficiency");
@@ -73,7 +73,7 @@ namespace FactionColonies
         {
             foreach (TechLevel tech in Enum.GetValues(typeof(TechLevel)))
             {
-                MilitaryUtil.GetTechLevelBaseline(
+                MilitaryDeploymentUtil.GetTechLevelBaseline(
                     tech, out double level, out double eff);
                 TestAssert.GreaterThan(level, 0, $"TechLevel {tech}: level should be > 0");
                 TestAssert.GreaterThan(eff, 0, $"TechLevel {tech}: efficiency should be > 0");
@@ -179,7 +179,7 @@ namespace FactionColonies
 
             // Variances now sourced from EnemyPowerTechDef + (optional) EnemyPowerFactionDef.
             // Pull the resolved tech-def variances and compare; faction overrides may shift them.
-            MilitaryUtil.GetTechLevelBaseline(enemy.Faction.def.techLevel,
+            MilitaryDeploymentUtil.GetTechLevelBaseline(enemy.Faction.def.techLevel,
                 out double _, out double _, out double techLvlVar, out double techEffVar);
             EnemyPowerFactionDef factionDef = registry.GetFactionDef(enemy.Faction.def);
             double expectedLvlVar = (factionDef is object && factionDef.levelVariance.HasValue)

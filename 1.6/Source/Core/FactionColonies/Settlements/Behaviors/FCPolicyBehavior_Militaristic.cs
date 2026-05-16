@@ -90,7 +90,7 @@ namespace FactionColonies
                     {
                         new FloatMenuOption("FCWalkIntoMapDeploymentOption".Translate(), delegate
                         {
-                            MilitaryUtil.CallinExtraForces(settlement, false);
+                            MilitaryDeploymentUtil.CallinExtraForces(settlement, false);
                             Find.WindowStack.currentlyDrawnWindow.Close();
                         })
                     };
@@ -100,7 +100,7 @@ namespace FactionColonies
                     {
                         deploymentOptions.Add(new FloatMenuOption("FCDropPodDeploymentOption".Translate(), delegate
                         {
-                            MilitaryUtil.CallinExtraForces(settlement, true);
+                            MilitaryDeploymentUtil.CallinExtraForces(settlement, true);
                             Find.WindowStack.currentlyDrawnWindow.Close();
                         }));
                     }

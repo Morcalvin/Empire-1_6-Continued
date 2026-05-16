@@ -1218,7 +1218,7 @@ namespace FactionColonies
             if (SquadUpgradeUtil.HasUpgradeWork(squad))
             {
                 list.Add(new FloatMenuOption("FCSquadMenuUpgrade".Translate(upgrade),
-                    squad.IsBusy ? (Action)null : (Action)delegate { MilitaryUtil.ConfirmAndUpgradeAll(squad); }));
+                    squad.IsBusy ? (Action)null : (Action)delegate { MilitaryDeploymentUtil.ConfirmAndUpgradeAll(squad); }));
             }
 
             list.Add(new FloatMenuOption("FCSquadMenuDismiss".Translate(),

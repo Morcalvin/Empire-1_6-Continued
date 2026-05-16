@@ -256,7 +256,7 @@ namespace FactionColonies
             float equipWidth = Text.CalcSize(equipLabel).x;
             Widgets.Label(new Rect(rect.x, costY, equipWidth, 20f), equipLabel);
 
-            int deployCost = MilitaryUtil.CalculateDeploymentCost(selectedSquad.GetEquipmentTotalCost());
+            int deployCost = MilitaryDeploymentUtil.CalculateDeploymentCost(selectedSquad.GetEquipmentTotalCost());
             const float gap = 20f;
             float deployX = rect.x + equipWidth + gap;
             Widgets.Label(

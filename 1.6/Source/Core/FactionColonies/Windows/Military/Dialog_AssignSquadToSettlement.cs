@@ -37,7 +37,7 @@ namespace FactionColonies
             // Cache the destination's max deploy cost so the header and the over-budget tint
             // share one value. Settlement military level doesn't change while the dialog is open.
             double budget = MilitaryFC.CalculateSquadBudget(target?.settlementMilitaryLevel ?? 0);
-            maxDeployCost = MilitaryUtil.CalculateDeploymentCost(budget);
+            maxDeployCost = MilitaryDeploymentUtil.CalculateDeploymentCost(budget);
             // WinChance is the base default but it's pruned from the toolbar here, so seed sort
             // with a mode that's still visible. Power matches what most players will care about
             // when picking a squad to billet.

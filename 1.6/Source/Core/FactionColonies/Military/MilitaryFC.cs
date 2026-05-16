@@ -142,7 +142,7 @@ namespace FactionColonies
         {
             squadDeploy = SquadCostCalculator.DeploymentCost(squad);
             double budget = CalculateSquadBudget(settlement.settlementMilitaryLevel);
-            maxDeploy = MilitaryUtil.CalculateDeploymentCost(budget);
+            maxDeploy = MilitaryDeploymentUtil.CalculateDeploymentCost(budget);
             return squadDeploy > maxDeploy;
         }
 

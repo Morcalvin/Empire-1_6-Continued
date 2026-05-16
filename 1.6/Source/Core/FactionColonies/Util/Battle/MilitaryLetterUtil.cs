@@ -43,7 +43,7 @@ namespace FactionColonies.util
             ChoiceLetter_BattleReport letter = (ChoiceLetter_BattleReport)
                 LetterMaker.MakeLetter(label, text, def, lookTargets);
             letter.reportIds = reportIds ?? new List<int>();
-            letter.playerSide = MilitaryUtil.ResolvePlayerSide(op);
+            letter.playerSide = MilitaryDeploymentUtil.ResolvePlayerSide(op);
             Find.LetterStack.ReceiveLetter(letter);
         }
 

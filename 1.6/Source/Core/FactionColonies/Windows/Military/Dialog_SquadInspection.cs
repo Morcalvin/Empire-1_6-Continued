@@ -353,7 +353,7 @@ namespace FactionColonies
                     : (string)"FCSquadInspectionUpgradeAllUpToDate".Translate());
             if (UIUtil.ButtonFlat(upgradeRect, upgradeLabel, disabled: !canUpgradeAll))
             {
-                MilitaryUtil.ConfirmAndUpgradeAll(squad);
+                MilitaryDeploymentUtil.ConfirmAndUpgradeAll(squad);
             }
 
             /* Tooltip: busy takes precedence; otherwise show the cost breakdown when there's work. */

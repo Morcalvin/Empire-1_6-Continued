@@ -39,7 +39,7 @@ namespace FactionColonies
         {
             this.op = op;
             this.result = op?.battleResult;
-            this.playerSide = MilitaryUtil.ResolvePlayerSide(op);
+            this.playerSide = MilitaryDeploymentUtil.ResolvePlayerSide(op);
             this.aggressorParticipant = op?.aggressor;
             this.defenderParticipant = op?.defender;
             InitWindowProps();

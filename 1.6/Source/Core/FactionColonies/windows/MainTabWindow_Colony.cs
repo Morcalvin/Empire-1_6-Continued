@@ -1737,7 +1737,7 @@ namespace FactionColonies
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
                 double rawBudget = MilitaryFC.CalculateSquadBudget(settlement.settlementMilitaryLevel);
-                int maxDeploy = MilitaryUtil.CalculateDeploymentCost(rawBudget);
+                int maxDeploy = MilitaryDeploymentUtil.CalculateDeploymentCost(rawBudget);
                 FactionFC fcBadge = FactionCache.FactionComp;
                 (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
                 double defPower = Math.Round(
@@ -2101,7 +2101,7 @@ namespace FactionColonies
                             {
                                 if (PaymentUtil.GetSilver() >= cost)
                                 {
-                                    MilitaryUtil.FireSupport(settlement, support);
+                                    MilitaryDeploymentUtil.FireSupport(settlement, support);
                                 }
                                 else
                                 {
@@ -2147,14 +2147,14 @@ namespace FactionColonies
             {
                 new FloatMenuOption("FCWalkIntoMapDeploymentOption".Translate() + costSuffix, delegate
                 {
-                    MilitaryUtil.CallinAlliedForces(settlement, false);
+                    MilitaryDeploymentUtil.CallinAlliedForces(settlement, false);
                 }),
                 DropPodDeploymentOption(settlement)
             };
         }
 
         /// <summary>Same shape as <see cref="DeploymentOptions"/> but routes to a specific squad
-        /// via <see cref="MilitaryUtil.CallinAlliedForces"/>'s overrideSquad parameter. Used by
+        /// via <see cref="MilitaryDeploymentUtil.CallinAlliedForces"/>'s overrideSquad parameter. Used by
         /// the per-slot Deploy button on the 1+N settlement card layout.</summary>
         private List<FloatMenuOption> SquadDeploymentOptions(WorldSettlementFC settlement, MercenarySquadFC squad)
         {
@@ -2163,13 +2163,13 @@ namespace FactionColonies
 
             List<FloatMenuOption> opts = new List<FloatMenuOption>();
             opts.Add(new FloatMenuOption("FCWalkIntoMapDeploymentOption".Translate() + costSuffix,
-                delegate { MilitaryUtil.CallinAlliedForces(settlement, false, squad); }));
+                delegate { MilitaryDeploymentUtil.CallinAlliedForces(settlement, false, squad); }));
 
             bool medievalOnly = FCSettings.medievalTechOnly;
             if (!medievalOnly && (FactionCache.TechTransportPods?.IsFinished ?? false))
             {
                 opts.Add(new FloatMenuOption("FCDropPodDeploymentOption".Translate() + costSuffix,
-                    delegate { MilitaryUtil.CallinAlliedForces(settlement, true, squad); }));
+                    delegate { MilitaryDeploymentUtil.CallinAlliedForces(settlement, true, squad); }));
             }
             else
             {
@@ -2194,7 +2194,7 @@ namespace FactionColonies
             if (!medievalOnly && (FactionCache.TechTransportPods?.IsFinished ?? false))
             {
                 return new FloatMenuOption("FCDropPodDeploymentOption".Translate() + costSuffix,
-                    delegate { MilitaryUtil.CallinAlliedForces(settlement, true); });
+                    delegate { MilitaryDeploymentUtil.CallinAlliedForces(settlement, true); });
             }
 
             return new FloatMenuOption(

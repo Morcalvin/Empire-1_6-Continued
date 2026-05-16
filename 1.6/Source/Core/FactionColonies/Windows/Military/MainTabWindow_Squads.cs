@@ -217,7 +217,7 @@ namespace FactionColonies
             Rect upgradeRect = new Rect(bx, btnY, btnW, btnH);
             if (UIUtil.ButtonFlat(upgradeRect, "FCSquadActUpgrade".Translate(), highlighted: isHighlighted, disabled: !canUpgrade))
             {
-                MilitaryUtil.ConfirmAndUpgradeAll(capturedSquad);
+                MilitaryDeploymentUtil.ConfirmAndUpgradeAll(capturedSquad);
             }
             if (squad.IsBusy)
                 TooltipHandler.TipRegion(upgradeRect, "FCSquadCannotModifyBusyTip".Translate());
