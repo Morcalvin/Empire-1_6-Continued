@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
+using RimWorld.Planet;
 
 namespace FactionColonies
 {
@@ -1059,9 +1060,9 @@ namespace FactionColonies
 
         private class StubRaidTarget : IRaidTarget
         {
-            private readonly RimWorld.Planet.WorldObject _obj;
-            public StubRaidTarget(RimWorld.Planet.WorldObject obj = null) { _obj = obj; }
-            public RimWorld.Planet.WorldObject WorldObject => _obj;
+            private readonly WorldObject _obj;
+            public StubRaidTarget(WorldObject obj = null) { _obj = obj; }
+            public WorldObject WorldObject => _obj;
             public string Name => "TestRaidTarget";
             public int Tile => 0;
             public int MilitaryLevel => 1;
@@ -1072,7 +1073,7 @@ namespace FactionColonies
 
         private class ThrowingRaidTarget : IRaidTarget
         {
-            public RimWorld.Planet.WorldObject WorldObject => throw new InvalidOperationException("test");
+            public WorldObject WorldObject => throw new InvalidOperationException("test");
             public string Name => throw new InvalidOperationException("test");
             public int Tile => throw new InvalidOperationException("test");
             public int MilitaryLevel => throw new InvalidOperationException("test");
@@ -1152,17 +1153,18 @@ namespace FactionColonies
 
         private class StubAutoDefender : IAutoDefender
         {
-            public RimWorld.Planet.WorldObject _obj;
             public int _militaryLevel;
             public int _range = 999;
             public bool _canAutoDefend = true;
 
-            public RimWorld.Planet.WorldObject WorldObject => _obj;
+            // The interface demands that we define WorldObject, but we don't actually need it.
+            //  Hence, null.
+            public WorldObject WorldObject => null;
             public int MilitaryLevel => _militaryLevel;
             public int Range => _range;
             public bool CanAutoDefend => _canAutoDefend;
             public MilitaryForce CreateDefendingForce() => null;
-            public void OnDefenseStarted(RimWorld.Planet.WorldObject target) { }
+            public void OnDefenseStarted(WorldObject target) { }
             public void OnDefenseComplete(bool won, BattleResult result) { }
             public void OnDefenseReplaced() { }
             public List<Verse.Pawn> GetDefendingPawns() => null;
