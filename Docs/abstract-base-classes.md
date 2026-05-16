@@ -201,10 +201,6 @@ Override `ExposeData()` to save/load custom state. Uses standard `Scribe_*` meth
 
 ---
 
-## LifecycleParticipantBase
+## Lifecycle listeners (no base class)
 
-**Purpose**: Convenience base class for `ILifecycleParticipant`. All 11 methods are empty virtuals; override only what you need.
-
-**Class**: `FactionColonies.LifecycleParticipantBase` (abstract, implements `ILifecycleParticipant`)
-
-This is not an abstract base class for custom behavior — it's a convenience wrapper to avoid stubbing unused interface methods. See [ILifecycleParticipant](interfaces-and-registries.md#ilifecycleparticipant) for the full interface and registration instructions.
+The previous single `ILifecycleParticipant` + `LifecycleParticipantBase` pair was split into four domain-specific interfaces (`ISettlementListener`, `IMilitaryOperationListener`, `IMercenarySquadListener`, `IResearchListener`) and the base class was removed. Implementers declare only the interfaces they actually care about and stub any unused methods inline — no inheritance required. See [Lifecycle listener interfaces](interfaces-and-registries.md#lifecycle-listener-interfaces) for the full contracts and registration instructions.

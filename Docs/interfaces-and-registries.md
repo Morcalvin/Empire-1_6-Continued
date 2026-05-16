@@ -1,6 +1,6 @@
 # Interfaces & Registries
 
-Empire provides 20 C# interfaces for submod extensibility. Some use static registries (global hooks); others are discovered on WorldObjectComps (per-settlement hooks) or DefModExtensions.
+Empire provides 23 C# interfaces for submod extensibility. Some use static registries (global hooks); others are discovered on WorldObjectComps (per-settlement hooks) or DefModExtensions.
 
 All registry-based interfaces follow the same pattern — register an instance, and the base mod invokes it at the appropriate time.
 
@@ -10,15 +10,15 @@ Registries are not serialized. Your mod must re-register on game load.
 
 ## Registry-Based Interfaces
 
-### ILifecycleParticipant
+### Lifecycle listener interfaces
 
 **Registry**: `LifecycleRegistry`
-**Purpose**: Unified hook for settlement, building, military, and research events.
+**Purpose**: Hook into settlement, military operation, mercenary squad, and research events.
 
-This is the most commonly used registry. It fires after every major state change, with caches already invalidated.
+Four domain-specific listener interfaces. Implement only the ones you care about — a single class can implement multiple, and a single `LifecycleRegistry.Register(this)` call adds it to every matching dispatch list.
 
 ```csharp
-public interface ILifecycleParticipant
+public interface ISettlementListener
 {
     void OnSettlementCreated(WorldSettlementFC settlement);
     void OnSettlementRemoved(WorldSettlementFC settlement);
@@ -26,24 +26,50 @@ public interface ILifecycleParticipant
     void OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef);
     void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
     void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot);
-    void OnSquadDeployed(WorldSettlementFC settlement, MilitaryJobDef job, bool isExtraSquad);
-    void OnSquadRecalled(WorldSettlementFC settlement);
-    void OnBattleResolved(WorldSettlementFC settlement, MilitaryJobDef job, bool victory, BattleResult result);
-    void OnResearchCompleted(ResearchProjectDef project);
+}
+
+public interface IMilitaryOperationListener
+{
+    void OnOperationCreated(MilitaryOperation op);
+    void OnOperationResolved(MilitaryOperation op);
+    void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result);
+}
+
+public interface IMercenarySquadListener
+{
     void OnMercenaryDeath(MercenaryDeathEvent evt);
+    void OnSquadHired(MercenarySquadFC squad);
+    void OnSquadDismissed(MercenarySquadFC squad);
+    void OnSquadUpgraded(MercenarySquadFC squad);
+}
+
+public interface IResearchListener
+{
+    void OnResearchCompleted(ResearchProjectDef project);
 }
 ```
 
 `OnMercenaryDeath` is a notification fired when a mercenary is killed. There is no built-in auto-replacement to gate — refilling empty slots is a player-driven action via `MercenarySquadFC.FillEmptySlots`.
 
-**Convenience base class**: `LifecycleParticipantBase` — all methods are empty virtuals. Extend this to avoid stubbing unused methods.
+**Usage**:
 
 ```csharp
-public class MyLifecycleHook : LifecycleParticipantBase
+public class MyLifecycleHook : ISettlementListener, IResearchListener
 {
-    public override void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
+    public void OnSettlementCreated(WorldSettlementFC settlement) { }
+    public void OnSettlementRemoved(WorldSettlementFC settlement) { }
+    public void OnSettlementUpgraded(WorldSettlementFC settlement, int oldLevel, int newLevel) { }
+    public void OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef) { }
+
+    public void OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
     {
         // Your code here — caches are already dirty
+    }
+    public void OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot) { }
+
+    public void OnResearchCompleted(ResearchProjectDef project)
+    {
+        // Your code here
     }
 }
 
@@ -51,7 +77,9 @@ public class MyLifecycleHook : LifecycleParticipantBase
 LifecycleRegistry.Register(new MyLifecycleHook());
 ```
 
-**Invocation timing**: Each hook fires after the corresponding action completes. Caches are invalidated after each participant's callback, so later participants see changes made by earlier ones.
+A class implementing none of the four listener interfaces logs a warning and is ignored.
+
+**Invocation timing**: Each hook fires after the corresponding action completes. For settlement, building, and military-operation events, caches are invalidated between participants so later participants see changes made by earlier ones. Research completion invalidates all-settlement stat caches between participants.
 
 ---
 
@@ -120,7 +148,7 @@ public class BattleForceContext
 }
 ```
 
-All three are pure transformations: read the input, mutate the value argument, no side effects. The same modifier may be invoked from a real engagement OR from the squad-attack picker's estimate display, so persistence/logging/notify work belongs in `ILifecycleParticipant` op hooks instead. A modifier may implement multiple of these interfaces if its effect spans phases; register each instance via the matching `BattleModifierRegistry.Register(...)` overload.
+All three are pure transformations: read the input, mutate the value argument, no side effects. The same modifier may be invoked from a real engagement OR from the squad-attack picker's estimate display, so persistence/logging/notify work belongs in `IMilitaryOperationListener` op hooks instead. A modifier may implement multiple of these interfaces if its effect spans phases; register each instance via the matching `BattleModifierRegistry.Register(...)` overload.
 
 ---
 
@@ -616,7 +644,7 @@ IReadOnlyList<T> items = MyRegistry.Items;  // property name varies
 
 | Registry | Property | Cleared on cache invalidation? |
 |----------|----------|-------------------------------|
-| `LifecycleRegistry` | `.Participants` | No |
+| `LifecycleRegistry` | (none) | No |
 | `TaxTickRegistry` | `.Taxers` | No |
 | `BattleModifierRegistry` | `.Modifiers` | No |
 | `DefenseValidatorRegistry` | (none) | No |

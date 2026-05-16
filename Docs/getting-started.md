@@ -81,7 +81,7 @@ See [Interfaces & Registries](interfaces-and-registries.md).
 Empire caches stat values and resource production calculations per settlement. These caches are **automatically invalidated** after every lifecycle event (building constructed/deconstructed, settlement created/removed/upgraded, squad deployed/recalled, battle resolved, research completed, tax collected).
 
 This means:
-- If your submod changes values inside a lifecycle callback (e.g., `ILifecycleParticipant.OnBuildingConstructed`), the caches are already dirty — your new values will be picked up on the next query.
+- If your submod changes values inside a lifecycle callback (e.g., `ISettlementListener.OnBuildingConstructed`), the caches are already dirty — your new values will be picked up on the next query.
 - If your submod changes values **outside** a lifecycle callback (e.g., in response to a player action or a custom timer), you must manually invalidate:
   ```csharp
   // For stat changes:

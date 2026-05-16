@@ -9,7 +9,7 @@ using Verse;
 
 namespace FactionColonies
 {
-    public class FactionFC : WorldComponent, ILifecycleParticipant
+    public class FactionFC : WorldComponent, ISettlementListener, IMilitaryOperationListener, IMercenarySquadListener, IResearchListener
     {
         #region Fields & Properties
 
@@ -1611,42 +1611,42 @@ namespace FactionColonies
 
         // Bridges registry dispatch to policy behaviors so ColonyUtil only needs one call path.
 
-        void ILifecycleParticipant.OnSettlementCreated(WorldSettlementFC settlement)
+        void ISettlementListener.OnSettlementCreated(WorldSettlementFC settlement)
         {
             ForEachBehavior(b => b.OnSettlementCreated(this, settlement));
         }
 
-        void ILifecycleParticipant.OnSettlementRemoved(WorldSettlementFC settlement)
+        void ISettlementListener.OnSettlementRemoved(WorldSettlementFC settlement)
         {
             ForEachBehavior(b => b.OnSettlementRemoved(this, settlement));
         }
 
-        void ILifecycleParticipant.OnSettlementUpgraded(WorldSettlementFC settlement, int oldLevel, int newLevel)
+        void ISettlementListener.OnSettlementUpgraded(WorldSettlementFC settlement, int oldLevel, int newLevel)
         {
             ForEachBehavior(b => b.OnSettlementUpgraded(this, settlement, newLevel));
         }
 
-        void ILifecycleParticipant.OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef)
+        void ISettlementListener.OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef)
         {
             ForEachBehavior(b => b.OnSettlementTypeChanged(this, settlement, oldDef, newDef));
         }
 
-        void ILifecycleParticipant.OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
+        void ISettlementListener.OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
         {
             ForEachBehavior(b => b.OnBuildingConstructed(this, settlement, building, slot));
         }
 
-        void ILifecycleParticipant.OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
+        void ISettlementListener.OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
         {
             ForEachBehavior(b => b.OnBuildingDeconstructed(this, settlement, building, slot));
         }
 
-        void ILifecycleParticipant.OnResearchCompleted(ResearchProjectDef project)
+        void IResearchListener.OnResearchCompleted(ResearchProjectDef project)
         {
             ForEachBehavior(b => b.OnResearchCompleted(this, project));
         }
 
-        void ILifecycleParticipant.OnMercenaryDeath(MercenaryDeathEvent evt)
+        void IMercenarySquadListener.OnMercenaryDeath(MercenaryDeathEvent evt)
         {
             // No policy behavior hook for merc death currently — submods handle this via their own listener
         }
@@ -1658,7 +1658,7 @@ namespace FactionColonies
          * policy behaviors and run squad injury bookkeeping.
          */
 
-        void ILifecycleParticipant.OnOperationCreated(MilitaryOperation op)
+        void IMilitaryOperationListener.OnOperationCreated(MilitaryOperation op)
         {
             if (op is null) return;
 
@@ -1679,7 +1679,7 @@ namespace FactionColonies
             }
         }
 
-        void ILifecycleParticipant.OnOperationResolved(MilitaryOperation op)
+        void IMilitaryOperationListener.OnOperationResolved(MilitaryOperation op)
         {
             if (op is null) return;
 
@@ -1695,7 +1695,7 @@ namespace FactionColonies
                 ForEachBehavior(b => b.OnSquadRecalled(this, op, defenderHome));
         }
 
-        void ILifecycleParticipant.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
+        void IMilitaryOperationListener.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
         {
             if (op is null) return;
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
@@ -1704,19 +1704,19 @@ namespace FactionColonies
             ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
         }
 
-        void ILifecycleParticipant.OnSquadHired(MercenarySquadFC squad)
+        void IMercenarySquadListener.OnSquadHired(MercenarySquadFC squad)
         {
             if (squad is null) return;
             ForEachBehavior(b => b.OnSquadHired(this, squad));
         }
 
-        void ILifecycleParticipant.OnSquadDismissed(MercenarySquadFC squad)
+        void IMercenarySquadListener.OnSquadDismissed(MercenarySquadFC squad)
         {
             if (squad is null) return;
             ForEachBehavior(b => b.OnSquadDismissed(this, squad));
         }
 
-        void ILifecycleParticipant.OnSquadUpgraded(MercenarySquadFC squad)
+        void IMercenarySquadListener.OnSquadUpgraded(MercenarySquadFC squad)
         {
             if (squad is null) return;
             MilitaryFC.NotifyIfUnderfunded(squad);

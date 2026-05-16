@@ -24,26 +24,36 @@ namespace FactionColonies
         // Test Doubles
         // ============================
 
-        private class TestLifecycleParticipant : LifecycleParticipantBase
+        private class TestLifecycleParticipant : ISettlementListener, IMilitaryOperationListener, IResearchListener
         {
             public int SettlementCreatedCount;
             public int SettlementRemovedCount;
             public int BuildingConstructedCount;
             public int BattleResolvedCount;
             public int ResearchCompletedCount;
-            public override void OnSettlementCreated(WorldSettlementFC s) => SettlementCreatedCount++;
-            public override void OnSettlementRemoved(WorldSettlementFC s) => SettlementRemovedCount++;
-            public override void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => BuildingConstructedCount++;
-            public override void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => BattleResolvedCount++;
-            public override void OnResearchCompleted(ResearchProjectDef p) => ResearchCompletedCount++;
+            public void OnSettlementCreated(WorldSettlementFC s) => SettlementCreatedCount++;
+            public void OnSettlementRemoved(WorldSettlementFC s) => SettlementRemovedCount++;
+            public void OnSettlementUpgraded(WorldSettlementFC s, int oldLevel, int newLevel) { }
+            public void OnSettlementTypeChanged(WorldSettlementFC s, WorldSettlementDef oldDef, WorldSettlementDef newDef) { }
+            public void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => BuildingConstructedCount++;
+            public void OnBuildingDeconstructed(WorldSettlementFC s, BuildingFCDef b, int slot) { }
+            public void OnOperationCreated(MilitaryOperation op) { }
+            public void OnOperationResolved(MilitaryOperation op) { }
+            public void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => BattleResolvedCount++;
+            public void OnResearchCompleted(ResearchProjectDef p) => ResearchCompletedCount++;
         }
 
-        private class ThrowingLifecycleParticipant : LifecycleParticipantBase
+        private class ThrowingLifecycleParticipant : ISettlementListener, IMilitaryOperationListener
         {
-            public override void OnSettlementCreated(WorldSettlementFC s) => throw new InvalidOperationException("test");
-            public override void OnSettlementRemoved(WorldSettlementFC s) => throw new InvalidOperationException("test");
-            public override void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => throw new InvalidOperationException("test");
-            public override void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => throw new InvalidOperationException("test");
+            public void OnSettlementCreated(WorldSettlementFC s) => throw new InvalidOperationException("test");
+            public void OnSettlementRemoved(WorldSettlementFC s) => throw new InvalidOperationException("test");
+            public void OnSettlementUpgraded(WorldSettlementFC s, int oldLevel, int newLevel) => throw new InvalidOperationException("test");
+            public void OnSettlementTypeChanged(WorldSettlementFC s, WorldSettlementDef oldDef, WorldSettlementDef newDef) => throw new InvalidOperationException("test");
+            public void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => throw new InvalidOperationException("test");
+            public void OnBuildingDeconstructed(WorldSettlementFC s, BuildingFCDef b, int slot) => throw new InvalidOperationException("test");
+            public void OnOperationCreated(MilitaryOperation op) => throw new InvalidOperationException("test");
+            public void OnOperationResolved(MilitaryOperation op) => throw new InvalidOperationException("test");
+            public void OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result) => throw new InvalidOperationException("test");
         }
 
         private class TestBattleModifier : IBattleModifier

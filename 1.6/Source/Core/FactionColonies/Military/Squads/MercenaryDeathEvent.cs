@@ -1,7 +1,7 @@
 namespace FactionColonies
 {
     /// <summary>
-    /// Event data passed to <see cref="ILifecycleParticipant.OnMercenaryDeath"/> when a mercenary is killed.
+    /// Event data passed to <see cref="IMercenarySquadListener.OnMercenaryDeath"/> when a mercenary is killed.
     /// Pure notification: listeners observe the death but do not gate any built-in replacement
     /// behavior (auto-replacement was removed by the strict-manual outfit refactor; refilling
     /// empty slots is now a player-driven action via <see cref="MercenarySquadFC.FillEmptySlots"/>).
