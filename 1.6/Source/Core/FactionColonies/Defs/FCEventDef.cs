@@ -168,29 +168,4 @@ namespace FactionColonies
                 yield return $"{defName}: timeTillTriggerMax ({timeTillTriggerMax}) < timeTillTrigger ({timeTillTrigger})";
         }
     }
-
-    [DefOf]
-    public class FCEventDefOf
-    {
-        //List Events here - loads events at start
-        public static FCEventDef Null;
-        public static FCEventDef settleNewColony;
-        public static FCEventDef taxColony;
-        public static FCEventDef constructBuilding;
-        public static FCEventDef enactSettlementPolicy;
-        public static FCEventDef enactFactionPolicy;
-        public static FCEventDef upgradeSettlement;
-        public static FCEventDef raidEnemySettlement;
-        public static FCEventDef enslaveEnemySettlement;
-        public static FCEventDef captureEnemySettlement;
-        public static FCEventDef cooldownMilitary;
-        public static FCEventDef settlementBeingAttacked;
-        public static FCEventDef autoResolveBattleRound;
-        public static FCEventDef deliveryArrival;
-
-        static FCEventDefOf()
-        {
-            DefOfHelper.EnsureInitializedInCtor(typeof(FCEventDefOf));
-        }
-    }
 }
