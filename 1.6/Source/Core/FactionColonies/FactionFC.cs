@@ -432,7 +432,7 @@ namespace FactionColonies
             RebuildFactionResources();
             EnsureCaravanTypesPopulated();
             EnsureResourcePools();
-            LifecycleRegistry.Register(this);
+            EmpireRegistry.Register(this);
 
             // Rebuild op indices from `active` whether we just migrated a save or not — cheap
             // and always-correct even on a fresh-game start (no-op when active is empty).
@@ -601,15 +601,15 @@ namespace FactionColonies
              * On the new-world path, FinalizeInit already initialized them; this is a no-op. */
             EnsureFiltersInitialized();
 
-            /* Re-register with LifecycleRegistry in case ClearCaches ran after FinalizeInit
+            /* Re-register with EmpireRegistry in case ClearCaches ran after FinalizeInit
              * (happens during Game.InitNewGame; ClearCaches postfix clears the registry
              * after World.FinalizeInit already registered us during world generation). */
-            LifecycleRegistry.Register(this);
+            EmpireRegistry.Register(this);
 
             /* Built-in stateless squad-assignment validators. */
-            SquadAssignmentRegistry.Register(new SquadCapValidator());
-            SquadAssignmentRegistry.Register(new SquadSizeValidator());
-            SquadAssignmentRegistry.Register(new SquadValueValidator());
+            EmpireRegistry.Register(new SquadCapValidator());
+            EmpireRegistry.Register(new SquadSizeValidator());
+            EmpireRegistry.Register(new SquadValueValidator());
 
             roadBuilder.FirstTick();
 

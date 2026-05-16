@@ -1260,5 +1260,130 @@ namespace FactionColonies
             }
             finally { AutoDefenderRegistry.Unregister(d); }
         }
+
+        // ============================
+        // EmpireRegistry (unified facade)
+        // ============================
+
+        /// <summary>
+        /// Test double implementing multiple unrelated interfaces so we can verify
+        /// <see cref="EmpireRegistry.Register"/> routes a single registration to every
+        /// matching domain.
+        /// </summary>
+        private class MultiInterfaceParticipant : ISettlementListener, ITaxTickParticipant, IDefenseValidator
+        {
+            public int SettlementCreated;
+            public int PreTax;
+            public int CanDefendCalls;
+
+            // ISettlementListener (only OnSettlementCreated is interesting; others are stubs)
+            public void OnSettlementCreated(WorldSettlementFC s) => SettlementCreated++;
+            public void OnSettlementRemoved(WorldSettlementFC s) { }
+            public void OnSettlementUpgraded(WorldSettlementFC s, int oldLevel, int newLevel) { }
+            public void OnSettlementTypeChanged(WorldSettlementFC s, WorldSettlementDef oldDef, WorldSettlementDef newDef) { }
+            public void OnBuildingConstructed(WorldSettlementFC s, BuildingFCDef b, int slot) { }
+            public void OnBuildingDeconstructed(WorldSettlementFC s, BuildingFCDef b, int slot) { }
+
+            // ITaxTickParticipant
+            public void PreTaxResolution(FactionFC f) => PreTax++;
+            public void PostTaxResolution(FactionFC f) { }
+            public void PreSettlementCreateTax(WorldSettlementFC s) { }
+            public void PostSettlementCreateTax(WorldSettlementFC s, ref int a, List<Thing> t) { }
+
+            // IDefenseValidator
+            public bool CanDefend(WorldSettlementFC defender, WorldSettlementFC target)
+            {
+                CanDefendCalls++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Class that implements zero registered interfaces, used to verify the
+        /// "matched no registry" warning path.
+        /// </summary>
+        private class NonParticipant { }
+
+        [EmpireTest("Registry")]
+        public static void EmpireRegistry_Register_RoutesToAllMatchingDomains()
+        {
+            WorldSettlementFC settlement = GetFirstSettlement();
+            if (settlement == null) TestAssert.Skip("No settlements");
+
+            MultiInterfaceParticipant p = new MultiInterfaceParticipant();
+            EmpireRegistry.Register(p);
+            try
+            {
+                // ISettlementListener routing
+                LifecycleRegistry.InvokeOnSettlementCreated(settlement);
+                TestAssert.AreEqual(1, p.SettlementCreated, "Should fire via LifecycleRegistry");
+
+                // ITaxTickParticipant routing
+                TaxTickRegistry.InvokePreTaxResolution(null);
+                TestAssert.AreEqual(1, p.PreTax, "Should fire via TaxTickRegistry");
+
+                // IDefenseValidator routing
+                DefenseValidatorRegistry.CanDefend(null, null);
+                TestAssert.AreEqual(1, p.CanDefendCalls, "Should fire via DefenseValidatorRegistry");
+            }
+            finally { EmpireRegistry.Unregister(p); }
+        }
+
+        [EmpireTest("Registry")]
+        public static void EmpireRegistry_Unregister_RemovesFromAllMatchingDomains()
+        {
+            WorldSettlementFC settlement = GetFirstSettlement();
+            if (settlement == null) TestAssert.Skip("No settlements");
+
+            MultiInterfaceParticipant p = new MultiInterfaceParticipant();
+            EmpireRegistry.Register(p);
+            EmpireRegistry.Unregister(p);
+
+            LifecycleRegistry.InvokeOnSettlementCreated(settlement);
+            TaxTickRegistry.InvokePreTaxResolution(null);
+            DefenseValidatorRegistry.CanDefend(null, null);
+
+            TestAssert.AreEqual(0, p.SettlementCreated, "Settlement hook should be removed");
+            TestAssert.AreEqual(0, p.PreTax, "Tax hook should be removed");
+            TestAssert.AreEqual(0, p.CanDefendCalls, "Defense validator should be removed");
+        }
+
+        [EmpireTest("Registry")]
+        public static void EmpireRegistry_ClearAll_ClearsEveryFacadeManagedRegistry()
+        {
+            MultiInterfaceParticipant p = new MultiInterfaceParticipant();
+            EmpireRegistry.Register(p);
+            EmpireRegistry.ClearAll();
+
+            // After ClearAll, none of the domain registries should still hold p.
+            // We can't easily enumerate every list, but we can verify that none of
+            // p's hooks fire after ClearAll.
+            WorldSettlementFC settlement = GetFirstSettlement();
+            if (settlement != null) LifecycleRegistry.InvokeOnSettlementCreated(settlement);
+            TaxTickRegistry.InvokePreTaxResolution(null);
+            DefenseValidatorRegistry.CanDefend(null, null);
+
+            TestAssert.AreEqual(0, p.SettlementCreated, "Settlement hook cleared");
+            TestAssert.AreEqual(0, p.PreTax, "Tax hook cleared");
+            TestAssert.AreEqual(0, p.CanDefendCalls, "Defense validator cleared");
+        }
+
+        [EmpireTest("Registry")]
+        public static void EmpireRegistry_Register_NonParticipant_NoOp()
+        {
+            // Passing an object that implements zero registered interfaces should
+            // log a warning but not throw. We don't capture the log here; just
+            // verify no exception escapes and no domain registry is affected.
+            NonParticipant junk = new NonParticipant();
+            TestAssert.DoesNotThrow(() => EmpireRegistry.Register(junk));
+            TestAssert.DoesNotThrow(() => EmpireRegistry.Unregister(junk));
+        }
+
+        [EmpireTest("Registry")]
+        public static void EmpireRegistry_Register_Null_NoOp()
+        {
+            TestAssert.DoesNotThrow(() => EmpireRegistry.Register(null));
+            TestAssert.DoesNotThrow(() => EmpireRegistry.Unregister(null));
+        }
     }
 }

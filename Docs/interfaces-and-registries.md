@@ -8,6 +8,30 @@ Registries are not serialized. Your mod must re-register on game load.
 
 ---
 
+## Registration: `EmpireRegistry`
+
+`EmpireRegistry` is the unified entry point for every registry-based interface (except `MilitaryWindowRegistry`, see below). One `Register(object)` call probes the participant for every supported interface and forwards it to the matching domain registry. Symmetric `Unregister(object)` and `ClearAll()` are provided.
+
+```csharp
+public class MyExtension : ISettlementListener, ITaxTickParticipant, ISilverPaymentModifier
+{
+    // ... interface implementations ...
+}
+
+// Anywhere init runs (WorldComponent.FinalizeInit, [StaticConstructorOnStartup], etc.):
+EmpireRegistry.Register(new MyExtension());
+```
+
+The facade routes that single call to `LifecycleRegistry`, `TaxTickRegistry`, and `SilverPaymentRegistry` simultaneously. There's no need to know which interface belongs to which registry. A participant that matches no registered interface logs `EmpireRegistry.Register: <type> matched no registry; ignored`.
+
+The per-domain typed `XxxRegistry.Register(IXxx)` methods listed in the sections below still exist for explicit registration — `EmpireRegistry` is additive, not a replacement.
+
+`EmpireRegistry.ClearAll()` is called from `EmpireCacheUtil.InvalidateAll` (on `Game.Dispose` / `Game.ClearCaches`). Submods needing to re-register after invalidation should hook `EmpireCacheUtil.RegisterCacheInvalidator(key, callback)` and call `EmpireRegistry.Register(...)` from the callback.
+
+**Exception — `MilitaryWindowRegistry`**: its slot-keyed `Register(SlotKey, factory)` API doesn't fit the interface-probe pattern. Call it directly; `EmpireRegistry.ClearAll()` does not clear it.
+
+---
+
 ## Registry-Based Interfaces
 
 ### Lifecycle listener interfaces
@@ -74,7 +98,7 @@ public class MyLifecycleHook : ISettlementListener, IResearchListener
 }
 
 // In your mod's static constructor:
-LifecycleRegistry.Register(new MyLifecycleHook());
+EmpireRegistry.Register(new MyLifecycleHook());  // or LifecycleRegistry.Register(...) for typed registration
 ```
 
 A class implementing none of the four listener interfaces logs a warning and is ignored.
@@ -626,35 +650,45 @@ See [DefModExtensions — IBuildingDetailSection](def-mod-extensions.md#ibuildin
 
 ## Registry API Summary
 
-All registries share the same API:
+All facade-managed registries share the same API:
 
 ```csharp
-// Register
+// Register (preferred: unified entry point)
+EmpireRegistry.Register(instance);
+
+// Register (typed alternative — explicit, narrower)
 MyRegistry.Register(instance);
 
 // Unregister
-MyRegistry.Unregister(instance);
+EmpireRegistry.Unregister(instance);   // or MyRegistry.Unregister(instance)
 
-// Clear all (called internally on cache invalidation for some registries)
-MyRegistry.ClearAll();
+// Clear all facade-managed registries (called from EmpireCacheUtil.InvalidateAll)
+EmpireRegistry.ClearAll();
 
 // Read-only access to registered items (most registries)
 IReadOnlyList<T> items = MyRegistry.Items;  // property name varies
 ```
 
-| Registry | Property | Cleared on cache invalidation? |
-|----------|----------|-------------------------------|
-| `LifecycleRegistry` | (none) | No |
-| `TaxTickRegistry` | `.Taxers` | No |
-| `BattleModifierRegistry` | `.Modifiers` | No |
-| `DefenseValidatorRegistry` | (none) | No |
-| `SquadAssignmentRegistry` | (none) | No |
-| `FoundingValidatorRegistry` | (none) | No |
-| `RaidWeightRegistry` | `.Providers` | No |
-| `ThreatScalingRegistry` | `.Contributors` | No |
-| `SilverPaymentRegistry` | `.Modifiers` | No |
-| `RaidTargetRegistry` | `.Targets` | No |
-| `AutoDefenderRegistry` | `.Defenders` | No |
-| `MilitaryTabRegistry` | `.Entries` | No |
-| `MainTableRegistry` | `.Tabs` | Yes |
-| `BuildingFilterRegistry` | `.Filters` | Yes |
+Every facade-managed registry is cleared by `EmpireRegistry.ClearAll()` on cache invalidation. `MilitaryWindowRegistry` is the one exception (slot-keyed, outside the facade).
+
+| Registry | Public collection |
+|----------|-------------------|
+| `LifecycleRegistry` | (none) |
+| `TaxTickRegistry` | `.Taxers` |
+| `BattleModifierRegistry` | `.Modifiers` |
+| `DefenseValidatorRegistry` | (none) |
+| `SquadAssignmentRegistry` | (none) |
+| `FoundingValidatorRegistry` | (none) |
+| `RaidWeightRegistry` | `.Providers` |
+| `ThreatScalingRegistry` | `.Contributors` |
+| `SilverPaymentRegistry` | `.Modifiers` |
+| `TaxDeliveryRegistry` | `.Interceptors` |
+| `MercAutoTendRegistry` | `.Providers` |
+| `SquadPowerRegistry` | `.Modifiers` |
+| `RaidTargetRegistry` | `.Targets` |
+| `AutoDefenderRegistry` | `.Defenders` |
+| `MilitaryTabRegistry` | `.Entries` |
+| `MainTableRegistry` | `.Tabs` |
+| `SettlementButtonRegistry` | `.Entries` |
+| `SquadInspectionRegistry` | `.Sections` |
+| `BuildingFilterRegistry` | `.Filters` |

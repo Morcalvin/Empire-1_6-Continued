@@ -25,7 +25,7 @@ namespace FactionColonies.WD
         static WorldDominationCompatInit()
         {
             new Harmony("com.Matathias.Empire.WD").PatchAll(Assembly.GetExecutingAssembly());
-            BattleModifierRegistry.Register(new WDStrengthSettlementModifier());
+            EmpireRegistry.Register(new WDStrengthSettlementModifier());
             LogUtil.MessageForce("World Domination compatibility module loaded.");
         }
     }

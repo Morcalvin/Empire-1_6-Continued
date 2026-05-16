@@ -25,7 +25,7 @@ namespace FactionColonies.RW
         static RimWarCompatInit()
         {
             new Harmony("com.Matathias.Empire.RW").PatchAll(Assembly.GetExecutingAssembly());
-            BattleModifierRegistry.Register(new RWStrengthSettlementModifier());
+            EmpireRegistry.Register(new RWStrengthSettlementModifier());
             LogUtil.MessageForce("RimWar compatibility module loaded.");
         }
     }

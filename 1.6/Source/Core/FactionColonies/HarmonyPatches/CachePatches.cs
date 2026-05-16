@@ -33,23 +33,7 @@ namespace FactionColonies
         {
             FactionCache.InvalidateCache();
 
-            TaxTickRegistry.ClearAll();
-            MainTableRegistry.ClearAll();
-            LifecycleRegistry.ClearAll();
-            BattleModifierRegistry.ClearAll();
-            BuildingFilterRegistry.ClearAll();
-
-            AutoDefenderRegistry.ClearAll();
-            MilitaryTabRegistry.ClearAll();
-            RaidTargetRegistry.ClearAll();
-            DefenseValidatorRegistry.ClearAll();
-            SquadAssignmentRegistry.ClearAll();
-            SquadInspectionRegistry.ClearAll();
-            SquadPowerRegistry.ClearAll();
-            ThreatScalingRegistry.ClearAll();
-            SilverPaymentRegistry.ClearAll();
-            RaidWeightRegistry.ClearAll();
-            FoundingValidatorRegistry.ClearAll();
+            EmpireRegistry.ClearAll();
 
             SettlementTypeExtension_Orbital.InvalidateCache();
             FactionDefDescriptionPatch.Invalidate();
