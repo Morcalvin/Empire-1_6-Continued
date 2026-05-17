@@ -865,4 +865,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_61</defName>
+		<label>Translation Fixes</label>
+		<description>Updates several non-English translations to remove a translation key collision with the base game.</description>
+		<releaseDate>2026-05-16</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Change non-English translation keys: TotalValue -&gt; FCTotalValue</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
