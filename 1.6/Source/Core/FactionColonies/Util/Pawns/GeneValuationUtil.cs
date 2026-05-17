@@ -29,7 +29,7 @@ namespace FactionColonies.util
      *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
     public static class GeneValuationUtil
     {
-        internal struct GeneValueComponents
+        public struct GeneValueComponents
         {
             public float MvfBonus;
             public float MetBonus;
@@ -134,6 +134,51 @@ namespace FactionColonies.util
             return ComputeGeneComponentsCached(gene).ApplyWeights();
         }
 
+        /* Debug/inspection accessors — force-populate the cache and return raw components.
+         * Used by the "Dump Gene/Xenotype Valuation Cache" debug actions. */
+        public static GeneValueComponents GetGeneComponents(GeneDef gene)
+        {
+            if (gene is null) return default(GeneValueComponents);
+            return ComputeGeneComponentsCached(gene);
+        }
+
+        public static GeneValueComponents GetXenotypeComponents(XenotypeDef xenotype)
+        {
+            if (xenotype is null) return default(GeneValueComponents);
+            GeneValueComponents components;
+            if (!_xenotypeComponentsCache.TryGetValue(xenotype, out components))
+            {
+                components = ComputeXenotypeComponents(xenotype.genes);
+                _xenotypeComponentsCache[xenotype] = components;
+            }
+            return components;
+        }
+
+        public static GeneValueComponents GetXenotypeComponents(CustomXenotype custom)
+        {
+            if (custom is null) return default(GeneValueComponents);
+            string key = custom.name;
+            if (key is null) return ComputeXenotypeComponents(custom.genes);
+            GeneValueComponents components;
+            if (!_customXenotypeComponentsCache.TryGetValue(key, out components))
+            {
+                components = ComputeXenotypeComponents(custom.genes);
+                _customXenotypeComponentsCache[key] = components;
+            }
+            return components;
+        }
+
+        /* Unclamped factor (1 + weighted sum). Lets debug code show what got floored/capped. */
+        public static float RawXenotypeFactor(XenotypeDef xenotype)
+        {
+            return 1f + GetXenotypeComponents(xenotype).ApplyWeights();
+        }
+
+        public static float RawXenotypeFactor(CustomXenotype custom)
+        {
+            return 1f + GetXenotypeComponents(custom).ApplyWeights();
+        }
+
         private static GeneValueComponents ComputeXenotypeComponents(IEnumerable<GeneDef> genes)
         {
             GeneValueComponents sum = default(GeneValueComponents);
@@ -193,7 +238,10 @@ namespace FactionColonies.util
                 foreach (StatModifier sf in gene.statFactors)
                 {
                     if (sf.stat is null) continue;
-                    score += (sf.value - 1f) * CategoryWeight(sf.stat.category);
+                    float contribution = sf.value - 1f;
+                    /* "Lower is better" stats invert: Flammability=0.1 (good) shouldn't score as -0.9. */
+                    if (InverseDirectionStats.Contains(sf.stat)) contribution = -contribution;
+                    score += contribution * CategoryWeight(sf.stat.category);
                 }
             }
 
@@ -202,10 +250,18 @@ namespace FactionColonies.util
                 foreach (StatModifier so in gene.statOffsets)
                 {
                     if (so.stat is null) continue;
-                    /* Normalize the offset against the stat's natural baseline so a +0.1 on
-                     * a 1.0-baseline stat scores the same as a +0.5 on a 5.0-baseline stat. */
-                    float denom = Mathf.Max(0.01f, Mathf.Abs(so.stat.defaultBaseValue));
-                    score += (so.value / denom) * CategoryWeight(so.stat.category);
+                    /* Normalize the offset against the stat's natural baseline. For 0- and 1-baseline
+                     * stats the raw offset passes through; high-baseline stats (e.g. ComfyTemperatureMax
+                     * default 40) get normalized. */
+                    float denom = Mathf.Max(1f, Mathf.Abs(so.stat.defaultBaseValue));
+                    float normalized = so.value / denom;
+                    /* Same polarity inversion as statFactors: ComfyTemperatureMin = -10 (more cold tolerance)
+                     * is a positive, not a negative. */
+                    if (InverseDirectionStats.Contains(so.stat)) normalized = -normalized;
+                    /* Clamp per-offset to ±1 so a single absolute-unit offset (e.g. +10°) can't dominate.
+                     * Many gene contributions still add up freely — only single-offset outliers are bounded. */
+                    normalized = Mathf.Clamp(normalized, -1f, 1f);
+                    score += normalized * CategoryWeight(so.stat.category);
                 }
             }
 
@@ -228,6 +284,35 @@ namespace FactionColonies.util
             }
 
             return score;
+        }
+
+        /* Stats where lower = better. Used in EffectScore to invert sign so genes that
+         * reduce these stats (FireResistant.Flammability=0.1, Unstoppable.StaggerDurationFactor=0,
+         * Robust.IncomingDamageFactor=0.75, ComfyTemperatureMin offsets, etc.) score positively. */
+        private static HashSet<StatDef> _inverseDirectionStats;
+        private static HashSet<StatDef> InverseDirectionStats
+        {
+            get
+            {
+                if (_inverseDirectionStats is null)
+                {
+                    _inverseDirectionStats = new HashSet<StatDef>();
+                    AddIfPresent("ComfyTemperatureMin");      // lower = more cold tolerance
+                    AddIfPresent("StaggerDurationFactor");    // lower = recovers faster
+                    AddIfPresent("Flammability");             // lower = doesn't catch fire
+                    AddIfPresent("IncomingDamageFactor");     // lower = tougher
+                    AddIfPresent("AimingDelayFactor");        // lower = faster aim
+                    AddIfPresent("MentalBreakThreshold");     // lower = mentally tougher
+                    AddIfPresent("HungerRateMultiplier");     // lower = eats less
+                }
+                return _inverseDirectionStats;
+            }
+        }
+
+        private static void AddIfPresent(string defName)
+        {
+            StatDef d = DefDatabase<StatDef>.GetNamedSilentFail(defName);
+            if (d is object) _inverseDirectionStats.Add(d);
         }
 
         private static float CategoryWeight(StatCategoryDef category)

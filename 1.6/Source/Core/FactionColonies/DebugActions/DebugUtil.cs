@@ -1604,5 +1604,106 @@ namespace FactionColonies
             }
             Find.WindowStack.Add(new Dialog_DebugOptionListLister(options));
         }
+
+        /* Diagnostic dumps for the gene valuator. Use these to spot which genes are producing
+         * outsized contributions to the xenotype cost factor. */
+
+        [DebugAction("Empire", "Dump Gene Valuation Cache", allowedGameStates = AllowedGameStates.Playing)]
+        private static void DumpGeneValuationCache()
+        {
+            List<GeneDef> genes = DefDatabase<GeneDef>.AllDefsListForReading;
+            List<GeneValuationUtil.GeneValueComponents> components = new List<GeneValuationUtil.GeneValueComponents>(genes.Count);
+            for (int i = 0; i < genes.Count; i++)
+                components.Add(GeneValuationUtil.GetGeneComponents(genes[i]));
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"Gene valuation cache ({genes.Count} genes, current weights)");
+            sb.AppendLine(
+                $"weights: mvf={FCSettings.geneValueWeightMvf:F2} " +
+                $"met={FCSettings.geneValueWeightMet:F2} " +
+                $"arc={FCSettings.geneValueWeightArc:F2} " +
+                $"abil={FCSettings.geneValueWeightAbility:F2} " +
+                $"eff={FCSettings.geneValueWeightEffects:F2} " +
+                $"pain={FCSettings.geneValueWeightPain:F2} " +
+                $"dmgR={FCSettings.geneValueWeightDmgResist:F2}");
+            sb.AppendLine($"{"gene",-36} {"mvfB",8} {"metB",6} {"arc",4} {"abil",5} {"effSc",10} {"painB",8} {"dmgRB",8} {"weighted",10}");
+
+            // Sort by weighted magnitude descending so outliers float to the top
+            int[] order = new int[genes.Count];
+            for (int i = 0; i < order.Length; i++) order[i] = i;
+            Array.Sort(order, (a, b) => Math.Abs(components[b].ApplyWeights()).CompareTo(Math.Abs(components[a].ApplyWeights())));
+
+            foreach (int idx in order)
+            {
+                GeneValuationUtil.GeneValueComponents c = components[idx];
+                float w = c.ApplyWeights();
+                /* Skip genes that contribute essentially nothing — cuts down log noise from cosmetics. */
+                if (Math.Abs(w) < 0.001f && Math.Abs(c.MvfBonus) < 0.001f && c.MetBonus == 0 && c.ArcBonus == 0
+                    && c.AbilityCount == 0 && Math.Abs(c.EffectScore) < 0.001f
+                    && Math.Abs(c.PainBonus) < 0.001f && Math.Abs(c.DmgResistBonus) < 0.001f)
+                    continue;
+                sb.AppendLine(
+                    $"{genes[idx].defName,-36} {c.MvfBonus,8:F2} {c.MetBonus,6:F1} {c.ArcBonus,4:F0} " +
+                    $"{c.AbilityCount,5} {c.EffectScore,10:F2} {c.PainBonus,8:F2} {c.DmgResistBonus,8:F2} {w,10:F2}");
+            }
+
+            LogUtil.MessageForce(sb.ToString());
+        }
+
+        [DebugAction("Empire", "Dump Xenotype Valuation Cache", allowedGameStates = AllowedGameStates.Playing)]
+        private static void DumpXenotypeValuationCache()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            List<XenotypeDef> xenoDefs = DefDatabase<XenotypeDef>.AllDefsListForReading
+                .OrderBy(x => x.defName).ToList();
+            List<CustomXenotype> customs = FactionCache.CustomXenotypes ?? new List<CustomXenotype>();
+
+            sb.AppendLine($"Xenotype valuation cache ({xenoDefs.Count} defs + {customs.Count} custom)");
+
+            foreach (XenotypeDef xeno in xenoDefs)
+                AppendXenotypeSection(sb, xeno.defName, xeno.genes,
+                    GeneValuationUtil.RawXenotypeFactor(xeno),
+                    GeneValuationUtil.XenotypeFactor(xeno));
+
+            foreach (CustomXenotype custom in customs)
+            {
+                if (custom is null) continue;
+                AppendXenotypeSection(sb, (custom.name ?? "???") + " [custom]", custom.genes,
+                    GeneValuationUtil.RawXenotypeFactor(custom),
+                    GeneValuationUtil.XenotypeFactor(custom));
+            }
+
+            LogUtil.MessageForce(sb.ToString());
+        }
+
+        private static void AppendXenotypeSection(StringBuilder sb, string label, List<GeneDef> genes, float rawFactor, float finalFactor)
+        {
+            string flag = "";
+            if (Math.Abs(rawFactor - finalFactor) > 0.005f)
+                flag = rawFactor < finalFactor ? " [FLOORED]" : " [CAPPED]";
+
+            sb.AppendLine($"--- {label} (xenoFactor={finalFactor:F2}x; raw={rawFactor:F2}{flag}) ---");
+            if (genes is null || genes.Count == 0)
+            {
+                sb.AppendLine("  (no genes)");
+                return;
+            }
+
+            // Per-gene contributions, sorted by absolute weighted value descending
+            List<KeyValuePair<GeneDef, float>> contribs = new List<KeyValuePair<GeneDef, float>>(genes.Count);
+            foreach (GeneDef g in genes)
+            {
+                if (g is null) continue;
+                contribs.Add(new KeyValuePair<GeneDef, float>(g, GeneValuationUtil.GetGeneComponents(g).ApplyWeights()));
+            }
+            contribs.Sort((a, b) => Math.Abs(b.Value).CompareTo(Math.Abs(a.Value)));
+
+            foreach (KeyValuePair<GeneDef, float> kv in contribs)
+            {
+                string sign = kv.Value >= 0f ? "+" : "";
+                sb.AppendLine($"  {kv.Key.defName,-36} {sign}{kv.Value:F3}");
+            }
+        }
     }
 }
