@@ -106,7 +106,7 @@
 <FCTitheList>什一税清单</FCTitheList>
 <FCStackCount>堆叠量</FCStackCount>
 <!--<MarketValue>Market Value</MarketValue>-->
-<TotalValue>总价值</TotalValue>
+<FCTotalValue>总价值</FCTotalValue>
 <FCCashSymbol>$</FCCashSymbol>
 
 <!-- MainTabWindow_Colony -->

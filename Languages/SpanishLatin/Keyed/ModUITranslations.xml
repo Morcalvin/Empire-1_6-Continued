@@ -106,7 +106,7 @@
 <FCTitheList>Lista de diezmos</FCTitheList>
 <FCStackCount>Recuento de pilas</FCStackCount>
 <!--<MarketValue>Market Value</MarketValue>-->
-<TotalValue>Valor total</TotalValue>
+<FCTotalValue>Valor total</FCTotalValue>
 <FCCashSymbol>$</FCCashSymbol>
 
 <!-- MainTabWindow_Colony -->
