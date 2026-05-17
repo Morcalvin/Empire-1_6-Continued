@@ -1021,37 +1021,40 @@ namespace FactionColonies
             deploymentBillLifespan_days = (int)ls.Slider(deploymentBillLifespan_days, 1f, 60f);
 
             ls.Gap(8f);
-            Text.Font = GameFont.Medium;
-            ls.Label("FCSettingGeneValueHeader".Translate());
-            Text.Font = GameFont.Small;
-            ls.Label("FCSettingGeneValueHelpText".Translate(), -1f);
-
-            ls.Label("FCSettingGeneValueWeightMvf".Translate() + ": " + geneValueWeightMvf.ToString("0.00"), -1f, "FCSettingGeneValueWeightMvfTip".Translate());
-            geneValueWeightMvf = ls.Slider(geneValueWeightMvf, 0f, 3f);
-
-            ls.Label("FCSettingGeneValueWeightMet".Translate() + ": " + geneValueWeightMet.ToString("0.00"), -1f, "FCSettingGeneValueWeightMetTip".Translate());
-            geneValueWeightMet = ls.Slider(geneValueWeightMet, 0f, 0.5f);
-
-            ls.Label("FCSettingGeneValueWeightArc".Translate() + ": " + geneValueWeightArc.ToString("0.00"), -1f, "FCSettingGeneValueWeightArcTip".Translate());
-            geneValueWeightArc = ls.Slider(geneValueWeightArc, 0f, 2f);
-
-            ls.Label("FCSettingGeneValueWeightAbility".Translate() + ": " + geneValueWeightAbility.ToString("0.00"), -1f, "FCSettingGeneValueWeightAbilityTip".Translate());
-            geneValueWeightAbility = ls.Slider(geneValueWeightAbility, 0f, 2f);
-
-            ls.Label("FCSettingGeneValueWeightEffects".Translate() + ": " + geneValueWeightEffects.ToString("0.00"), -1f, "FCSettingGeneValueWeightEffectsTip".Translate());
-            geneValueWeightEffects = ls.Slider(geneValueWeightEffects, 0f, 2f);
-
-            ls.Label("FCSettingGeneValueWeightPain".Translate() + ": " + geneValueWeightPain.ToString("0.00"), -1f, "FCSettingGeneValueWeightPainTip".Translate());
-            geneValueWeightPain = ls.Slider(geneValueWeightPain, 0f, 2f);
-
-            ls.Label("FCSettingGeneValueWeightDmgResist".Translate() + ": " + geneValueWeightDmgResist.ToString("0.00"), -1f, "FCSettingGeneValueWeightDmgResistTip".Translate());
-            geneValueWeightDmgResist = ls.Slider(geneValueWeightDmgResist, 0f, 2f);
-
-            ls.CheckboxLabeled("FCSettingGeneValueFactorUnlimited".Translate(), ref geneValueFactorUnlimited, "FCSettingGeneValueFactorUnlimitedTip".Translate());
-            if (!geneValueFactorUnlimited)
+            if (ModsConfig.BiotechActive)
             {
-                ls.Label("FCSettingGeneValueMaxFactor".Translate() + ": " + geneValueMaxFactor.ToString("0.00") + "x", -1f, "FCSettingGeneValueMaxFactorTip".Translate());
-                geneValueMaxFactor = ls.Slider(geneValueMaxFactor, MIN_GENE_MAX_FACTOR, MAX_GENE_MAX_FACTOR);
+                Text.Font = GameFont.Medium;
+                ls.Label("FCSettingGeneValueHeader".Translate());
+                Text.Font = GameFont.Small;
+                ls.Label("FCSettingGeneValueHelpText".Translate(), -1f);
+
+                ls.Label("FCSettingGeneValueWeightMvf".Translate() + ": " + geneValueWeightMvf.ToString("0.00"), -1f, "FCSettingGeneValueWeightMvfTip".Translate());
+                geneValueWeightMvf = ls.Slider(geneValueWeightMvf, 0f, 3f);
+
+                ls.Label("FCSettingGeneValueWeightMet".Translate() + ": " + geneValueWeightMet.ToString("0.00"), -1f, "FCSettingGeneValueWeightMetTip".Translate());
+                geneValueWeightMet = ls.Slider(geneValueWeightMet, 0f, 0.5f);
+
+                ls.Label("FCSettingGeneValueWeightArc".Translate() + ": " + geneValueWeightArc.ToString("0.00"), -1f, "FCSettingGeneValueWeightArcTip".Translate());
+                geneValueWeightArc = ls.Slider(geneValueWeightArc, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightAbility".Translate() + ": " + geneValueWeightAbility.ToString("0.00"), -1f, "FCSettingGeneValueWeightAbilityTip".Translate());
+                geneValueWeightAbility = ls.Slider(geneValueWeightAbility, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightEffects".Translate() + ": " + geneValueWeightEffects.ToString("0.00"), -1f, "FCSettingGeneValueWeightEffectsTip".Translate());
+                geneValueWeightEffects = ls.Slider(geneValueWeightEffects, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightPain".Translate() + ": " + geneValueWeightPain.ToString("0.00"), -1f, "FCSettingGeneValueWeightPainTip".Translate());
+                geneValueWeightPain = ls.Slider(geneValueWeightPain, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightDmgResist".Translate() + ": " + geneValueWeightDmgResist.ToString("0.00"), -1f, "FCSettingGeneValueWeightDmgResistTip".Translate());
+                geneValueWeightDmgResist = ls.Slider(geneValueWeightDmgResist, 0f, 2f);
+
+                ls.CheckboxLabeled("FCSettingGeneValueFactorUnlimited".Translate(), ref geneValueFactorUnlimited, "FCSettingGeneValueFactorUnlimitedTip".Translate());
+                if (!geneValueFactorUnlimited)
+                {
+                    ls.Label("FCSettingGeneValueMaxFactor".Translate() + ": " + geneValueMaxFactor.ToString("0.00") + "x", -1f, "FCSettingGeneValueMaxFactorTip".Translate());
+                    geneValueMaxFactor = ls.Slider(geneValueMaxFactor, MIN_GENE_MAX_FACTOR, MAX_GENE_MAX_FACTOR);
+                }
             }
 
             DrawSectionResetButton(ls, delegate
