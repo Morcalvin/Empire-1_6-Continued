@@ -88,8 +88,6 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingGeneValueWeightMetTip>Weight per point of negative metabolism on a gene.</FCSettingGeneValueWeightMetTip>
 	<FCSettingGeneValueWeightArc>Archites</FCSettingGeneValueWeightArc>
 	<FCSettingGeneValueWeightArcTip>Weight per archite required by a gene.</FCSettingGeneValueWeightArcTip>
-	<FCSettingGeneValueWeightAbility>Active Abilities</FCSettingGeneValueWeightAbility>
-	<FCSettingGeneValueWeightAbilityTip>Weight per active combat ability granted by a gene.</FCSettingGeneValueWeightAbilityTip>
 	<FCSettingGeneValueWeightEffects>Stat &amp; Capacity Effects</FCSettingGeneValueWeightEffects>
 	<FCSettingGeneValueWeightEffectsTip>Weight on a gene's category-weighted stat factors, stat offsets, capacity modifiers, and skill aptitudes. Combat-category stats count most; social stats and unknown categories count nothing.</FCSettingGeneValueWeightEffectsTip>
 	<FCSettingGeneValueWeightPain>Pain Modifier</FCSettingGeneValueWeightPain>

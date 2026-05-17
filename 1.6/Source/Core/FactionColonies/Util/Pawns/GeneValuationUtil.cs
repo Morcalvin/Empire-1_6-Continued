@@ -15,7 +15,6 @@ namespace FactionColonies.util
      *   GeneBonus = mvfBonus    * W_MVF       // marketValueFactor - 1 (signed)
      *             + metBonus    * W_MET       // max(0, -biostatMet) — capped; positive metabolism doesn't reduce price
      *             + arcBonus    * W_ARC       // biostatArc
-     *             + abilCount   * W_ABIL      // abilities.Count
      *             + effectScore * W_EFFECTS   // category-weighted statFactors/Offsets/capMods/aptitudes (signed)
      *             + painBonus   * W_PAIN      // (1 - painFactor) — signed; painFactor > 1 reduces price
      *             + dmgRBonus   * W_DMGRESIST // sum of (1 - damageFactor) — signed; > 1 damage taken reduces price
@@ -34,7 +33,6 @@ namespace FactionColonies.util
             public float MvfBonus;
             public float MetBonus;
             public float ArcBonus;
-            public int   AbilityCount;
             public float EffectScore;
             public float PainBonus;
             public float DmgResistBonus;
@@ -44,7 +42,6 @@ namespace FactionColonies.util
                 return MvfBonus       * FCSettings.geneValueWeightMvf
                      + MetBonus       * FCSettings.geneValueWeightMet
                      + ArcBonus       * FCSettings.geneValueWeightArc
-                     + AbilityCount   * FCSettings.geneValueWeightAbility
                      + EffectScore    * FCSettings.geneValueWeightEffects
                      + PainBonus      * FCSettings.geneValueWeightPain
                      + DmgResistBonus * FCSettings.geneValueWeightDmgResist;
@@ -55,7 +52,6 @@ namespace FactionColonies.util
                 MvfBonus       += other.MvfBonus;
                 MetBonus       += other.MetBonus;
                 ArcBonus       += other.ArcBonus;
-                AbilityCount   += other.AbilityCount;
                 EffectScore    += other.EffectScore;
                 PainBonus      += other.PainBonus;
                 DmgResistBonus += other.DmgResistBonus;
@@ -209,12 +205,11 @@ namespace FactionColonies.util
             /* Signed components — values <1 (mvf), >1 (painFactor, damageFactor) represent downsides
              * and reduce the final cost factor. Met stays capped at 0 since positive metabolism is a
              * design budget benefit, not a combat drawback. */
-            c.MvfBonus     = gene.marketValueFactor - 1f;
-            c.MetBonus     = Mathf.Max(0, -gene.biostatMet);
-            c.ArcBonus     = gene.biostatArc;
-            c.AbilityCount = gene.abilities is object ? gene.abilities.Count : 0;
-            c.EffectScore  = EffectScore(gene);
-            c.PainBonus    = 1f - gene.painFactor;
+            c.MvfBonus    = gene.marketValueFactor - 1f;
+            c.MetBonus    = Mathf.Max(0, -gene.biostatMet);
+            c.ArcBonus    = gene.biostatArc;
+            c.EffectScore = EffectScore(gene);
+            c.PainBonus   = 1f - gene.painFactor;
 
             if (gene.damageFactors is object)
             {
@@ -241,7 +236,7 @@ namespace FactionColonies.util
                     float contribution = sf.value - 1f;
                     /* "Lower is better" stats invert: Flammability=0.1 (good) shouldn't score as -0.9. */
                     if (InverseDirectionStats.Contains(sf.stat)) contribution = -contribution;
-                    score += contribution * CategoryWeight(sf.stat.category);
+                    score += contribution * StatWeight(sf.stat);
                 }
             }
 
@@ -258,10 +253,10 @@ namespace FactionColonies.util
                     /* Same polarity inversion as statFactors: ComfyTemperatureMin = -10 (more cold tolerance)
                      * is a positive, not a negative. */
                     if (InverseDirectionStats.Contains(so.stat)) normalized = -normalized;
-                    /* Clamp per-offset to ±1 so a single absolute-unit offset (e.g. +10°) can't dominate.
+                    /* Clamp per-offset to +/-1 so a single absolute-unit offset (e.g. +10°) can't dominate.
                      * Many gene contributions still add up freely — only single-offset outliers are bounded. */
                     normalized = Mathf.Clamp(normalized, -1f, 1f);
-                    score += normalized * CategoryWeight(so.stat.category);
+                    score += normalized * StatWeight(so.stat);
                 }
             }
 
@@ -283,7 +278,8 @@ namespace FactionColonies.util
                 }
             }
 
-            return score;
+            /* Bound per-gene effect contribution. */
+            return Mathf.Clamp(score, -1f, 1f);
         }
 
         /* Stats where lower = better. Used in EffectScore to invert sign so genes that
@@ -315,16 +311,41 @@ namespace FactionColonies.util
             if (d is object) _inverseDirectionStats.Add(d);
         }
 
-        private static float CategoryWeight(StatCategoryDef category)
+        private static float StatWeight(StatDef stat)
         {
-            if (category is null) return 0.1f;
-            if (category == StatCategoryDefOf.PawnCombat) return 1.0f;
-            if (category == StatCategoryDefOf.PawnHealth || category == StatCategoryDefOf.PawnResistances) return 0.6f;
-            if (category == StatCategoryDefOf.BasicsImportant || category == StatCategoryDefOf.BasicsPawnImportant) return 0.5f;
-            if (category == StatCategoryDefOf.Basics || category == StatCategoryDefOf.BasicsPawn) return 0.3f;
-            if (category == StatCategoryDefOf.PawnWork || category == StatCategoryDefOf.PawnMisc) return 0.1f;
-            /* PawnSocial and unknown categories contribute nothing. */
-            return 0f;
+            if (stat is null) return 0f;
+            if (stat.category == StatCategoryDefOf.PawnCombat) return 1.0f;
+            return ExplicitStatWeights.TryGetValue(stat, out float w) ? w : 0f;
+        }
+
+        private static Dictionary<StatDef, float> _explicitStatWeights;
+        private static Dictionary<StatDef, float> ExplicitStatWeights
+        {
+            get
+            {
+                if (_explicitStatWeights is null)
+                {
+                    _explicitStatWeights = new Dictionary<StatDef, float>();
+                    AddStat("MoveSpeed",                  0.6f);
+                    AddStat("PainShockThreshold",         0.5f);
+                    AddStat("MentalBreakThreshold",       0.4f);
+                    AddStat("ImmunityGainSpeed",          0.4f);
+                    AddStat("InjuryHealingFactor",        0.4f);
+                    AddStat("ToxicResistance",            0.3f);
+                    AddStat("ToxicEnvironmentResistance", 0.3f);
+                    AddStat("VacuumResistance",           0.3f);
+                    AddStat("ComfyTemperatureMax",        0.2f);
+                    AddStat("ComfyTemperatureMin",        0.2f);
+                    AddStat("PsychicSensitivity",         0.1f);
+                }
+                return _explicitStatWeights;
+            }
+        }
+
+        private static void AddStat(string defName, float weight)
+        {
+            StatDef d = DefDatabase<StatDef>.GetNamedSilentFail(defName);
+            if (d is object) _explicitStatWeights[d] = weight;
         }
 
         private static float SkillWeight(SkillDef skill)

@@ -1622,11 +1622,10 @@ namespace FactionColonies
                 $"weights: mvf={FCSettings.geneValueWeightMvf:F2} " +
                 $"met={FCSettings.geneValueWeightMet:F2} " +
                 $"arc={FCSettings.geneValueWeightArc:F2} " +
-                $"abil={FCSettings.geneValueWeightAbility:F2} " +
                 $"eff={FCSettings.geneValueWeightEffects:F2} " +
                 $"pain={FCSettings.geneValueWeightPain:F2} " +
                 $"dmgR={FCSettings.geneValueWeightDmgResist:F2}");
-            sb.AppendLine($"{"gene",-36} {"mvfB",8} {"metB",6} {"arc",4} {"abil",5} {"effSc",10} {"painB",8} {"dmgRB",8} {"weighted",10}");
+            sb.AppendLine($"{"gene",-36} {"mvfB",8} {"metB",6} {"arc",4} {"effSc",10} {"painB",8} {"dmgRB",8} {"weighted",10}");
 
             // Sort by weighted magnitude descending so outliers float to the top
             int[] order = new int[genes.Count];
@@ -1639,12 +1638,12 @@ namespace FactionColonies
                 float w = c.ApplyWeights();
                 /* Skip genes that contribute essentially nothing — cuts down log noise from cosmetics. */
                 if (Math.Abs(w) < 0.001f && Math.Abs(c.MvfBonus) < 0.001f && c.MetBonus == 0 && c.ArcBonus == 0
-                    && c.AbilityCount == 0 && Math.Abs(c.EffectScore) < 0.001f
+                    && Math.Abs(c.EffectScore) < 0.001f
                     && Math.Abs(c.PainBonus) < 0.001f && Math.Abs(c.DmgResistBonus) < 0.001f)
                     continue;
                 sb.AppendLine(
                     $"{genes[idx].defName,-36} {c.MvfBonus,8:F2} {c.MetBonus,6:F1} {c.ArcBonus,4:F0} " +
-                    $"{c.AbilityCount,5} {c.EffectScore,10:F2} {c.PainBonus,8:F2} {c.DmgResistBonus,8:F2} {w,10:F2}");
+                    $"{c.EffectScore,10:F2} {c.PainBonus,8:F2} {c.DmgResistBonus,8:F2} {w,10:F2}");
             }
 
             LogUtil.MessageForce(sb.ToString());

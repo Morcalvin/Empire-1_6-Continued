@@ -160,14 +160,12 @@ namespace FactionColonies
         public const float DEFAULT_GENE_W_MVF       = 1.00f;  // marketValueFactor
         public const float DEFAULT_GENE_W_MET       = 0.02f;  // metabolism
         public const float DEFAULT_GENE_W_ARC       = 0.20f;  // archites
-        public const float DEFAULT_GENE_W_ABILITY   = 0.30f;  // ability count
         public const float DEFAULT_GENE_W_EFFECTS   = 0.50f;  // stat bonuses
         public const float DEFAULT_GENE_W_PAIN      = 0.20f;  // pain bonus
         public const float DEFAULT_GENE_W_DMGRESIST = 0.30f;  // damage resist
         public static float geneValueWeightMvf       = DEFAULT_GENE_W_MVF;
         public static float geneValueWeightMet       = DEFAULT_GENE_W_MET;
         public static float geneValueWeightArc       = DEFAULT_GENE_W_ARC;
-        public static float geneValueWeightAbility   = DEFAULT_GENE_W_ABILITY;
         public static float geneValueWeightEffects   = DEFAULT_GENE_W_EFFECTS;
         public static float geneValueWeightPain      = DEFAULT_GENE_W_PAIN;
         public static float geneValueWeightDmgResist = DEFAULT_GENE_W_DMGRESIST;
@@ -352,7 +350,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref geneValueWeightMvf,       "geneValueWeightMvf",       DEFAULT_GENE_W_MVF);
             Scribe_Values.Look(ref geneValueWeightMet,       "geneValueWeightMet",       DEFAULT_GENE_W_MET);
             Scribe_Values.Look(ref geneValueWeightArc,       "geneValueWeightArc",       DEFAULT_GENE_W_ARC);
-            Scribe_Values.Look(ref geneValueWeightAbility,   "geneValueWeightAbility",   DEFAULT_GENE_W_ABILITY);
             Scribe_Values.Look(ref geneValueWeightEffects,   "geneValueWeightEffects",   DEFAULT_GENE_W_EFFECTS);
             Scribe_Values.Look(ref geneValueWeightPain,      "geneValueWeightPain",      DEFAULT_GENE_W_PAIN);
             Scribe_Values.Look(ref geneValueWeightDmgResist, "geneValueWeightDmgResist", DEFAULT_GENE_W_DMGRESIST);
@@ -798,7 +795,6 @@ namespace FactionColonies
                 geneValueWeightMvf       = DEFAULT_GENE_W_MVF;
                 geneValueWeightMet       = DEFAULT_GENE_W_MET;
                 geneValueWeightArc       = DEFAULT_GENE_W_ARC;
-                geneValueWeightAbility   = DEFAULT_GENE_W_ABILITY;
                 geneValueWeightEffects   = DEFAULT_GENE_W_EFFECTS;
                 geneValueWeightPain      = DEFAULT_GENE_W_PAIN;
                 geneValueWeightDmgResist = DEFAULT_GENE_W_DMGRESIST;
@@ -1037,9 +1033,6 @@ namespace FactionColonies
                 ls.Label("FCSettingGeneValueWeightArc".Translate() + ": " + geneValueWeightArc.ToString("0.00"), -1f, "FCSettingGeneValueWeightArcTip".Translate());
                 geneValueWeightArc = ls.Slider(geneValueWeightArc, 0f, 2f);
 
-                ls.Label("FCSettingGeneValueWeightAbility".Translate() + ": " + geneValueWeightAbility.ToString("0.00"), -1f, "FCSettingGeneValueWeightAbilityTip".Translate());
-                geneValueWeightAbility = ls.Slider(geneValueWeightAbility, 0f, 2f);
-
                 ls.Label("FCSettingGeneValueWeightEffects".Translate() + ": " + geneValueWeightEffects.ToString("0.00"), -1f, "FCSettingGeneValueWeightEffectsTip".Translate());
                 geneValueWeightEffects = ls.Slider(geneValueWeightEffects, 0f, 2f);
 
@@ -1067,7 +1060,6 @@ namespace FactionColonies
                 geneValueWeightMvf       = DEFAULT_GENE_W_MVF;
                 geneValueWeightMet       = DEFAULT_GENE_W_MET;
                 geneValueWeightArc       = DEFAULT_GENE_W_ARC;
-                geneValueWeightAbility   = DEFAULT_GENE_W_ABILITY;
                 geneValueWeightEffects   = DEFAULT_GENE_W_EFFECTS;
                 geneValueWeightPain      = DEFAULT_GENE_W_PAIN;
                 geneValueWeightDmgResist = DEFAULT_GENE_W_DMGRESIST;
