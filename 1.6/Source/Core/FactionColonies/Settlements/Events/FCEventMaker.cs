@@ -155,9 +155,9 @@ namespace FactionColonies
 
             // Required policy/trait/edict
             if (cEvent.requiredPolicy != null
-                && !tmp.HasPolicy(cEvent.requiredPolicy)
-                && !tmp.HasTrait(cEvent.requiredPolicy)
-                && !tmp.HasEdict(cEvent.requiredPolicy)) return false;
+                && !FindFC.PolicyManager.HasPolicy(cEvent.requiredPolicy)
+                && !FindFC.PolicyManager.HasTrait(cEvent.requiredPolicy)
+                && !FindFC.PolicyManager.HasEdict(cEvent.requiredPolicy)) return false;
 
             // Minimum faction age
             if (cEvent.minDaysSinceFounded > 0
@@ -191,7 +191,7 @@ namespace FactionColonies
             if (faction != null)
             {
                 bool reroll = false;
-                faction.ForEachBehavior(b =>
+                FindFC.PolicyManager.ForEachBehavior(b =>
                 {
                     if (!reroll && b.ShouldRerollEvent(selected))
                         reroll = true;

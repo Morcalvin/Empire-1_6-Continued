@@ -34,10 +34,10 @@ namespace FactionColonies
             Faction faction = parent.Faction;
             PlanetTile tile = parent.Tile;
 
-            if (factionFC.IsActionAllowed(FCActionType.SendDiplomat))
+            if (FindFC.PolicyManager.IsActionAllowed(FCActionType.SendDiplomat))
                 yield return PeacefulAction(factionFC, faction);
 
-            if (factionFC.IsActionAllowed(FCActionType.DeployMilitary))
+            if (FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployMilitary))
                 yield return HostileAction(factionFC, faction, tile);
         }
 
@@ -62,7 +62,7 @@ namespace FactionColonies
                     }
 
                     List<MilitaryJobDef> jobs = FactionCache.HostileMilitaryJobs
-                        .Where(j => factionFC.IsMilitaryJobAllowed(j))
+                        .Where(j => FindFC.PolicyManager.IsMilitaryJobAllowed(j))
                         .Where(j => j.Handler == null || j.Handler.IsValidTarget(faction))
                         .ToList();
                     if (jobs.Count == 0)

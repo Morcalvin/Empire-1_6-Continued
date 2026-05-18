@@ -167,7 +167,7 @@ namespace FactionColonies
             }
 
             if (FindFC.FactionComp is null) return;
-            if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) return;
+            if (!FindFC.PolicyManager.IsActionAllowed(FCActionType.SendPrisoner)) return;
             if (!CanSendPrisoner(__instance)) return;
 
             __result = __result.Append(SendPrisonerAction(__instance));

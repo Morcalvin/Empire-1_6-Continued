@@ -146,18 +146,18 @@ namespace FactionColonies
             FactionFC faction = FindFC.FactionComp;
             if (faction == null) return;
 
-            for (int i = 0; i < faction.factionTraits.Count; i++)
+            for (int i = 0; i < FindFC.PolicyManager.factionTraits.Count; i++)
             {
-                if (faction.factionTraits[i]?.behavior != null)
+                if (FindFC.PolicyManager.factionTraits[i]?.behavior != null)
                 {
-                    try { faction.factionTraits[i].behavior.OnRemoved(faction); }
+                    try { FindFC.PolicyManager.factionTraits[i].behavior.OnRemoved(faction); }
                     catch (Exception e) { LogUtil.Error($"FCPolicyBehavior.OnRemoved error: {e}"); }
                 }
-                faction.factionTraits[i] = new FCPolicy(FCPolicyDefOf.empty);
+                FindFC.PolicyManager.factionTraits[i] = new FCPolicy(FCPolicyDefOf.empty);
             }
 
-            faction.RemoveAllPolicies(faction.policies);
-            faction.RebuildBehaviorCache();
+            FindFC.PolicyManager.RemoveAllPolicies(FindFC.PolicyManager.policies);
+            FindFC.PolicyManager.RebuildBehaviorCache();
 
             LogUtil.Message("Cleared faction traits and policies.");
         }
@@ -959,7 +959,7 @@ namespace FactionColonies
                         LogUtil.MessageForce($"  Settlement partial = {settlement.GetSettlementStatValue(localStat):F2}");
 
                         // Faction-level (policies + traits)
-                        foreach (FCPolicy p in faction.policies)
+                        foreach (FCPolicy p in FindFC.PolicyManager.policies)
                         {
                             if (p?.def == null) continue;
                             foreach (FCStatModifier mod in p.def.statModifiers)
@@ -968,7 +968,7 @@ namespace FactionColonies
                                     LogUtil.MessageForce($"  Policy ({p.def.defName}): {mod.value:F2}");
                             }
                         }
-                        foreach (FCPolicy p in faction.factionTraits)
+                        foreach (FCPolicy p in FindFC.PolicyManager.factionTraits)
                         {
                             if (p?.def == null || p.def == FCPolicyDefOf.empty) continue;
                             foreach (FCStatModifier mod in p.def.statModifiers)
@@ -980,7 +980,7 @@ namespace FactionColonies
                         LogUtil.MessageForce($"  Faction partial = {faction.GetFactionStatValue(localStat):F2}");
 
                         // Behavior contributions
-                        foreach (FCPolicyBehavior b in faction.cachedBehaviors)
+                        foreach (FCPolicyBehavior b in FindFC.PolicyManager.CachedBehaviors)
                         {
                             string desc = b.GetStatDescription(localStat, settlement);
                             if (!desc.NullOrEmpty())
@@ -1127,14 +1127,14 @@ namespace FactionColonies
             LogUtil.MessageForce($"Settlements:{f.settlements.Count} | Income:{f.income:F0} Upkeep:{f.upkeep:F0} Profit:{f.profit:F0}");
             LogUtil.MessageForce($"TaxDue:{f.taxLedger.nextTaxDueTick - Find.TickManager.TicksGame} ticks | MilDue:{f.militaryTimeDue - Find.TickManager.TicksGame} ticks");
             LogUtil.MessageForce($"AvgHappy:{f.averageHappiness:F0} AvgLoyal:{f.averageLoyalty:F0} AvgUnrest:{f.averageUnrest:F0} AvgProsper:{f.averageProsperity:F0}");
-            LogUtil.MessageForce($"Policies:{f.policies.Count} | Traits:{f.factionTraits.Count} | ResearchPool:{f.GetResourcePoolValue(ResourceTypeDefOf.RTD_Research):F0}");
-            if (f.factionTraits.Any())
+            LogUtil.MessageForce($"Policies:{FindFC.PolicyManager.policies.Count} | Traits:{FindFC.PolicyManager.factionTraits.Count} | ResearchPool:{f.GetResourcePoolValue(ResourceTypeDefOf.RTD_Research):F0}");
+            if (FindFC.PolicyManager.factionTraits.Any())
             {
-                LogUtil.MessageForce($"Trait list: {f.factionTraits.Select(t => t.def?.defName).ToCommaList()}");
+                LogUtil.MessageForce($"Trait list: {FindFC.PolicyManager.factionTraits.Select(t => t.def?.defName).ToCommaList()}");
             }
-            if (f.policies.Any())
+            if (FindFC.PolicyManager.policies.Any())
             {
-                LogUtil.MessageForce($"Policy list: {f.policies.Select(t => t.def?.defName).ToCommaList()}");
+                LogUtil.MessageForce($"Policy list: {FindFC.PolicyManager.policies.Select(t => t.def?.defName).ToCommaList()}");
             }
         }
 
@@ -1287,12 +1287,12 @@ namespace FactionColonies
                 if (def == FCPolicyDefOf.empty) continue;
                 if (def.category != FCPolicyCategory.Core) continue;
                 FCPolicyDef local = def;
-                string status = faction.policies.Any(p => p.def == local) ? " [ACTIVE]" : "";
+                string status = FindFC.PolicyManager.policies.Any(p => p.def == local) ? " [ACTIVE]" : "";
                 list.Add(new DebugMenuOption($"{local.defName}{status}", DebugMenuOptionMode.Action, () =>
                 {
                     var policy = new FCPolicy(local);
-                    faction.policies.Add(policy);
-                    faction.RebuildBehaviorCache();
+                    FindFC.PolicyManager.policies.Add(policy);
+                    FindFC.PolicyManager.RebuildBehaviorCache();
                     LogUtil.MessageForce($"Debug - Enacted policy: {local.defName} (behavior: {(policy.behavior != null ? policy.behavior.GetType().Name : "none")})");
                 }));
             }
@@ -1314,20 +1314,20 @@ namespace FactionColonies
                 traitList.Add(new DebugMenuOption(local.defName, DebugMenuOptionMode.Action, () =>
                 {
                     List<DebugMenuOption> slotList = new List<DebugMenuOption>();
-                    for (int i = 0; i < faction.factionTraits.Count; i++)
+                    for (int i = 0; i < FindFC.PolicyManager.factionTraits.Count; i++)
                     {
                         int slot = i;
-                        string current = faction.factionTraits[slot]?.def?.defName ?? "empty";
+                        string current = FindFC.PolicyManager.factionTraits[slot]?.def?.defName ?? "empty";
                         slotList.Add(new DebugMenuOption($"Slot {slot} [{current}]", DebugMenuOptionMode.Action, () =>
                         {
-                            if (faction.factionTraits[slot]?.behavior != null)
+                            if (FindFC.PolicyManager.factionTraits[slot]?.behavior != null)
                             {
-                                try { faction.factionTraits[slot].behavior.OnRemoved(faction); }
+                                try { FindFC.PolicyManager.factionTraits[slot].behavior.OnRemoved(faction); }
                                 catch (Exception e) { LogUtil.Error($"OnRemoved error: {e}"); }
                             }
                             var trait = new FCPolicy(local);
-                            faction.factionTraits[slot] = trait;
-                            faction.RebuildBehaviorCache();
+                            FindFC.PolicyManager.factionTraits[slot] = trait;
+                            FindFC.PolicyManager.RebuildBehaviorCache();
                             LogUtil.MessageForce($"Debug - Set trait slot {slot} to: {local.defName}");
                         }));
                     }
@@ -1349,13 +1349,13 @@ namespace FactionColonies
                 if (!def.IsEdict) continue;
                 FCPolicyDef local = def;
                 FCPolicy existing;
-                faction.edicts.TryGetValue(local.category, out existing);
+                FindFC.PolicyManager.edicts.TryGetValue(local.category, out existing);
                 string status = (existing != null && existing.def == local) ? " [ACTIVE]" : "";
                 list.Add(new DebugMenuOption($"[{local.category}] {local.LabelCap}{status}", DebugMenuOptionMode.Action, () =>
                 {
-                    faction.EnactEdict(local);
+                    FindFC.PolicyManager.EnactEdict(local);
                     FCPolicy edict;
-                    if (faction.edicts.TryGetValue(local.category, out edict))
+                    if (FindFC.PolicyManager.edicts.TryGetValue(local.category, out edict))
                     {
                         edict.timeEnacted = Find.TickManager.TicksGame - local.enactDuration;
                         faction.InvalidateFactionStatCache();
@@ -1375,7 +1375,7 @@ namespace FactionColonies
 
             LogUtil.MessageForce("=== Policy Behavior State ===");
 
-            foreach (FCPolicy p in faction.policies)
+            foreach (FCPolicy p in FindFC.PolicyManager.policies)
             {
                 if (p?.behavior == null)
                 {
@@ -1385,9 +1385,9 @@ namespace FactionColonies
                 LogBehaviorState("Policy", p);
             }
 
-            for (int i = 0; i < faction.factionTraits.Count; i++)
+            for (int i = 0; i < FindFC.PolicyManager.factionTraits.Count; i++)
             {
-                FCPolicy p = faction.factionTraits[i];
+                FCPolicy p = FindFC.PolicyManager.factionTraits[i];
                 if (p?.def == null || p.def == FCPolicyDefOf.empty) continue;
                 if (p.behavior == null)
                 {
@@ -1437,7 +1437,7 @@ namespace FactionColonies
             if (faction == null) return;
 
             int count = 0;
-            foreach (FCPolicyBehavior b in faction.cachedBehaviors)
+            foreach (FCPolicyBehavior b in FindFC.PolicyManager.CachedBehaviors)
             {
                 if (b is FCPolicyBehavior_Militaristic mil) { mil.DebugResetCooldown(); count++; }
                 else if (b is FCPolicyBehavior_Pacifist pac) { pac.DebugResetCooldown(); count++; }
@@ -1459,7 +1459,7 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSettlementCreated(faction, settlement));
+                    FindFC.PolicyManager.ForEachBehavior(b => b.OnSettlementCreated(faction, settlement));
                     LogUtil.MessageForce($"Debug - Triggered OnSettlementCreated on {settlement.Name}");
                 });
             }));
@@ -1468,7 +1468,7 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSettlementRemoved(faction, settlement));
+                    FindFC.PolicyManager.ForEachBehavior(b => b.OnSettlementRemoved(faction, settlement));
                     LogUtil.MessageForce($"Debug - Triggered OnSettlementRemoved on {settlement.Name}");
                 });
             }));
@@ -1478,7 +1478,7 @@ namespace FactionColonies
                 WithSettlementChoice(settlement =>
                 {
                     // Debug trigger has no real op — behaviors that inspect op must null-check.
-                    faction.ForEachBehavior(b => b.OnSquadDeployed(faction, null, settlement, false));
+                    FindFC.PolicyManager.ForEachBehavior(b => b.OnSquadDeployed(faction, null, settlement, false));
                     LogUtil.MessageForce($"Debug - Triggered OnSquadDeployed on {settlement.Name}");
                 });
             }));
@@ -1487,7 +1487,7 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnSquadRecalled(faction, null, settlement));
+                    FindFC.PolicyManager.ForEachBehavior(b => b.OnSquadRecalled(faction, null, settlement));
                     LogUtil.MessageForce($"Debug - Triggered OnSquadRecalled on {settlement.Name}");
                 });
             }));
@@ -1496,14 +1496,14 @@ namespace FactionColonies
             {
                 WithSettlementChoice(settlement =>
                 {
-                    faction.ForEachBehavior(b => b.OnTaxCollected(faction, settlement));
+                    FindFC.PolicyManager.ForEachBehavior(b => b.OnTaxCollected(faction, settlement));
                     LogUtil.MessageForce($"Debug - Triggered OnTaxCollected on {settlement.Name}");
                 });
             }));
 
             hookList.Add(new DebugMenuOption("OnSettlementCostPaid", DebugMenuOptionMode.Action, () =>
             {
-                faction.ForEachBehavior(b => b.OnSettlementCostPaid(faction));
+                FindFC.PolicyManager.ForEachBehavior(b => b.OnSettlementCostPaid(faction));
                 LogUtil.MessageForce("Debug - Triggered OnSettlementCostPaid");
             }));
 

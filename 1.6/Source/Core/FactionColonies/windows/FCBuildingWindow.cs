@@ -1296,7 +1296,7 @@ namespace FactionColonies
 
         private void ExecuteDestroy()
         {
-            if (!FindFC.FactionComp.IsActionAllowed(FCActionType.DemolishBuilding)) return;
+            if (!FindFC.PolicyManager.IsActionAllowed(FCActionType.DemolishBuilding)) return;
             settlement.DeconstructBuilding(buildingSlot);
             Find.WindowStack.TryRemove(this);
         }

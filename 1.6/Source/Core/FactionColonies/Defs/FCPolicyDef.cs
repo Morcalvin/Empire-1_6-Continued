@@ -185,7 +185,7 @@ namespace FactionColonies
             {
                 foreach (FCPolicyDef required in requiredPolicies)
                 {
-                    if (faction.HasPolicy(required) || faction.HasTrait(required) || faction.HasEdict(required))
+                    if (FindFC.PolicyManager.HasPolicy(required) || FindFC.PolicyManager.HasTrait(required) || FindFC.PolicyManager.HasEdict(required))
                         return true;
                 }
                 string allNames = string.Join(", ", requiredPolicies.Select(p => p.label));
@@ -196,7 +196,7 @@ namespace FactionColonies
             List<string> missing = new List<string>();
             foreach (FCPolicyDef required in requiredPolicies)
             {
-                if (!faction.HasPolicy(required) && !faction.HasTrait(required) && !faction.HasEdict(required))
+                if (!FindFC.PolicyManager.HasPolicy(required) && !FindFC.PolicyManager.HasTrait(required) && !FindFC.PolicyManager.HasEdict(required))
                     missing.Add(required.label);
             }
             if (missing.Count > 0)

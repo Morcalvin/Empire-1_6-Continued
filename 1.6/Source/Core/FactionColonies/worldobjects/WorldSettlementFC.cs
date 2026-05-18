@@ -818,7 +818,7 @@ namespace FactionColonies
             {
                 yield return gizmo;
             }
-            if (MilitaryComp?.isUnderAttack != true && FindFC.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
+            if (MilitaryComp?.isUnderAttack != true && FindFC.PolicyManager.IsActionAllowed(FCActionType.TradeWithSettlement))
             {
                 var kindDef = TraderKind;
                 var action = (Command_Action)CaravanVisitUtility.TradeCommand(caravan, Faction, kindDef);
@@ -844,7 +844,7 @@ namespace FactionColonies
             {
                 yield return option;
             }
-            if ((MilitaryComp is null || !MilitaryComp.isUnderAttack) && FindFC.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
+            if ((MilitaryComp is null || !MilitaryComp.isUnderAttack) && FindFC.PolicyManager.IsActionAllowed(FCActionType.TradeWithSettlement))
                 foreach (var option in WorldSettlementTradeAction.GetFloatMenuOptions(caravan, this))
                     yield return option;
         }
@@ -1506,7 +1506,7 @@ namespace FactionColonies
                 desc += factionMods;
 
             // Behavior contributions for taxBonusFlat (e.g., Egalitarian tax-break penalty)
-            faction.ForEachBehavior(b =>
+            FindFC.PolicyManager.ForEachBehavior(b =>
             {
                 string behaviorDesc = b.GetStatDescription(FCStatDefOf.taxBonusFlat, this);
                 if (!behaviorDesc.NullOrEmpty())
@@ -1902,7 +1902,7 @@ namespace FactionColonies
                 desc += faction.GetFactionStatDesc(stat, hardinvert);
 
                 // Behavior runtime contributions (e.g., Egalitarian tax-break modifiers)
-                faction.ForEachBehavior(b =>
+                FindFC.PolicyManager.ForEachBehavior(b =>
                 {
                     string behaviorDesc = b.GetStatDescription(stat, this);
                     if (!behaviorDesc.NullOrEmpty())

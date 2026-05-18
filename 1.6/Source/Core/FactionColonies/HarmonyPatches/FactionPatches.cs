@@ -81,7 +81,7 @@ namespace FactionColonies
                 !__instance.HostileTo(Faction.OfPlayer))
             {
                 FactionFC faction = FindFC.FactionComp;
-                if (!faction.AnyPolicySuppressesMemberDeathPenalty() && dinfo != null)
+                if (!FindFC.PolicyManager.AnyPolicySuppressesMemberDeathPenalty() && dinfo != null)
                 {
                     if (dinfo.Value.Category == DamageInfo.SourceCategory.Collapse)
                     {

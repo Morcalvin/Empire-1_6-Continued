@@ -125,7 +125,7 @@ namespace FactionColonies
 
                     TextUtil.GetTownTitle(settlement);
                     TaxTickPrisoner(settlement);
-                    faction.ForEachBehavior(b => b.OnTaxCollected(faction, settlement));
+                    FindFC.PolicyManager.ForEachBehavior(b => b.OnTaxCollected(faction, settlement));
                 }
 
                 Find.LetterStack.ReceiveLetter("FCTaxesBilledShort".Translate(), "FCTaxesBilledDesc".Translate(),
@@ -138,7 +138,7 @@ namespace FactionColonies
             }
 
             /* Deduct edict upkeep */
-            int edictUpkeep = faction.GetEdictUpkeep();
+            int edictUpkeep = FindFC.PolicyManager.GetEdictUpkeep();
             if (edictUpkeep > 0)
             {
                 if (PaymentUtil.GetSilver() >= edictUpkeep)
@@ -147,7 +147,7 @@ namespace FactionColonies
                 }
                 else
                 {
-                    faction.RevokeAllEdicts();
+                    FindFC.PolicyManager.RevokeAllEdicts();
                     Messages.Message("FCEdictUpkeepUnpaid".Translate(), MessageTypeDefOf.NegativeEvent);
                 }
             }

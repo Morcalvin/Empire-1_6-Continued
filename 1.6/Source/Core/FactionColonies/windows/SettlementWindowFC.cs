@@ -1119,7 +1119,7 @@ namespace FactionColonies
                 })
             };
 
-            factionfc.ForEachBehavior(b =>
+            FindFC.PolicyManager.ForEachBehavior(b =>
             {
                 var actions = b.GetSettlementActions(factionfc, settlement);
                 if (actions != null)

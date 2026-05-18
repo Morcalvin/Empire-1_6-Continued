@@ -133,9 +133,9 @@ namespace FactionColonies
             GetColumnColors(category, out bodyColor, out headerColor);
             Widgets.DrawBoxSolid(rect, bodyColor);
 
-            bool unlocked = faction.IsEdictCategoryUnlocked(category);
+            bool unlocked = FindFC.PolicyManager.IsEdictCategoryUnlocked(category);
             int requiredLevel;
-            FactionFC.EdictCategoryUnlockLevels.TryGetValue(category, out requiredLevel);
+            PolicyManager.EdictCategoryUnlockLevels.TryGetValue(category, out requiredLevel);
 
             // Header
             Rect headerRect = new Rect(rect.x, rect.y, rect.width, HeaderHeight);
@@ -158,7 +158,7 @@ namespace FactionColonies
             }
 
             // Active edict status
-            FCPolicy activeEdict = faction.GetActiveEdict(category);
+            FCPolicy activeEdict = FindFC.PolicyManager.GetActiveEdict(category);
             Rect statusRect = new Rect(rect.x + CategoryPadding, contentY, rect.width - CategoryPadding * 2, 22f);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
@@ -209,7 +209,7 @@ namespace FactionColonies
                         "FCEdictRevokeConfirmation".Translate(edictToRevoke.def.LabelCap),
                         delegate
                         {
-                            faction.RevokeEdict(cat);
+                            FindFC.PolicyManager.RevokeEdict(cat);
                         }));
                 }
                 contentY = revokeRect.yMax + CategoryPadding;
@@ -265,7 +265,7 @@ namespace FactionColonies
             if (def.incompatiblePolicies.NullOrEmpty()) return null;
             foreach (FCPolicyDef blocked in def.incompatiblePolicies)
             {
-                if (faction.HasPolicy(blocked) || faction.HasTrait(blocked))
+                if (FindFC.PolicyManager.HasPolicy(blocked) || FindFC.PolicyManager.HasTrait(blocked))
                     return blocked;
             }
             return null;
@@ -347,13 +347,13 @@ namespace FactionColonies
                         "FCEdictSwapConfirmation".Translate(activeEdict.def.LabelCap, def.LabelCap, enactDays.ToString("F0")),
                         delegate
                         {
-                            faction.EnactEdict(def);
+                            FindFC.PolicyManager.EnactEdict(def);
                             cachedEdictsByCategory = null;
                         }));
                 }
                 else
                 {
-                    faction.EnactEdict(def);
+                    FindFC.PolicyManager.EnactEdict(def);
                     cachedEdictsByCategory = null;
                 }
             }
@@ -375,7 +375,7 @@ namespace FactionColonies
         {
             Widgets.DrawBoxSolid(rect, new Color(0.2f, 0.2f, 0.2f, 0.8f));
 
-            int totalUpkeep = faction.GetEdictUpkeep();
+            int totalUpkeep = FindFC.PolicyManager.GetEdictUpkeep();
 
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
