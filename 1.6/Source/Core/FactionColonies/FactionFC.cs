@@ -238,6 +238,27 @@ namespace FactionColonies
         public List<PlanetLayerDef> layersForTilePicker = null;
         public float tradedAmount = 0;
 
+        /* Legacy tax/billing scribe keys. Only populated when loading a pre-extraction
+         * save. New saves write nothing.
+         * The migration shim in ResolvingCrossRefs below moves them into the ledger. */
+        List<BillFC> legacyBills = null;
+        List<BillFC> legacyOldBills = null;
+        bool legacyAutoResolve = false;
+        bool legacyAllowLate = true;
+        int legacyTaxTimeDue = -1;
+        int legacyNextTaxId = -1;
+        int legacyNextBillId = -1;
+        int legacyNextEventId = -1;
+
+        /* Cross-phase migration buffers for legacy ID counters. Scribe_*.Look reads
+         * during LoadingVars, the SeedNextIds consumer runs during ResolvingCrossRefs;
+         * must be class fields so values survive the phase transition. */
+        int legacyNextUnitId = -1;
+        int legacyNextSquadId = -1;
+        int legacyNextMercId = -1;
+        int legacyNextMercSquadId = -1;
+        int legacyNextFireSupportId = -1;
+
         #endregion
 
         #region Constructor & Lifecycle
@@ -341,6 +362,15 @@ namespace FactionColonies
             Scribe_Deep.Look(ref xenotypeFilter, "xenotypeFilter");
             Scribe_Deep.Look(ref animalFilter, "animalFilter");
 
+            /* Legacy ID scribe keys. Only populated when loading a pre-extraction save.
+             * Migration shim below seeds MilitaryFC. Buffers are class fields (see top of
+             * ExposeData) so values loaded in LoadingVars survive into ResolvingCrossRefs. */
+            Scribe_Values.Look(ref legacyNextUnitId, "nextUnitID", -1);
+            Scribe_Values.Look(ref legacyNextSquadId, "nextSquadID", -1);
+            Scribe_Values.Look(ref legacyNextMercId, "nextMercenaryID", -1);
+            Scribe_Values.Look(ref legacyNextMercSquadId, "nextMercenarySquadID", -1);
+            Scribe_Values.Look(ref legacyNextFireSupportId, "nextMilitaryFireSupportID", -1);
+
             //Military Data
             // Empire Refactored v1.5 renamed MilitaryCustomizationUtil to MilitaryFC. This block of code
             // handles migrating save data from a pre-1.5 save.
@@ -354,51 +384,32 @@ namespace FactionColonies
                 if (military is null && _legacyMilitary is object) military = _legacyMilitary;
                 if (military is null) military = new MilitaryFC();
                 _legacyMilitary = null;
+
+                if ((legacyNextUnitId != -1 || legacyNextSquadId != -1
+                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
+                    || legacyNextFireSupportId != -1))
+                {
+                    military.SeedNextIds(
+                        legacyNextUnitId, legacyNextSquadId,
+                        legacyNextMercId, legacyNextMercSquadId,
+                        legacyNextFireSupportId);
+                    LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
+                    /* Reset to sentinel so subsequent saves omit these legacy XML keys. */
+                    legacyNextUnitId = -1;
+                    legacyNextSquadId = -1;
+                    legacyNextMercId = -1;
+                    legacyNextMercSquadId = -1;
+                    legacyNextFireSupportId = -1;
+                }
             }
 
             //Load ID tracking
             Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
 
-            /* Legacy ID scribe keys. Only populated when loading a pre-extraction save.
-             * Migration shim below seeds MilitaryFC. */
-            int legacyNextUnitId = -1;
-            int legacyNextSquadId = -1;
-            int legacyNextMercId = -1;
-            int legacyNextMercSquadId = -1;
-            int legacyNextFireSupportId = -1;
-            Scribe_Values.Look(ref legacyNextUnitId,        "nextUnitID", -1);
-            Scribe_Values.Look(ref legacyNextSquadId,       "nextSquadID", -1);
-            Scribe_Values.Look(ref legacyNextMercId,        "nextMercenaryID", -1);
-            Scribe_Values.Look(ref legacyNextMercSquadId,   "nextMercenarySquadID", -1);
-            Scribe_Values.Look(ref legacyNextFireSupportId, "nextMilitaryFireSupportID", -1);
-
-            if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs
-                && (legacyNextUnitId != -1 || legacyNextSquadId != -1
-                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
-                    || legacyNextFireSupportId != -1))
-            {
-                military.SeedNextIds(
-                    legacyNextUnitId, legacyNextSquadId,
-                    legacyNextMercId, legacyNextMercSquadId,
-                    legacyNextFireSupportId);
-                LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
-            }
-
             /* Tax/billing — nested element. Legacy flat keys below are migrated on first load. */
             Scribe_Deep.Look(ref taxLedger, "taxLedger");
             if (taxLedger is null) taxLedger = new TaxLedger();
 
-            /* Legacy tax/billing scribe keys. Only populated when loading a pre-extraction
-             * save. New saves write nothing.
-             * The migration shim in ResolvingCrossRefs below moves them into the ledger. */
-            List<BillFC> legacyBills = null;
-            List<BillFC> legacyOldBills = null;
-            bool legacyAutoResolve = false;
-            bool legacyAllowLate = true;
-            int legacyTaxTimeDue = -1;
-            int legacyNextTaxId = -1;
-            int legacyNextBillId = -1;
-            int legacyNextEventId = -1;
             Scribe_Values.Look(ref legacyNextTaxId, "nextTaxID", -1);
             Scribe_Values.Look(ref legacyNextBillId, "nextBillID", -1);
             Scribe_Values.Look(ref legacyNextEventId, "nextEventID", -1);
@@ -421,9 +432,22 @@ namespace FactionColonies
                         legacyTaxTimeDue, legacyNextTaxId, legacyNextBillId);
                     LogUtil.MessageForce("FactionFC: migrated legacy tax fields into TaxLedger.");
                 }
+                /* Reset legacy buffers after consumption. SeedFromLegacy assigns the bill
+                 * lists by reference, so without nulling them out the next save would
+                 * double-write under both the legacy <Bills> and the nested <taxLedger><bills>
+                 * keys. Resetting scalars to their sentinel defaults makes Scribe omit them. */
+                legacyBills = null;
+                legacyOldBills = null;
+                legacyAutoResolve = false;
+                legacyAllowLate = true;
+                legacyTaxTimeDue = -1;
+                legacyNextTaxId = -1;
+                legacyNextBillId = -1;
+
                 if (legacyNextEventId != -1)
                 {
                     eventManager.SeedNextEventId(legacyNextEventId);
+                    legacyNextEventId = -1;
                 }
             }
 
