@@ -36,7 +36,7 @@ namespace FactionColonies.util
             }
             else
             {
-                if (FindFC.FactionComp.techLevel < thing.techLevel)
+                if (FindFC.TechLevel < thing.techLevel)
                 {
                     canCraft = false;
                 }

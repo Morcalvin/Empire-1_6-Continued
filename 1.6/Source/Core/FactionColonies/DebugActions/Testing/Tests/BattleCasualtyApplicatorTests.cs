@@ -1,7 +1,7 @@
 namespace FactionColonies
 {
     /* Tests for BattleCasualtyApplicator's pure-math seams: ComputeCasualtyRate,
-       ComputeDeathChance, ComputeVictimCount. Stat multipliers depend on FactionCache.FactionComp
+       ComputeDeathChance, ComputeVictimCount. Stat multipliers depend on FindFC.FactionComp
        and default to 1.0 when no contributing policy/building/event is active, so the math tests
        below work whether or not a faction is loaded.
 

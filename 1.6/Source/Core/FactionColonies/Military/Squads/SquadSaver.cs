@@ -493,7 +493,7 @@ namespace FactionColonies
         public MilitaryFireSupport Import()
         {
             MilitaryFireSupport fs = CreateFireSupport();
-            FindFC.FactionComp.military.fireSupportDefs.Add(fs);
+            FindFC.Military.fireSupportDefs.Add(fs);
             return fs;
         }
 

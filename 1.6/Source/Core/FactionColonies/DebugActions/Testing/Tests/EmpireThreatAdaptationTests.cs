@@ -100,7 +100,7 @@ namespace FactionColonies
         [EmpireTest("ThreatAdaptation")]
         public static void NotifyBattleLost_DoesNotThrow_RequiresFactionFC()
         {
-            // Notify_BattleLost reads FactionCache.FactionComp.settlements.Count for the curve
+            // Notify_BattleLost reads FindFC.Settlements.Count for the curve
             // sample. Skip if no faction is available.
             if (FindFC.FactionComp is null) TestAssert.Skip("No FactionFC");
             if (!HasStoryteller) TestAssert.Skip("No storyteller available");

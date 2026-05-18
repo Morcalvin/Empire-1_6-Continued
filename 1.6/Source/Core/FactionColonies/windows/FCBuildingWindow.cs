@@ -1323,7 +1323,7 @@ namespace FactionColonies
                 settlement.Name,
                 (tmpEvt.timeTillTrigger - Find.TickManager.TicksGame).ToTimeString());
             tmpEvt.hasCustomDescription = true;
-            FindFC.FactionComp.eventManager.AddEvent(tmpEvt);
+            FindFC.EventManager.AddEvent(tmpEvt);
 
             PaymentUtil.PaySilver(Convert.ToInt32(selectedBuilding.cost), PaymentUtil.Reason_BuildingConstruction, settlement);
             Messages.Message(selectedBuilding.label + " " + "FCWillBeConstructedIn".Translate() + " " + (tmpEvt.timeTillTrigger - Find.TickManager.TicksGame).ToTimeString(), MessageTypeDefOf.PositiveEvent);

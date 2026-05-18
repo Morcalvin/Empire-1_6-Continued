@@ -1846,7 +1846,7 @@ namespace FactionColonies
                 FCEvent tmpEvt = FCEventMaker.MakeRandomEvent(FCEventMaker.ReturnRandomEvent(), null);
                 if (tmpEvt != null)
                 {
-                    FindFC.FactionComp.eventManager.AddEvent(tmpEvt);
+                    eventManager.AddEvent(tmpEvt);
                     randomEventLastAdded = 0f;
 
                     Find.LetterStack.ReceiveLetter("FCRandomEventLetterLabel".Translate(), FCEventMaker.BuildEventLetterBody(tmpEvt), LetterDefOf.NeutralEvent);
@@ -1866,7 +1866,7 @@ namespace FactionColonies
             }
         }
 
-        private bool RandomEventsDisabledOrNoSettlements() => FindFC.FactionComp.settlements.Count == 0 || FCSettings.disableRandomEvents;
+        private bool RandomEventsDisabledOrNoSettlements() => settlements.Count == 0 || FCSettings.disableRandomEvents;
 
         #endregion
 

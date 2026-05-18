@@ -469,7 +469,7 @@ namespace FactionColonies
 
         public void RemoveUnit()
         {
-            FindFC.FactionComp.military.units.Remove(this);
+            FindFC.Military.units.Remove(this);
         }
 
         /* Deep copy used by per-merc owned-loadout snapshots. The clone is owned by a

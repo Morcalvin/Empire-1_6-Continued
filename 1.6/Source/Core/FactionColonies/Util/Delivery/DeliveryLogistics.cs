@@ -10,7 +10,7 @@ using Verse.AI.Group;
 namespace FactionColonies.util
 {
     /* Caravan / drop pod / shuttle spawning for FCEvent-driven deliveries. Each Send*
-       path resolves the destination via FactionCache.FactionComp.TaxMap, emits the
+       path resolves the destination via FindFC.TaxMap, emits the
        delivery letter/message via DeliveryNotification, and falls back to the tax spot
        on failure. DoDelayCaravanDueToDanger and the shuttle landing-zone check both
        reschedule via DeliveryEvent.CreateDeliveryEvent when the world isn't ready. */
@@ -28,7 +28,7 @@ namespace FactionColonies.util
 
         public static TaxDeliveryMode TaxDeliveryModeForSettlement(bool canUseShuttle, PlanetTile sourceTile)
         {
-            WorldSettlementFC settlement = FindFC.FactionComp.settlements.FirstOrFallback((WorldSettlementFC s) => s.Tile == sourceTile);
+            WorldSettlementFC settlement = FindFC.Settlements.FirstOrFallback((WorldSettlementFC s) => s.Tile == sourceTile);
             if (settlement != null)
             {
                 return settlement.settlementDef.GetTaxDeliveryMode(canUseShuttle, sourceTile);
@@ -46,7 +46,7 @@ namespace FactionColonies.util
                 return;
             }
 
-            Map playerHomeMap = FindFC.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.TaxMap;
             List<ShipLandingArea> landingZones = ShipLandingBeaconUtility.GetLandingZones(playerHomeMap);
 
             IntVec3 landingCell = DropCellFinder.GetBestShuttleLandingSpot(playerHomeMap, Faction.OfPlayer);
@@ -81,7 +81,7 @@ namespace FactionColonies.util
 
         public static void SendDropPod(FCEvent evt)
         {
-            Map playerHomeMap = FindFC.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.TaxMap;
             DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
             IntVec3 dropCell;
             if (!PaymentUtil.CheckForTaxSpot(playerHomeMap, out dropCell))
@@ -93,7 +93,7 @@ namespace FactionColonies.util
 
         public static bool DoDelayCaravanDueToDanger(FCEvent evt)
         {
-            Map playerHomeMap = FindFC.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.TaxMap;
             if (playerHomeMap.dangerWatcher.DangerRating != StoryDanger.None)
             {
 
@@ -115,7 +115,7 @@ namespace FactionColonies.util
 
         public static void SendCaravan(FCEvent evt)
         {
-            Map playerHomeMap = FindFC.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.TaxMap;
             if (DoDelayCaravanDueToDanger(evt)) return;
 
             DeliveryNotification.MakeDeliveryLetterAndMessage(evt);

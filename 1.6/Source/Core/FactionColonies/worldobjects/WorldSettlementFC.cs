@@ -801,7 +801,7 @@ namespace FactionColonies
 
         public void UpdateTechIcon()
         {
-            var techLevel = FindFC.FactionComp.techLevel;
+            var techLevel = FindFC.TechLevel;
             LogUtil.Message("Got tech level " + techLevel);
             if (techLevel == TechLevel.Animal || techLevel == TechLevel.Neolithic)
                 def.texture = "World/WorldObjects/TribalSettlement";
@@ -986,7 +986,7 @@ namespace FactionColonies
                 if (!newResourceDefs.Contains(resources[i].def))
                     resources.RemoveAt(i);
             }
-            PrepareResources(FindFC.FactionComp.techLevel);
+            PrepareResources(FindFC.TechLevel);
 
             // --- Apply new stat modifiers ---
             AddStatModifiers(settlementDef.statModifiers, "settlementType", settlementDef.label);

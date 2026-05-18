@@ -233,7 +233,7 @@ namespace FactionColonies
             }
             else
             {
-                FindFC.FactionComp.military.RebuildMercenaryPawnSet();
+                FindFC.Military.RebuildMercenaryPawnSet();
             }
         }
         /// <summary>

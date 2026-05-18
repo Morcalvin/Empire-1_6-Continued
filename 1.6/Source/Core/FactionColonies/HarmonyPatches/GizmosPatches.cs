@@ -142,7 +142,7 @@ namespace FactionColonies
                     return;
                 }
 
-                List<FloatMenuOption> settlementList = FindFC.FactionComp.settlements.Select(settlement => new FloatMenuOption("FCFloatMenuOptionSendPrisonerToSettlement".Translate(settlement.Name, settlement.settlementLevel, settlement.prisonerList.Count()), delegate
+                List<FloatMenuOption> settlementList = FindFC.Settlements.Select(settlement => new FloatMenuOption("FCFloatMenuOptionSendPrisonerToSettlement".Translate(settlement.Name, settlement.settlementLevel, settlement.prisonerList.Count()), delegate
                 {
                     //disappear prisoner
                     TravelUtil.SendPrisoner(prisoner, settlement);

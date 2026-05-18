@@ -10,7 +10,7 @@ namespace FactionColonies
     /// <summary>
     /// StockGenerator for Empire caravan traders. Generates stock for a single resource type,
     /// aggregated across all empire settlements. Unlike <see cref="EmpireStockGenerator"/>,
-    /// this reads <see cref="FactionCache.FactionComp"/> directly.
+    /// this reads <see cref="FindFC.FactionComp"/> directly.
     /// </summary>
     public class EmpireCaravanStockGenerator : StockGenerator
     {

@@ -45,7 +45,7 @@ namespace FactionColonies
 
             if (tempEvent.def != FCEventDefOf.Null)
             {
-                FindFC.FactionComp.eventManager.AddEvent(tempEvent);
+                FindFC.EventManager.AddEvent(tempEvent);
 
                 Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
             }
@@ -106,14 +106,14 @@ namespace FactionColonies
             bool noSettlementRequirement = cEvent.rangeSettlementsAffected.min == 0
                                            && cEvent.rangeSettlementsAffected.max == 0
                                            && !cEvent.targetAllSettlements;
-            if (!noSettlementRequirement && FindFC.FactionComp.settlements.Count < cEvent.rangeSettlementsAffected.min) return false;
-            if (cEvent.targetAllSettlements && FindFC.FactionComp.settlements.Count == 0) return false;
+            if (!noSettlementRequirement && FindFC.Settlements.Count < cEvent.rangeSettlementsAffected.min) return false;
+            if (cEvent.targetAllSettlements && FindFC.Settlements.Count == 0) return false;
 
             // Biome check — for settlement-targeting events, at least one settlement must qualify
             if (!noSettlementRequirement && (cEvent.applicableBiomes.Count > 0 || cEvent.restrictedBiomes.Count > 0))
             {
                 bool anyMatch = false;
-                foreach (WorldSettlementFC s in FindFC.FactionComp.settlements)
+                foreach (WorldSettlementFC s in FindFC.Settlements)
                 {
                     if (cEvent.BiomeAllowed(s.biome)) { anyMatch = true; break; }
                 }
@@ -130,7 +130,7 @@ namespace FactionColonies
             // Incompatible/duplicate event check
             // Faction-wide events are blocked globally if already active.
             // Settlement-specific events are allowed through — MakeRandomEvent handles per-settlement filtering.
-            foreach (FCEvent evt in FindFC.FactionComp.Events)
+            foreach (FCEvent evt in FindFC.Events)
             {
                 if (evt.def == null) continue;
                 if (cEvent == evt.def && noSettlementRequirement) return false;
@@ -602,7 +602,7 @@ namespace FactionColonies
                                                     }
                                                     else
                                                     {
-                                                        evt.source = FindFC.FactionComp.capitalLocation;
+                                                        evt.source = FindFC.CapitalLocation;
                                                     }
                                                 }
                                                 DeliveryEvent.CreateDeliveryEvent(evt);

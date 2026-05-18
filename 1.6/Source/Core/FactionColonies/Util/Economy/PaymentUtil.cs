@@ -405,7 +405,7 @@ namespace FactionColonies
             }
 
             // Fallback to existing tax map logic
-            return FindFC.FactionComp.TaxMap;
+            return FindFC.TaxMap;
         }
 
         public static bool CheckForActiveTaxDeliverySpot(out IntVec3 dropSpot, out Map taxMap)

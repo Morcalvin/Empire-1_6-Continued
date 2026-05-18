@@ -41,7 +41,7 @@ namespace FactionColonies
         [DebugAction("Empire", "View Events and ticks till", allowedGameStates = AllowedGameStates.Playing)]
         private static void ViewEventsAndLog()
         {
-            foreach (FCEvent e in FindFC.FactionComp.Events)
+            foreach (FCEvent e in FindFC.Events)
             {
                 LogUtil.MessageForce(e.def.defName + " with cooldown: " + (e.timeTillTrigger - Find.TickManager.TicksGame));
             }
@@ -116,7 +116,7 @@ namespace FactionColonies
                 return;
             }
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 list.Add(new DebugMenuOption(
                     $"{settlement.Name} - Level: {settlement.settlementLevel} - Prisoners: {settlement.prisonerList.Count()}",
@@ -166,7 +166,7 @@ namespace FactionColonies
         private static void ResetAllMilitarySquads()
         {
             LogUtil.MessageForce("Debug - Reset All Military Squad Assignments");
-            MilitaryFC mfc = FindFC.FactionComp.military;
+            MilitaryFC mfc = FindFC.Military;
             var allMercs = mfc.AllMercenaries.ToList();
             for (int i = allMercs.Count - 1; i >= 0; i--)
             {
@@ -211,7 +211,7 @@ namespace FactionColonies
 
                         if (!evtDef.activateAtStart)
                         {
-                            FindFC.FactionComp.eventManager.AddEvent(evt);
+                            FindFC.EventManager.AddEvent(evt);
                         }
 
                         string settlementString = evt.settlementTraitLocations.Join((settlement) => $" {settlement.Name}", "\n");
@@ -237,7 +237,7 @@ namespace FactionColonies
         private static void AttackPlayerSettlement()
         {
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 list.Add(new DebugMenuOption(settlement.Name, DebugMenuOptionMode.Action, delegate
                 {
@@ -275,7 +275,7 @@ namespace FactionColonies
         private static void InstantAttackPlayerSettlement()
         {
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 list.Add(new DebugMenuOption(settlement.Name, DebugMenuOptionMode.Action, delegate
                 {
@@ -412,7 +412,7 @@ namespace FactionColonies
         private static void UpgradePlayerSettlement(int times = 1)
         {
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 list.Add(new DebugMenuOption(settlement.Name, DebugMenuOptionMode.Action, delegate
                 {
@@ -436,7 +436,7 @@ namespace FactionColonies
         private static void FlagRoadQueueUpdate()
         {
             LogUtil.MessageForce("Debug - Flag Road Queue Update");
-            FindFC.FactionComp.roadBuilder.FlagUpdateRoadQueues();
+            FindFC.RoadBuilder.FlagUpdateRoadQueues();
         }
 
         [DebugAction("Empire", "De-Level Player Settlement", allowedGameStates = AllowedGameStates.Playing)]
@@ -446,7 +446,7 @@ namespace FactionColonies
         private static void ResetMilitarySquads()
         {
             LogUtil.MessageForce("Debug - Reset All Military Squads");
-            MilitaryFC util = FindFC.FactionComp.military;
+            MilitaryFC util = FindFC.Military;
 
             for (int i = util.mercenarySquads.Count - 1; i >= 0; i--)
             {
@@ -467,7 +467,7 @@ namespace FactionColonies
                 util.mercenarySquads.RemoveAt(i);
             }
 
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 settlement.MilitaryComp?.ReturnMilitary(false);
             }
@@ -525,7 +525,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Clear Old Bills", allowedGameStates = AllowedGameStates.Playing)]
         private static void ClearOldBills()
         {
-            FindFC.FactionComp.taxLedger.ClearOldBills();
+            FindFC.TaxLedger.ClearOldBills();
         }
 
         [DebugAction("Empire", "Clear All Events", allowedGameStates = AllowedGameStates.Playing)]
@@ -537,7 +537,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Clear All Bills", allowedGameStates = AllowedGameStates.Playing)]
         private static void ClearAllBills()
         {
-            FindFC.FactionComp.taxLedger.ClearAllBills();
+            FindFC.TaxLedger.ClearAllBills();
         }
 
         [DebugAction("Empire", "Place 500 Silver", actionType = DebugActionType.ToolMap, allowedGameStates = AllowedGameStates.PlayingOnMap)]
@@ -556,7 +556,7 @@ namespace FactionColonies
         private static void CallInAlliedForcesSelect()
         {
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 MercenarySquadFC squad = settlement.PrimaryStationedSquad;
                 if (squad != null)
@@ -615,7 +615,7 @@ namespace FactionColonies
         private static void WithSettlementChoice(Action<WorldSettlementFC> callback)
         {
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 WorldSettlementFC local = settlement;
                 list.Add(new DebugMenuOption(
@@ -691,7 +691,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Log Settlement Stats", allowedGameStates = AllowedGameStates.Playing)]
         private static void LogSettlementStats()
         {
-            foreach (WorldSettlementFC s in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC s in FindFC.Settlements)
             {
                 LogUtil.MessageForce($"[{s.Name}] Lv{s.settlementLevel} | Happy:{s.happiness:F0} Loyal:{s.loyalty:F0} Unrest:{s.unrest:F0} Prosper:{s.prosperity:F0} | Workers:{s.workers}/{s.workersMax} Prisoners:{s.prisonerList.Count}");
             }
@@ -1024,7 +1024,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Log Military Status", allowedGameStates = AllowedGameStates.Playing)]
         private static void LogMilitaryStatus()
         {
-            foreach (WorldSettlementFC s in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC s in FindFC.Settlements)
             {
                 var comp = s.MilitaryComp;
                 if (comp == null)
@@ -1072,7 +1072,7 @@ namespace FactionColonies
         private static void ForceCheckOrphanedDeploys()
         {
             int cleared = 0;
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 var comp = settlement.MilitaryComp;
                 if (comp is null) continue;
@@ -1091,7 +1091,7 @@ namespace FactionColonies
         private static void RunMilitaryErrorCheck()
         {
             LogUtil.MessageForce("Debug - Running military error check");
-            FindFC.FactionComp.military.CheckMilitaryUtilForErrors();
+            FindFC.Military.CheckMilitaryUtilForErrors();
             LogUtil.MessageForce("Debug - Military error check complete");
         }
 
@@ -1165,14 +1165,14 @@ namespace FactionColonies
         private static void ProcTaxDue()
         {
             LogUtil.MessageForce("Debug - Proc TaxTimeDue");
-            FindFC.FactionComp.taxLedger.nextTaxDueTick = Find.TickManager.TicksGame + 1;
+            FindFC.TaxLedger.nextTaxDueTick = Find.TickManager.TicksGame + 1;
         }
 
         [DebugAction("Empire", "Snapshot Tax Production Now", allowedGameStates = AllowedGameStates.Playing)]
         private static void SnapshotTaxProductionNow()
         {
             LogUtil.MessageForce("Debug - Snapshot Tax Production (1 day)");
-            foreach (WorldSettlementFC s in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC s in FindFC.Settlements)
                 s.AccumulateDailyProduction();
         }
 
@@ -1180,7 +1180,7 @@ namespace FactionColonies
         private static void SnapshotTaxProductionTenTimes()
         {
             LogUtil.MessageForce("Debug - Snapshot Tax Production (10 days)");
-            foreach (WorldSettlementFC s in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC s in FindFC.Settlements)
                 for (int i = 0; i < 10; i++)
                     s.AccumulateDailyProduction();
         }
@@ -1206,7 +1206,7 @@ namespace FactionColonies
         private static void ForceTriggerEvent()
         {
             List<DebugMenuOption> list = new List<DebugMenuOption>();
-            foreach (FCEvent evt in FindFC.FactionComp.Events)
+            foreach (FCEvent evt in FindFC.Events)
             {
                 FCEvent localEvt = evt;
                 int ticksLeft = localEvt.timeTillTrigger - Find.TickManager.TicksGame;
@@ -1228,7 +1228,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Build Road Segment Now", allowedGameStates = AllowedGameStates.Playing)]
         private static void BuildRoadSegmentNow()
         {
-            var rb = FindFC.FactionComp.roadBuilder;
+            var rb = FindFC.RoadBuilder;
             if (rb.roadDef == null)
             {
                 LogUtil.MessageForce("Debug - No road research completed yet");
@@ -1248,7 +1248,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Build 10 Road Segments", allowedGameStates = AllowedGameStates.Playing)]
         private static void BuildTenRoadSegments()
         {
-            var rb = FindFC.FactionComp.roadBuilder;
+            var rb = FindFC.RoadBuilder;
             if (rb.roadDef is null)
             {
                 LogUtil.MessageForce("Debug - No road research completed yet");
@@ -1517,7 +1517,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Log Road Builder Status", allowedGameStates = AllowedGameStates.Playing)]
         private static void LogRoadBuilderStatus()
         {
-            var rb = FindFC.FactionComp.roadBuilder;
+            var rb = FindFC.RoadBuilder;
             LogUtil.MessageForce($"Road Builder: Enabled:{rb.roadBuildingEnabled} RoadDef:{rb.roadDef?.defName ?? "null"} DaysBetweenTicks:{rb.daysBetweenTicks}");
             if (rb.roadQueue != null)
             {
@@ -1540,7 +1540,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Fire Support (Pick Source)", allowedGameStates = AllowedGameStates.PlayingOnMap)]
         private static void FireSupportPickSource()
         {
-            MilitaryFC util = FindFC.FactionComp.military;
+            MilitaryFC util = FindFC.Military;
             if (util.fireSupportDefs == null || !util.fireSupportDefs.Any())
             {
                 Messages.Message("No fire support definitions configured.", MessageTypeDefOf.RejectInput);
@@ -1592,7 +1592,7 @@ namespace FactionColonies
         private static void DebugForceRestockSettlementTrader()
         {
             List<DebugMenuOption> options = new List<DebugMenuOption>();
-            foreach (WorldSettlementFC settlement in FindFC.FactionComp.settlements)
+            foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 options.Add(new DebugMenuOption(settlement.Name, DebugMenuOptionMode.Action, () =>
                 {

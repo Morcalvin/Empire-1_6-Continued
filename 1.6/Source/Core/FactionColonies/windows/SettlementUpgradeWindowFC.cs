@@ -69,7 +69,7 @@ namespace FactionColonies
             tmp.hasCustomDescription = true;
 
             settlement.StartUpgrade(tmp.timeTillTrigger);
-            FindFC.FactionComp.eventManager.AddEvent(tmp);
+            FindFC.EventManager.AddEvent(tmp);
 
             //Close this window
             Find.WindowStack.TryRemove(this);

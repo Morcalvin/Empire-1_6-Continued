@@ -105,7 +105,7 @@ namespace FactionColonies
 
         public FCEvent(bool New)
         {
-            loadID = FindFC.FactionComp.eventManager.NextEventId();
+            loadID = FindFC.EventManager.NextEventId();
         }
 
         /// <summary>

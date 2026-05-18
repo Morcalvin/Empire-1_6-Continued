@@ -88,7 +88,7 @@ namespace FactionColonies
 
         public void Delete()
         {
-            FindFC.FactionComp.military.fireSupportDefs.Remove(this);
+            FindFC.Military.fireSupportDefs.Remove(this);
         }
 
         public ThingDef ExpendProjectile()
@@ -105,7 +105,7 @@ namespace FactionColonies
             ThingSetMaker thingSetMaker = new ThingSetMaker_Count();
             ThingSetMakerParams param = new ThingSetMakerParams();
             param.filter = new ThingFilter();
-            param.techLevel = FindFC.FactionComp.techLevel;
+            param.techLevel = FindFC.TechLevel;
 
             param.filter.SetAllow(DefDatabase<ThingCategoryDef>.GetNamedSilentFail("MortarShells"), true);
             if (DefDatabase<ThingCategoryDef>.GetNamedSilentFail("AmmoShells") != null)
