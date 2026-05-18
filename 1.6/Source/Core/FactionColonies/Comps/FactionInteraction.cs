@@ -28,7 +28,7 @@ namespace FactionColonies
                 yield return gizmo;
 
             if (!HasValidFaction()) yield break;
-            FactionFC factionFC = FactionCache.FactionComp;
+            FactionFC factionFC = FindFC.FactionComp;
             if (factionFC is null) yield break;
 
             Faction faction = parent.Faction;
@@ -42,7 +42,7 @@ namespace FactionColonies
         }
 
         private bool HasValidFaction() =>
-            parent.Faction != FactionCache.PlayerColonyFaction &&
+            parent.Faction != FindFC.EmpireFaction &&
             parent.Faction != Find.FactionManager.OfPlayer;
 
         private static Command_Action HostileAction(FactionFC factionFC, Faction faction, PlanetTile tile) =>

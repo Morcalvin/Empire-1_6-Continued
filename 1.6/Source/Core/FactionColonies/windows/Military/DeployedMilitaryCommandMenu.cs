@@ -32,7 +32,7 @@ namespace FactionColonies
             drawShadow = true;
             doWindowBackground = true;
             preventCameraMotion = false;
-            faction = FactionCache.FactionComp;
+            faction = FindFC.FactionComp;
 
             // Use the op-driven source so the freshly-deployed squad is visible immediately,
             // even while its pawns are still inside drop pods (pawn.Map is null pre-pod-open).
@@ -143,7 +143,7 @@ namespace FactionColonies
 
             try
             {
-                foreach (Pawn pawn in Find.CurrentMap.mapPawns.SpawnedPawnsInFaction(FactionCache.PlayerColonyFaction))
+                foreach (Pawn pawn in Find.CurrentMap.mapPawns.SpawnedPawnsInFaction(FindFC.EmpireFaction))
                 {
                     pawn.Destroy();
                 }
@@ -156,8 +156,8 @@ namespace FactionColonies
             // Resolve the squad's op directly. Skip cooldown — debug action wants the squad
             // immediately freed.
             MilitaryOperation op = squad.Operation;
-            if (op is object) FactionCache.MilitaryManager?.Unregister(op);
-            FactionCache.FactionComp?.military?.RegisterSquadInjuries(squad);
+            if (op is object) FindFC.MilitaryManager?.Unregister(op);
+            FindFC.FactionComp?.military?.RegisterSquadInjuries(squad);
         }
 
         /// <summary>

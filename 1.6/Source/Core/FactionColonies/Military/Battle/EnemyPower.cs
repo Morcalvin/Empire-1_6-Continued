@@ -65,7 +65,7 @@ namespace FactionColonies
             if (handicap)
             {
                 rolledLevel = Math.Min(rolledLevel,
-                    ThreatScalingUtil.ComputeHandicapCap(FactionCache.FactionComp));
+                    ThreatScalingUtil.ComputeHandicapCap(FindFC.FactionComp));
             }
             return new MilitaryForce(rolledLevel, rolledEfficiency, null, faction);
         }

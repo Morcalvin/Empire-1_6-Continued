@@ -207,8 +207,7 @@ namespace FactionColonies
                 if (retainable != null && retainable.Contains(bp)) continue; // template still owns this slot
                 squad.mercenaries.RemoveAt(i);
             }
-
-            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
         }
 
         /// <summary>Race + xenotype-aware re-template. For each template slot:
@@ -303,8 +302,7 @@ namespace FactionColonies
                 rebuilt.Add(merc);
             }
             squad.mercenaries = rebuilt;
-
-            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(squad);
             return true;
         }

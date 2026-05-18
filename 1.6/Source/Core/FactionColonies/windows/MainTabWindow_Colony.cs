@@ -65,7 +65,7 @@ namespace FactionColonies
         public override void PreOpen()
         {
             base.PreOpen();
-            faction = FactionCache.FactionComp;
+            faction = FindFC.FactionComp;
             if (faction == null)
             {
                 LogUtil.Error("WorldComp FactionFC is null - Something is wrong!");
@@ -128,7 +128,7 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            Faction gfaction = FactionCache.PlayerColonyFaction;
+            Faction gfaction = FindFC.EmpireFaction;
             if (gfaction == null)
             {
                 Text.Anchor = TextAnchor.MiddleCenter;
@@ -137,7 +137,7 @@ namespace FactionColonies
                 if (Widgets.ButtonText(btn, "FCCreateNewFaction".Translate()))
                 {
                     ColonyUtil.CreatePlayerColonyFaction();
-                    faction = FactionCache.FactionComp;
+                    faction = FindFC.FactionComp;
                     if (faction != null)
                     {
                         faction.factionCreated = true;
@@ -249,7 +249,7 @@ namespace FactionColonies
 
             if (Widgets.ButtonImage(customizeBtn, TexLoad.iconCustomize))
             {
-                if (FactionCache.PlayerColonyFaction != null)
+                if (FindFC.EmpireFaction != null)
                     Find.WindowStack.Add(new FactionCustomizeWindowFc(faction));
             }
         }
@@ -1738,7 +1738,7 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleLeft;
                 double rawBudget = MilitaryFC.CalculateSquadBudget(settlement.settlementMilitaryLevel);
                 int maxDeploy = MilitaryDeploymentUtil.CalculateDeploymentCost(rawBudget);
-                FactionFC fcBadge = FactionCache.FactionComp;
+                FactionFC fcBadge = FindFC.FactionComp;
                 (double powLevel, double powEff, SettlementPowerStatus powStatus) = settlement.GetDisplayedPower();
                 double defPower = Math.Round(
                     (powLevel + fcBadge.GetStatValue(FCStatDefOf.militaryLevelBonusDefending))

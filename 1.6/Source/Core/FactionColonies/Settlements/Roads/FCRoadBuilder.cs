@@ -72,7 +72,7 @@ namespace FactionColonies
                 return;
             }
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             if (roadQueue == null)
             {
@@ -132,7 +132,7 @@ namespace FactionColonies
             if (!settlement.Tile.Layer.IsRootSurface)
                 return false;
 
-            FactionFC fC = FactionCache.FactionComp;
+            FactionFC fC = FindFC.FactionComp;
 
             // If faction exists and is either player or player has roadBuilders trait and the faction is an ally
             if (settlement.Faction != null)

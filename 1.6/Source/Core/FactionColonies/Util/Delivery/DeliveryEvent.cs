@@ -37,20 +37,19 @@ namespace FactionColonies.util
             evt.msg = evtParams.msg;
             evt.isDelayed = evtParams.isDelayed;
             evt.deliveryMode = evtParams.deliveryMode;
-
-            FactionCache.FactionComp.eventManager.AddEvent(evt);
+            FindFC.FactionComp.eventManager.AddEvent(evt);
         }
 
         public static void Action(FCEvent evt)
         {
-            Action(evt, FactionCache.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false);
+            Action(evt, FindFC.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false);
         }
 
         public static void Action(FCEvent evt, Letter let, Message msg = null, bool CanUseShuttle = false)
         {
             evt.let = let;
             evt.msg = msg;
-            Action(evt, CanUseShuttle || (FactionCache.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false));
+            Action(evt, CanUseShuttle || (FindFC.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false));
         }
 
         public static void Action(FCEvent evt, bool canUseShuttle)

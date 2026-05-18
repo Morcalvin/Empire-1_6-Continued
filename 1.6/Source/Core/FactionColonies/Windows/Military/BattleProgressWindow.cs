@@ -304,7 +304,7 @@ namespace FactionColonies
                 return new Color(1f, 1f, 1f, 0.18f);
             if (isPlayerSide)
             {
-                Faction player = FactionCache.PlayerColonyFaction;
+                Faction player = FindFC.EmpireFaction;
                 Color baseColor = player is object
                     ? player.Color
                     : new Color(0.30f, 0.55f, 0.75f);

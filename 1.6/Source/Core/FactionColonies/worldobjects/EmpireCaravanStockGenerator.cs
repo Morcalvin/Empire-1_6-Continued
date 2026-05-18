@@ -43,7 +43,7 @@ namespace FactionColonies
 
         public override IEnumerable<Thing> GenerateThings(PlanetTile forTile, Faction faction = null)
         {
-            FactionFC factionComp = FactionCache.FactionComp;
+            FactionFC factionComp = FindFC.FactionComp;
             if (factionComp is null || resourceDef is null)
                 yield break;
 

@@ -32,6 +32,7 @@ namespace FactionColonies
         public static void InvalidateAll()
         {
             FactionCache.InvalidateCache();
+            FindFC.Invalidate();
 
             EmpireRegistry.ClearAll();
 

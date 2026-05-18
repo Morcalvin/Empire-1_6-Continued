@@ -75,7 +75,7 @@ namespace FactionColonies
                 }
                 // Already despawned (e.g. joined an existing caravan): fall through to RemoveDefender.
             }
-            if (pawn.IsMercenary() && pawn.Faction != FactionCache.PlayerColonyFaction) pawn.SetFaction(FactionCache.PlayerColonyFaction);
+            if (pawn.IsMercenary() && pawn.Faction != FindFC.EmpireFaction) pawn.SetFaction(FindFC.EmpireFaction);
 
             settlement?.MilitaryComp?.RemoveDefender(pawn);
         }

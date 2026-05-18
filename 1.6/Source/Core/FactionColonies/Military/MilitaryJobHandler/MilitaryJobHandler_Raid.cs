@@ -40,7 +40,7 @@ namespace FactionColonies
 
             if (result.AttackerVictory)
             {
-                ApplyVictoryToTarget(FactionCache.FactionComp, op.aggressor.homeSettlement,
+                ApplyVictoryToTarget(FindFC.FactionComp, op.aggressor.homeSettlement,
                     op.defender?.faction, target, op, result);
             }
             else

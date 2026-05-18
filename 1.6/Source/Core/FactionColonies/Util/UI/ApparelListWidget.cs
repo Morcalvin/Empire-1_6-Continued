@@ -61,8 +61,8 @@ namespace FactionColonies
                     Rect setAllBtn = new Rect(btnX, btnY, btnW, headerHeight);
                     if (Widgets.ButtonText(setAllBtn, "fcSetAllColors".Translate()))
                     {
-                        Color current = FactionCache.FactionComp?.hasFactionColor == true
-                            ? FactionCache.FactionComp.factionColorPrimary : Color.white;
+                        Color current = FindFC.FactionComp?.hasFactionColor == true
+                            ? FindFC.FactionComp.factionColorPrimary : Color.white;
                         OpenColorPicker(current, delegate (Color c)
                         {
                             MilUnitFC target = opts.getEditTarget?.Invoke();
@@ -131,7 +131,7 @@ namespace FactionColonies
                 // Color swatch
                 float swatchRightEdge = opts.canEdit ? removeRect.x - 4f : row.xMax - 4f;
                 Rect swatchRect = new Rect(swatchRightEdge - swatchSize, row.y + (apparelRowHeight - swatchSize) / 2f, swatchSize, swatchSize);
-                FactionFC factionComp = FactionCache.FactionComp;
+                FactionFC factionComp = FindFC.FactionComp;
                 Color resolvedColor = factionComp != null ? factionComp.ResolveApparelColor(item) : Color.white;
                 Color outlineColor = item.hasColor ? Color.white : new Color(0.5f, 0.5f, 0.5f);
                 Widgets.DrawBoxSolidWithOutline(swatchRect, resolvedColor, outlineColor);

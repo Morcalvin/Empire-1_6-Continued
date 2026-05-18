@@ -39,7 +39,7 @@ namespace FactionColonies
             {
                 if (taxMap is object) return taxMap;
 
-                FactionFC comp = FactionCache.FactionComp;
+                FactionFC comp = FindFC.FactionComp;
                 Map map = null;
                 if (comp is object)
                 {
@@ -516,7 +516,7 @@ namespace FactionColonies
         private void ApplySavedTechLevelToFactionDef()
         {
             if (_techLevel <= TechLevel.Undefined) return;
-            Faction playerColonyfaction = FactionCache.PlayerColonyFaction;
+            Faction playerColonyfaction = FindFC.EmpireFaction;
             if (playerColonyfaction != null && playerColonyfaction.def.techLevel < _techLevel)
             {
                 UpdateFactionDef(_techLevel, ref playerColonyfaction);
@@ -708,7 +708,7 @@ namespace FactionColonies
         public override void WorldComponentTick()
         {
             base.WorldComponentTick();
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
             if (firstTick)
             {
                 FirstTick(faction);
@@ -810,7 +810,7 @@ namespace FactionColonies
                                     t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
                                 float totalWeight = settlementTotalWeight + externalTotalWeight;
 
-                                EnemyPower attackerEntry = FactionCache.EnemyPower?.GetOrCompute(enemy);
+                                EnemyPower attackerEntry = FindFC.EnemyPower?.GetOrCompute(enemy);
                                 MilitaryForce attackingForce = attackerEntry?.SampleBattleForce(enemy, handicap: true);
                                 if (attackingForce is null)
                                 {
@@ -970,7 +970,7 @@ namespace FactionColonies
             TechLevel curTechLevel = _techLevel;
             bool medievalOnly = FCSettings.medievalTechOnly;
             TechLevel newLevel;
-            TechLevel playerTech = FactionCache.PlayerFaction?.def?.techLevel ?? TechLevel.Neolithic;
+            TechLevel playerTech = FindFC.PlayerFaction?.def?.techLevel ?? TechLevel.Neolithic;
 
             if (FCSettings.mirrorPlayerTechLevel)
             {
@@ -1020,7 +1020,7 @@ namespace FactionColonies
                 DirtyAllTitheCaches();
             }
 
-            Faction playerColonyfaction = FactionCache.PlayerColonyFaction;
+            Faction playerColonyfaction = FindFC.EmpireFaction;
             bool techLevelChanged = playerColonyfaction?.def.techLevel < _techLevel;
             if (techLevelChanged)
             {
@@ -1846,7 +1846,7 @@ namespace FactionColonies
                 FCEvent tmpEvt = FCEventMaker.MakeRandomEvent(FCEventMaker.ReturnRandomEvent(), null);
                 if (tmpEvt != null)
                 {
-                    FactionCache.FactionComp.eventManager.AddEvent(tmpEvt);
+                    FindFC.FactionComp.eventManager.AddEvent(tmpEvt);
                     randomEventLastAdded = 0f;
 
                     Find.LetterStack.ReceiveLetter("FCRandomEventLetterLabel".Translate(), FCEventMaker.BuildEventLetterBody(tmpEvt), LetterDefOf.NeutralEvent);
@@ -1866,7 +1866,7 @@ namespace FactionColonies
             }
         }
 
-        private bool RandomEventsDisabledOrNoSettlements() => FactionCache.FactionComp.settlements.Count == 0 || FCSettings.disableRandomEvents;
+        private bool RandomEventsDisabledOrNoSettlements() => FindFC.FactionComp.settlements.Count == 0 || FCSettings.disableRandomEvents;
 
         #endregion
 
@@ -2242,7 +2242,7 @@ namespace FactionColonies
         /// </summary>
         public void RebuildCaravanTraderKinds()
         {
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
             if (faction is null) return;
             List<TraderKindDef> result = BuildCaravanTraderKinds(techLevel);
             if (result.Count > 0)
@@ -2389,10 +2389,10 @@ namespace FactionColonies
         /// </summary>
         private void SyncGoodwillWithAverages()
         {
-            if (settlements.Any() && FactionCache.PlayerColonyFaction != null)
+            if (settlements.Any() && FindFC.EmpireFaction != null)
             {
-                FactionCache.PlayerColonyFaction.TryAffectGoodwillWith(Find.FactionManager.OfPlayer,
-                    (Convert.ToInt32(averageHappiness) - FactionCache.PlayerColonyFaction.PlayerGoodwill));
+                FindFC.EmpireFaction.TryAffectGoodwillWith(Find.FactionManager.OfPlayer,
+                    (Convert.ToInt32(averageHappiness) - FindFC.EmpireFaction.PlayerGoodwill));
             }
         }
 

@@ -101,7 +101,7 @@ namespace FactionColonies.CE
                 projectile.canTargetSelf = false;
 
                 projectile.Launch(
-                    FactionCache.PlayerColonyFaction?.leader,
+FindFC.EmpireFaction?.leader,
                     new Vector2(source.x, source.z),
                     shotAngle,
                     shotRotation,

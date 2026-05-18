@@ -505,7 +505,7 @@ namespace FactionColonies
 
         public void UpdateSettlementsToProcess()
         {
-            FactionFC fC = FactionCache.FactionComp;
+            FactionFC fC = FindFC.FactionComp;
 
             // Collect empire settlement tiles
             HashSet<int> allTileSet = new HashSet<int>();

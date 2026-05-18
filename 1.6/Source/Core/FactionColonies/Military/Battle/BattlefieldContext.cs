@@ -168,7 +168,7 @@ namespace FactionColonies
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null) return;
 
-            bool isUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(settlement) ?? false;
+            bool isUnderAttack = FindFC.MilitaryManager?.HasDefenseAt(settlement) ?? false;
             if (!isUnderAttack) return;
             if (endingBattle) return;
 
@@ -333,7 +333,7 @@ namespace FactionColonies
                 else
                 {
                     awaitingPlayerExit = false;
-                    FactionCache.MilitaryManager?.RemoveBattlefield(tile);
+                    FindFC.MilitaryManager?.RemoveBattlefield(tile);
                 }
             }
         }
@@ -418,7 +418,7 @@ namespace FactionColonies
 
             // Drop the op's warning event from the queue if it's still there. Op.OnEventFired
             // already strips it from sourceEvents; this removes it from the FactionFC event list.
-            FactionFC factionFC = FactionCache.FactionComp;
+            FactionFC factionFC = FindFC.FactionComp;
             if (factionFC is object)
             {
                 foreach (FCEvent srcEvt in op.sourceEvents)
@@ -436,7 +436,7 @@ namespace FactionColonies
                 return;
             }
 
-            bool isUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(settlement) ?? false;
+            bool isUnderAttack = FindFC.MilitaryManager?.HasDefenseAt(settlement) ?? false;
 
             // Path 1: existing battle map active — add a new attacker group.
             if (battleMapInitialized && map is object && isUnderAttack)
@@ -547,7 +547,7 @@ namespace FactionColonies
             // into a cleaned-up state.
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null) return;
-            bool isUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(settlement) ?? false;
+            bool isUnderAttack = FindFC.MilitaryManager?.HasDefenseAt(settlement) ?? false;
             if (!isUnderAttack) return;
 
             if (map is null)
@@ -704,7 +704,7 @@ namespace FactionColonies
                 }
                 else
                 {
-                    LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction,
+                    LordMaker.MakeNewLord(FindFC.EmpireFaction,
                         new LordJob_DefendColony(ourSettlement, new Dictionary<Pawn, Pawn>()),
                         map, spawnedReinforcements);
                 }
@@ -722,7 +722,7 @@ namespace FactionColonies
             if (map is null) return;
             WorldSettlementFC settlement = ParentSettlement;
             if (settlement is null) return;
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
+            Faction empireFaction = FindFC.EmpireFaction;
             var idleDefenders = new List<Pawn>();
 
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
@@ -773,7 +773,7 @@ namespace FactionColonies
             map.fogGrid.ClearAllFog();
 
             // Remove pawns spawned by KCSG/VBGE that don't belong to Empire or the player.
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
+            Faction empireFaction = FindFC.EmpireFaction;
             List<Pawn> toRemove = new List<Pawn>();
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
@@ -861,7 +861,7 @@ namespace FactionColonies
                     var parms = new IncidentParms
                     {
                         target = map,
-                        faction = FactionCache.PlayerColonyFaction,
+                        faction = FindFC.EmpireFaction,
                         generateFightersOnly = true,
                         raidStrategy = RaidStrategyDefOf.ImmediateAttackFriendly
                     };
@@ -948,7 +948,7 @@ namespace FactionColonies
                 }
             }
 
-            LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DefendColony(settlement, riders), map, spawnedFriendlies);
+            LordMaker.MakeNewLord(FindFC.EmpireFaction, new LordJob_DefendColony(settlement, riders), map, spawnedFriendlies);
 
             // Per-op pawn tracking: every defender belongs to the op that summoned it. EndAttack
             // uses op.defender.pawns to return external auto-defender pawns; the BattlefieldContext
@@ -967,7 +967,7 @@ namespace FactionColonies
             Lord defenseLord = defenderPawns.FirstOrDefault()?.GetLord();
             if (defenseLord == null) return;
 
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
+            Faction empireFaction = FindFC.EmpireFaction;
             var defenderSet = new HashSet<Pawn>(defenderPawns);
             var inhabitants = new List<Pawn>();
 
@@ -1099,7 +1099,7 @@ namespace FactionColonies
             RemoveAttackerPawn(downed);
             PruneStalePawns();
 
-            bool anyUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
+            bool anyUnderAttack = FindFC.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
             if (attackerPawns.Any() || HasPendingPodAttackers() || endingBattle || !anyUnderAttack) return;
 
             endingBattle = true;
@@ -1116,7 +1116,7 @@ namespace FactionColonies
             RemoveDefenderPawn(defender);
             PruneStalePawns();
 
-            bool anyUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
+            bool anyUnderAttack = FindFC.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
             if (defenderPawns.Any() || endingBattle || !anyUnderAttack) return;
 
             endingBattle = true;
@@ -1135,7 +1135,7 @@ namespace FactionColonies
             if (settlement is null) return;
 
             // Restore faction on Empire defenders the player drafted during battle.
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
+            Faction empireFaction = FindFC.EmpireFaction;
             foreach (Pawn npc in draftedNPCs)
             {
                 if (npc is null || npc.Dead || npc.Destroyed) continue;
@@ -1245,7 +1245,7 @@ namespace FactionColonies
             }
 
             // If battle is already in progress, register directly.
-            bool isUnderAttack = FactionCache.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
+            bool isUnderAttack = FindFC.MilitaryManager?.HasDefenseAt(ParentSettlement) ?? false;
             if (isUnderAttack && map != null)
             {
                 RegisterPawnsAsDefenders(pawns, assignToLord);
@@ -1295,7 +1295,7 @@ namespace FactionColonies
                             lordless.Add(pawn);
                     }
                     if (lordless.Any())
-                        LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction,
+                        LordMaker.MakeNewLord(FindFC.EmpireFaction,
                             new LordJob_ColonistsIdle(settlement), map, lordless);
                 }
             }
@@ -1443,13 +1443,13 @@ namespace FactionColonies
         private static int CountOtherSettlementBattleMaps()
         {
             int count = 0;
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is null) return 0;
             foreach (WorldSettlementFC settlement in faction.settlements)
             {
                 if (settlement.Map != null)
                 {
-                    bool underAttack = FactionCache.MilitaryManager?.HasDefenseAt(settlement) ?? false;
+                    bool underAttack = FindFC.MilitaryManager?.HasDefenseAt(settlement) ?? false;
                     if (underAttack) count++;
                 }
             }

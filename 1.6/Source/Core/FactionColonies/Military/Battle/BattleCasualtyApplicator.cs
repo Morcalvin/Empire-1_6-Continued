@@ -104,7 +104,7 @@ namespace FactionColonies
             if (rawRate < 0) rawRate = 0;
             if (rawRate > 1) rawRate = 1;
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             double rateMult = faction is object
                 ? faction.GetStatValue(FCStatDefOf.mercenaryCasualtyRateMultiplier, statsContext)
                 : 1.0;
@@ -133,7 +133,7 @@ namespace FactionColonies
             if (rate > threshold && threshold < 1f)
                 deathChance = ((rate - threshold) / (1.0 - threshold)) * maxDeathFraction;
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             double deathMult = faction is object
                 ? faction.GetStatValue(FCStatDefOf.mercenaryDeathChanceMultiplier, statsContext)
                 : 1.0;

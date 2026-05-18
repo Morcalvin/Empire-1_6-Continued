@@ -8,7 +8,7 @@ namespace FactionColonies
     {
         private static WorldSettlementFC GetFirstSettlement()
         {
-            var settlements = FactionCache.FactionComp?.settlements;
+            var settlements = FindFC.FactionComp?.settlements;
             if (settlements == null || settlements.Count == 0)
                 return null;
             return settlements.First();
@@ -91,7 +91,7 @@ namespace FactionColonies
         [EmpireTest("Settlement")]
         public static void Settlement_AllBuildingSlots_MatchGetBuildingSlots()
         {
-            var settlements = FactionCache.FactionComp?.settlements;
+            var settlements = FindFC.FactionComp?.settlements;
             if (settlements == null || settlements.Count == 0) TestAssert.Skip("No settlements");
 
             foreach (var settlement in settlements)

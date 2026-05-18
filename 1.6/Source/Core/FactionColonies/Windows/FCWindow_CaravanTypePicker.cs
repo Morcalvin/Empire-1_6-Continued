@@ -32,7 +32,7 @@ namespace FactionColonies
         {
             base.PreOpen();
 
-            faction = FactionCache.FactionComp;
+            faction = FindFC.FactionComp;
             if (faction is null)
             {
                 LogUtil.Error("Null FactionFC when opening FCWindow_CaravanTypePicker");

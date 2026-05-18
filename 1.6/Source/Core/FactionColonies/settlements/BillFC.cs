@@ -92,7 +92,7 @@ namespace FactionColonies
 
         public void SetUniqueLoadID()
         {
-            FactionFC comp = FactionCache.FactionComp;
+            FactionFC comp = FindFC.FactionComp;
             if (comp is object)
             {
                 loadID = comp.taxLedger.NextBillId();
@@ -140,7 +140,7 @@ namespace FactionColonies
 
         public bool Resolve()
         {
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             if (AttemptResolve())
             {
                 return true;
@@ -160,7 +160,7 @@ namespace FactionColonies
 
         public bool AttemptResolve()
         {
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             if (PaymentUtil.GetSilver() >= -1 * taxes.silverAmount || taxes.silverAmount >= 0)
             { //if have enough silver on the current map to pay  & map belongs to player
 

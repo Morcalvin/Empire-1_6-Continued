@@ -144,7 +144,7 @@ namespace FactionColonies
             if (evt.goods != null && evt.goods.Count > 0)
                 evt.goods = FCEvent.ConsolidateGoods(evt.goods);
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             /* Tax delivery interception: registered interceptors may reroute taxColony events. */
             if (evt.def == FCEventDefOf.taxColony && evt.source != PlanetTile.Invalid)
@@ -202,7 +202,7 @@ namespace FactionColonies
 
         private static void DispatchOnEventExpired(FCEvent evt)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             FCEventHandlerExtension ext = evt.def?.GetModExtension<FCEventHandlerExtension>();
             if (ext != null) ext.OnEventExpired(evt, faction);
             else EventStatModifierApplier.Remove(evt, faction);

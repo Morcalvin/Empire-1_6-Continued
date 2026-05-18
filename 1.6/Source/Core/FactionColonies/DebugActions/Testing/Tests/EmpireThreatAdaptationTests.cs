@@ -102,7 +102,7 @@ namespace FactionColonies
         {
             // Notify_BattleLost reads FactionCache.FactionComp.settlements.Count for the curve
             // sample. Skip if no faction is available.
-            if (FactionCache.FactionComp is null) TestAssert.Skip("No FactionFC");
+            if (FindFC.FactionComp is null) TestAssert.Skip("No FactionFC");
             if (!HasStoryteller) TestAssert.Skip("No storyteller available");
 
             var adapt = new EmpireThreatAdaptation();
@@ -116,7 +116,7 @@ namespace FactionColonies
             // This is only really testable when the active storyteller lacks the curve; Skip
             // otherwise.
             if (HasLossCurve) TestAssert.Skip("Current storyteller has a loss curve");
-            if (FactionCache.FactionComp is null) TestAssert.Skip("No FactionFC");
+            if (FindFC.FactionComp is null) TestAssert.Skip("No FactionFC");
             if (!HasStoryteller) TestAssert.Skip("No storyteller available");
 
             var adapt = new EmpireThreatAdaptation();
@@ -135,7 +135,7 @@ namespace FactionColonies
         public static void NotifyBattleLost_ClampsAtMin()
         {
             // Mirror of NotifyBattleWon_ClampsAtMax: spam BattleLost beyond the floor.
-            if (FactionCache.FactionComp is null) TestAssert.Skip("No FactionFC");
+            if (FindFC.FactionComp is null) TestAssert.Skip("No FactionFC");
             if (!HasLossCurve) TestAssert.Skip("Storyteller lacks loss curve");
 
             var adapt = new EmpireThreatAdaptation();

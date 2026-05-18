@@ -274,7 +274,7 @@ namespace FactionColonies
             //TODO: rework construction. This info should really be held in this comp here, rather than in the events queue.
             //      maybe there can still be a "constructing building" event that refers to the SettlementBuilding comp, but
             //      the comp should be the source of truth, not the event
-            foreach (FCEvent event1 in FactionCache.FactionComp.Events) //check if construction would match any already-occuring events
+            foreach (FCEvent event1 in FindFC.FactionComp.Events) //check if construction would match any already-occuring events
             {
                 if (WorldSettlement.MilitaryComp?.isUnderAttack == true)
                 {
@@ -507,7 +507,7 @@ namespace FactionColonies
 
             double upkeep = building.upkeep;
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             upkeep = faction.FoldBehaviors(upkeep, (b, u) => b.ModifyBuildingUpkeep(building, u, WorldSettlement));
 
             return (int)upkeep;

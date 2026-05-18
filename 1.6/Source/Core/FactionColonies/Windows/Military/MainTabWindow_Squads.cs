@@ -52,7 +52,7 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilitaryFC mfc = fc?.military;
             List<MercenarySquadFC> pool = mfc?.mercenarySquads ?? new List<MercenarySquadFC>();
 

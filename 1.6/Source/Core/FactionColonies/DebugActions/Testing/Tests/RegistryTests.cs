@@ -15,7 +15,7 @@ namespace FactionColonies
 
         private static WorldSettlementFC GetFirstSettlement()
         {
-            var settlements = FactionCache.FactionComp?.settlements;
+            var settlements = FindFC.FactionComp?.settlements;
             if (settlements == null || settlements.Count == 0) return null;
             return settlements[0];
         }
@@ -255,7 +255,7 @@ namespace FactionColonies
         {
             var op = new MilitaryOperation(-1, null, home?.Tile ?? RimWorld.Planet.PlanetTile.Invalid, home);
             op.aggressor.homeSettlement = home;
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             return op;
         }
 
@@ -414,7 +414,7 @@ namespace FactionColonies
         [EmpireTest("Registry")]
         public static void FactionPowerModifier_RegistersAndInvokes()
         {
-            RimWorld.Faction faction = FactionCache.PlayerColonyFaction;
+            RimWorld.Faction faction = FindFC.EmpireFaction;
             if (faction is null) TestAssert.Skip("No player colony faction");
 
             var modifier = new TestFactionPowerModifier { LevelBonus = 3.0 };
@@ -432,7 +432,7 @@ namespace FactionColonies
         [EmpireTest("Registry")]
         public static void FactionPowerModifier_Unregister_NoEffect()
         {
-            RimWorld.Faction faction = FactionCache.PlayerColonyFaction;
+            RimWorld.Faction faction = FindFC.EmpireFaction;
             if (faction is null) TestAssert.Skip("No player colony faction");
 
             var modifier = new TestFactionPowerModifier { LevelBonus = 3.0 };
@@ -448,7 +448,7 @@ namespace FactionColonies
         [EmpireTest("Registry")]
         public static void FactionPowerModifier_Exception_DoesNotCrash()
         {
-            RimWorld.Faction faction = FactionCache.PlayerColonyFaction;
+            RimWorld.Faction faction = FindFC.EmpireFaction;
             if (faction is null) TestAssert.Skip("No player colony faction");
 
             var bad = new ThrowingFactionPowerModifier();
@@ -522,7 +522,7 @@ namespace FactionColonies
             // We use distinct test doubles per interface here (no class implements both),
             // but the lists themselves must stay independent. Verify by registering on two
             // chains and confirming both fire.
-            var faction = FactionCache.PlayerColonyFaction;
+            var faction = FindFC.EmpireFaction;
             if (faction is null) TestAssert.Skip("No player colony faction");
 
             var battleMod = new TestBattleModifier { LevelBonus = 1 };

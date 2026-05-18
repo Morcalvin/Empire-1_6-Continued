@@ -29,7 +29,7 @@ namespace FactionColonies
 
         public FCPrisonerMenu(WorldSettlementFC settlement)
         {
-            this.faction = FactionCache.FactionComp;
+            this.faction = FindFC.FactionComp;
             this.settlement = settlement;
             this.prisoners = settlement.prisonerList;
 
@@ -216,7 +216,7 @@ namespace FactionColonies
             {
                 List<FloatMenuOption> list = new List<FloatMenuOption>();
 
-                if (FactionCache.FactionComp.IsActionAllowed(FCActionType.SellPrisoner))
+                if (FindFC.FactionComp.IsActionAllowed(FCActionType.SellPrisoner))
                 {
                     list.Add(new FloatMenuOption("FCSellPawn".Translate() + " $" + prisoner.prisoner.MarketValue + " " + "FCSellPawnInfo".Translate(), delegate
                     {

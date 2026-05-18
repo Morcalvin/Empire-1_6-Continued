@@ -104,7 +104,7 @@ namespace FactionColonies
             Settlement targetSettlement = target as Settlement;
             if (targetSettlement is null || enemy is null) return;
 
-            WorldComponent_EnemyPower registry = FactionCache.EnemyPower;
+            WorldComponent_EnemyPower registry = FindFC.EnemyPower;
             if (registry is null) return;
 
             defenderPower = registry.GetOrCompute(targetSettlement);
@@ -339,7 +339,7 @@ namespace FactionColonies
             int travel = selected.settlement is object && target is object
                 ? TravelUtil.ReturnTicksToArrive(selected.settlement.Tile, target.Tile)
                 : GenDate.TicksPerDay;
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null)
             {
                 LogUtil.Error("Dialog_AttackSettlement.Confirm: MilitaryManager unavailable.");
@@ -355,7 +355,7 @@ namespace FactionColonies
         protected override void RebuildRows()
         {
             rows.Clear();
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
             if (pool is null) { rowsDirty = false; return; }
 
@@ -389,14 +389,14 @@ namespace FactionColonies
                         targetObject = target,
                         aggressor = new MilitaryOperationParticipant
                         {
-                            faction = FactionCache.PlayerColonyFaction,
+                            faction = FindFC.EmpireFaction,
                             squad = squad,
                             force = attackerForce,
                             homeSettlement = squad.settlement
                         },
                         defender = new MilitaryOperationParticipant { faction = enemy }
                     };
-                    FactionCache.EnemyPower?.ApplyBattleModifiers(rowCtx, attackerForce, isAttacker: true);
+                    FindFC.EnemyPower?.ApplyBattleModifiers(rowCtx, attackerForce, isAttacker: true);
                     attackerEfficiency = attackerForce.militaryEfficiency;
                 }
 

@@ -17,7 +17,7 @@ namespace FactionColonies
         public override void PreOpen()
         {
             base.PreOpen();
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction == null) return;
 
             tabs.Clear();

@@ -78,7 +78,7 @@ namespace FactionColonies
 
         private void DrawList(Rect rect, int squadDeploy)
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilitaryFC mfc = fc?.military;
             if (fc is null || mfc is null) return;
 

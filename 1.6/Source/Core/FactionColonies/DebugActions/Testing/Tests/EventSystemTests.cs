@@ -125,7 +125,7 @@ namespace FactionColonies
         [EmpireTest("EventSystem")]
         public static void ReturnRandomEvent_DoesNotThrow()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction == null) TestAssert.Skip("No faction");
 
             TestAssert.DoesNotThrow(() => FCEventMaker.ReturnRandomEvent());
@@ -134,7 +134,7 @@ namespace FactionColonies
         [EmpireTest("EventSystem")]
         public static void ReturnRandomEvent_Result_IsValidOrNull()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction == null) TestAssert.Skip("No faction");
 
             FCEventDef result = FCEventMaker.ReturnRandomEvent();

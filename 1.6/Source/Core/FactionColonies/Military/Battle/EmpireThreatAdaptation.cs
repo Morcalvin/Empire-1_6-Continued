@@ -63,7 +63,7 @@ namespace FactionColonies
             StorytellerDef def = Find.Storyteller.def;
             if (def.adaptDaysLossFromColonistLostByPostPopulation == null) return;
 
-            int count = FactionCache.FactionComp.settlements.Count;
+            int count = FindFC.FactionComp.settlements.Count;
             float loss = def.adaptDaysLossFromColonistLostByPostPopulation.Evaluate(count);
             adaptDays = Mathf.Max(def.adaptDaysMin, adaptDays - loss);
         }

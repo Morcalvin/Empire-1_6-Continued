@@ -12,7 +12,7 @@ namespace FactionColonies
     {
         static void Postfix(ref IncidentWorker_RaidFriendly __instance, ref bool __result, IncidentParms parms)
         {
-            if (parms.faction == FactionCache.PlayerColonyFaction)
+            if (parms.faction == FindFC.EmpireFaction)
             {
                 parms.faction = null;
                 __result = false;
@@ -26,7 +26,7 @@ namespace FactionColonies
     {
         static void Postfix(PlanetTile tile, List<Pair<Settlement, int>> outOffsets, bool ignoreIfAlreadyMinGoodwill, bool ignorePermanentlyHostile)
         {
-            outOffsets.RemoveAll(pair => pair.First.Faction == FactionCache.PlayerColonyFaction);
+            outOffsets.RemoveAll(pair => pair.First.Faction == FindFC.EmpireFaction);
         }
     }
 
@@ -36,7 +36,7 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance)
         {
-            if (__instance == FactionCache.PlayerColonyFaction)
+            if (__instance == FindFC.EmpireFaction)
             {
                 return false;
             }
@@ -52,7 +52,7 @@ namespace FactionColonies
         static bool Prefix(ref Faction __instance, Faction other, int goodwillChange, bool canSendMessage = true,
             bool canSendHostilityLetter = true, HistoryEventDef reason = null, GlobalTargetInfo? lookTarget = null)
         {
-            if (__instance == FactionCache.PlayerColonyFaction && other == Find.FactionManager.OfPlayer)
+            if (__instance == FindFC.EmpireFaction && other == Find.FactionManager.OfPlayer)
             {
                 if (reason == HistoryEventDefOf.RequestedTrader ||
                     reason == HistoryEventDefOf.GaveGift ||
@@ -75,12 +75,12 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, Pawn member, DamageInfo? dinfo, bool wasWorldPawn, Map map)
         {
-            if (member.Faction == FactionCache.PlayerColonyFaction && !wasWorldPawn &&
+            if (member.Faction == FindFC.EmpireFaction && !wasWorldPawn &&
                 !PawnGenerator.IsBeingGenerated(member) && map != null &&
                 (map.IsPlayerHome || map.Parent is WorldSettlementFC) &&
                 !__instance.HostileTo(Faction.OfPlayer))
             {
-                FactionFC faction = FactionCache.FactionComp;
+                FactionFC faction = FindFC.FactionComp;
                 if (!faction.AnyPolicySuppressesMemberDeathPenalty() && dinfo != null)
                 {
                     if (dinfo.Value.Category == DamageInfo.SourceCategory.Collapse)
@@ -109,7 +109,7 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, float marketValueSentByPlayer, Pawn playerNegotiator)
         {
-            if (__instance == FactionCache.PlayerColonyFaction)
+            if (__instance == FindFC.EmpireFaction)
             {
                 return false;
             }
@@ -124,9 +124,9 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, Pawn member, Faction violator)
         {
-            if (__instance == FactionCache.PlayerColonyFaction && violator == Faction.OfPlayer && !member.IsSlaveOfColony)
+            if (__instance == FindFC.EmpireFaction && violator == Faction.OfPlayer && !member.IsSlaveOfColony)
             {
-                FactionFC faction = FactionCache.FactionComp;
+                FactionFC faction = FindFC.FactionComp;
                 faction.GainUnrestForReason(new Message("FCCaptureOfFactionPawn".Translate(), MessageTypeDefOf.NegativeEvent), 15d);
                 faction.GainHappiness(-10d);
 
@@ -142,7 +142,7 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, Pawn member, DamageInfo dinfo)
         {
-            if (__instance == FactionCache.PlayerColonyFaction)
+            if (__instance == FindFC.EmpireFaction)
             {
                 return false;
             }
@@ -156,7 +156,7 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, Building building, DamageInfo dinfo)
         {
-            if (__instance == FactionCache.PlayerColonyFaction)
+            if (__instance == FindFC.EmpireFaction)
             {
                 return false;
             }
@@ -170,7 +170,7 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, Pawn member, Faction violator)
         {
-            if (__instance == FactionCache.PlayerColonyFaction)
+            if (__instance == FindFC.EmpireFaction)
             {
                 return false;
             }
@@ -184,7 +184,7 @@ namespace FactionColonies
     {
         static bool Prefix(ref Faction __instance, Building building, Pawn deconstructor)
         {
-            if (__instance == FactionCache.PlayerColonyFaction)
+            if (__instance == FindFC.EmpireFaction)
             {
                 return false;
             }
@@ -200,7 +200,7 @@ namespace FactionColonies
     {
         static bool Prefix(Faction faction, ref bool __result)
         {
-            if (faction == FactionCache.PlayerColonyFaction)
+            if (faction == FindFC.EmpireFaction)
             {
                 __result = false;
                 return false;
@@ -219,7 +219,7 @@ namespace FactionColonies
         {
             if (!__result) return;
 
-            Faction pcFaction = FactionCache.PlayerColonyFaction;
+            Faction pcFaction = FindFC.EmpireFaction;
             if (pcFaction == null) return;
 
             Faction player = Find.FactionManager.OfPlayer;
@@ -266,7 +266,7 @@ namespace FactionColonies
         static void Postfix(Thing t, Faction fac, ref bool __result)
         {
             if (__result) return;
-            if (fac != FactionCache.PlayerColonyFaction) return;
+            if (fac != FindFC.EmpireFaction) return;
             __result = t.HostileTo(Faction.OfPlayer);
         }
     }
@@ -281,7 +281,7 @@ namespace FactionColonies
         {
             if (__result) return;
 
-            Faction pcFaction = FactionCache.PlayerColonyFaction;
+            Faction pcFaction = FindFC.EmpireFaction;
             if (pcFaction is null) return;
 
             Thing other;
@@ -302,7 +302,7 @@ namespace FactionColonies
     {
         static void Postfix(Faction __instance, Faction other, FactionRelationKind kind)
         {
-            Faction pcFaction = FactionCache.PlayerColonyFaction;
+            Faction pcFaction = FindFC.EmpireFaction;
             if (pcFaction == null) return;
 
             Faction player = Find.FactionManager.OfPlayer;

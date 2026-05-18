@@ -40,7 +40,7 @@ namespace FactionColonies
 
             if (result.AttackerVictory)
             {
-                ApplyEnslaveSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement,
+                ApplyEnslaveSuccess(FindFC.FactionComp, op.aggressor.homeSettlement,
                     op.defender?.faction, target, op, result);
             }
             else if (result.DefenderVictory)

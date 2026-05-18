@@ -65,7 +65,7 @@ namespace FactionColonies
 
             double level = Math.Max(1, settlement.settlementMilitaryLevel) * 0.5;
             double efficiency = 1.0;
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is object)
             {
                 efficiency = faction.GetStatValue(FCStatDefOf.militaryCombatEfficiency, settlement);
@@ -87,7 +87,7 @@ namespace FactionColonies
         private static MilitaryForce CombineForce(double reinforcerLevel, double reinforcerEff,
             WorldSettlementFC anchorSettlement, bool isAttacking, MilitaryForce homeDefendingForce)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             double combinedLevel = reinforcerLevel;
             double blendedEff = reinforcerEff;
@@ -121,7 +121,7 @@ namespace FactionColonies
                 }
             }
 
-            return new MilitaryForce(combinedLevel, blendedEff, anchorSettlement, FactionCache.PlayerColonyFaction);
+            return new MilitaryForce(combinedLevel, blendedEff, anchorSettlement, FindFC.EmpireFaction);
         }
 
     }

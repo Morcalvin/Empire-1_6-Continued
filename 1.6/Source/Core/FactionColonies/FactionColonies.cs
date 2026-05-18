@@ -694,7 +694,7 @@ namespace FactionColonies
             ls.CheckboxLabeled("FCMirrorPlayerTechLevel".Translate(), ref mirrorPlayerTechLevel, "FCMirrorPlayerTechLevelDesc".Translate());
             if (prevMirrorPlayerTechLevel != mirrorPlayerTechLevel)
             {
-                FactionCache.FactionComp?.DirtyTechLevelCache();
+                FindFC.FactionComp?.DirtyTechLevelCache();
             }
             ls.CheckboxLabeled("FCSettingShowSettleConfirm".Translate(), ref showSettleConfirm);
             if (ls.ButtonText("FCSelectTaxDeliveryModeButton".Translate() + forcedTaxDeliveryMode)) Find.WindowStack.Add(new FloatMenu(ForcedTaxDeliveryOptions));
@@ -1079,7 +1079,7 @@ namespace FactionColonies
             }
 
             ls.Gap(12f);
-            FCRoadQueue queue = FactionCache.FactionComp?.roadBuilder?.roadQueue;
+            FCRoadQueue queue = FindFC.FactionComp?.roadBuilder?.roadQueue;
             if (queue is object && ls.ButtonText("FCSettingFlushRoadCache".Translate()))
             {
                 queue.FlushCache();

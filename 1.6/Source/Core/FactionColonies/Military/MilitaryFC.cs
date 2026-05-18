@@ -398,7 +398,7 @@ namespace FactionColonies
         {
             get
             {
-                if (FactionCache.MilitaryManager is null) yield break;
+                if (FindFC.MilitaryManager is null) yield break;
                 foreach (MercenarySquadFC squad in mercenarySquads)
                 {
                     MilitaryOperation op = squad?.Operation;

@@ -11,8 +11,8 @@ namespace FactionColonies
         {
             if (__instance.IsMercenary())
             {
-                if (__instance.Faction != FactionCache.PlayerColonyFaction) __instance.SetFaction(FactionCache.PlayerColonyFaction);
-                var mfc = FactionCache.FactionComp?.military;
+                if (__instance.Faction != FindFC.EmpireFaction) __instance.SetFaction(FindFC.EmpireFaction);
+                var mfc = FindFC.FactionComp?.military;
                 if (mfc is null) return true;
                 MercenarySquadFC squad = mfc.ReturnSquadFromUnit(__instance);
                 if (squad != null)
@@ -23,7 +23,7 @@ namespace FactionColonies
                         if (squad.settlement != null)
                         {
                             const double basePenalty = 1.0;
-                            double offset = FactionCache.FactionComp?
+                            double offset = FindFC.FactionComp?
                                 .GetStatValue(FCStatDefOf.mercenaryDeathHappinessPenalty, squad.settlement) ?? 0;
                             double total = basePenalty + offset;
                             if (total < 0) total = 0;
@@ -40,7 +40,7 @@ namespace FactionColonies
                         // Mark the slot empty — keep the Mercenary entry so its loadout reference
                         // survives for Fill, but null its pawn.
                         merc.pawn = null;
-                        FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+                        FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
                     }
 
                     squad.Equipment.RemoveDroppedEquipment();
@@ -65,7 +65,7 @@ namespace FactionColonies
     {
         static bool Prefix(Corpse corpse)
         {
-            if (FactionCache.FactionComp?.military?.IsMercenaryPawn(corpse.InnerPawn) == true)
+            if (FindFC.FactionComp?.military?.IsMercenaryPawn(corpse.InnerPawn) == true)
             {
                 //corpse.InnerPawn.SetFaction(FactionColonies.getPlayerColonyFaction());
                 corpse.Destroy();
@@ -81,7 +81,7 @@ namespace FactionColonies
     {
         static bool Prefix(Pawn pawn)
         {
-            if (FactionCache.FactionComp?.military?.IsMercenaryPawn(pawn) == true)
+            if (FindFC.FactionComp?.military?.IsMercenaryPawn(pawn) == true)
             {
                 return false;
             }

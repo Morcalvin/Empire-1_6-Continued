@@ -136,8 +136,7 @@ namespace FactionColonies
                 }
                 count++;
             }
-
-            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
         }
 
         /// <summary>Applies <paramref name="loadout"/>'s apparel + weapons to <paramref name="merc"/>
@@ -149,7 +148,7 @@ namespace FactionColonies
 
             if (merc.pawn.apparel != null)
             {
-                FactionFC factionComp = FactionCache.FactionComp;
+                FactionFC factionComp = FindFC.FactionComp;
                 foreach (SavedThing apparelDef in loadout.apparel)
                 {
                     Thing thing = apparelDef.CreateThing();
@@ -273,7 +272,7 @@ namespace FactionColonies
                     if (apparel.ParentHolder is Pawn_ApparelTracker tracker)
                     {
                         Pawn pawn = tracker.pawn;
-                        if ((pawn.Faction == FactionCache.PlayerColonyFaction ||
+                        if ((pawn.Faction == FindFC.EmpireFaction ||
                              pawn.Faction == Find.FactionManager.OfPlayer) && !pawn.Dead)
                             continue;
                     }
@@ -291,7 +290,7 @@ namespace FactionColonies
                     if (weapon.ParentHolder is Pawn_EquipmentTracker tracker)
                     {
                         Pawn pawn = tracker.pawn;
-                        if ((pawn.Faction == FactionCache.PlayerColonyFaction ||
+                        if ((pawn.Faction == FindFC.EmpireFaction ||
                              pawn.Faction == Find.FactionManager.OfPlayer) && !pawn.Dead)
                             continue;
                     }

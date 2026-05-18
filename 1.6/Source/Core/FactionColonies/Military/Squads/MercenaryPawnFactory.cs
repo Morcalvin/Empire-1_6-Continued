@@ -37,7 +37,7 @@ namespace FactionColonies
             // Don't overwrite a manually-assigned animal
             if (merc.animal != null) return;
 
-            FactionFC factionFc = FactionCache.FactionComp;
+            FactionFC factionFc = FindFC.FactionComp;
             if (factionFc?.xenotypeFilter == null) return;
 
             XenotypeFilter xenoFilter = factionFc.xenotypeFilter;
@@ -72,7 +72,7 @@ namespace FactionColonies
         {
             XenotypeDef xenotypeChoice = _xenotype;
             PawnKindDef raceChoice = race;
-            FactionFC factionFc = FactionCache.FactionComp;
+            FactionFC factionFc = FindFC.FactionComp;
 
             if (race == null || factionFc.xenotypeFilter.GetRaceWeight(raceChoice.race) <= 0)
             {
@@ -106,7 +106,7 @@ namespace FactionColonies
                 // Set faction after generation (since we generate without faction to avoid xenotype forcing)
                 if (newPawn != null && newPawn.Faction == null)
                 {
-                    var empireFaction = FactionCache.PlayerColonyFaction;
+                    var empireFaction = FindFC.EmpireFaction;
                     if (empireFaction != null)
                     {
                         newPawn.SetFaction(empireFaction);
@@ -146,7 +146,7 @@ namespace FactionColonies
                     // Set the faction after generation
                     if (newPawn != null)
                     {
-                        var empireFaction = FactionCache.PlayerColonyFaction;
+                        var empireFaction = FindFC.EmpireFaction;
                         if (empireFaction != null)
                         {
                             newPawn.SetFaction(empireFaction);
@@ -186,7 +186,7 @@ namespace FactionColonies
                     // Set the faction after generation
                     if (newPawn != null)
                     {
-                        var empireFaction = FactionCache.PlayerColonyFaction;
+                        var empireFaction = FindFC.EmpireFaction;
                         if (empireFaction != null)
                         {
                             newPawn.SetFaction(empireFaction);

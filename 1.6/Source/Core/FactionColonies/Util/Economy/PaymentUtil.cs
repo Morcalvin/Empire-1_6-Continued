@@ -236,7 +236,7 @@ namespace FactionColonies
                 return null;
             }
 
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             if (fc is null) return null;
 
             int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
@@ -301,7 +301,7 @@ namespace FactionColonies
 
         public static List<Thing> GenerateRaidLoot(int lootLevel, TechLevel techLevel)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             float lootMultiplier = (float)faction.GetStatValue(FCStatDefOf.lootMultiplier);
 
@@ -339,7 +339,7 @@ namespace FactionColonies
             raceChoice = faction.RandomPawnKind();
 
             pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind: raceChoice,
-                faction: FactionCache.PlayerColonyFaction, context: PawnGenerationContext.NonPlayer, tile: -1,
+                faction: FindFC.EmpireFaction, context: PawnGenerationContext.NonPlayer, tile: -1,
                 forceGenerateNewPawn: false, allowDead: false, allowDowned: false,
                 canGeneratePawnRelations: false, mustBeCapableOfViolence: true, colonistRelationChanceFactor: 0,
                 forceAddFreeWarmLayerIfNeeded: false, allowGay: false, allowFood: false, allowAddictions: false,
@@ -405,7 +405,7 @@ namespace FactionColonies
             }
 
             // Fallback to existing tax map logic
-            return FactionCache.FactionComp.TaxMap;
+            return FindFC.FactionComp.TaxMap;
         }
 
         public static bool CheckForActiveTaxDeliverySpot(out IntVec3 dropSpot, out Map taxMap)

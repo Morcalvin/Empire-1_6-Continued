@@ -13,7 +13,7 @@ namespace FactionColonies
         {
             get
             {
-                FactionFC faction = FactionCache.FactionComp;
+                FactionFC faction = FindFC.FactionComp;
                 if (faction.powerOutput == null || faction.powerOutput.DestroyedOrNull() || faction.powerOutput == this.parent)
                 {
                     faction.powerOutput = this.parent;
@@ -38,7 +38,7 @@ namespace FactionColonies
                 {
                     action = delegate ()
                     {
-                        FactionCache.FactionComp.powerOutput = this.parent;
+                        FindFC.FactionComp.powerOutput = this.parent;
                         Messages.Message("FCSetAsOutputSuccess".Translate(), MessageTypeDefOf.NeutralEvent);
                     },
                     defaultDesc = "FCSetAsEmpirePowerOutput".Translate(),

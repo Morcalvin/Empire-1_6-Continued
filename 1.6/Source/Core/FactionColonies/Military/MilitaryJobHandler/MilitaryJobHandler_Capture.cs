@@ -39,7 +39,7 @@ namespace FactionColonies
 
             if (result.AttackerVictory)
             {
-                ApplyCaptureSuccess(FactionCache.FactionComp, op.aggressor.homeSettlement, op.targetTile, target, op, result);
+                ApplyCaptureSuccess(FindFC.FactionComp, op.aggressor.homeSettlement, op.targetTile, target, op, result);
             }
             else if (result.DefenderVictory)
             {

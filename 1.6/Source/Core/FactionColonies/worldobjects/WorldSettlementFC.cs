@@ -105,7 +105,7 @@ namespace FactionColonies
                 double clamped = Math.Round(Math.Clamp(value, 0, 100), 1);
                 if (_unrest == clamped) return;
                 _unrest = clamped;
-                FactionCache.FactionComp?.DirtyAveragesCache();
+                FindFC.FactionComp?.DirtyAveragesCache();
             }
         }
         public double loyalty
@@ -116,7 +116,7 @@ namespace FactionColonies
                 double clamped = Math.Round(Math.Clamp(value, 0, 100), 1);
                 if (_loyalty == clamped) return;
                 _loyalty = clamped;
-                FactionCache.FactionComp?.DirtyAveragesCache();
+                FindFC.FactionComp?.DirtyAveragesCache();
             }
         }
         public double happiness
@@ -127,7 +127,7 @@ namespace FactionColonies
                 double clamped = Math.Round(Math.Clamp(value, 0, 100), 1);
                 if (_happiness == clamped) return;
                 _happiness = clamped;
-                FactionCache.FactionComp?.DirtyAveragesCache();
+                FindFC.FactionComp?.DirtyAveragesCache();
             }
         }
         public double prosperity
@@ -266,7 +266,7 @@ namespace FactionColonies
             get
             {
                 List<MercenarySquadFC> result = new List<MercenarySquadFC>();
-                List<MercenarySquadFC> pool = FactionCache.FactionComp?.military?.mercenarySquads;
+                List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
                 if (pool is null) return result;
                 for (int i = 0; i < pool.Count; i++)
                 {
@@ -285,7 +285,7 @@ namespace FactionColonies
         {
             get
             {
-                List<MercenarySquadFC> pool = FactionCache.FactionComp?.military?.mercenarySquads;
+                List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
                 if (pool is null) return null;
                 for (int i = 0; i < pool.Count; i++)
                 {
@@ -303,7 +303,7 @@ namespace FactionColonies
         {
             get
             {
-                List<MercenarySquadFC> pool = FactionCache.FactionComp?.military?.mercenarySquads;
+                List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
                 if (pool is null) return null;
                 for (int i = 0; i < pool.Count; i++)
                 {
@@ -323,7 +323,7 @@ namespace FactionColonies
         {
             get
             {
-                FactionFC fc = FactionCache.FactionComp;
+                FactionFC fc = FindFC.FactionComp;
                 if (fc is null) return 1;
                 int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.squadCapPerSettlement, this));
                 return Math.Max(0, 1 + bonus);
@@ -373,7 +373,7 @@ namespace FactionColonies
                 // (no squads stationed) share the same numbers; only the status differs.
                 double ghostLevel = Math.Max(1, settlementMilitaryLevel) * 0.5;
                 double ghostEff = 1.0;
-                FactionFC fc = FactionCache.FactionComp;
+                FactionFC fc = FindFC.FactionComp;
                 if (fc is object) ghostEff = fc.GetStatValue(FCStatDefOf.militaryCombatEfficiency, this);
                 SettlementPowerStatus emptyStatus;
                 if (underAttack) emptyStatus = SettlementPowerStatus.UnderAttack;
@@ -393,7 +393,7 @@ namespace FactionColonies
         {
             get
             {
-                FactionFC fc = FactionCache.FactionComp;
+                FactionFC fc = FindFC.FactionComp;
                 if (fc is null) return MilSquadFC.MaxSquadSize;
                 int bonus = (int)Math.Floor(fc.GetStatValue(FCStatDefOf.maxSquadSize, this));
                 return Math.Max(1, MilSquadFC.MaxSquadSize + bonus);
@@ -593,7 +593,7 @@ namespace FactionColonies
                 LogUtil.Error($"Created settlement {name} with an invalid def: {def}! Panic! Defaulting to base def!");
                 def = WorldSettlementDefOf.WorldSettlementDef_Surface;
             }
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             Name = settlementDef.GetSettlementTypeExtension().GetSettlementName();
 
             UpdateTechIcon();
@@ -609,7 +609,7 @@ namespace FactionColonies
         /// <param name="tile"></param>
         public void PostPostMake(PlanetTile tile)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             this.Tile = tile;
 
             settlementLevel = 1;
@@ -684,9 +684,9 @@ namespace FactionColonies
         {
             if (full)
             {
-                return GenDate.DateFullStringAt(foundingTick, FactionCache.FactionComp?.StartingLongLat ?? default(Vector2));
+                return GenDate.DateFullStringAt(foundingTick, FindFC.FactionComp?.StartingLongLat ?? default(Vector2));
             }
-            return GenDate.DateShortStringAt(foundingTick, FactionCache.FactionComp?.StartingLongLat ?? default(Vector2));
+            return GenDate.DateShortStringAt(foundingTick, FindFC.FactionComp?.StartingLongLat ?? default(Vector2));
         }
 
         public override void ExposeData()
@@ -772,7 +772,7 @@ namespace FactionColonies
             // FactionFC.Events and each event's settlementTraitLocations are populated.
             // (FactionFC migrates any legacy save events into eventManager during
             // ResolvingCrossRefs, before this PostLoadInit runs. See FactionFC.ExposeData.)
-            FactionFC factionComp = FactionCache.FactionComp;
+            FactionFC factionComp = FindFC.FactionComp;
             if (factionComp != null)
             {
                 foreach (FCEvent evt in factionComp.Events)
@@ -801,7 +801,7 @@ namespace FactionColonies
 
         public void UpdateTechIcon()
         {
-            var techLevel = FactionCache.FactionComp.techLevel;
+            var techLevel = FindFC.FactionComp.techLevel;
             LogUtil.Message("Got tech level " + techLevel);
             if (techLevel == TechLevel.Animal || techLevel == TechLevel.Neolithic)
                 def.texture = "World/WorldObjects/TribalSettlement";
@@ -818,7 +818,7 @@ namespace FactionColonies
             {
                 yield return gizmo;
             }
-            if (MilitaryComp?.isUnderAttack != true && FactionCache.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
+            if (MilitaryComp?.isUnderAttack != true && FindFC.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
             {
                 var kindDef = TraderKind;
                 var action = (Command_Action)CaravanVisitUtility.TradeCommand(caravan, Faction, kindDef);
@@ -844,7 +844,7 @@ namespace FactionColonies
             {
                 yield return option;
             }
-            if ((MilitaryComp is null || !MilitaryComp.isUnderAttack) && FactionCache.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
+            if ((MilitaryComp is null || !MilitaryComp.isUnderAttack) && FindFC.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
                 foreach (var option in WorldSettlementTradeAction.GetFloatMenuOptions(caravan, this))
                     yield return option;
         }
@@ -867,7 +867,7 @@ namespace FactionColonies
             // Clean up Empire faction pawns to prevent ghost colonists in the world pawn pool.
             // By this point all player pawns have left (ShouldRemoveMapNow confirmed no blockers).
             var map = Map;
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
+            Faction empireFaction = FindFC.EmpireFaction;
             if (empireFaction is object && map is object)
             {
                 foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned.ToList())
@@ -986,7 +986,7 @@ namespace FactionColonies
                 if (!newResourceDefs.Contains(resources[i].def))
                     resources.RemoveAt(i);
             }
-            PrepareResources(FactionCache.FactionComp.techLevel);
+            PrepareResources(FindFC.FactionComp.techLevel);
 
             // --- Apply new stat modifiers ---
             AddStatModifiers(settlementDef.statModifiers, "settlementType", settlementDef.label);
@@ -996,13 +996,13 @@ namespace FactionColonies
 
             // --- Update icon/texture ---
             UpdateTechIcon();
-            def.expandingIconTexture = "FactionIcons/" + FactionCache.FactionComp.factionIconPath;
+            def.expandingIconTexture = "FactionIcons/" + FindFC.FactionComp.factionIconPath;
             traitCachedIcon.SetValue(def, ContentFinder<Texture2D>.Get(def.expandingIconTexture));
 
             // --- Invalidate all caches ---
             InvalidateCache();
-            FactionCache.FactionComp?.DirtyFactionProfitCache();
-            FactionCache.FactionComp?.DirtyAveragesCache();
+            FindFC.FactionComp?.DirtyFactionProfitCache();
+            FindFC.FactionComp?.DirtyAveragesCache();
 
             // --- Post-transition hooks ---
             newDef.GetSettlementTypeExtension()?.PostTypeTransition(this, oldDef);
@@ -1143,7 +1143,7 @@ namespace FactionColonies
         public void DirtyProfitCache()
         {
             dirtyProfitCache = true;
-            FactionCache.FactionComp?.DirtyFactionProfitCache();
+            FindFC.FactionComp?.DirtyFactionProfitCache();
         }
 
         /// <summary>
@@ -1167,7 +1167,7 @@ namespace FactionColonies
 
         private void RecomputeStats()
         {
-            FactionFC factionFc = FactionCache.FactionComp;
+            FactionFC factionFc = FindFC.FactionComp;
 
             int extraWorkersSoftcap = (int)factionFc.GetStatValue(FCStatDefOf.extraWorkersSoftcap, this);
             int overMaxAdjustment = (int)factionFc.GetStatValue(FCStatDefOf.overMaxWorkersAdjustment, this);
@@ -1465,7 +1465,7 @@ namespace FactionColonies
         }
         public double GetSettlementTaxBonus()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             double bonus = faction.GetStatValue(FCStatDefOf.taxBonusFlat, this);
             bonus += GetStatValue(FCStatDefOf.taxBasePercentage);
             bonus = ((100d + bonus) / 100d);
@@ -1484,7 +1484,7 @@ namespace FactionColonies
                 desc += settlementMods;
 
             // taxBonusFlat: faction-only stat (appliesToSettlements=false, so GetStatDesc skips it)
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             string factionMods = faction.GetFactionStatDesc(FCStatDefOf.taxBonusFlat);
             if (!factionMods.NullOrEmpty())
                 desc += factionMods;
@@ -1596,12 +1596,12 @@ namespace FactionColonies
                     if (numWorkers == 0)
                     {
                         DirtyProfitCache();
-                        FactionCache.FactionComp.DirtyFactionProfitCache();
+                        FindFC.FactionComp.DirtyFactionProfitCache();
                         return true;
                     }
                 }
                 DirtyProfitCache();
-                FactionCache.FactionComp.DirtyFactionProfitCache();
+                FindFC.FactionComp.DirtyFactionProfitCache();
             }
 
             return false;
@@ -1837,8 +1837,8 @@ namespace FactionColonies
         public double GetStatValue(FCStatDef stat)
         {
             if (!stat.appliesToSettlements)
-                return FactionCache.FactionComp.GetStatValue(stat);
-            return FactionCache.FactionComp.GetStatValue(stat, this);
+                return FindFC.FactionComp.GetStatValue(stat);
+            return FindFC.FactionComp.GetStatValue(stat, this);
         }
 
         /// <summary>
@@ -1882,7 +1882,7 @@ namespace FactionColonies
                 }
 
                 // Faction-level policy/trait modifiers (delegated to FactionFC)
-                FactionFC faction = FactionCache.FactionComp;
+                FactionFC faction = FindFC.FactionComp;
                 desc += faction.GetFactionStatDesc(stat, hardinvert);
 
                 // Behavior runtime contributions (e.g., Egalitarian tax-break modifiers)
@@ -2007,7 +2007,7 @@ namespace FactionColonies
         public void DirtyGrandThingList()
         {
             dirtyGrandThingListFlag = true;
-            FactionCache.FactionComp.DirtyGrandThingList();
+            FindFC.FactionComp.DirtyGrandThingList();
         }
 
         public float GetOneTimeSilverIncome()

@@ -151,7 +151,7 @@ namespace FactionColonies
         /// <summary>The <see cref="MilitaryOperation"/> this squad is currently part of, if any.
         /// Returned via the <see cref="MilitaryOperationManager"/>'s squad index, so this is O(1)
         /// and reflects the canonical op state.</summary>
-        public MilitaryOperation Operation => FactionCache.MilitaryManager?.GetOpForSquad(this);
+        public MilitaryOperation Operation => FindFC.MilitaryManager?.GetOpForSquad(this);
 
         /// <summary>True when this squad is in any active op (offensive, defensive, deploy, or cooldown).</summary>
         public bool IsBusy => Operation is object;
@@ -224,7 +224,7 @@ namespace FactionColonies
             LogUtil.Message($"InitiateSquad mercenary count : {mercenaries.Count()}");
             if (loadID == -1)
             {
-                loadID = FactionCache.FactionComp.GetNextMercenarySquadID();
+                loadID = FindFC.FactionComp.GetNextMercenarySquadID();
             }
 
             if (outfit != null)
@@ -233,7 +233,7 @@ namespace FactionColonies
             }
             else
             {
-                FactionCache.FactionComp.military.RebuildMercenaryPawnSet();
+                FindFC.FactionComp.military.RebuildMercenaryPawnSet();
             }
         }
         /// <summary>
@@ -313,8 +313,7 @@ namespace FactionColonies
                     slot.currentLoadout = blueprint.Clone();
                 }
             }
-
-            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(this);
             return true;
         }
@@ -345,8 +344,7 @@ namespace FactionColonies
                Keep `loadout` (pool reference) so Fill can reuse it. */
             merc.ownedLoadout = null;
             merc.currentLoadout = null;
-
-            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
             Messages.Message("FCMercDismissed".Translate(), MessageTypeDefOf.NeutralEvent, false);
             return true;
         }
@@ -361,8 +359,7 @@ namespace FactionColonies
             if (mercenaries is null) return false;
             if (IsBusy) return false;
             if (!mercenaries.Remove(merc)) return false;
-
-            FactionCache.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
             return true;
         }
 

@@ -14,7 +14,7 @@ namespace FactionColonies
 
         public static void ResetPlayerColonyRelations()
         {
-            Faction PCFaction = FactionCache.PlayerColonyFaction;
+            Faction PCFaction = FindFC.EmpireFaction;
             foreach (Faction faction in Find.FactionManager.AllFactionsInViewOrder)
             {
                 if (faction != Find.FactionManager.OfPlayer && faction != PCFaction)

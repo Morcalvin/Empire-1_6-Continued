@@ -89,7 +89,7 @@ namespace FactionColonies
             // squad is part of the defending force as a stationed unit. We check defender
             // homeSettlement (not isUnderAttack on the target) so a squad billeted at the
             // attack target but with the defender swapped elsewhere doesn't show red.
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is object)
             {
                 IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(squad.settlement);
@@ -153,7 +153,7 @@ namespace FactionColonies
             string label = "FCMilStatusTraveling".Translate();
             if (settlement == null) return label;
 
-            FCEvent cooldownEvent = FactionCache.FactionComp?.FindEventByDefAndLocation(FCEventDefOf.cooldownMilitary, settlement.Tile);
+            FCEvent cooldownEvent = FindFC.FactionComp?.FindEventByDefAndLocation(FCEventDefOf.cooldownMilitary, settlement.Tile);
             if (cooldownEvent != null)
             {
                 int ticksLeft = Math.Max(0, cooldownEvent.timeTillTrigger - Find.TickManager.TicksGame);

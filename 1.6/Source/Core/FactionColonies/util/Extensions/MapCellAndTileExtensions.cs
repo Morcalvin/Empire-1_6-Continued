@@ -77,7 +77,7 @@ namespace FactionColonies.util
         /// <returns>true if it is, false otherwise</returns>
         public static bool IsInAnyShuttleRange(this PlanetTile tile) =>
             tile.IsValidTile() &&
-            FactionCache.FactionComp.settlements.Any(settlement =>
+FindFC.FactionComp.settlements.Any(settlement =>
                 settlement.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) == true &&
                 Find.WorldGrid.TraversalDistanceBetween(settlement.Tile, tile) <= ShuttleSender.ShuttleRange
             );

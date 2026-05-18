@@ -126,7 +126,7 @@ namespace FactionColonies
 
         protected override void OnImport(string name)
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilSquadFC squad = FactionColoniesMilitary.GetSquad(name).Import();
 
             FCWindow_Military milWindow = (FCWindow_Military)Find.WindowStack.Windows.FirstOrDefault(
@@ -191,7 +191,7 @@ namespace FactionColonies
 
         protected override void OnImport(string name)
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilUnitFC unit = FactionColoniesMilitary.GetUnit(name).Import();
 
             FCWindow_Military milWindow = (FCWindow_Military)Find.WindowStack.Windows.FirstOrDefault(
@@ -266,7 +266,7 @@ namespace FactionColonies
             }
             else
             {
-                FactionFC fc = FactionCache.FactionComp;
+                FactionFC fc = FindFC.FactionComp;
                 MilitaryWindow fsw = MilitaryWindowRegistry.CreateFireSupport(fc.military, fc);
                 FCWindow_Military newWindow = new FCWindow_Military(fsw, "FCMilitaryTableButtonCreateFireSupport".Translate());
                 Find.WindowStack.Add(newWindow);

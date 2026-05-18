@@ -8,7 +8,7 @@ namespace FactionColonies
     {
         private static FactionFC GetFaction()
         {
-            return FactionCache.FactionComp;
+            return FindFC.FactionComp;
         }
 
         // ============================

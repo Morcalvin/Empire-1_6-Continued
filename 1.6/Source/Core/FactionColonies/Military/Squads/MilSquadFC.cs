@@ -23,7 +23,7 @@ namespace FactionColonies
 
         public static void UpdateEquipmentTotalCostOfSquadsContaining(MilUnitFC unit)
         {
-            FactionCache.FactionComp.military.squads.ForEach(delegate (MilSquadFC squad)
+            FindFC.FactionComp.military.squads.ForEach(delegate (MilSquadFC squad)
             {
                 if (squad.units.Contains(unit))
                 {
@@ -61,7 +61,7 @@ namespace FactionColonies
 
         public void SetLoadID()
         {
-            loadID = FactionCache.FactionComp.NextSquadID;
+            loadID = FindFC.FactionComp.NextSquadID;
         }
 
         private bool costDirty = true;
@@ -93,7 +93,7 @@ namespace FactionColonies
             units = new List<MilUnitFC>();
             for (int sq = 0; sq < MaxSquadSize; sq++)
             {
-                units.Add(FactionCache.FactionComp.military.blankUnit);
+                units.Add(FindFC.FactionComp.military.blankUnit);
             }
 
             UpdateEquipmentTotalCost();
@@ -136,7 +136,7 @@ namespace FactionColonies
 
         public void DeleteSquad()
         {
-            FactionCache.FactionComp.military.squads.Remove(this);
+            FindFC.FactionComp.military.squads.Remove(this);
         }
 
         public string GetUniqueLoadID()

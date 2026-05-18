@@ -33,12 +33,12 @@ namespace FactionColonies.util
             settlementType.GetSettlementTypeExtension().PreCreation(ref tile, ref settlementType);
 
             LogUtil.Message($"Creating settlement of type {settlementType.defName}");
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
 
-            FactionFC worldcomp = FactionCache.FactionComp;
+            FactionFC worldcomp = FindFC.FactionComp;
             if (!worldcomp.settlements.Any())
             {
-                FactionCache.FactionComp.timeStart = Find.TickManager.TicksGame;
+                FindFC.FactionComp.timeStart = Find.TickManager.TicksGame;
             }
 
             WorldSettlementFC settlement = (WorldSettlementFC)WorldObjectMaker.MakeWorldObject(DefDatabase<WorldSettlementDef>.GetNamed(settlementType.defName));
@@ -66,7 +66,7 @@ namespace FactionColonies.util
         {
             settlement.settlementDef.GetSettlementTypeExtension()?.PreDestruction(settlement);
             settlement.PrepareDestroy();
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             // Squad-first: unassign any squads billeted here so they return to the pool rather
             // than dangling with a destroyed settlement reference. The faction-wide pool
@@ -102,7 +102,7 @@ namespace FactionColonies.util
             // Cancel any military operation involving this settlement. Walk the manager's ops
             // by participant rather than scanning FCEvents, since the op is the canonical owner
             // of the aggressor / defender / target relationships.
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager?.active is object)
             {
                 // Snapshot to avoid mutation during iteration: Resolve / ChangeDefendingMilitaryForce
@@ -197,7 +197,7 @@ namespace FactionColonies.util
         }
         public static Faction CreatePlayerColonyFaction()
         {
-            FactionFC worldcomp = FactionCache.FactionComp;
+            FactionFC worldcomp = FindFC.FactionComp;
             if (worldcomp == null)
             {
                 LogUtil.Error("FactionFC world component is missing! Cannot create player colony faction.");

@@ -158,7 +158,7 @@ namespace FactionColonies
             }
             if (techLevel != TechLevel.Undefined)
             {
-                Faction faction = FactionCache.PlayerColonyFaction;
+                Faction faction = FindFC.EmpireFaction;
                 if (faction.def.techLevel < techLevel)
                 {
                     return false;
@@ -184,7 +184,7 @@ namespace FactionColonies
             }
             if (techLevel != TechLevel.Undefined)
             {
-                Faction faction = FactionCache.PlayerColonyFaction;
+                Faction faction = FindFC.EmpireFaction;
                 if (faction.def.techLevel < techLevel)
                     reasons.Add("FCRequiresTechLevel".Translate(techLevel.ToStringHuman()));
             }

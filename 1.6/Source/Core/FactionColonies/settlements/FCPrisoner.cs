@@ -40,7 +40,7 @@ namespace FactionColonies
             unrest = 0;
             health = (float)Math.Round(prisoner.health.summaryHealth.SummaryHealthPercent * 100);
             isReturning = false;
-            FactionFC comp = FactionCache.FactionComp;
+            FactionFC comp = FindFC.FactionComp;
             if (comp is object)
             {
                 loadID = comp.GetNextPrisonerID();
@@ -50,7 +50,7 @@ namespace FactionColonies
                 loadID = Rand.Int;
                 LogUtil.Error($"FCPrisoner: FactionComp is null during construction. Using fallback loadID {loadID}.");
             }
-            pawn.guest.SetGuestStatus(FactionCache.PlayerColonyFaction, GuestStatus.Prisoner);
+            pawn.guest.SetGuestStatus(FindFC.EmpireFaction, GuestStatus.Prisoner);
         }
 
 

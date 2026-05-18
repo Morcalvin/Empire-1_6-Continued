@@ -25,7 +25,7 @@ namespace FactionColonies
         public override void PostClose()
         {
             base.PostClose();
-            FactionCache.FactionComp?.military?.CheckMilitaryUtilForErrors();
+            FindFC.FactionComp?.military?.CheckMilitaryUtilForErrors();
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -109,7 +109,7 @@ namespace FactionColonies
 
         private MilitaryWindow CreateWindow(MilitaryWindowSlot slot)
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             return MilitaryWindowRegistry.Create(slot, fc.military, fc);
         }
 

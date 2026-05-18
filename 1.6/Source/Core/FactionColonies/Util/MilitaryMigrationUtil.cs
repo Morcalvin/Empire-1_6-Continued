@@ -279,7 +279,7 @@ namespace FactionColonies
             var op = new MilitaryOperation(newId, comp._legacyMilitaryJob, comp._legacyMilitaryLocation, target);
             op.phase = MilitaryOperationPhase.Traveling;
             op.nextPhaseTick = arrival.timeTillTrigger;
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             op.aggressor.homeSettlement = home;
             op.aggressor.squad = home.PrimaryStationedSquad;
             op.aggressor.force = MilitaryForce.CreateMilitaryForceFromSettlement(home, isAttacking: true);
@@ -295,7 +295,7 @@ namespace FactionColonies
             var op = new MilitaryOperation(newId, MilitaryJobDefOf.Cooldown, home.Tile, home);
             op.phase = MilitaryOperationPhase.CooldownPending;
             op.nextPhaseTick = cooldown.timeTillTrigger;
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             op.aggressor.homeSettlement = home;
             op.aggressor.squad = home.PrimaryStationedSquad;
             manager.Register(op);
@@ -311,7 +311,7 @@ namespace FactionColonies
             // physical map presence is tracked by the spawned pawns, not by the op's targetTile.
             var op = new MilitaryOperation(newId, MilitaryJobDefOf.Deploy, home.Tile, home);
             op.phase = MilitaryOperationPhase.Engaged;
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             op.aggressor.homeSettlement = home;
             op.aggressor.squad = home.PrimaryStationedSquad;
             manager.Register(op);
@@ -329,7 +329,7 @@ namespace FactionColonies
             op.aggressor.faction = warning.militaryForceAttackingFaction
                                 ?? warning.militaryForceAttacking?.homeFaction;
             op.aggressor.force = warning.militaryForceAttacking;
-            op.defender.faction = warning.militaryForceDefendingFaction ?? FactionCache.PlayerColonyFaction;
+            op.defender.faction = warning.militaryForceDefendingFaction ?? FindFC.EmpireFaction;
             op.defender.homeSettlement = warning.militaryForceDefending?.homeSettlement;
             op.defender.force = warning.militaryForceDefending;
             op.externalDefenderSource = warning.externalDefenderSource;
@@ -372,7 +372,7 @@ namespace FactionColonies
             op.nextPhaseTick = -1;
             op.aggressor.faction = wave.attackerFaction ?? wave.attackerForce?.homeFaction;
             op.aggressor.force = wave.attackerForce;
-            op.defender.faction = FactionCache.PlayerColonyFaction;
+            op.defender.faction = FindFC.EmpireFaction;
             op.defender.homeSettlement = wave.defenderForce?.homeSettlement ?? settlement;
             op.defender.force = wave.defenderForce;
             op.externalDefenderSource = wave.externalDefenderSource;

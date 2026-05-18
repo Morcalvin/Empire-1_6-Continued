@@ -36,7 +36,7 @@ namespace FactionColonies
             this.settlement = settlement;
             settlementUpgradeCost = settlement.GetUpgradeCost(Convert.ToInt32(FCSettings.settlementBaseUpgradeCost));
             desc = settlement.Name + " " + "FCCanBeUpgraded".Translate() + " " + settlementUpgradeCost + " " + "FCSilver".Translate().ToLower() + ". " + "FCUpgradeColonyDesc".Translate();
-            factionfc = FactionCache.FactionComp;
+            factionfc = FindFC.FactionComp;
             maxSettlementLevel = FCSettings.settlementMaxLevel;
         }
 
@@ -47,7 +47,7 @@ namespace FactionColonies
         private Message UpgradeSettlement()
         {
             //failure reasons
-            if (!FactionCache.FactionComp.IsActionAllowed(FCActionType.UpgradeSettlement)) return new Message("FCActionNotAllowed".Translate(), MessageTypeDefOf.RejectInput);
+            if (!FindFC.FactionComp.IsActionAllowed(FCActionType.UpgradeSettlement)) return new Message("FCActionNotAllowed".Translate(), MessageTypeDefOf.RejectInput);
             if (settlement.IsUpgrading) return new Message("FCAlreadyUpgradeSettlement".Translate(), MessageTypeDefOf.RejectInput);
             if (settlement.MilitaryComp?.isUnderAttack == true) return new Message("FCSettlementUnderAttack".Translate(), MessageTypeDefOf.RejectInput);
             if (PaymentUtil.GetSilver() < settlementUpgradeCost) return new Message("FCNotEnoughSilverUpgrade".Translate(), MessageTypeDefOf.RejectInput);
@@ -69,8 +69,7 @@ namespace FactionColonies
             tmp.hasCustomDescription = true;
 
             settlement.StartUpgrade(tmp.timeTillTrigger);
-
-            FactionCache.FactionComp.eventManager.AddEvent(tmp);
+            FindFC.FactionComp.eventManager.AddEvent(tmp);
 
             //Close this window
             Find.WindowStack.TryRemove(this);

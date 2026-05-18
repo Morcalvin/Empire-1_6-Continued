@@ -28,7 +28,7 @@ namespace FactionColonies.util
 
         public static TaxDeliveryMode TaxDeliveryModeForSettlement(bool canUseShuttle, PlanetTile sourceTile)
         {
-            WorldSettlementFC settlement = FactionCache.FactionComp.settlements.FirstOrFallback((WorldSettlementFC s) => s.Tile == sourceTile);
+            WorldSettlementFC settlement = FindFC.FactionComp.settlements.FirstOrFallback((WorldSettlementFC s) => s.Tile == sourceTile);
             if (settlement != null)
             {
                 return settlement.settlementDef.GetTaxDeliveryMode(canUseShuttle, sourceTile);
@@ -46,7 +46,7 @@ namespace FactionColonies.util
                 return;
             }
 
-            Map playerHomeMap = FactionCache.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.FactionComp.TaxMap;
             List<ShipLandingArea> landingZones = ShipLandingBeaconUtility.GetLandingZones(playerHomeMap);
 
             IntVec3 landingCell = DropCellFinder.GetBestShuttleLandingSpot(playerHomeMap, Faction.OfPlayer);
@@ -81,7 +81,7 @@ namespace FactionColonies.util
 
         public static void SendDropPod(FCEvent evt)
         {
-            Map playerHomeMap = FactionCache.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.FactionComp.TaxMap;
             DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
             IntVec3 dropCell;
             if (!PaymentUtil.CheckForTaxSpot(playerHomeMap, out dropCell))
@@ -93,7 +93,7 @@ namespace FactionColonies.util
 
         public static bool DoDelayCaravanDueToDanger(FCEvent evt)
         {
-            Map playerHomeMap = FactionCache.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.FactionComp.TaxMap;
             if (playerHomeMap.dangerWatcher.DangerRating != StoryDanger.None)
             {
 
@@ -115,7 +115,7 @@ namespace FactionColonies.util
 
         public static void SendCaravan(FCEvent evt)
         {
-            Map playerHomeMap = FactionCache.FactionComp.TaxMap;
+            Map playerHomeMap = FindFC.FactionComp.TaxMap;
             if (DoDelayCaravanDueToDanger(evt)) return;
 
             DeliveryNotification.MakeDeliveryLetterAndMessage(evt);
@@ -161,7 +161,7 @@ namespace FactionColonies.util
                     if (deliveryPawn == null)
                     {
                         LogUtil.Warning("Failed to generate human pawn, falling back to animals");
-                        var combatPool = FactionCache.FactionComp?.animalFilter?.AllowedCombatAnimals ?? FactionCache.AllCombatAnimalKindDefs;
+                        var combatPool = FindFC.FactionComp?.animalFilter?.AllowedCombatAnimals ?? FactionCache.AllCombatAnimalKindDefs;
                         var availableAnimals = combatPool
                             .OrderByDescending(def => def.combatPower)
                             .Take(5)
@@ -255,7 +255,7 @@ namespace FactionColonies.util
 
             // Add guard animals (like wolves) for protection - always add at least 2 as it's good protection! Keep your highmate-only faction safe!!
             // This protects deliveries by keeping it immersive, adhering to xenotype preferences. Bears and wargs are problematic.
-            var guardPool = FactionCache.FactionComp?.animalFilter?.AllowedCombatAnimals ?? FactionCache.AllCombatAnimalKindDefs;
+            var guardPool = FindFC.FactionComp?.animalFilter?.AllowedCombatAnimals ?? FactionCache.AllCombatAnimalKindDefs;
             var guardAnimals = guardPool
                 .OrderByDescending(def => def.combatPower)
                 .Take(5); // Take more options to ensure we can get 2 guards

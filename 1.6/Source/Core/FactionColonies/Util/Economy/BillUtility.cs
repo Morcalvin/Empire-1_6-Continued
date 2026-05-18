@@ -9,7 +9,7 @@ namespace FactionColonies
     {
         public static void ProcessBills()
         {
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             List<WorldSettlementFC> latePaidSettlements = new List<WorldSettlementFC>();
 
             IReadOnlyList<BillFC> bills = factionfc.taxLedger.Bills;

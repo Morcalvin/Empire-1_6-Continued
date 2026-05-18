@@ -45,7 +45,7 @@ namespace FactionColonies
 
             if (tempEvent.def != FCEventDefOf.Null)
             {
-                FactionCache.FactionComp.eventManager.AddEvent(tempEvent);
+                FindFC.FactionComp.eventManager.AddEvent(tempEvent);
 
                 Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
             }
@@ -90,7 +90,7 @@ namespace FactionColonies
 
         public static bool IsValidRandomEvent(FCEventDef cEvent)
         {
-            FactionFC tmp = FactionCache.FactionComp;
+            FactionFC tmp = FindFC.FactionComp;
 
             if (!cEvent.isRandomEvent) return false;
             if (FCSettings.IsEventDisabled(cEvent.defName)) return false;
@@ -106,14 +106,14 @@ namespace FactionColonies
             bool noSettlementRequirement = cEvent.rangeSettlementsAffected.min == 0
                                            && cEvent.rangeSettlementsAffected.max == 0
                                            && !cEvent.targetAllSettlements;
-            if (!noSettlementRequirement && FactionCache.FactionComp.settlements.Count < cEvent.rangeSettlementsAffected.min) return false;
-            if (cEvent.targetAllSettlements && FactionCache.FactionComp.settlements.Count == 0) return false;
+            if (!noSettlementRequirement && FindFC.FactionComp.settlements.Count < cEvent.rangeSettlementsAffected.min) return false;
+            if (cEvent.targetAllSettlements && FindFC.FactionComp.settlements.Count == 0) return false;
 
             // Biome check — for settlement-targeting events, at least one settlement must qualify
             if (!noSettlementRequirement && (cEvent.applicableBiomes.Count > 0 || cEvent.restrictedBiomes.Count > 0))
             {
                 bool anyMatch = false;
-                foreach (WorldSettlementFC s in FactionCache.FactionComp.settlements)
+                foreach (WorldSettlementFC s in FindFC.FactionComp.settlements)
                 {
                     if (cEvent.BiomeAllowed(s.biome)) { anyMatch = true; break; }
                 }
@@ -123,14 +123,14 @@ namespace FactionColonies
             // Required resource check
             if (cEvent.requiredResource != null)
             {
-                bool hasResource = FactionCache.FactionComp.ReturnResource(cEvent.requiredResource).amount > 0;
+                bool hasResource = FindFC.FactionComp.ReturnResource(cEvent.requiredResource).amount > 0;
                 if (!hasResource) return false;
             }
 
             // Incompatible/duplicate event check
             // Faction-wide events are blocked globally if already active.
             // Settlement-specific events are allowed through — MakeRandomEvent handles per-settlement filtering.
-            foreach (FCEvent evt in FactionCache.FactionComp.Events)
+            foreach (FCEvent evt in FindFC.FactionComp.Events)
             {
                 if (evt.def == null) continue;
                 if (cEvent == evt.def && noSettlementRequirement) return false;
@@ -187,7 +187,7 @@ namespace FactionColonies
             FCEventDef selected = tmpEventList.RandomElement();
 
             // Allow active behaviors to request a single re-roll
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction != null)
             {
                 bool reroll = false;
@@ -233,7 +233,7 @@ namespace FactionColonies
         {
             if (def is null) return null;
 
-            FactionFC worldcomp = FactionCache.FactionComp;
+            FactionFC worldcomp = FindFC.FactionComp;
 
             int now = Find.TickManager.TicksGame;
             int duration = def.timeTillTrigger;
@@ -447,7 +447,7 @@ namespace FactionColonies
 
         public static void ProcessEvents()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             int currentTick = Find.TickManager.TicksGame;
 
             // Phase 1: collect every Queued event past its timer (events stay in the queue;
@@ -602,7 +602,7 @@ namespace FactionColonies
                                                     }
                                                     else
                                                     {
-                                                        evt.source = FactionCache.FactionComp.capitalLocation;
+                                                        evt.source = FindFC.FactionComp.capitalLocation;
                                                     }
                                                 }
                                                 DeliveryEvent.CreateDeliveryEvent(evt);
@@ -746,7 +746,7 @@ namespace FactionColonies
 
         public static void CreateTaxEvent(BillFC bill)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             FCEvent tmp = MakeEvent(FCEventDefOf.taxColony);
             tmp.tickStarted = Find.TickManager.TicksGame;

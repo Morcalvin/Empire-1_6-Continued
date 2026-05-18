@@ -165,7 +165,7 @@ namespace FactionColonies
         private static readonly List<Pawn> _emptyPawnList = new List<Pawn>();
 
         private BattlefieldContext Battlefield
-            => FactionCache.MilitaryManager?.GetBattlefield(WorldSettlement?.Tile ?? PlanetTile.Invalid);
+            => FindFC.MilitaryManager?.GetBattlefield(WorldSettlement?.Tile ?? PlanetTile.Invalid);
 
         public IEnumerable<Pawn> attackers => Battlefield?.attackerPawns ?? Enumerable.Empty<Pawn>();
         public IEnumerable<Pawn> defenders => Battlefield?.defenderPawns ?? Enumerable.Empty<Pawn>();
@@ -180,7 +180,7 @@ namespace FactionColonies
         {
             get
             {
-                MilitaryOperationManager manager = FactionCache.MilitaryManager;
+                MilitaryOperationManager manager = FindFC.MilitaryManager;
                 if (manager is null) return false;
                 IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(WorldSettlement);
                 for (int i = 0; i < ops.Count; i++)
@@ -235,7 +235,7 @@ namespace FactionColonies
         }
 
         /// <summary>True when this settlement is the target of any active defensive op.</summary>
-        public bool isUnderAttack => FactionCache.MilitaryManager?.HasDefenseAt(WorldSettlement) ?? false;
+        public bool isUnderAttack => FindFC.MilitaryManager?.HasDefenseAt(WorldSettlement) ?? false;
 
         /// <summary>Aggressor's force in the active defensive battle on this tile, or null.</summary>
         public MilitaryForce attackerForce => FindIncomingDefensiveOp()?.aggressor?.force;
@@ -248,7 +248,7 @@ namespace FactionColonies
         /// militaryJob / militaryLocation / militaryEnemy properties.</summary>
         private MilitaryOperation FindOwnOp()
         {
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null) return null;
             IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(WorldSettlement);
             for (int i = 0; i < ops.Count; i++)
@@ -264,7 +264,7 @@ namespace FactionColonies
         /// <summary>Returns the defensive op targeting THIS settlement, or null.</summary>
         private MilitaryOperation FindIncomingDefensiveOp()
         {
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null) return null;
             IReadOnlyList<MilitaryOperation> ops = manager.GetOpsForSettlement(WorldSettlement);
             for (int i = 0; i < ops.Count; i++)
@@ -367,7 +367,7 @@ namespace FactionColonies
 
         private MilitaryOperation FindActiveBattleProgressOp()
         {
-            MilitaryOperationManager mgr = FactionCache.MilitaryManager;
+            MilitaryOperationManager mgr = FindFC.MilitaryManager;
             if (mgr is null) return null;
             IReadOnlyList<MilitaryOperation> active = mgr.active;
             foreach (MilitaryOperation op in active)
@@ -488,7 +488,7 @@ namespace FactionColonies
 
         public void CaravanDefend(Caravan caravan)
         {
-            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(WorldSettlement.Tile);
+            BattlefieldContext bf = FindFC.MilitaryManager?.GetOrCreateBattlefield(WorldSettlement.Tile);
             if (bf is null)
             {
                 LogUtil.Error($"CaravanDefend: no battlefield for {WorldSettlement?.Name}.");
@@ -504,7 +504,7 @@ namespace FactionColonies
 
         public void AddToDefenceFromList(List<Pawn> pawns, int destinationTile, bool assignToLord)
         {
-            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(new PlanetTile(destinationTile));
+            BattlefieldContext bf = FindFC.MilitaryManager?.GetOrCreateBattlefield(new PlanetTile(destinationTile));
             if (bf is null)
             {
                 LogUtil.Error($"AddToDefenceFromList: no battlefield for tile {destinationTile}.");
@@ -526,18 +526,18 @@ namespace FactionColonies
         /// entry point for source compatibility.</summary>
         public void StartDefence(FCEvent evt, Action after)
         {
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null)
             {
                 LogUtil.Error($"StartDefence: no MilitaryManager available for {WorldSettlement?.Name}.");
-                FactionCache.FactionComp?.RemoveEvent(evt);
+                FindFC.FactionComp?.RemoveEvent(evt);
                 return;
             }
             MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
                 LogUtil.Error($"StartDefence: warning event for {WorldSettlement?.Name} has no linked op.");
-                FactionCache.FactionComp?.RemoveEvent(evt);
+                FindFC.FactionComp?.RemoveEvent(evt);
                 return;
             }
 
@@ -558,7 +558,7 @@ namespace FactionColonies
 
         public void EndBattle(bool won, int remaining, BattleResult battleResult = null)
         {
-            var faction = FactionCache.FactionComp;
+            var faction = FindFC.FactionComp;
 
             // Reset before per-op dispatch so the post-flush check below can detect whether the
             // accumulator flush (or an immediate-emit fallback) successfully sent a result letter.
@@ -569,7 +569,7 @@ namespace FactionColonies
             // Op completion runs first so manager state catches up before any side effect
             // queries it. Each op fires its own LifecycleRegistry.OnBattleResolved and schedules
             // its own cooldown event linked back to itself.
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is object)
             {
                 var opsAtTile = manager.GetOpsAt(WorldSettlement.Tile);
@@ -749,7 +749,7 @@ namespace FactionColonies
 
             if (job?.Handler is object)
             {
-                MilitaryOperationManager manager = FactionCache.MilitaryManager;
+                MilitaryOperationManager manager = FindFC.MilitaryManager;
                 if (manager is null)
                 {
                     LogUtil.Error("SendMilitary: MilitaryManager unavailable; aborting offensive op.");
@@ -818,7 +818,7 @@ namespace FactionColonies
             if (!militaryBusy) return; // No active op — nothing to do
 
             // Register injuries across every stationed squad so injured pawns get healed.
-            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            MilitaryFC mfc = FindFC.FactionComp?.military;
             if (mfc != null)
             {
                 List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;
@@ -881,7 +881,7 @@ namespace FactionColonies
 
         public bool IsTargetOccupied(PlanetTile location)
         {
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             IReadOnlyList<MilitaryOperation> opsAtTile = manager?.GetOpsAt(location);
             if (opsAtTile is object && opsAtTile.Count > 0)
             {

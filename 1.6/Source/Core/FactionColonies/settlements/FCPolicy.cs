@@ -11,7 +11,7 @@ namespace FactionColonies
 
         public FCPolicy(FCPolicyDef def)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             this.def = def;
             timeEnacted = Find.TickManager.TicksGame;
 
