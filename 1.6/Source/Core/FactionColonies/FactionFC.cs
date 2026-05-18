@@ -141,11 +141,6 @@ namespace FactionColonies
         public PolicyManager policyManager = new PolicyManager();
 
         /* Events & Bills */
-        // LEGACY: populated only when loading pre-manager saves. Migrated into
-        // eventManager during ExposeData(ResolvingCrossRefs) and then nulled out.
-        // DO NOT READ. Use the Events property instead.
-        private List<FCEvent> events = new List<FCEvent>();
-
         public FCEventManager eventManager = new FCEventManager();
 
         // The canonical read path for the event queue. Delegates to the manager.
@@ -172,7 +167,6 @@ namespace FactionColonies
 
         /* Military & Roads */
         public MilitaryFC military = new MilitaryFC();
-        private MilitaryFC _legacyMilitary = null;
         public EmpireThreatAdaptation threatAdaptation = new EmpireThreatAdaptation();
         public FCRoadBuilder roadBuilder = new FCRoadBuilder();
 
@@ -193,8 +187,8 @@ namespace FactionColonies
 
         /* ID Counters */
         // Unit/squad/mercenary/mercenarySquad/fireSupport ID counters now live on
-        // MilitaryFC (next to the collections they index). Legacy save migration
-        // shim in ExposeData seeds them from old scribe keys on first load.
+        // MilitaryFC (next to the collections they index). See the Legacy Save
+        // Migration State block at the end of this region for the load-time shim.
         public int nextPrisonerID = 1;
 
         /* Filters & Misc */
@@ -203,9 +197,25 @@ namespace FactionColonies
         public List<PlanetLayerDef> layersForTilePicker = null;
         public float tradedAmount = 0;
 
-        /* Legacy tax/billing scribe keys. Only populated when loading a pre-extraction
-         * save. New saves write nothing.
-         * The migration shim in ResolvingCrossRefs below moves them into the ledger. */
+        /*-*-*-*-* Legacy Save Migration State *-*-*-*-*/
+        /* All fields below exist only to round-trip pre-extraction save data into the
+         * current managers (TaxLedger, FCEventManager, PolicyManager, MilitaryFC). They
+         * are read during ExposeData's LoadingVars phase by ScribeAndMigrateLegacyState(),
+         * consumed during ResolvingCrossRefs / PostLoadInit, and then reset to null /
+         * sentinel so subsequent saves omit the legacy XML keys.
+         *
+         * To drop pre-extraction save compatibility: delete this block, delete
+         * ScribeAndMigrateLegacyState(), and delete its call site in ExposeData. */
+
+        // Pre-FCEventManager events list. Mirrored under the legacy "events" XML key;
+        // drained into eventManager during ResolvingCrossRefs. DO NOT READ — use Events.
+        private List<FCEvent> events = new List<FCEvent>();
+
+        // Pre-1.5 MilitaryCustomizationUtil -> MilitaryFC rename. Loaded into this buffer
+        // during LoadingVars, swapped onto `military` during PostLoadInit.
+        private MilitaryFC _legacyMilitary = null;
+
+        // Pre-TaxLedger flat tax/billing scribe keys.
         List<BillFC> legacyBills = null;
         List<BillFC> legacyOldBills = null;
         bool legacyAutoResolve = false;
@@ -215,18 +225,16 @@ namespace FactionColonies
         int legacyNextBillId = -1;
         int legacyNextEventId = -1;
 
-        /* Cross-phase migration buffers for legacy ID counters. Scribe_*.Look reads
-         * during LoadingVars, the SeedNextIds consumer runs during ResolvingCrossRefs;
-         * must be class fields so values survive the phase transition. */
+        // Pre-MilitaryFC.SeedNextIds ID counters. Scribe_Values reads during LoadingVars,
+        // the SeedNextIds consumer runs during PostLoadInit; must be class fields so
+        // values survive the phase transition.
         int legacyNextUnitId = -1;
         int legacyNextSquadId = -1;
         int legacyNextMercId = -1;
         int legacyNextMercSquadId = -1;
         int legacyNextFireSupportId = -1;
 
-        /* Legacy policy/trait/edict scribe keys. Only populated when loading a pre-extraction
-         * save. New saves write nothing.
-         * The migration shim in ExposeData below moves them into policyManager. */
+        // Pre-PolicyManager policy/trait/edict lists. Drained into policyManager during PostLoadInit.
         List<FCPolicy> legacyPolicies = null;
         List<FCPolicy> legacyFactionTraits = null;
         Dictionary<FCPolicyCategory, FCPolicy> legacyEdicts = null;
@@ -283,7 +291,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref _upkeep, "upkeep");
             Scribe_Values.Look(ref _profit, "profit");
 
-            // taxTimeDue moved to TaxLedger; legacy key is migrated below.
             Scribe_Values.Look(ref timeStart, "timeStart", -1);
             Scribe_Values.Look(ref uiTimeUpdate, "uiTimeUpdate");
             Scribe_Values.Look(ref militaryTimeDue, "militaryTimeDue", -1);
@@ -296,39 +303,11 @@ namespace FactionColonies
 
             Scribe_Collections.Look(ref settlements, "settlements", LookMode.Reference);
 
-            // Legacy policy/trait/edict scribe keys. Only read during LoadingVars on
-            // pre-manager saves; new saves write only the nested <policyManager> element
-            // below. The PostLoadInit block moves the loaded lists into policyManager.
-            if (Scribe.mode == LoadSaveMode.LoadingVars)
-            {
-                Scribe_Collections.Look(ref legacyPolicies, "factionPolicies", LookMode.Deep);
-                Scribe_Collections.Look(ref legacyFactionTraits, "factionTraits", LookMode.Deep);
-                Scribe_Collections.Look(ref legacyEdicts, "edicts", LookMode.Value, LookMode.Deep);
-            }
-
-            // Manager owns policy/trait/edict/behavior state going forward.
             Scribe_Deep.Look(ref policyManager, "policyManager");
             if (policyManager is null) policyManager = new PolicyManager();
 
-            // Legacy events field. Still scribed under its original "events" name so old
-            // saves load into it. The ResolvingCrossRefs block below moves its contents
-            // into eventManager and nulls it out.
-            Scribe_Collections.Look(ref events, "events", LookMode.Deep);
-
-            // Manager owns events / cooldowns / fire counts going forward.
             Scribe_Deep.Look(ref eventManager, "eventManager");
             if (eventManager is null) eventManager = new FCEventManager();
-
-            // Migrate pre-manager saves: move legacy events list into the manager.
-            // Runs during ResolvingCrossRefs so it completes BEFORE any PostLoadInit
-            // consumer (e.g. WorldSettlementFC stat-modifier reapply) reads Events.
-            if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs
-                && events != null && events.Count > 0)
-            {
-                eventManager.SeedFromLegacy(events);
-                events = null;
-                LogUtil.MessageForce("FactionFC: migrated legacy events list into FCEventManager.");
-            }
 
             Scribe_Deep.Look(ref militaryOperationManager, "militaryOperationManager");
             if (militaryOperationManager is null) militaryOperationManager = new MilitaryOperationManager();
@@ -346,54 +325,84 @@ namespace FactionColonies
             Scribe_Deep.Look(ref xenotypeFilter, "xenotypeFilter");
             Scribe_Deep.Look(ref animalFilter, "animalFilter");
 
-            /* Legacy ID scribe keys. Only populated when loading a pre-extraction save.
-             * Migration shim below seeds MilitaryFC. Buffers are class fields (see top of
-             * ExposeData) so values loaded in LoadingVars survive into ResolvingCrossRefs. */
+            //Military Data
+            Scribe_Deep.Look(ref military, "militaryFC");
+
+            //Load ID tracking
+            Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
+
+            //Tax/billing
+            Scribe_Deep.Look(ref taxLedger, "taxLedger");
+            if (taxLedger is null) taxLedger = new TaxLedger();
+
+            //Road builder
+            Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
+
+            //Threat adaptation
+            Scribe_Deep.Look(ref threatAdaptation, "threatAdaptation");
+            if (threatAdaptation == null) threatAdaptation = new EmpireThreatAdaptation();
+
+            //Settlement Leveling
+            Scribe_Values.Look(ref factionLevel, "factionLevel");
+            Scribe_Values.Look(ref factionXPCurrent, "factionXPCurrent");
+            Scribe_Values.Look(ref factionXPGoal, "factionXPGoal");
+
+            // Legacy save migration — see helper for the full scribe + migration pipeline.
+            ScribeAndMigrateLegacyState();
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit) PostLoadInit();
+
+            //Research Trading
+            Scribe_Values.Look(ref tradedAmount, "tradedAmount");
+
+            //Random Event
+            Scribe_Values.Look(ref randomEventLastAdded, "randomEventLastAddedTick");
+            // eventCooldowns / eventFireCounts now live on eventManager (scribed above).
+        }
+
+        /*-*-*-*-* Legacy Save Migration *-*-*-*-*/
+        /// <summary>
+        /// All legacy-save migration logic. Reads pre-extraction XML keys during LoadingVars
+        /// and drains them into the modern managers during ResolvingCrossRefs / PostLoadInit.
+        /// Called once from <see cref="ExposeData"/>, after the modern managers
+        /// (taxLedger, eventManager, policyManager, military) have been Scribe_Deep'd.
+        ///
+        /// To drop pre-extraction save compatibility: delete this method, delete its call
+        /// site in ExposeData, and delete the Legacy Save Migration State block in the
+        /// field-declarations region.
+        /// </summary>
+        private void ScribeAndMigrateLegacyState()
+        {
+            /* Phase 1: scribe legacy XML keys.
+             * Scribe_*.Look runs in all phases; sentinel defaults ensure new saves omit
+             * these keys once the buffers have been reset post-migration. */
+
+            // Pre-PolicyManager policy/trait/edict — explicit LoadingVars gate (no write on Saving).
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                Scribe_Collections.Look(ref legacyPolicies, "factionPolicies", LookMode.Deep);
+                Scribe_Collections.Look(ref legacyFactionTraits, "factionTraits", LookMode.Deep);
+                Scribe_Collections.Look(ref legacyEdicts, "edicts", LookMode.Value, LookMode.Deep);
+            }
+
+            // Pre-FCEventManager events list.
+            Scribe_Collections.Look(ref events, "events", LookMode.Deep);
+
+            // Pre-MilitaryFC.SeedNextIds ID counters.
             Scribe_Values.Look(ref legacyNextUnitId, "nextUnitID", -1);
             Scribe_Values.Look(ref legacyNextSquadId, "nextSquadID", -1);
             Scribe_Values.Look(ref legacyNextMercId, "nextMercenaryID", -1);
             Scribe_Values.Look(ref legacyNextMercSquadId, "nextMercenarySquadID", -1);
             Scribe_Values.Look(ref legacyNextFireSupportId, "nextMilitaryFireSupportID", -1);
 
-            //Military Data
-            // Empire Refactored v1.5 renamed MilitaryCustomizationUtil to MilitaryFC. This block of code
-            // handles migrating save data from a pre-1.5 save.
-            Scribe_Deep.Look(ref military, "militaryFC");
+            // Pre-1.5 MilitaryCustomizationUtil -> MilitaryFC rename. LoadingVars-gated to
+            // avoid spurious empty writes on save.
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
                 Scribe_Deep.Look(ref _legacyMilitary, "militaryCustomizationUtil");
             }
-            if (Scribe.mode == LoadSaveMode.PostLoadInit)
-            {
-                if (military is null && _legacyMilitary is object) military = _legacyMilitary;
-                if (military is null) military = new MilitaryFC();
-                _legacyMilitary = null;
 
-                if ((legacyNextUnitId != -1 || legacyNextSquadId != -1
-                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
-                    || legacyNextFireSupportId != -1))
-                {
-                    military.SeedNextIds(
-                        legacyNextUnitId, legacyNextSquadId,
-                        legacyNextMercId, legacyNextMercSquadId,
-                        legacyNextFireSupportId);
-                    LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
-                    /* Reset to sentinel so subsequent saves omit these legacy XML keys. */
-                    legacyNextUnitId = -1;
-                    legacyNextSquadId = -1;
-                    legacyNextMercId = -1;
-                    legacyNextMercSquadId = -1;
-                    legacyNextFireSupportId = -1;
-                }
-            }
-
-            //Load ID tracking
-            Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
-
-            /* Tax/billing — nested element. Legacy flat keys below are migrated on first load. */
-            Scribe_Deep.Look(ref taxLedger, "taxLedger");
-            if (taxLedger is null) taxLedger = new TaxLedger();
-
+            // Pre-TaxLedger flat tax/billing keys.
             Scribe_Values.Look(ref legacyNextTaxId, "nextTaxID", -1);
             Scribe_Values.Look(ref legacyNextBillId, "nextBillID", -1);
             Scribe_Values.Look(ref legacyNextEventId, "nextEventID", -1);
@@ -403,8 +412,19 @@ namespace FactionColonies
             Scribe_Values.Look(ref legacyAllowLate, "allowLatePayments", true);
             Scribe_Values.Look(ref legacyTaxTimeDue, "taxTimeDue", -1);
 
+            /* Phase 2: ResolvingCrossRefs migrations. Run before any PostLoadInit consumer
+             * (e.g. WorldSettlementFC stat-modifier reapply) reads the managers. */
             if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs)
             {
+                // events → eventManager
+                if (events != null && events.Count > 0)
+                {
+                    eventManager.SeedFromLegacy(events);
+                    events = null;
+                    LogUtil.MessageForce("FactionFC: migrated legacy events list into FCEventManager.");
+                }
+
+                // Legacy tax fields → taxLedger
                 if (taxLedger.IsEmpty
                     && (legacyBills != null || legacyOldBills != null
                         || legacyTaxTimeDue != -1 || legacyAutoResolve
@@ -435,40 +455,42 @@ namespace FactionColonies
                 }
             }
 
-            //Road builder
-            Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
-
-            //Threat adaptation
-            Scribe_Deep.Look(ref threatAdaptation, "threatAdaptation");
-            if (threatAdaptation == null) threatAdaptation = new EmpireThreatAdaptation();
-
-            // Legacy trait Scribe_Values removed — state is now in FCPolicyBehavior subclasses,
-            // serialized via FCPolicy.ExposeData -> FCPolicyBehavior.ExposeData.
-
-            //Settlement Leveling
-            Scribe_Values.Look(ref factionLevel, "factionLevel");
-            Scribe_Values.Look(ref factionXPCurrent, "factionXPCurrent");
-            Scribe_Values.Look(ref factionXPGoal, "factionXPGoal");
-
-            // Migrate legacy policy/trait/edict lists into policyManager once (PostLoadInit).
-            if (Scribe.mode == LoadSaveMode.PostLoadInit
-                && (legacyPolicies != null || legacyFactionTraits != null || legacyEdicts != null))
+            /* Phase 3: PostLoadInit migrations. Cross-refs resolved by this point. */
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                policyManager.SeedFromLegacy(legacyPolicies, legacyFactionTraits, legacyEdicts);
-                legacyPolicies = null;
-                legacyFactionTraits = null;
-                legacyEdicts = null;
-                LogUtil.MessageForce("FactionFC: migrated legacy policies/traits/edicts into PolicyManager.");
+                // Pre-1.5 military rename swap + new-instance fallback.
+                if (military is null && _legacyMilitary is object) military = _legacyMilitary;
+                if (military is null) military = new MilitaryFC();
+                _legacyMilitary = null;
+
+                // ID counters → military.SeedNextIds
+                if (legacyNextUnitId != -1 || legacyNextSquadId != -1
+                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
+                    || legacyNextFireSupportId != -1)
+                {
+                    military.SeedNextIds(
+                        legacyNextUnitId, legacyNextSquadId,
+                        legacyNextMercId, legacyNextMercSquadId,
+                        legacyNextFireSupportId);
+                    LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
+                    /* Reset to sentinel so subsequent saves omit these legacy XML keys. */
+                    legacyNextUnitId = -1;
+                    legacyNextSquadId = -1;
+                    legacyNextMercId = -1;
+                    legacyNextMercSquadId = -1;
+                    legacyNextFireSupportId = -1;
+                }
+
+                // Pre-manager policy/trait/edict lists → policyManager
+                if (legacyPolicies != null || legacyFactionTraits != null || legacyEdicts != null)
+                {
+                    policyManager.SeedFromLegacy(legacyPolicies, legacyFactionTraits, legacyEdicts);
+                    legacyPolicies = null;
+                    legacyFactionTraits = null;
+                    legacyEdicts = null;
+                    LogUtil.MessageForce("FactionFC: migrated legacy policies/traits/edicts into PolicyManager.");
+                }
             }
-
-            if (Scribe.mode == LoadSaveMode.PostLoadInit) PostLoadInit();
-
-            //Research Trading
-            Scribe_Values.Look(ref tradedAmount, "tradedAmount");
-
-            //Random Event
-            Scribe_Values.Look(ref randomEventLastAdded, "randomEventLastAddedTick");
-            // eventCooldowns / eventFireCounts now live on eventManager (scribed above).
         }
 
         private void ScrubNullSettlements(string caller = "")
