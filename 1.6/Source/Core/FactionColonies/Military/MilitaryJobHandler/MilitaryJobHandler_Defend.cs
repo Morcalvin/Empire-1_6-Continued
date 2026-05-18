@@ -164,7 +164,7 @@ namespace FactionColonies
             prosperityLoss *= faction.GetStatValue(FCStatDefOf.battleProsperityLossMultiplier);
             happinessLoss *= faction.GetStatValue(FCStatDefOf.battleHappinessLossMultiplier);
             loyaltyLoss *= faction.GetStatValue(FCStatDefOf.battleLoyaltyLossMultiplier);
-            bool canDestroyBuildings = !FindFC.PolicyManager.AnyPolicyPreventsBuildingDestruction();
+            bool canDestroyBuildings = !FindFC.FactionComp.IsBuildingDestructionPrevented();
 
             // buildingDestructionChance stat scales the survival threshold:
             //  stat=1.0 -> threshold 7 (36% destruction, default)

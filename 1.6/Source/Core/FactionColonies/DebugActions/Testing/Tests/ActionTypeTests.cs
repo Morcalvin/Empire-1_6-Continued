@@ -59,7 +59,7 @@ namespace FactionColonies
             try
             {
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.IsTrue(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployMilitary),
+                TestAssert.IsTrue(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployMilitary),
                     "Opt-out action should be allowed when no policies are active");
             }
             finally
@@ -78,11 +78,11 @@ namespace FactionColonies
             try
             {
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.IsFalse(FindFC.PolicyManager.IsActionAllowed(FCActionType.SendDiplomat),
+                TestAssert.IsFalse(FindFC.FactionComp.IsActionAllowed(FCActionType.SendDiplomat),
                     "Opt-in action should be disabled when no policies are active");
-                TestAssert.IsFalse(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployExtraSquad),
+                TestAssert.IsFalse(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployExtraSquad),
                     "Opt-in action DeployExtraSquad should be disabled when no policies are active");
-                TestAssert.IsFalse(FindFC.PolicyManager.IsActionAllowed(FCActionType.BuildRoadsToAllies),
+                TestAssert.IsFalse(FindFC.FactionComp.IsActionAllowed(FCActionType.BuildRoadsToAllies),
                     "Opt-in action BuildRoadsToAllies should be disabled when no policies are active");
             }
             finally
@@ -108,7 +108,7 @@ namespace FactionColonies
 
                 // Pacifist blocks DeployMilitary
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.pacifist);
-                TestAssert.IsFalse(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployMilitary),
+                TestAssert.IsFalse(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployMilitary),
                     "Pacifist should block DeployMilitary");
             }
             finally
@@ -130,7 +130,7 @@ namespace FactionColonies
 
                 // Pacifist enables SendDiplomat
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.pacifist);
-                TestAssert.IsTrue(FindFC.PolicyManager.IsActionAllowed(FCActionType.SendDiplomat),
+                TestAssert.IsTrue(FindFC.FactionComp.IsActionAllowed(FCActionType.SendDiplomat),
                     "Pacifist should enable SendDiplomat");
             }
             finally
@@ -158,7 +158,7 @@ namespace FactionColonies
 
                 // Militaristic enables DeployExtraSquad
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.militaristic);
-                TestAssert.IsTrue(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployExtraSquad),
+                TestAssert.IsTrue(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployExtraSquad),
                     "Militaristic should enable DeployExtraSquad");
 
                 // Verify AnyPolicyEnables returns true
@@ -187,17 +187,17 @@ namespace FactionColonies
                 PolicyTestHelper.ClearAll(faction);
 
                 // Initially allowed
-                TestAssert.IsTrue(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployMilitary),
+                TestAssert.IsTrue(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployMilitary),
                     "DeployMilitary should be allowed after clearing policies");
 
                 // Enact pacifist — blocks it
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.pacifist);
-                TestAssert.IsFalse(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployMilitary),
+                TestAssert.IsFalse(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployMilitary),
                     "DeployMilitary should be blocked after enacting pacifist");
 
                 // Clear again — allowed again
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.IsTrue(FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployMilitary),
+                TestAssert.IsTrue(FindFC.FactionComp.IsActionAllowed(FCActionType.DeployMilitary),
                     "DeployMilitary should be allowed again after clearing policies");
             }
             finally

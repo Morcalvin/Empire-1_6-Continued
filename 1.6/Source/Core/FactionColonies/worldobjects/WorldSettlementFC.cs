@@ -818,7 +818,7 @@ namespace FactionColonies
             {
                 yield return gizmo;
             }
-            if (MilitaryComp?.isUnderAttack != true && FindFC.PolicyManager.IsActionAllowed(FCActionType.TradeWithSettlement))
+            if (MilitaryComp?.isUnderAttack != true && FindFC.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
             {
                 var kindDef = TraderKind;
                 var action = (Command_Action)CaravanVisitUtility.TradeCommand(caravan, Faction, kindDef);
@@ -844,7 +844,7 @@ namespace FactionColonies
             {
                 yield return option;
             }
-            if ((MilitaryComp is null || !MilitaryComp.isUnderAttack) && FindFC.PolicyManager.IsActionAllowed(FCActionType.TradeWithSettlement))
+            if ((MilitaryComp is null || !MilitaryComp.isUnderAttack) && FindFC.FactionComp.IsActionAllowed(FCActionType.TradeWithSettlement))
                 foreach (var option in WorldSettlementTradeAction.GetFloatMenuOptions(caravan, this))
                     yield return option;
         }

@@ -1775,7 +1775,7 @@ namespace FactionColonies
                 if (!noFireSupport)
                 {
                     bool fsDisabled = milComp.artilleryTimer > Find.TickManager.TicksGame
-                        || !FindFC.PolicyManager.IsActionAllowed(FCActionType.UseFireSupport);
+                        || !FindFC.FactionComp.IsActionAllowed(FCActionType.UseFireSupport);
                     float fsBtnH = lineH - 6f;
                     float fsBtnY = topY + (lineH - fsBtnH) / 2f;
                     Rect fsSupportRect = new Rect(contentX + contentW - fsBtnW, fsBtnY, fsBtnW, fsBtnH);
@@ -2063,7 +2063,7 @@ namespace FactionColonies
             {
                 Find.WindowStack.Add(new FloatMenu(DeploymentOptions(settlement)));
             }
-            else if (milComp.IsMilitaryBusy(true) && milComp.IsMilitarySquadValid() && FindFC.PolicyManager.IsActionAllowed(FCActionType.DeployExtraSquad))
+            else if (milComp.IsMilitaryBusy(true) && milComp.IsMilitarySquadValid() && FindFC.FactionComp.IsActionAllowed(FCActionType.DeployExtraSquad))
             {
                 List<FloatMenuOption> extraOptions = new List<FloatMenuOption>();
                 FindFC.PolicyManager.ForEachBehavior(b =>

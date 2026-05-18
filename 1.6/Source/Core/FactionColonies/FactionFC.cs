@@ -1284,6 +1284,48 @@ namespace FactionColonies
         /* Policy/edict/trait/behavior state and methods moved to PolicyManager.
          * Access via FindFC.PolicyManager or this.policyManager. */
 
+        #region Cross-System Check Aggregators
+
+        /* Aggregator checks that combine contributions from every relevant system. */
+
+        /// <summary>
+        /// True if all contributing systems permit this action.
+        /// </summary>
+        public bool IsActionAllowed(FCActionType action)
+        {
+            if (!policyManager.IsActionAllowed(action)) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// True if all contributing systems permit this military job.
+        /// </summary>
+        public bool IsMilitaryJobAllowed(MilitaryJobDef job)
+        {
+            if (!policyManager.IsMilitaryJobAllowed(job)) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// True if any contributing system prevents building destruction on battle loss.
+        /// </summary>
+        public bool IsBuildingDestructionPrevented()
+        {
+            if (policyManager.AnyPolicyPreventsBuildingDestruction()) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// True if any contributing system suppresses the member-death penalty.
+        /// </summary>
+        public bool IsMemberDeathPenaltySuppressed()
+        {
+            if (policyManager.AnyPolicySuppressesMemberDeathPenalty()) return true;
+            return false;
+        }
+
+        #endregion
+
         #region Event Manager Passthroughs
 
         public void RecordEventCooldown(FCEventDef def) => eventManager.RecordCooldown(def);
