@@ -419,7 +419,7 @@ namespace FactionColonies
                     (evt.timeTillTrigger - Find.TickManager.TicksGame).ToTimeString());
             }
             evt.hasCustomDescription = true;
-            faction.AddEvent(evt);
+            faction.eventManager.AddEvent(evt);
 
             faction.settlementCaravansList.Add(evt.location);
             Messages.Message((currentSettlementType.isConstructed ? "FCConstructionToLocation".Translate() : "FCCaravanSentToLocation".Translate()) + " " +

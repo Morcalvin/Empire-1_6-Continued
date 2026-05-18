@@ -776,15 +776,7 @@ namespace FactionColonies
             if (factionComp != null)
             {
                 foreach (FCEvent evt in factionComp.Events)
-                {
-                    if (evt?.def?.statModifiers is null || evt.def.statModifiers.Count == 0) continue;
-                    if (evt.settlementTraitLocations.Count == 0
-                        || evt.settlementTraitLocations.Contains(this))
-                    {
-                        string sourceId = "event_" + evt.def.defName;
-                        AddStatModifiers(evt.def.statModifiers, sourceId, evt.def.label);
-                    }
-                }
+                    EventStatModifierApplier.ApplyForSettlement(evt, this);
             }
             else
             {
@@ -1111,6 +1103,30 @@ namespace FactionColonies
          * ~     Lazy Cache Invalidation        ~ *
          *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
 
+        /* Per-settlement cascade (each Dirty* method calls the next link).
+         *
+         *   InvalidateStatCache (full) --> clears stat dicts
+         *                              --> InvalidateResourceCaches
+         *                              --> DirtyStatsCache
+         *
+         *   InvalidateResourceCaches    --> per-resource production base/mult dirty
+         *
+         *   DirtyStatsCache             --> DirtyProfitCache
+         *                              --> FactionFC.DirtyFactionProfitCache
+         *
+         *   DirtyProfitCache            --> FactionFC.DirtyFactionProfitCache
+         *
+         *   InvalidateDescCache         --> stat-desc dict only
+         *   DirtyDescriptionCache       --> settlement description text only
+         *
+         * Callers should pick the highest-level entry point that matches the change:
+         *   stat-defining state changed     -> InvalidateStatCache
+         *   resource modifier changed       -> InvalidateResourceCaches
+         *   workforce composition changed   -> NotifyWorkforceChanged (= DirtyStatsCache)
+         *   profit-affecting state changed  -> DirtyProfitCache
+         *   description text changed        -> DirtyDescriptionCache
+         */
+
         /// <summary>
         /// Marks the stats cache (workersMax, workersUltraMax, militaryLevel) as dirty.
         /// Also cascades to dirty the profit cache since profit depends on stats.
@@ -1137,6 +1153,13 @@ namespace FactionColonies
         {
             dirtyDescriptionCache = true;
         }
+
+        /// <summary>
+        /// Workforce composition changed (prisoner workload, worker reallocation). Equivalent
+        /// to <see cref="DirtyStatsCache"/> — kept as a named entry point so call sites
+        /// document intent rather than the cache being invalidated.
+        /// </summary>
+        public void NotifyWorkforceChanged() => DirtyStatsCache();
 
         /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
          * ~     Lazy Cache Recomputation       ~ *

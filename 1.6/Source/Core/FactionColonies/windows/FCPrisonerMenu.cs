@@ -166,17 +166,17 @@ namespace FactionColonies
                 list.Add(new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(), delegate
                 {
                     prisoner.workload = FCWorkLoad.Heavy;
-                    settlement.DirtyStatsCache();
+                    settlement.NotifyWorkforceChanged();
                 }));
                 list.Add(new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(), delegate
                 {
                     prisoner.workload = FCWorkLoad.Medium;
-                    settlement.DirtyStatsCache();
+                    settlement.NotifyWorkforceChanged();
                 }));
                 list.Add(new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(), delegate
                 {
                     prisoner.workload = FCWorkLoad.Light;
-                    settlement.DirtyStatsCache();
+                    settlement.NotifyWorkforceChanged();
                 }));
                 Find.WindowStack.Add(new FloatMenu(list));
             }
@@ -223,7 +223,7 @@ namespace FactionColonies
                         settlement.AddOneTimeSilverIncome(prisoner.prisoner.MarketValue);
 
                         prisoners.Remove(prisoner);
-                        settlement.DirtyStatsCache();
+                        settlement.NotifyWorkforceChanged();
                         WindowUpdate();
                     }));
                 }
@@ -250,7 +250,7 @@ namespace FactionColonies
                     });
 
                     prisoners.Remove(prisoner);
-                    settlement.DirtyStatsCache();
+                    settlement.NotifyWorkforceChanged();
                     WindowUpdate();
                 }));
 

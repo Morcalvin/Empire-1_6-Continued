@@ -211,7 +211,7 @@ namespace FactionColonies
 
                         if (!evtDef.activateAtStart)
                         {
-                            FactionCache.FactionComp.AddEvent(evt);
+                            FactionCache.FactionComp.eventManager.AddEvent(evt);
                         }
 
                         string settlementString = evt.settlementTraitLocations.Join((settlement) => $" {settlement.Name}", "\n");
@@ -525,7 +525,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Clear Old Bills", allowedGameStates = AllowedGameStates.Playing)]
         private static void ClearOldBills()
         {
-            FactionCache.FactionComp.OldBills = new List<BillFC>();
+            FactionCache.FactionComp.taxLedger.ClearOldBills();
         }
 
         [DebugAction("Empire", "Clear All Events", allowedGameStates = AllowedGameStates.Playing)]
@@ -537,7 +537,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Clear All Bills", allowedGameStates = AllowedGameStates.Playing)]
         private static void ClearAllBills()
         {
-            FactionCache.FactionComp.Bills = new List<BillFC>();
+            FactionCache.FactionComp.taxLedger.ClearAllBills();
         }
 
         [DebugAction("Empire", "Place 500 Silver", actionType = DebugActionType.ToolMap, allowedGameStates = AllowedGameStates.PlayingOnMap)]
@@ -1127,7 +1127,7 @@ namespace FactionColonies
             FactionFC f = FactionCache.FactionComp;
             LogUtil.MessageForce($"Faction Lv{f.factionLevel} | XP:{f.factionXPCurrent:F0}/{f.factionXPGoal:F0}");
             LogUtil.MessageForce($"Settlements:{f.settlements.Count} | Income:{f.income:F0} Upkeep:{f.upkeep:F0} Profit:{f.profit:F0}");
-            LogUtil.MessageForce($"TaxDue:{f.taxTimeDue - Find.TickManager.TicksGame} ticks | MilDue:{f.militaryTimeDue - Find.TickManager.TicksGame} ticks");
+            LogUtil.MessageForce($"TaxDue:{f.taxLedger.nextTaxDueTick - Find.TickManager.TicksGame} ticks | MilDue:{f.militaryTimeDue - Find.TickManager.TicksGame} ticks");
             LogUtil.MessageForce($"AvgHappy:{f.averageHappiness:F0} AvgLoyal:{f.averageLoyalty:F0} AvgUnrest:{f.averageUnrest:F0} AvgProsper:{f.averageProsperity:F0}");
             LogUtil.MessageForce($"Policies:{f.policies.Count} | Traits:{f.factionTraits.Count} | ResearchPool:{f.GetResourcePoolValue(ResourceTypeDefOf.RTD_Research):F0}");
             if (f.factionTraits.Any())
@@ -1167,7 +1167,7 @@ namespace FactionColonies
         private static void ProcTaxDue()
         {
             LogUtil.MessageForce("Debug - Proc TaxTimeDue");
-            FactionCache.FactionComp.taxTimeDue = Find.TickManager.TicksGame + 1;
+            FactionCache.FactionComp.taxLedger.nextTaxDueTick = Find.TickManager.TicksGame + 1;
         }
 
         [DebugAction("Empire", "Snapshot Tax Production Now", allowedGameStates = AllowedGameStates.Playing)]

@@ -45,7 +45,7 @@ namespace FactionColonies
 
             if (tempEvent.def != FCEventDefOf.Null)
             {
-                FactionCache.FactionComp.AddEvent(tempEvent);
+                FactionCache.FactionComp.eventManager.AddEvent(tempEvent);
 
                 Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
             }
@@ -622,33 +622,9 @@ namespace FactionColonies
                     }
 
 
-                    //check if event has a location, if does, remove stat modifiers from that specific location;
-                    if (evt.settlementTraitLocations.Any()) //if has specific locations
-                    {
-                        evt.settlementTraitLocations.RemoveAll(s => s == null);
-
-                        foreach (WorldSettlementFC location in evt.settlementTraitLocations)
-                        {
-                            if (location != null)
-                            {
-                                location.RemoveStatModifiers(evt.def.statModifiers, "event_" + evt.def.defName);
-
-                                //prosperity loss calculation
-                                location.prosperity -= evt.def.prosperityLost;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        //if no specific location then faction wide
-                        foreach (WorldSettlementFC worldsettlement in faction.settlements)
-                        {
-                            worldsettlement.RemoveStatModifiers(evt.def.statModifiers, "event_" + evt.def.defName);
-                            worldsettlement.prosperity -= evt.def.prosperityLost;
-                        }
-                    }
-
-                    faction.InvalidateFactionStatCache();
+                    /* Stat-modifier removal + prosperityLost subtraction + InvalidateFactionStatCache
+                     * now fire from FCEventHandlerExtension.OnEventExpired (dispatched by
+                     * FCEventManager.Remove / RemoveWhere when the event leaves the queue). */
 
                     //if have options
                     if (evt.def != null && evt.def.options.Count > 0 && evt.def.activateAtStart == false)
@@ -709,7 +685,7 @@ namespace FactionColonies
 
                         if (tempEvent != null)
                         {
-                            faction.AddEvent(tempEvent);
+                            faction.eventManager.AddEvent(tempEvent);
 
                             Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
                         }
@@ -851,7 +827,7 @@ namespace FactionColonies
             {
                 if (tmp.goods.Count > 0) //if any silver or tithe in bill create event. else, well, don't
                 {
-                    faction.AddEvent(tmp);
+                    faction.eventManager.AddEvent(tmp);
                 }
             }
             catch (Exception e)
@@ -860,7 +836,7 @@ namespace FactionColonies
             }
             finally
             {
-                faction.Bills.Remove(bill);
+                faction.taxLedger.RemoveBill(bill);
             }
         }
     }

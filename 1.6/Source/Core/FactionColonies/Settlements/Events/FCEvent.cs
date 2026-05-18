@@ -105,7 +105,7 @@ namespace FactionColonies
 
         public FCEvent(bool New)
         {
-            loadID = FactionCache.FactionComp.GetNextEventID();
+            loadID = FactionCache.FactionComp.eventManager.NextEventId();
         }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace FactionColonies
             this.tickStarted = Find.TickManager.TicksGame;
             this.timeTillTrigger = Find.TickManager.TicksGame + timeToFinish;
             this.location = mapLocation;
-            f.AddEvent(this);
+            f.eventManager.AddEvent(this);
         }
 
         public void ExposeData()

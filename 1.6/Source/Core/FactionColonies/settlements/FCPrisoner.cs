@@ -135,7 +135,7 @@ namespace FactionColonies
             if (health <= 0)
             {
                 settlement.prisonerList.Remove(this);
-                settlement.DirtyStatsCache();
+                settlement.NotifyWorkforceChanged();
                 Find.LetterStack.ReceiveLetter("FCPrisonerHasDiedLetter".Translate(), "FCPrisonerHasDied".Translate(prisoner.Name.ToString(), settlement.Name), LetterDefOf.NeutralEvent);
                 return true;
             }

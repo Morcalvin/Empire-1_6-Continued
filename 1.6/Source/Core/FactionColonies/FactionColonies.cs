@@ -417,39 +417,6 @@ namespace FactionColonies
             lastSeenVersions[modId] = major + "." + minor + "." + patch;
         }
 
-        public static void ReapplyStatModifiers()
-        {
-            FactionFC faction = FactionCache.FactionComp;
-            /* Clear stat modifiers for all settlements, and then reapply inherent/building modifiers */
-            foreach (WorldSettlementFC settlement in faction.settlements)
-            {
-                settlement.ClearStatModifiers();
-                settlement.BuildingsComp?.ReapplyBuildingStatModifiers();
-                settlement.AddStatModifiers(settlement.settlementDef.statModifiers, "settlementType", settlement.settlementDef.label);
-            }
-
-            // Re-apply active event stat modifiers to settlements
-            foreach (FCEvent evt in faction.Events)
-            {
-                string sourceId = "event_" + evt.def.defName;
-                if (evt.settlementTraitLocations.Any())
-                {
-                    foreach (WorldSettlementFC location in evt.settlementTraitLocations)
-                    {
-                        if (location != null)
-                            location.AddStatModifiers(evt.def.statModifiers, sourceId, evt.def.label);
-                    }
-                }
-                else
-                {
-                    foreach (WorldSettlementFC settlement in faction.settlements)
-                    {
-                        settlement.AddStatModifiers(evt.def.statModifiers, sourceId, evt.def.label);
-                    }
-                }
-            }
-        }
-
         public static bool IsModLoaded(string packageID) => LoadedModManager.RunningModsListForReading.Any(mod => mod.PackageIdPlayerFacing == packageID);
 
 

@@ -12,11 +12,12 @@ namespace FactionColonies
             FactionFC factionfc = FactionCache.FactionComp;
             List<WorldSettlementFC> latePaidSettlements = new List<WorldSettlementFC>();
 
-            for (int i = factionfc.Bills.Count - 1; i >= 0; i--)
+            IReadOnlyList<BillFC> bills = factionfc.taxLedger.Bills;
+            for (int i = bills.Count - 1; i >= 0; i--)
             {
-                if (factionfc.Bills[i].dueTick < Find.TickManager.TicksGame)
+                if (bills[i].dueTick < Find.TickManager.TicksGame)
                 {
-                    BillFC bill = factionfc.Bills[i];
+                    BillFC bill = bills[i];
                     // taxes is null on a default-constructed BillFC; a bill with no taxes owes nothing.
                     bool owedMoney = bill.taxes is object && bill.taxes.silverAmount < 0;
                     WorldSettlementFC settlement = bill.settlement;
@@ -25,7 +26,7 @@ namespace FactionColonies
                      * the resolve attempt entirely and go straight to the unpaid penalty
                      * path. Positive-silver bills (tax tributes the player would gain
                      * from) always auto-resolve at expiry -- there's nothing to defer. */
-                    bool skipAttempt = !factionfc.allowLatePayments && owedMoney;
+                    bool skipAttempt = !factionfc.taxLedger.allowLatePayments && owedMoney;
 
                     if (!skipAttempt && bill.AttemptResolve())
                     {
@@ -45,7 +46,7 @@ namespace FactionColonies
                         {
                             LogUtil.Warning("ProcessBills: overdue bill has null settlement (loadID=" + bill.loadID + "). Removing orphaned bill.");
                         }
-                        factionfc.Bills.Remove(bill);
+                        factionfc.taxLedger.RemoveBill(bill);
                     }
                 }
             }

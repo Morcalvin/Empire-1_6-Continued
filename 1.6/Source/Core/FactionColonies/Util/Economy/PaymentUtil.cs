@@ -217,7 +217,7 @@ namespace FactionColonies
             return true;
         }
         /// <summary>Create a deployment-cost bill against <paramref name="squad"/>'s home
-        /// settlement. The bill is appended to <c>FactionFC.Bills</c> and obligates the
+        /// settlement. The bill is appended to <c>TaxLedger.Bills</c> and obligates the
         /// player for <c>squad.DeploymentCost()</c> silver, due in
         /// <c>FCSettings.deploymentBillLifespan_days</c> days. No-op when cost is zero
         /// (slider at 0%) or godMode is on.</summary>
@@ -249,7 +249,7 @@ namespace FactionColonies
             bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Happiness, 10);
             bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Unrest, 4);
             bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Happiness, 4);
-            fc.Bills.Add(bill);
+            fc.taxLedger.AddBill(bill);
             return bill;
         }
 

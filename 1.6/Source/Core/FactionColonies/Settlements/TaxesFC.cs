@@ -49,7 +49,7 @@ namespace FactionColonies
 
         public void SetUniqueLoadID()
         {
-            loadID = FactionCache.FactionComp.GetNextTaxID();
+            loadID = FactionCache.FactionComp.taxLedger.NextTaxId();
         }
     }
 }

@@ -88,14 +88,9 @@ namespace FactionColonies.util
             faction.settlements.Remove(settlement);
 
             // Clean up any pending bills for the destroyed settlement
-            for (int i = faction.Bills.Count - 1; i >= 0; i--)
-            {
-                if (faction.Bills[i].settlement == settlement)
-                {
-                    LogUtil.Message("RemovePlayerSettlement: removing orphaned bill (loadID=" + faction.Bills[i].loadID + ") for destroyed settlement " + settlement.Name);
-                    faction.Bills.RemoveAt(i);
-                }
-            }
+            int removedBills = faction.taxLedger.RemoveBillsWhere(b => b.settlement == settlement);
+            if (removedBills > 0)
+                LogUtil.Message($"RemovePlayerSettlement: removed {removedBills} orphaned bill(s) for destroyed settlement {settlement.Name}");
 
             faction.DirtyFactionProfitCache();
             faction.DirtyAveragesCache();

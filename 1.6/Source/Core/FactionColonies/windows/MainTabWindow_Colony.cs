@@ -523,7 +523,7 @@ namespace FactionColonies
 
             Rect taxBox = new Rect(x, y, width, 22f);
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(taxBox, "FCTimeTillTax".Translate() + ": " + Math.Max(0, faction.taxTimeDue - Find.TickManager.TicksGame).ToTimeString());
+            Widgets.Label(taxBox, "FCTimeTillTax".Translate() + ": " + Math.Max(0, faction.taxLedger.nextTaxDueTick - Find.TickManager.TicksGame).ToTimeString());
             TooltipHandler.TipRegion(taxBox, CodexTooltips.GetTaxTimerTooltip());
             y += taxBox.height + margin;
 
@@ -932,7 +932,7 @@ namespace FactionColonies
 
         private void DrawBillsTab(Rect rect)
         {
-            List<BillFC> bills = faction.Bills;
+            IReadOnlyList<BillFC> bills = faction.taxLedger.Bills;
             const float pad = 8f;
             const float rowH = 44f;
             const float accentW = 4f;
@@ -949,7 +949,7 @@ namespace FactionColonies
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
             string taxCountdown = "FCTimeTillTax".Translate() + ": "
-                + Math.Max(0, faction.taxTimeDue - Find.TickManager.TicksGame).ToTimeString();
+                + Math.Max(0, faction.taxLedger.nextTaxDueTick - Find.TickManager.TicksGame).ToTimeString();
             UIUtil.DrawColoredLabel(
                 new Rect(innerX, rect.y + pad, innerW * 0.6f, summaryH),
                 "FCPendingBillsCount".Translate(bills.Count) + "    |    " + taxCountdown,
@@ -967,14 +967,14 @@ namespace FactionColonies
             UIUtil.DrawColoredLabel(autoResolveRectLabel, "FCAutoResolve".Translate(), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
-            bool prevAutoResolve = faction.autoResolveBills;
-            Widgets.Checkbox(new Vector2(autoX + 153f, rect.y + pad + 1f), ref faction.autoResolveBills, 22);
-            if (faction.autoResolveBills && !prevAutoResolve)
+            bool prevAutoResolve = faction.taxLedger.autoResolve;
+            Widgets.Checkbox(new Vector2(autoX + 153f, rect.y + pad + 1f), ref faction.taxLedger.autoResolve, 22);
+            if (faction.taxLedger.autoResolve && !prevAutoResolve)
             {
                 Messages.Message("FCBillsAutoResolving".Translate(), MessageTypeDefOf.NeutralEvent);
-                PaymentUtil.AutoresolveBills(bills);
+                PaymentUtil.AutoresolveBills(faction.taxLedger.bills);
             }
-            else if (!faction.autoResolveBills && prevAutoResolve)
+            else if (!faction.taxLedger.autoResolve && prevAutoResolve)
             {
                 Messages.Message("FCBillsNotAutoResolving".Translate(), MessageTypeDefOf.NeutralEvent);
             }
@@ -990,13 +990,13 @@ namespace FactionColonies
             UIUtil.DrawColoredLabel(latePaymentRectLabel, "FCAllowLatePayments".Translate(), Color.gray);
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
-            bool prevAllowLate = faction.allowLatePayments;
-            Widgets.Checkbox(new Vector2(lateX + 153f, lateY + 1f), ref faction.allowLatePayments, 22);
-            if (faction.allowLatePayments && !prevAllowLate)
+            bool prevAllowLate = faction.taxLedger.allowLatePayments;
+            Widgets.Checkbox(new Vector2(lateX + 153f, lateY + 1f), ref faction.taxLedger.allowLatePayments, 22);
+            if (faction.taxLedger.allowLatePayments && !prevAllowLate)
             {
                 Messages.Message("FCBillsLatePaymentsAllowed".Translate(), MessageTypeDefOf.NeutralEvent);
             }
-            else if (!faction.allowLatePayments && prevAllowLate)
+            else if (!faction.taxLedger.allowLatePayments && prevAllowLate)
             {
                 Messages.Message("FCBillsLatePaymentsDisallowed".Translate(), MessageTypeDefOf.NeutralEvent);
             }

@@ -70,7 +70,7 @@ namespace FactionColonies
 
             settlement.StartUpgrade(tmp.timeTillTrigger);
 
-            FactionCache.FactionComp.AddEvent(tmp);
+            FactionCache.FactionComp.eventManager.AddEvent(tmp);
 
             //Close this window
             Find.WindowStack.TryRemove(this);

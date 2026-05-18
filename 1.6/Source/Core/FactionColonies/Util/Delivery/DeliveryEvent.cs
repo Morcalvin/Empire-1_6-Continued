@@ -38,7 +38,7 @@ namespace FactionColonies.util
             evt.isDelayed = evtParams.isDelayed;
             evt.deliveryMode = evtParams.deliveryMode;
 
-            FactionCache.FactionComp.AddEvent(evt);
+            FactionCache.FactionComp.eventManager.AddEvent(evt);
         }
 
         public static void Action(FCEvent evt)

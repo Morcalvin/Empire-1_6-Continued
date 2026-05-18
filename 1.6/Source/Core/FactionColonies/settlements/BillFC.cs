@@ -95,7 +95,7 @@ namespace FactionColonies
             FactionFC comp = FactionCache.FactionComp;
             if (comp is object)
             {
-                loadID = comp.GetNextBillID();
+                loadID = comp.taxLedger.NextBillId();
             }
             else
             {
@@ -154,7 +154,7 @@ namespace FactionColonies
             {
                 LogUtil.Warning("BillFC.Resolve: bill has null settlement (loadID=" + loadID + "). Skipping penalty.");
             }
-            factionfc.Bills.Remove(this);
+            factionfc.taxLedger.RemoveBill(this);
             return false;
         }
 
