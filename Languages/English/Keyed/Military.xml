@@ -159,7 +159,6 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCDropPodDeploymentOptionUnavailableReasonTech> unavailable without the {0} research</FCDropPodDeploymentOptionUnavailableReasonTech>
 	<FCErrorDropPodResearchCouldNotBeFound>The drop pod research could not be found! Are you running a mod list that removes it?</FCErrorDropPodResearchCouldNotBeFound>
 	<FCMilitaryTriedDeployingToSettlementFC>You cannot deploy your military to another settlement!</FCMilitaryTriedDeployingToSettlementFC>
-	<FCMilitaryAction>Military Action</FCMilitaryAction>
 	<FCSelectMilitaryMovePosition>Select Move Position</FCSelectMilitaryMovePosition>
 	<FCSelectDeploymentPosition>Select Deployment Position</FCSelectDeploymentPosition>
 	<FCSelectedPosOutOfBounds>The position you selected is out of bounds for this map!</FCSelectedPosOutOfBounds>
