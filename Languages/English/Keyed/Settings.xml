@@ -80,6 +80,24 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingSquadDeploymentCostPercentageTip>Percentage of a squad's current equipment value billed in silver each time it is deployed (sent to a player map or on an offensive operation). Defensive operations are free. The cost becomes a bill against the squad's home settlement, due after the lifespan setting expires. 0% disables the cost.</FCSettingSquadDeploymentCostPercentageTip>
 	<FCSettingDeploymentBillLifespan>Deployment Bill Lifespan</FCSettingDeploymentBillLifespan>
 	<FCSettingDeploymentBillLifespanTip>Number of days a deployment-cost bill remains payable before it expires and the settlement takes the late- or unpaid-bill penalty. Independent of the tax cycle.</FCSettingDeploymentBillLifespanTip>
+	<FCSettingGeneValueHeader>Gene Valuation</FCSettingGeneValueHeader>
+	<FCSettingGeneValueHelpText>Weights controlling how a xenotype's genes inflate the cost of a mercenary template. Final cost factor is 1 + (sum of weighted per-gene contributions).</FCSettingGeneValueHelpText>
+	<FCSettingGeneValueWeightMvf>Market Value Factor</FCSettingGeneValueWeightMvf>
+	<FCSettingGeneValueWeightMvfTip>Weight on the offset from a gene's marketValueFactor: values &gt; 1 (e.g. Deathless, FireSpew) increase price; values &lt; 1 decrease it.</FCSettingGeneValueWeightMvfTip>
+	<FCSettingGeneValueWeightMet>Metabolic Cost</FCSettingGeneValueWeightMet>
+	<FCSettingGeneValueWeightMetTip>Weight per point of negative metabolism on a gene.</FCSettingGeneValueWeightMetTip>
+	<FCSettingGeneValueWeightArc>Archites</FCSettingGeneValueWeightArc>
+	<FCSettingGeneValueWeightArcTip>Weight per archite required by a gene.</FCSettingGeneValueWeightArcTip>
+	<FCSettingGeneValueWeightEffects>Stat &amp; Capacity Effects</FCSettingGeneValueWeightEffects>
+	<FCSettingGeneValueWeightEffectsTip>Weight on a gene's category-weighted stat factors, stat offsets, capacity modifiers, and skill aptitudes. Combat-category stats count most; social stats and unknown categories count nothing.</FCSettingGeneValueWeightEffectsTip>
+	<FCSettingGeneValueWeightPain>Pain Modifier</FCSettingGeneValueWeightPain>
+	<FCSettingGeneValueWeightPainTip>Weight on a gene's pain-factor change. Pain reduction raises price, and vice versa.</FCSettingGeneValueWeightPainTip>
+	<FCSettingGeneValueWeightDmgResist>Damage Resistance</FCSettingGeneValueWeightDmgResist>
+	<FCSettingGeneValueWeightDmgResistTip>Weight on a gene's damage-type factors. Resistance raises price, and vice versa.</FCSettingGeneValueWeightDmgResistTip>
+	<FCSettingGeneValueFactorUnlimited>Uncapped Gene Factor</FCSettingGeneValueFactorUnlimited>
+	<FCSettingGeneValueFactorUnlimitedTip>When enabled (default), the xenotype cost factor has no upper bound. Disable to clamp the final factor at a configurable maximum.</FCSettingGeneValueFactorUnlimitedTip>
+	<FCSettingGeneValueMaxFactor>Max Gene Factor</FCSettingGeneValueMaxFactor>
+	<FCSettingGeneValueMaxFactorTip>Hard ceiling on the xenotype cost factor when the uncapped option is off. The cost multiplier applied to a unit template's base xenotype cost will never exceed this value.</FCSettingGeneValueMaxFactorTip>
 	<FCSettingMinMaxRandomEvent>Min/Max Days Until Random Event</FCSettingMinMaxRandomEvent>
 	<FCSettingShowSettleConfirm>Show confirmation when founding settlements</FCSettingShowSettleConfirm>
 	<FCSettingUseThreadedRoadComputation>Use threaded road computation</FCSettingUseThreadedRoadComputation>

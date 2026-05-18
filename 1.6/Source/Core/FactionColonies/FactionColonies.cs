@@ -153,6 +153,33 @@ namespace FactionColonies
         public static float squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
         public static int maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
 
+        /* Gene valuation weights. Used by GeneValuationUtil to score a xenotype's genes
+         * into a cost multiplier applied to a mercenary's base race cost. Weights are
+         * applied at read time over cached unweighted components, so changing these
+         * sliders is free (no cache invalidation needed). No hard cap on the final factor. */
+        public const float DEFAULT_GENE_W_MVF       = 0.00f;  // marketValueFactor (disabled by default)
+        public const float DEFAULT_GENE_W_MET       = 0.02f;  // metabolism
+        public const float DEFAULT_GENE_W_ARC       = 0.30f;  // archites
+        public const float DEFAULT_GENE_W_EFFECTS   = 0.75f;  // stat bonuses
+        public const float DEFAULT_GENE_W_PAIN      = 0.20f;  // pain bonus
+        public const float DEFAULT_GENE_W_DMGRESIST = 0.30f;  // damage resist
+        public static float geneValueWeightMvf       = DEFAULT_GENE_W_MVF;
+        public static float geneValueWeightMet       = DEFAULT_GENE_W_MET;
+        public static float geneValueWeightArc       = DEFAULT_GENE_W_ARC;
+        public static float geneValueWeightEffects   = DEFAULT_GENE_W_EFFECTS;
+        public static float geneValueWeightPain      = DEFAULT_GENE_W_PAIN;
+        public static float geneValueWeightDmgResist = DEFAULT_GENE_W_DMGRESIST;
+
+        /* Optional hard cap on the xenotype cost factor. Defaults to unlimited so OP modded
+         * xenotypes scale freely. The cap (when enabled) clamps the final 1+sum factor;
+         * minimum meaningful value is 1.0 (no bonus). */
+        public const bool DEFAULT_GENE_FACTOR_UNLIMITED = true;
+        public const float DEFAULT_GENE_MAX_FACTOR = 5.0f;
+        public const float MIN_GENE_MAX_FACTOR = 1.0f;
+        public const float MAX_GENE_MAX_FACTOR = 100.0f;
+        public static bool geneValueFactorUnlimited = DEFAULT_GENE_FACTOR_UNLIMITED;
+        public static float geneValueMaxFactor = DEFAULT_GENE_MAX_FACTOR;
+
         /* Squad deployment economy. squadDeploymentCostPercentage is the fraction of a
          * squad's current equipment value billed in silver each time it is deployed
          * (offensive op or call-in to a player map). Defensive ops are free. The charge
@@ -320,6 +347,14 @@ namespace FactionColonies
             Scribe_Values.Look(ref squadHireCostMultiplier, "squadHireCostMultiplier", DEFAULT_SQUAD_HIRE_COST_MULTIPLIER);
             Scribe_Values.Look(ref squadUpgradeCostMultiplier, "squadUpgradeCostMultiplier", DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER);
             Scribe_Values.Look(ref maxSquadSize, "maxSquadSize", DEFAULT_MAX_SQUAD_SIZE);
+            Scribe_Values.Look(ref geneValueWeightMvf,       "geneValueWeightMvf",       DEFAULT_GENE_W_MVF);
+            Scribe_Values.Look(ref geneValueWeightMet,       "geneValueWeightMet",       DEFAULT_GENE_W_MET);
+            Scribe_Values.Look(ref geneValueWeightArc,       "geneValueWeightArc",       DEFAULT_GENE_W_ARC);
+            Scribe_Values.Look(ref geneValueWeightEffects,   "geneValueWeightEffects",   DEFAULT_GENE_W_EFFECTS);
+            Scribe_Values.Look(ref geneValueWeightPain,      "geneValueWeightPain",      DEFAULT_GENE_W_PAIN);
+            Scribe_Values.Look(ref geneValueWeightDmgResist, "geneValueWeightDmgResist", DEFAULT_GENE_W_DMGRESIST);
+            Scribe_Values.Look(ref geneValueFactorUnlimited, "geneValueFactorUnlimited", DEFAULT_GENE_FACTOR_UNLIMITED);
+            Scribe_Values.Look(ref geneValueMaxFactor,       "geneValueMaxFactor",       DEFAULT_GENE_MAX_FACTOR);
             Scribe_Values.Look(ref squadDeploymentCostPercentage, "squadDeploymentCostPercentage", DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE);
             Scribe_Values.Look(ref deploymentBillLifespan_days, "deploymentBillLifespan_days", DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS);
             if (Scribe.mode == LoadSaveMode.LoadingVars && maxSquadSize < 1)
@@ -757,6 +792,14 @@ namespace FactionColonies
                 maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
                 squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
                 deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+                geneValueWeightMvf       = DEFAULT_GENE_W_MVF;
+                geneValueWeightMet       = DEFAULT_GENE_W_MET;
+                geneValueWeightArc       = DEFAULT_GENE_W_ARC;
+                geneValueWeightEffects   = DEFAULT_GENE_W_EFFECTS;
+                geneValueWeightPain      = DEFAULT_GENE_W_PAIN;
+                geneValueWeightDmgResist = DEFAULT_GENE_W_DMGRESIST;
+                geneValueFactorUnlimited = DEFAULT_GENE_FACTOR_UNLIMITED;
+                geneValueMaxFactor       = DEFAULT_GENE_MAX_FACTOR;
                 battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
                 battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
@@ -973,6 +1016,40 @@ namespace FactionColonies
             ls.Label("FCSettingDeploymentBillLifespan".Translate() + ": " + deploymentBillLifespan_days.ToString() + " d", -1f, "FCSettingDeploymentBillLifespanTip".Translate());
             deploymentBillLifespan_days = (int)ls.Slider(deploymentBillLifespan_days, 1f, 60f);
 
+            ls.Gap(8f);
+            if (ModsConfig.BiotechActive)
+            {
+                Text.Font = GameFont.Medium;
+                ls.Label("FCSettingGeneValueHeader".Translate());
+                Text.Font = GameFont.Small;
+                ls.Label("FCSettingGeneValueHelpText".Translate(), -1f);
+
+                ls.Label("FCSettingGeneValueWeightMvf".Translate() + ": " + geneValueWeightMvf.ToString("0.00"), -1f, "FCSettingGeneValueWeightMvfTip".Translate());
+                geneValueWeightMvf = ls.Slider(geneValueWeightMvf, 0f, 3f);
+
+                ls.Label("FCSettingGeneValueWeightMet".Translate() + ": " + geneValueWeightMet.ToString("0.00"), -1f, "FCSettingGeneValueWeightMetTip".Translate());
+                geneValueWeightMet = ls.Slider(geneValueWeightMet, 0f, 0.5f);
+
+                ls.Label("FCSettingGeneValueWeightArc".Translate() + ": " + geneValueWeightArc.ToString("0.00"), -1f, "FCSettingGeneValueWeightArcTip".Translate());
+                geneValueWeightArc = ls.Slider(geneValueWeightArc, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightEffects".Translate() + ": " + geneValueWeightEffects.ToString("0.00"), -1f, "FCSettingGeneValueWeightEffectsTip".Translate());
+                geneValueWeightEffects = ls.Slider(geneValueWeightEffects, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightPain".Translate() + ": " + geneValueWeightPain.ToString("0.00"), -1f, "FCSettingGeneValueWeightPainTip".Translate());
+                geneValueWeightPain = ls.Slider(geneValueWeightPain, 0f, 2f);
+
+                ls.Label("FCSettingGeneValueWeightDmgResist".Translate() + ": " + geneValueWeightDmgResist.ToString("0.00"), -1f, "FCSettingGeneValueWeightDmgResistTip".Translate());
+                geneValueWeightDmgResist = ls.Slider(geneValueWeightDmgResist, 0f, 2f);
+
+                ls.CheckboxLabeled("FCSettingGeneValueFactorUnlimited".Translate(), ref geneValueFactorUnlimited, "FCSettingGeneValueFactorUnlimitedTip".Translate());
+                if (!geneValueFactorUnlimited)
+                {
+                    ls.Label("FCSettingGeneValueMaxFactor".Translate() + ": " + geneValueMaxFactor.ToString("0.00") + "x", -1f, "FCSettingGeneValueMaxFactorTip".Translate());
+                    geneValueMaxFactor = ls.Slider(geneValueMaxFactor, MIN_GENE_MAX_FACTOR, MAX_GENE_MAX_FACTOR);
+                }
+            }
+
             DrawSectionResetButton(ls, delegate
             {
                 maxSquadSize = DEFAULT_MAX_SQUAD_SIZE;
@@ -980,6 +1057,14 @@ namespace FactionColonies
                 squadUpgradeCostMultiplier = DEFAULT_SQUAD_UPGRADE_COST_MULTIPLIER;
                 squadDeploymentCostPercentage = DEFAULT_SQUAD_DEPLOYMENT_COST_PERCENTAGE;
                 deploymentBillLifespan_days = DEFAULT_DEPLOYMENT_BILL_LIFESPAN_DAYS;
+                geneValueWeightMvf       = DEFAULT_GENE_W_MVF;
+                geneValueWeightMet       = DEFAULT_GENE_W_MET;
+                geneValueWeightArc       = DEFAULT_GENE_W_ARC;
+                geneValueWeightEffects   = DEFAULT_GENE_W_EFFECTS;
+                geneValueWeightPain      = DEFAULT_GENE_W_PAIN;
+                geneValueWeightDmgResist = DEFAULT_GENE_W_DMGRESIST;
+                geneValueFactorUnlimited = DEFAULT_GENE_FACTOR_UNLIMITED;
+                geneValueMaxFactor       = DEFAULT_GENE_MAX_FACTOR;
             });
 
             ls.Gap(12f);

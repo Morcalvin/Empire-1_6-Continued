@@ -435,17 +435,9 @@ namespace FactionColonies
 
             if (pawnKind?.race != null)
             {
-                float xenoFactor = 1f;
-                List<GeneDef> geneList = GetXenotypeGenes();
-                if (geneList != null)
-                {
-                    foreach (GeneDef gene in geneList)
-                    {
-                        /* Don't include genes that have 0 value (mostly just cosmetic genes) */
-                        if (gene.marketValueFactor > 0)
-                            xenoFactor *= gene.marketValueFactor;
-                    }
-                }
+                float xenoFactor = xenotype is object
+                    ? GeneValuationUtil.XenotypeFactor(xenotype)
+                    : GeneValuationUtil.XenotypeFactor(ResolveCustomXenotype());
                 totalCost += Math.Floor(pawnKind.race.BaseMarketValue * FCSettings.militaryRaceCostMultiplier * xenoFactor);
             }
 

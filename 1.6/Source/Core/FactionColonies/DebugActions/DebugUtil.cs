@@ -1604,5 +1604,221 @@ namespace FactionColonies
             }
             Find.WindowStack.Add(new Dialog_DebugOptionListLister(options));
         }
+
+        /* Diagnostic dumps for the gene valuator. Use these to spot which genes are producing
+         * outsized contributions to the xenotype cost factor. */
+
+        [DebugAction("Empire", "Dump Gene Valuation Cache", allowedGameStates = AllowedGameStates.Playing)]
+        private static void DumpGeneValuationCache()
+        {
+            List<GeneDef> genes = DefDatabase<GeneDef>.AllDefsListForReading
+                .OrderBy(g => g.defName).ToList();
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"Gene raw contributions ({genes.Count} genes)");
+            sb.AppendLine("Aggregate-then-score: per-gene raw inputs to the xenotype profile. " +
+                          "Stat offsets sum, stat factors multiply, capMods accumulate per capacity, " +
+                          "aptitudes sum, biostatMet/Arc sum, marketValueFactor and painFactor multiply.");
+            sb.AppendLine("");
+
+            foreach (GeneDef gene in genes)
+            {
+                GeneValuationUtil.XenotypeProfile p = GeneValuationUtil.GetGeneProfile(gene);
+                if (IsProfileTrivial(p)) continue;
+                sb.Append(FormatGeneRawContribution(gene, p));
+            }
+
+            LogUtil.MessageForce(sb.ToString());
+        }
+
+        [DebugAction("Empire", "Dump Xenotype Valuation Cache", allowedGameStates = AllowedGameStates.Playing)]
+        private static void DumpXenotypeValuationCache()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            List<XenotypeDef> xenoDefs = DefDatabase<XenotypeDef>.AllDefsListForReading
+                .OrderBy(x => x.defName).ToList();
+            List<CustomXenotype> customs = FactionCache.CustomXenotypes ?? new List<CustomXenotype>();
+
+            sb.AppendLine($"Xenotype valuation cache ({xenoDefs.Count} defs + {customs.Count} custom)");
+            sb.AppendLine(
+                $"weights: mvf={FCSettings.geneValueWeightMvf:F2} " +
+                $"met={FCSettings.geneValueWeightMet:F2} " +
+                $"arc={FCSettings.geneValueWeightArc:F2} " +
+                $"eff={FCSettings.geneValueWeightEffects:F2} " +
+                $"pain={FCSettings.geneValueWeightPain:F2} " +
+                $"dmgR={FCSettings.geneValueWeightDmgResist:F2}");
+            sb.AppendLine("");
+
+            foreach (XenotypeDef xeno in xenoDefs)
+                AppendXenotypeSection(sb, xeno.defName,
+                    GeneValuationUtil.GetXenotypeProfile(xeno),
+                    GeneValuationUtil.GetXenotypeComponents(xeno),
+                    GeneValuationUtil.RawXenotypeFactor(xeno),
+                    GeneValuationUtil.XenotypeFactor(xeno));
+
+            foreach (CustomXenotype custom in customs)
+            {
+                if (custom is null) continue;
+                AppendXenotypeSection(sb, (custom.name ?? "???") + " [custom]",
+                    GeneValuationUtil.GetXenotypeProfile(custom),
+                    GeneValuationUtil.GetXenotypeComponents(custom),
+                    GeneValuationUtil.RawXenotypeFactor(custom),
+                    GeneValuationUtil.XenotypeFactor(custom));
+            }
+
+            LogUtil.MessageForce(sb.ToString());
+        }
+
+        private static void AppendXenotypeSection(StringBuilder sb, string label,
+            GeneValuationUtil.XenotypeProfile profile,
+            GeneValuationUtil.GeneValueComponents components,
+            float rawFactor, float finalFactor)
+        {
+            string flag = "";
+            if (Math.Abs(rawFactor - finalFactor) > 0.005f)
+                flag = rawFactor < finalFactor ? " [FLOORED]" : " [CAPPED]";
+
+            sb.AppendLine($"--- {label} (xenoFactor={finalFactor:F2}x; raw={rawFactor:F2}{flag}) ---");
+
+            sb.AppendLine(
+                $"  buckets: shoot={Signed(components.EffectShooting)} " +
+                $"melee={Signed(components.EffectMelee)} " +
+                $"shared={Signed(components.EffectShared)} " +
+                $"nonCombat={Signed(components.EffectNonCombat)} " +
+                $"(branch: {components.DescribeCombatBranch()}, combat={Signed(components.FlattenEffect())})");
+
+            sb.AppendLine(
+                $"  scalars: mvf={Signed(components.MvfBonus)} " +
+                $"met={Signed(components.MetBonus)} " +
+                $"arc={Signed(components.ArcBonus)} " +
+                $"pain={Signed(components.PainBonus)} " +
+                $"dmgR={Signed(components.DmgResistBonus)}");
+
+            sb.AppendLine($"  weighted: {Signed(components.ApplyWeights())}");
+
+            if (profile is null || IsProfileTrivial(profile))
+            {
+                sb.AppendLine("  (no aggregated stat effects)");
+                return;
+            }
+
+            AppendProfileBody(sb, profile, "  ");
+        }
+
+        /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+        /* Gene-valuation diagnostic formatting helpers               */
+        /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+
+        private static bool IsProfileTrivial(GeneValuationUtil.XenotypeProfile p)
+        {
+            if (p is null) return true;
+            if (p.StatOffsetSum.Count > 0) return false;
+            if (p.StatFactorProduct.Count > 0) return false;
+            if (p.CapOffsetSum.Count > 0) return false;
+            if (p.CapFactorProduct.Count > 0) return false;
+            if (p.AptitudeSum.Count > 0) return false;
+            if (p.DamageFactorProduct.Count > 0) return false;
+            if (Math.Abs(p.MvfProduct - 1f) > 0.0001f) return false;
+            if (Math.Abs(p.MetSum) > 0.0001f) return false;
+            if (Math.Abs(p.ArcSum) > 0.0001f) return false;
+            if (Math.Abs(p.PainFactorProduct - 1f) > 0.0001f) return false;
+            return true;
+        }
+
+        private static string FormatGeneRawContribution(GeneDef gene, GeneValuationUtil.XenotypeProfile p)
+        {
+            StringBuilder sb = new StringBuilder();
+            string scalarLine = FormatScalars(p);
+            sb.AppendLine(scalarLine is null
+                ? $"[{gene.defName}]"
+                : $"[{gene.defName}] {scalarLine}");
+            AppendProfileBody(sb, p, "  ");
+            return sb.ToString();
+        }
+
+        private static void AppendProfileBody(StringBuilder sb, GeneValuationUtil.XenotypeProfile p, string indent)
+        {
+            if (p.StatOffsetSum.Count > 0)
+            {
+                sb.Append(indent).Append("offsets: ");
+                bool first = true;
+                foreach (KeyValuePair<StatDef, float> kvp in p.StatOffsetSum.OrderBy(k => k.Key.defName))
+                {
+                    if (!first) sb.Append("  ");
+                    sb.Append(kvp.Key.defName).Append(":").Append(Signed(kvp.Value));
+                    first = false;
+                }
+                sb.AppendLine();
+            }
+            if (p.StatFactorProduct.Count > 0)
+            {
+                sb.Append(indent).Append("factors: ");
+                bool first = true;
+                foreach (KeyValuePair<StatDef, float> kvp in p.StatFactorProduct.OrderBy(k => k.Key.defName))
+                {
+                    if (!first) sb.Append("  ");
+                    sb.Append(kvp.Key.defName).Append(":x").Append(kvp.Value.ToString("F2"));
+                    first = false;
+                }
+                sb.AppendLine();
+            }
+            if (p.CapOffsetSum.Count > 0 || p.CapFactorProduct.Count > 0)
+            {
+                HashSet<PawnCapacityDef> seen = new HashSet<PawnCapacityDef>();
+                foreach (PawnCapacityDef k in p.CapOffsetSum.Keys) seen.Add(k);
+                foreach (PawnCapacityDef k in p.CapFactorProduct.Keys) seen.Add(k);
+                sb.Append(indent).Append("caps: ");
+                bool first = true;
+                foreach (PawnCapacityDef cap in seen.OrderBy(c => c.defName))
+                {
+                    float o; p.CapOffsetSum.TryGetValue(cap, out o);
+                    float f; if (!p.CapFactorProduct.TryGetValue(cap, out f)) f = 1f;
+                    if (!first) sb.Append("  ");
+                    sb.Append(cap.defName).Append(" o:").Append(Signed(o)).Append(" f:x").Append(f.ToString("F2"));
+                    first = false;
+                }
+                sb.AppendLine();
+            }
+            if (p.AptitudeSum.Count > 0)
+            {
+                sb.Append(indent).Append("apts: ");
+                bool first = true;
+                foreach (KeyValuePair<SkillDef, int> kvp in p.AptitudeSum.OrderBy(k => k.Key.defName))
+                {
+                    if (!first) sb.Append("  ");
+                    sb.Append(kvp.Key.defName).Append(":").Append(kvp.Value >= 0 ? "+" : "").Append(kvp.Value);
+                    first = false;
+                }
+                sb.AppendLine();
+            }
+            if (p.DamageFactorProduct.Count > 0)
+            {
+                sb.Append(indent).Append("dmgF: ");
+                bool first = true;
+                foreach (KeyValuePair<DamageDef, float> kvp in p.DamageFactorProduct.OrderBy(k => k.Key.defName))
+                {
+                    if (!first) sb.Append("  ");
+                    sb.Append(kvp.Key.defName).Append(":x").Append(kvp.Value.ToString("F2"));
+                    first = false;
+                }
+                sb.AppendLine();
+            }
+        }
+
+        private static string FormatScalars(GeneValuationUtil.XenotypeProfile p)
+        {
+            List<string> parts = new List<string>(4);
+            if (Math.Abs(p.MvfProduct - 1f) > 0.0001f) parts.Add($"mvf=x{p.MvfProduct:F2}");
+            if (Math.Abs(p.MetSum) > 0.0001f)         parts.Add($"met={p.MetSum:+0;-0;0}");
+            if (Math.Abs(p.ArcSum) > 0.0001f)         parts.Add($"arc={p.ArcSum:+0;-0;0}");
+            if (Math.Abs(p.PainFactorProduct - 1f) > 0.0001f) parts.Add($"pain=x{p.PainFactorProduct:F2}");
+            return parts.Count == 0 ? null : string.Join(" ", parts.ToArray());
+        }
+
+        private static string Signed(float v)
+        {
+            return v.ToString("+0.00;-0.00;0.00");
+        }
     }
 }

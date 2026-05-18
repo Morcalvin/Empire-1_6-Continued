@@ -585,6 +585,8 @@ namespace FactionColonies
 
             _checkedForNonViolentXenos = false;
             _cachedNonViolentXenosExist = false;
+
+            GeneValuationUtil.InvalidateCustomXenotypeCache();
         }
     }
 }
