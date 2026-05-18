@@ -34,8 +34,8 @@ namespace FactionColonies
         public override void Close(bool doCloseSound = true)
         {
             base.Close(doCloseSound);
-            settlement.Name = name;
-            settlement.ShortName = shortName;
+            settlement.SetName(name);
+            settlement.SetShortName(shortName);
         }
 
         public override void DoWindowContents(Rect inRect)

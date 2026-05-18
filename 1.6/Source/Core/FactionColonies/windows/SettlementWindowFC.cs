@@ -435,8 +435,7 @@ namespace FactionColonies
             string buttonText = res.tithesPaused ? "FCUnPauseTithes".Translate() : "FCPauseTithes".Translate();
             if (UIUtil.ButtonFlat(pauseBtn, buttonText, highlighted: res.tithesPaused))
             {
-                res.tithesPaused = !res.tithesPaused;
-                res.settlement.DirtyProfitCache();
+                res.SetTithesPaused(!res.tithesPaused);
             }
             TooltipHandler.TipRegion(pauseBtn, "FCPauseTithesDesc".Translate());
 
@@ -727,7 +726,9 @@ namespace FactionColonies
             Rect header = new Rect(boundingBox.x, boundingBox.y, boundingBox.width, rowHeight);
             Rect headerText = new Rect(header.x + margin, header.y, header.width - (margin * 2), header.height);
             Widgets.DrawHighlight(header);
-            Widgets.CheckboxLabeled(headerText, "FCRandomTithesEnabled".Translate(), ref res.hasRandomTithe, disabled: res.tithesPaused);
+            bool hasRandom = res.hasRandomTithe;
+            Widgets.CheckboxLabeled(headerText, "FCRandomTithesEnabled".Translate(), ref hasRandom, disabled: res.tithesPaused);
+            if (hasRandom != res.hasRandomTithe) res.SetHasRandomTithe(hasRandom);
             TooltipHandler.TipRegion(header, "FCRandomTithesDesc".Translate());
 
             Rect accruedBox = new Rect(boundingBox.x, header.yMax, boundingBox.width * 0.6f, rowHeight);
@@ -735,7 +736,9 @@ namespace FactionColonies
             Rect disburseBox = new Rect(accruedBox.xMax, header.yMax, boundingBox.width - accruedBox.width, rowHeight);
             Rect disbursedTextBox = new Rect(disburseBox.x + smallMargin, disburseBox.y, disburseBox.width - (smallMargin * 2), disburseBox.height);
             Widgets.Label(accruedTextBox, "FCRandomTitheAccrued".Translate(res.randomTitheStock));
-            Widgets.CheckboxLabeled(disbursedTextBox, "FCDisburseAccruedRandomTithe".Translate(), ref res.disburseTitheStock, disabled: res.tithesPaused);
+            bool disburse = res.disburseTitheStock;
+            Widgets.CheckboxLabeled(disbursedTextBox, "FCDisburseAccruedRandomTithe".Translate(), ref disburse, disabled: res.tithesPaused);
+            if (disburse != res.disburseTitheStock) res.SetDisburseTitheStock(disburse);
             TooltipHandler.TipRegion(accruedBox, "FCRandomTitheAccruedDesc".Translate());
             TooltipHandler.TipRegion(disburseBox, "FCDisburseAccruedRandomTitheDesc".Translate());
 
@@ -751,19 +754,17 @@ namespace FactionColonies
                 }
                 else
                 {
-                    Widgets.TextFieldNumericLabeled(budgetTextBox, "FCRandomTitheBudget".Translate() + ": ", ref res.storedRandomTitheBudget, ref res.storedRandomTitheBudgetBuffer, 0, (float)(res.GetTitheIncome() - res.titheTotalValueNoRandom));
-                    res.RefreshOnRandomTitheBudgetChange();
+                    int budget = res.storedRandomTitheBudget;
+                    string buffer = res.storedRandomTitheBudgetBuffer;
+                    Widgets.TextFieldNumericLabeled(budgetTextBox, "FCRandomTitheBudget".Translate() + ": ", ref budget, ref buffer, 0, (float)(res.GetTitheIncome() - res.titheTotalValueNoRandom));
+                    res.storedRandomTitheBudgetBuffer = buffer;
+                    if (budget != res.storedRandomTitheBudget) res.SetStoredRandomTitheBudget(budget);
                 }
                 Rect maxCheckBox = new Rect(budgetBox.xMax, budgetBox.y, checkboxWidth, budgetBox.height);
-                bool prevAutoMax = res.autoMaxRandomTithe;
-                Widgets.CheckboxLabeled(maxCheckBox, "FCAutoMaxRandomTithe".Translate(), ref res.autoMaxRandomTithe, disabled: res.tithesPaused);
+                bool autoMax = res.autoMaxRandomTithe;
+                Widgets.CheckboxLabeled(maxCheckBox, "FCAutoMaxRandomTithe".Translate(), ref autoMax, disabled: res.tithesPaused);
                 TooltipHandler.TipRegion(maxCheckBox, "FCAutoMaxRandomTitheDesc".Translate());
-                if (!res.autoMaxRandomTithe && prevAutoMax)
-                {
-                    res.storedRandomTitheBudget = Math.Max(0, (int)(res.GetTitheIncome() - res.titheTotalValueNoRandom));
-                    res.storedRandomTitheBudgetBuffer = res.storedRandomTitheBudget.ToString();
-                    res.settlement.DirtyProfitCache();
-                }
+                if (autoMax != res.autoMaxRandomTithe) res.SetAutoMaxRandomTithe(autoMax);
                 Rect selectBox = new Rect(boundingBox.x + budgetRowWidth, budgetBox.y, boundingBox.width * 0.4f - margin, budgetBox.height);
                 if (Widgets.ButtonText(selectBox, "FCItemSelection".Translate()))
                 {

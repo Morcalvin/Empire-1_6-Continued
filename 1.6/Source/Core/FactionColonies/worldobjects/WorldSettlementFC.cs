@@ -1154,6 +1154,22 @@ namespace FactionColonies
             dirtyDescriptionCache = true;
         }
 
+        /* Name mutators: prefer these over assigning Name / ShortName directly so the
+         * description cache stays in sync. */
+        public void SetName(string newName)
+        {
+            if (newName.NullOrEmpty() || newName == Name) return;
+            Name = newName;
+            DirtyDescriptionCache();
+        }
+
+        public void SetShortName(string newShortName)
+        {
+            if (newShortName == ShortName) return;
+            ShortName = newShortName;
+            DirtyDescriptionCache();
+        }
+
         /// <summary>
         /// Workforce composition changed (prisoner workload, worker reallocation). Equivalent
         /// to <see cref="DirtyStatsCache"/> — kept as a named entry point so call sites
