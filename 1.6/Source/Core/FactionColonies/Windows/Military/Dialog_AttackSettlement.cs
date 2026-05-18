@@ -347,7 +347,7 @@ namespace FactionColonies
                 return;
             }
             RelationsUtilFC.AttackFaction(enemy);
-            PaymentUtil.CreateDeploymentCostBill(selected);
+            FindFC.TaxLedger.CreateDeploymentCostBill(selected);
             manager.CreateOffensiveOp(selected, target, currentJob, enemy, travel);
             Close();
         }

@@ -136,7 +136,7 @@ namespace FactionColonies
                     return;
                 }
 
-                BillFC deploymentBill = PaymentUtil.CreateDeploymentCostBill(squad);
+                BillFC deploymentBill = FindFC.TaxLedger.CreateDeploymentCostBill(squad);
                 SpawnSquad(settlement, squad, dropPosition, DropPod, deploymentBill);
                 DebugTools.curTool = null;
             });

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FactionColonies.util;
 using RimWorld;
 using Verse;
@@ -82,7 +83,7 @@ namespace FactionColonies
             nextTaxDueTick = Find.TickManager.TicksGame + FCSettings.timeBetweenTaxes;
 
             if (autoResolve)
-                PaymentUtil.AutoresolveBills(bills);
+                AutoresolveBills();
 
             /* Rebuild caravan trader kinds to reflect current worker assignments. */
             faction.RebuildCaravanTraderKinds();
@@ -182,6 +183,194 @@ namespace FactionColonies
                  * next prisoner. */
                 if (!dead) i++;
             }
+        }
+
+        /*-*-*- Bill processing -*-*-*/
+
+        /// <summary>Rare-tick scan: resolves overdue bills, applies late-paid penalties
+        /// (with a batched letter) or unpaid penalties + message, and removes resolved bills.
+        /// Called from FactionFC.WorldComponentTick.</summary>
+        public void ProcessBills()
+        {
+            List<WorldSettlementFC> latePaidSettlements = new List<WorldSettlementFC>();
+            int currentTick = Find.TickManager.TicksGame;
+
+            for (int i = bills.Count - 1; i >= 0; i--)
+            {
+                BillFC bill = bills[i];
+                if (bill.dueTick >= currentTick) continue;
+
+                /* taxes is null on a default-constructed BillFC; a bill with no taxes owes nothing. */
+                bool owedMoney = bill.taxes is object && bill.taxes.silverAmount < 0;
+                WorldSettlementFC settlement = bill.settlement;
+
+                /* When the player has disabled late payments, owed-silver bills skip
+                 * the resolve attempt entirely and go straight to the unpaid penalty
+                 * path. Positive-silver bills (tax tributes the player would gain
+                 * from) always auto-resolve at expiry -- there's nothing to defer. */
+                bool skipAttempt = !allowLatePayments && owedMoney;
+
+                if (!skipAttempt && bill.AttemptResolve())
+                {
+                    if (owedMoney && settlement is object)
+                    {
+                        bill.ApplyLatePaidPenalties();
+                        latePaidSettlements.Add(settlement);
+                    }
+                }
+                else
+                {
+                    bill.ApplyUnpaidPenalties();
+                    RemoveBill(bill);
+                }
+            }
+
+            if (latePaidSettlements.Count > 0)
+            {
+                string settlementList = string.Join("\n", latePaidSettlements.Select(s => "  - " + s.Name));
+                Find.LetterStack.ReceiveLetter(
+                    "FCLateBillAutoPaidLabel".Translate(),
+                    "FCLateBillAutoPaidDesc".Translate(latePaidSettlements.Count, settlementList),
+                    LetterDefOf.NegativeEvent);
+            }
+        }
+
+        /// <summary>Net positive-silver bills against negative-silver bills, then resolve
+        /// any remainder. Called from <see cref="TaxTick"/> when <see cref="autoResolve"/>
+        /// is on, and from the manual auto-resolve toggle in MainTabWindow_Colony.</summary>
+        public void AutoresolveBills()
+        {
+            int resolvedBills = 0;
+            (List<BillFC> negativeBills, List<BillFC> positiveBills) = ReturnBillTypes();
+
+            int i = 0;
+            int maxOuterIterations = bills.Count * bills.Count + 1;
+            int outerIterations = 0;
+            while (i < negativeBills.Count)
+            {
+                if (++outerIterations > maxOuterIterations)
+                {
+                    LogUtil.Error($"AutoresolveBills: exceeded {maxOuterIterations} outer iterations. Bailing out to prevent freeze.");
+                    break;
+                }
+                BillFC negativeBill = negativeBills[i];
+                bool matched = false;
+                int j = 0;
+                int maxInnerIterations = bills.Count * 2 + 1;
+                int innerIterations = 0;
+                while (j < positiveBills.Count)
+                {
+                    if (++innerIterations > maxInnerIterations)
+                    {
+                        LogUtil.Error("AutoresolveBills: exceeded max inner iterations. Bailing out to prevent freeze.");
+                        break;
+                    }
+                    BillFC positiveBill = positiveBills[j];
+                    float result = positiveBill.taxes.silverAmount + negativeBill.taxes.silverAmount;
+                    if (result == 0)
+                    {
+                        /* Bills cancel each other out — resolve both, restart outer */
+                        positiveBill.taxes.silverAmount = 0;
+                        negativeBill.taxes.silverAmount = 0;
+                        positiveBill.Resolve();
+                        negativeBill.Resolve();
+                        resolvedBills += 2;
+                        (negativeBills, positiveBills) = ReturnBillTypes();
+                        i = 0;
+                        matched = true;
+                        break;
+                    }
+                    else if (result > 0)
+                    {
+                        /* Positive bill covers the negative — resolve negative, restart outer */
+                        positiveBill.taxes.silverAmount = result;
+                        negativeBill.taxes.silverAmount = 0;
+                        negativeBill.Resolve();
+                        resolvedBills++;
+                        (negativeBills, positiveBills) = ReturnBillTypes();
+                        i = 0;
+                        matched = true;
+                        break;
+                    }
+                    else /* result < 0 */
+                    {
+                        /* Negative exceeds positive — resolve positive, continue inner */
+                        positiveBill.taxes.silverAmount = 0;
+                        negativeBill.taxes.silverAmount = result;
+                        positiveBill.Resolve();
+                        resolvedBills++;
+                        (negativeBills, positiveBills) = ReturnBillTypes();
+                        j = 0;
+                        continue;
+                    }
+                }
+
+                if (!matched)
+                {
+                    if (negativeBill.AttemptResolve())
+                    {
+                        (negativeBills, positiveBills) = ReturnBillTypes();
+                        resolvedBills++;
+                    }
+                    else
+                    {
+                        i++;  /* Only skip bills that genuinely can't be resolved */
+                    }
+                }
+            }
+
+            /* Resolve remaining positive bills */
+            foreach (BillFC positiveBill in new List<BillFC>(positiveBills))
+            {
+                positiveBill.Resolve();
+                resolvedBills++;
+            }
+
+            Messages.Message("FCNumberTaxesHasBeenSolved".Translate(resolvedBills), MessageTypeDefOf.NeutralEvent);
+        }
+
+        private (List<BillFC>, List<BillFC>) ReturnBillTypes()
+        {
+            List<BillFC> positive = new List<BillFC>();
+            List<BillFC> negative = new List<BillFC>();
+            foreach (BillFC b in bills)
+            {
+                if (b.taxes.silverAmount >= 0) positive.Add(b);
+                else negative.Add(b);
+            }
+            return (negative, positive);
+        }
+
+        /*-*-*- Bill factories -*-*-*/
+
+        /// <summary>Creates a deployment-cost bill against the squad's home settlement
+        /// and adds it to this ledger. No-op when cost is zero (slider at 0%), godMode is
+        /// on, or the squad has no home settlement.</summary>
+        public BillFC CreateDeploymentCostBill(MercenarySquadFC squad)
+        {
+            if (squad is null) return null;
+            int cost = squad.DeploymentCost();
+            if (cost <= 0 || DebugSettings.godMode) return null;
+
+            WorldSettlementFC home = squad.settlement;
+            if (home is null)
+            {
+                LogUtil.Warning($"TaxLedger.CreateDeploymentCostBill: squad {squad.GetUniqueLoadID()} has no home settlement; skipping bill.");
+                return null;
+            }
+
+            int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
+            BillFC bill = new BillFC(home, lifespanTicks);
+            bill.label = "FCBillKindSquadDeployment".Translate();
+            bill.taxes.silverAmount = -cost;
+            /* silverAmount must be set BEFORE the Scaled helpers — they read it for
+             * the linear scaling computation. */
+            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Unrest, 10);
+            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Happiness, 10);
+            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Unrest, 4);
+            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Happiness, 4);
+            AddBill(bill);
+            return bill;
         }
 
         public void ExposeData()

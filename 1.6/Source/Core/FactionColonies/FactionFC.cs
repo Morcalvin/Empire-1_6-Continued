@@ -741,7 +741,7 @@ namespace FactionColonies
             if (ticksGame % 250 == 0)
             {
                 FCEventMaker.ProcessEvents();
-                BillUtility.ProcessBills();
+                taxLedger.ProcessBills();
                 if (pendingEdictActivations.Count > 0)
                     CheckEdictActivations();
                 if (faction is object)

@@ -972,7 +972,7 @@ namespace FactionColonies
             if (faction.taxLedger.autoResolve && !prevAutoResolve)
             {
                 Messages.Message("FCBillsAutoResolving".Translate(), MessageTypeDefOf.NeutralEvent);
-                PaymentUtil.AutoresolveBills(faction.taxLedger.bills);
+                faction.taxLedger.AutoresolveBills();
             }
             else if (!faction.taxLedger.autoResolve && prevAutoResolve)
             {
