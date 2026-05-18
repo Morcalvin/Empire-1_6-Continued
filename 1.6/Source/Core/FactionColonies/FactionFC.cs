@@ -30,7 +30,6 @@ namespace FactionColonies
 
         /* Capital & Maps */
         public PlanetTile capitalLocation = PlanetTile.Invalid;
-        public string capitalPlanet;
         private Map taxMap;
 
         public Map TaxMap
@@ -299,7 +298,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref foundingTick, "foundingTick", defaultValue: 0);
             Scribe_Values.Look(ref startingLongLat, "foundingLongLat");
             Scribe_Values.Look(ref capitalLocation, "capitalLocation");
-            Scribe_Values.Look(ref capitalPlanet, "capitalPlanet");
             Scribe_References.Look(ref taxMap, "taxMap");
             Scribe_Values.Look(ref factionCreated, "factionCreated");
 
