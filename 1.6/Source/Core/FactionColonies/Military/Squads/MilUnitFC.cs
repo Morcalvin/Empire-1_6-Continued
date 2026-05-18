@@ -43,7 +43,7 @@ namespace FactionColonies
 
         public MilUnitFC(bool blank)
         {
-            loadID = FindFC.FactionComp.NextUnitID;
+            loadID = FindFC.Military.NextUnitId();
             isBlank = blank;
             equipmentTotalCost = 0;
 

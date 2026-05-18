@@ -22,10 +22,10 @@ Your submod can use any namespace. Reference `FactionColonies` types directly.
 
 | Accessor | Returns | Purpose |
 |----------|---------|---------|
-| `FactionCache.FactionComp` | `FactionFC` | The singleton WorldComponent holding all faction state (settlements, policies, events, resources, military). |
-| `FactionCache.PlayerColonyFaction` | `Faction` | The NPC faction object that represents the player's empire on the world map. |
+| `FindFC.FactionComp` | `FactionFC` | The singleton WorldComponent holding all faction state (settlements, policies, events, resources, military). |
+| `FindFC.EmpireFaction` | `Faction` | The NPC faction object that represents the player's empire on the world map. |
 
-Both are lazily cached and automatically invalidated on game load/dispose.
+`FindFC` is the `Verse.Find`-style accessor class for Empire — see `FindFC.cs` for the full set of accessors (`Military`, `EventManager`, `TaxLedger`, `RoadBuilder`, `TechLevel`, `FactionLevel`, etc.). All references are lazily cached and automatically invalidated on game load/dispose. The older `FactionCache` class is now narrowed to computed caches only.
 
 ---
 

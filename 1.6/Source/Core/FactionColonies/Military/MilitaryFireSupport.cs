@@ -56,7 +56,7 @@ namespace FactionColonies
 
         public void SetLoadID()
         {
-            loadID = FindFC.FactionComp.GetNextMilitaryFireSupportID();
+            loadID = FindFC.Military.NextMilitaryFireSupportId();
         }
 
         public static float CalculateAccuracyCostPercentage(float accuracy)

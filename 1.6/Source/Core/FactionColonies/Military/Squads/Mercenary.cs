@@ -71,7 +71,7 @@ namespace FactionColonies
 
         public Mercenary(bool blank)
         {
-            loadID = FindFC.FactionComp.GetNextMercenaryID();
+            loadID = FindFC.Military.NextMercenaryId();
         }
 
         public void ExposeData()

@@ -224,7 +224,7 @@ namespace FactionColonies
             LogUtil.Message($"InitiateSquad mercenary count : {mercenaries.Count()}");
             if (loadID == -1)
             {
-                loadID = FindFC.FactionComp.GetNextMercenarySquadID();
+                loadID = FindFC.Military.NextMercenarySquadId();
             }
 
             if (outfit != null)

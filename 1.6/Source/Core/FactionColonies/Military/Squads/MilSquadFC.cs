@@ -61,7 +61,7 @@ namespace FactionColonies
 
         public void SetLoadID()
         {
-            loadID = FindFC.FactionComp.NextSquadID;
+            loadID = FindFC.Military.NextSquadId();
         }
 
         private bool costDirty = true;

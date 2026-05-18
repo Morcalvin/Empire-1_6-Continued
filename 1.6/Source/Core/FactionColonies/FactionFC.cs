@@ -227,15 +227,10 @@ namespace FactionColonies
         public float factionXPGoal = 100;
 
         /* ID Counters */
-        private int nextUnitId;
-        private int nextSquadId;
-        public int NextUnitID => ++nextUnitId;
-        public int NextSquadID => ++nextSquadId;
-        public int nextSettlementFCID = 1;
-        public int nextMercenarySquadID = 1;
-        public int nextMercenaryID = 1;
+        // Unit/squad/mercenary/mercenarySquad/fireSupport ID counters now live on
+        // MilitaryFC (next to the collections they index). Legacy save migration
+        // shim in ExposeData seeds them from old scribe keys on first load.
         public int nextPrisonerID = 1;
-        public int nextMilitaryFireSupportID = 1;
 
         /* Filters & Misc */
         public XenotypeFilter xenotypeFilter;
@@ -346,9 +341,6 @@ namespace FactionColonies
             Scribe_Deep.Look(ref xenotypeFilter, "xenotypeFilter");
             Scribe_Deep.Look(ref animalFilter, "animalFilter");
 
-            //Update
-            Scribe_Values.Look(ref nextSettlementFCID, "nextSettlementFCID");
-
             //Military Data
             // Empire Refactored v1.5 renamed MilitaryCustomizationUtil to MilitaryFC. This block of code
             // handles migrating save data from a pre-1.5 save.
@@ -365,12 +357,32 @@ namespace FactionColonies
             }
 
             //Load ID tracking
-            Scribe_Values.Look(ref nextMilitaryFireSupportID, "nextMilitaryFireSupportID", 1);
-            Scribe_Values.Look(ref nextUnitId, "nextUnitID", 1);
-            Scribe_Values.Look(ref nextSquadId, "nextSquadID", 1);
-            Scribe_Values.Look(ref nextMercenaryID, "nextMercenaryID", 1);
-            Scribe_Values.Look(ref nextMercenarySquadID, "nextMercenarySquadID", 1);
             Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
+
+            /* Legacy ID scribe keys. Only populated when loading a pre-extraction save.
+             * Migration shim below seeds MilitaryFC. */
+            int legacyNextUnitId = -1;
+            int legacyNextSquadId = -1;
+            int legacyNextMercId = -1;
+            int legacyNextMercSquadId = -1;
+            int legacyNextFireSupportId = -1;
+            Scribe_Values.Look(ref legacyNextUnitId,        "nextUnitID", -1);
+            Scribe_Values.Look(ref legacyNextSquadId,       "nextSquadID", -1);
+            Scribe_Values.Look(ref legacyNextMercId,        "nextMercenaryID", -1);
+            Scribe_Values.Look(ref legacyNextMercSquadId,   "nextMercenarySquadID", -1);
+            Scribe_Values.Look(ref legacyNextFireSupportId, "nextMilitaryFireSupportID", -1);
+
+            if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs
+                && (legacyNextUnitId != -1 || legacyNextSquadId != -1
+                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
+                    || legacyNextFireSupportId != -1))
+            {
+                military.SeedNextIds(
+                    legacyNextUnitId, legacyNextSquadId,
+                    legacyNextMercId, legacyNextMercSquadId,
+                    legacyNextFireSupportId);
+                LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
+            }
 
             /* Tax/billing — nested element. Legacy flat keys below are migrated on first load. */
             Scribe_Deep.Look(ref taxLedger, "taxLedger");
@@ -1982,30 +1994,6 @@ namespace FactionColonies
         #endregion
 
         #region ID Generation
-
-        public int GetNextSettlementFCID()
-        {
-            nextSettlementFCID++;
-            return nextSettlementFCID;
-        }
-
-        public int GetNextMercenaryID()
-        {
-            nextMercenaryID++;
-            return nextMercenaryID;
-        }
-
-        public int GetNextMilitaryFireSupportID()
-        {
-            nextMilitaryFireSupportID++;
-            return nextMilitaryFireSupportID;
-        }
-
-        public int GetNextMercenarySquadID()
-        {
-            nextMercenarySquadID++;
-            return nextMercenarySquadID;
-        }
 
         public int GetNextPrisonerID()
         {

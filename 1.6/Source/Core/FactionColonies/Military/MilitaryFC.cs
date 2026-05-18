@@ -20,6 +20,33 @@ namespace FactionColonies
 
         private HashSet<Pawn> mercenaryPawnSet = new HashSet<Pawn>();
 
+        /* ID Counters */
+        private int nextUnitId = 1;
+        private int nextSquadId = 1;
+        private int nextMercenaryId = 1;
+        private int nextMercenarySquadId = 1;
+        private int nextMilitaryFireSupportId = 1;
+
+        public int NextUnitId() => ++nextUnitId;
+        public int NextSquadId() => ++nextSquadId;
+        public int NextMercenaryId() => ++nextMercenaryId;
+        public int NextMercenarySquadId() => ++nextMercenarySquadId;
+        public int NextMilitaryFireSupportId() => ++nextMilitaryFireSupportId;
+
+        /// <summary>
+        /// One-shot seeding from legacy FactionFC scribe keys. Called from
+        /// FactionFC.ExposeData during ResolvingCrossRefs when loading a
+        /// pre-extraction save. Each counter only advances; never rewinds.
+        /// </summary>
+        public void SeedNextIds(int unitId, int squadId, int mercId, int mercSquadId, int fireSupportId)
+        {
+            if (unitId        > nextUnitId)                nextUnitId = unitId;
+            if (squadId       > nextSquadId)               nextSquadId = squadId;
+            if (mercId        > nextMercenaryId)           nextMercenaryId = mercId;
+            if (mercSquadId   > nextMercenarySquadId)      nextMercenarySquadId = mercSquadId;
+            if (fireSupportId > nextMilitaryFireSupportId) nextMilitaryFireSupportId = fireSupportId;
+        }
+
         public bool IsMercenaryPawn(Pawn pawn) => mercenaryPawnSet.Contains(pawn);
 
         public void RebuildMercenaryPawnSet()
@@ -685,6 +712,12 @@ namespace FactionColonies
             Scribe_Collections.Look(ref deadPawns, "deadPawns", LookMode.Deep);
 
             Scribe_Deep.Look(ref blankUnit, "blankUnit");
+
+            Scribe_Values.Look(ref nextUnitId, "nextUnitId", 1);
+            Scribe_Values.Look(ref nextSquadId, "nextSquadId", 1);
+            Scribe_Values.Look(ref nextMercenaryId, "nextMercenaryId", 1);
+            Scribe_Values.Look(ref nextMercenarySquadId, "nextMercenarySquadId", 1);
+            Scribe_Values.Look(ref nextMilitaryFireSupportId, "nextMilitaryFireSupportId", 1);
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
