@@ -17,6 +17,28 @@ namespace FactionColonies
     public class FCEventHandlerExtension : DefModExtension
     {
         /// <summary>
+        /// Called once after the event is enqueued in <see cref="FCEventManager.AddEvent"/>.
+        /// Default impl: applies <c>def.statModifiers</c> + <c>def.permanentStatModifiers</c>
+        /// to <c>settlementTraitLocations</c> (or all settlements if untargeted) via
+        /// <c>EventStatModifierApplier.Apply</c>.
+        /// </summary>
+        public virtual void OnEventQueued(FCEvent evt, FactionFC faction)
+        {
+            EventStatModifierApplier.Apply(evt, faction);
+        }
+
+        /// <summary>
+        /// Called once when the event leaves the queue (transitioning to Completed) inside
+        /// <see cref="FCEventManager.Remove"/> / <c>RemoveWhere</c>. Default impl: removes
+        /// the stat modifiers added in <see cref="OnEventQueued"/> and subtracts
+        /// <c>def.prosperityLost</c>. Permanent modifiers are intentionally NOT removed.
+        /// </summary>
+        public virtual void OnEventExpired(FCEvent evt, FactionFC faction)
+        {
+            EventStatModifierApplier.Remove(evt, faction);
+        }
+
+        /// <summary>
         /// Called to resolve a custom event. Return true if handled (skips built-in resolution).
         /// Generic post-processing (loot, stat cleanup, cascading events, OnEventTriggered)
         /// still runs afterward regardless of return value.

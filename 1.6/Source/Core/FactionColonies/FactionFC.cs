@@ -39,7 +39,7 @@ namespace FactionColonies
             {
                 if (taxMap is object) return taxMap;
 
-                FactionFC comp = FactionCache.FactionComp;
+                FactionFC comp = FindFC.FactionComp;
                 Map map = null;
                 if (comp is object)
                 {
@@ -81,7 +81,6 @@ namespace FactionColonies
         public List<WorldSettlementFC> settlements = new List<WorldSettlementFC>();
 
         /* Timing & Scheduling */
-        public int taxTimeDue = Find.TickManager.TicksGame;
         public int timeStart = Find.TickManager.TicksGame;
         public int uiTimeUpdate;
         public int militaryTimeDue;
@@ -196,10 +195,9 @@ namespace FactionColonies
         public MilitaryOperationManager militaryOperationManager = new MilitaryOperationManager();
 
         public float randomEventLastAdded = 0f;
-        public List<BillFC> Bills = new List<BillFC>();
-        public List<BillFC> OldBills = new List<BillFC>();
-        public bool autoResolveBills;
-        public bool allowLatePayments = true;
+
+        /* Tax / billing: bills list, due timer, autoresolve toggle, ID counters */
+        public TaxLedger taxLedger = new TaxLedger();
 
         /* Resources */
         public List<ResourcePool> resourcePools = new List<ResourcePool>();
@@ -229,18 +227,10 @@ namespace FactionColonies
         public float factionXPGoal = 100;
 
         /* ID Counters */
-        private int nextUnitId;
-        private int nextSquadId;
-        public int NextUnitID => ++nextUnitId;
-        public int NextSquadID => ++nextSquadId;
-        public int nextSettlementFCID = 1;
-        public int nextMercenarySquadID = 1;
-        public int nextMercenaryID = 1;
-        public int nextTaxID = 1;
-        public int nextBillID = 1;
-        public int nextEventID = 1;
+        // Unit/squad/mercenary/mercenarySquad/fireSupport ID counters now live on
+        // MilitaryFC (next to the collections they index). Legacy save migration
+        // shim in ExposeData seeds them from old scribe keys on first load.
         public int nextPrisonerID = 1;
-        public int nextMilitaryFireSupportID = 1;
 
         /* Filters & Misc */
         public XenotypeFilter xenotypeFilter;
@@ -301,7 +291,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref _upkeep, "upkeep");
             Scribe_Values.Look(ref _profit, "profit");
 
-            Scribe_Values.Look(ref taxTimeDue, "taxTimeDue");
+            // taxTimeDue moved to TaxLedger; legacy key is migrated below.
             Scribe_Values.Look(ref timeStart, "timeStart", -1);
             Scribe_Values.Look(ref uiTimeUpdate, "uiTimeUpdate");
             Scribe_Values.Look(ref militaryTimeDue, "militaryTimeDue", -1);
@@ -351,9 +341,6 @@ namespace FactionColonies
             Scribe_Deep.Look(ref xenotypeFilter, "xenotypeFilter");
             Scribe_Deep.Look(ref animalFilter, "animalFilter");
 
-            //Update
-            Scribe_Values.Look(ref nextSettlementFCID, "nextSettlementFCID");
-
             //Military Data
             // Empire Refactored v1.5 renamed MilitaryCustomizationUtil to MilitaryFC. This block of code
             // handles migrating save data from a pre-1.5 save.
@@ -370,23 +357,75 @@ namespace FactionColonies
             }
 
             //Load ID tracking
-            Scribe_Values.Look(ref nextMilitaryFireSupportID, "nextMilitaryFireSupportID", 1);
-            Scribe_Values.Look(ref nextUnitId, "nextUnitID", 1);
-            Scribe_Values.Look(ref nextSquadId, "nextSquadID", 1);
-            Scribe_Values.Look(ref nextMercenaryID, "nextMercenaryID", 1);
-            Scribe_Values.Look(ref nextMercenarySquadID, "nextMercenarySquadID", 1);
             Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
 
-            //New Tax Stuff
-            Scribe_Values.Look(ref nextTaxID, "nextTaxID", 1);
-            Scribe_Values.Look(ref nextBillID, "nextBillID", 1);
-            Scribe_Values.Look(ref nextEventID, "nextEventID", 1);
+            /* Legacy ID scribe keys. Only populated when loading a pre-extraction save.
+             * Migration shim below seeds MilitaryFC. */
+            int legacyNextUnitId = -1;
+            int legacyNextSquadId = -1;
+            int legacyNextMercId = -1;
+            int legacyNextMercSquadId = -1;
+            int legacyNextFireSupportId = -1;
+            Scribe_Values.Look(ref legacyNextUnitId,        "nextUnitID", -1);
+            Scribe_Values.Look(ref legacyNextSquadId,       "nextSquadID", -1);
+            Scribe_Values.Look(ref legacyNextMercId,        "nextMercenaryID", -1);
+            Scribe_Values.Look(ref legacyNextMercSquadId,   "nextMercenarySquadID", -1);
+            Scribe_Values.Look(ref legacyNextFireSupportId, "nextMilitaryFireSupportID", -1);
 
+            if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs
+                && (legacyNextUnitId != -1 || legacyNextSquadId != -1
+                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
+                    || legacyNextFireSupportId != -1))
+            {
+                military.SeedNextIds(
+                    legacyNextUnitId, legacyNextSquadId,
+                    legacyNextMercId, legacyNextMercSquadId,
+                    legacyNextFireSupportId);
+                LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
+            }
 
-            Scribe_Collections.Look(ref Bills, "Bills", LookMode.Deep);
-            Scribe_Collections.Look(ref OldBills, "OldBills", LookMode.Deep);
-            Scribe_Values.Look(ref autoResolveBills, "autoResolveBills");
-            Scribe_Values.Look(ref allowLatePayments, "allowLatePayments", true);
+            /* Tax/billing — nested element. Legacy flat keys below are migrated on first load. */
+            Scribe_Deep.Look(ref taxLedger, "taxLedger");
+            if (taxLedger is null) taxLedger = new TaxLedger();
+
+            /* Legacy tax/billing scribe keys. Only populated when loading a pre-extraction
+             * save. New saves write nothing.
+             * The migration shim in ResolvingCrossRefs below moves them into the ledger. */
+            List<BillFC> legacyBills = null;
+            List<BillFC> legacyOldBills = null;
+            bool legacyAutoResolve = false;
+            bool legacyAllowLate = true;
+            int legacyTaxTimeDue = -1;
+            int legacyNextTaxId = -1;
+            int legacyNextBillId = -1;
+            int legacyNextEventId = -1;
+            Scribe_Values.Look(ref legacyNextTaxId, "nextTaxID", -1);
+            Scribe_Values.Look(ref legacyNextBillId, "nextBillID", -1);
+            Scribe_Values.Look(ref legacyNextEventId, "nextEventID", -1);
+            Scribe_Collections.Look(ref legacyBills, "Bills", LookMode.Deep);
+            Scribe_Collections.Look(ref legacyOldBills, "OldBills", LookMode.Deep);
+            Scribe_Values.Look(ref legacyAutoResolve, "autoResolveBills");
+            Scribe_Values.Look(ref legacyAllowLate, "allowLatePayments", true);
+            Scribe_Values.Look(ref legacyTaxTimeDue, "taxTimeDue", -1);
+
+            if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs)
+            {
+                if (taxLedger.IsEmpty
+                    && (legacyBills != null || legacyOldBills != null
+                        || legacyTaxTimeDue != -1 || legacyAutoResolve
+                        || legacyNextTaxId != -1 || legacyNextBillId != -1))
+                {
+                    taxLedger.SeedFromLegacy(
+                        legacyBills, legacyOldBills,
+                        legacyAutoResolve, legacyAllowLate,
+                        legacyTaxTimeDue, legacyNextTaxId, legacyNextBillId);
+                    LogUtil.MessageForce("FactionFC: migrated legacy tax fields into TaxLedger.");
+                }
+                if (legacyNextEventId != -1)
+                {
+                    eventManager.SeedNextEventId(legacyNextEventId);
+                }
+            }
 
             //Road builder
             Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
@@ -489,7 +528,7 @@ namespace FactionColonies
         private void ApplySavedTechLevelToFactionDef()
         {
             if (_techLevel <= TechLevel.Undefined) return;
-            Faction playerColonyfaction = FactionCache.PlayerColonyFaction;
+            Faction playerColonyfaction = FindFC.EmpireFaction;
             if (playerColonyfaction != null && playerColonyfaction.def.techLevel < _techLevel)
             {
                 UpdateFactionDef(_techLevel, ref playerColonyfaction);
@@ -681,7 +720,7 @@ namespace FactionColonies
         public override void WorldComponentTick()
         {
             base.WorldComponentTick();
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
             if (firstTick)
             {
                 FirstTick(faction);
@@ -702,7 +741,7 @@ namespace FactionColonies
             if (ticksGame % 250 == 0)
             {
                 FCEventMaker.ProcessEvents();
-                BillUtility.ProcessBills();
+                taxLedger.ProcessBills();
                 if (pendingEdictActivations.Count > 0)
                     CheckEdictActivations();
                 if (faction is object)
@@ -730,23 +769,9 @@ namespace FactionColonies
             }
 
             // These checks have variable tick times, so they're in charge of their own tick guards
-            TaxTick(faction);
+            taxLedger.TaxTick(this, faction);
             MilitaryTick(faction);
             threatAdaptation.Tick();
-        }
-        public void TaxTick(Faction faction)
-        {
-            if (faction is null || Find.TickManager.TicksGame < taxTimeDue)
-                return;
-
-            AddTax();
-            taxTimeDue = Find.TickManager.TicksGame + FCSettings.timeBetweenTaxes;
-
-            if (autoResolveBills)
-                PaymentUtil.AutoresolveBills(Bills);
-
-            // Rebuild caravan trader kinds to reflect current worker assignments
-            RebuildCaravanTraderKinds();
         }
 
         public void StatTick()
@@ -797,7 +822,7 @@ namespace FactionColonies
                                     t => (float)GetMilitaryTargetWeight(t.MilitaryLevel));
                                 float totalWeight = settlementTotalWeight + externalTotalWeight;
 
-                                EnemyPower attackerEntry = FactionCache.EnemyPower?.GetOrCompute(enemy);
+                                EnemyPower attackerEntry = FindFC.EnemyPower?.GetOrCompute(enemy);
                                 MilitaryForce attackingForce = attackerEntry?.SampleBattleForce(enemy, handicap: true);
                                 if (attackingForce is null)
                                 {
@@ -869,6 +894,25 @@ namespace FactionColonies
 
         #region Lazy Caches
 
+        /* Faction-level cache cascade. Settlement-level cascade is documented in
+         * WorldSettlementFC's "Lazy Cache Invalidation" region.
+         *
+         *   RebuildBehaviorCache              --> InvalidateFactionStatCache
+         *
+         *   InvalidateFactionStatCache        --> clear cachedFactionStatValues
+         *                                     --> foreach settlement: InvalidateDescCache
+         *                                                          + InvalidateResourceCaches
+         *
+         *   InvalidateAllSettlementStatCaches --> foreach settlement: InvalidateStatCache
+         *                                        (full per-settlement cascade, heavier than
+         *                                        InvalidateFactionStatCache)
+         *
+         *   DirtyFactionProfitCache           --> flag only
+         *   DirtyAveragesCache                --> flag only (set by happiness/loyalty/
+         *                                        unrest/prosperity setters)
+         *   DirtyTechLevelCache               --> flag only
+         */
+
         public void DirtyFactionProfitCache()
         {
             dirtyFactionProfitCache = true;
@@ -938,7 +982,7 @@ namespace FactionColonies
             TechLevel curTechLevel = _techLevel;
             bool medievalOnly = FCSettings.medievalTechOnly;
             TechLevel newLevel;
-            TechLevel playerTech = FactionCache.PlayerFaction?.def?.techLevel ?? TechLevel.Neolithic;
+            TechLevel playerTech = FindFC.PlayerFaction?.def?.techLevel ?? TechLevel.Neolithic;
 
             if (FCSettings.mirrorPlayerTechLevel)
             {
@@ -988,7 +1032,7 @@ namespace FactionColonies
                 DirtyAllTitheCaches();
             }
 
-            Faction playerColonyfaction = FactionCache.PlayerColonyFaction;
+            Faction playerColonyfaction = FindFC.EmpireFaction;
             bool techLevelChanged = playerColonyfaction?.def.techLevel < _techLevel;
             if (techLevelChanged)
             {
@@ -1776,104 +1820,9 @@ namespace FactionColonies
 
         #region Tax & Billing
 
-        public void AddTax()
-        {
-            LogUtil.Message($"AddTax at tick {Find.TickManager.TicksGame}: settlements={settlements.Count}, timeBetweenTaxes={FCSettings.timeBetweenTaxes}");
-            TaxTickRegistry.InvokePreTaxResolution(this);
-            foreach (ResourcePool pool in resourcePools)
-            {
-                if (pool.resource.PoolResourceResetsAtTaxTime())
-                {
-                    pool.pool = 0;
-                }
-            }
-
-            if (settlements.Count != 0)
-            {
-                foreach (WorldSettlementFC settlement in settlements)
-                {
-                    AddExperienceToFactionLevel(2f);
-
-                    List<Thing> list = new List<Thing>();
-                    list = settlement.CreateTax(out int silverAmount);
-                    List<ResourcePool> resourcePools = settlement.CreateResourcePools();
-
-                    BillFC bill = new BillFC(settlement);
-                    bill.label = "FCBillKindTax".Translate();
-                    bill.taxes.resourcePools = resourcePools;
-                    bill.taxes.itemTithes.AddRange(list);
-                    bill.taxes.silverAmount = silverAmount;
-                    bill.AddUnpaidPenalty(BillPenaltyStat.Unrest, 10);
-                    bill.AddUnpaidPenalty(BillPenaltyStat.Happiness, 10);
-                    bill.AddLatePaidPenalty(BillPenaltyStat.Unrest, 4);
-                    bill.AddLatePaidPenalty(BillPenaltyStat.Happiness, 4);
-
-                    Bills.Add(bill);
-
-                    TextUtil.GetTownTitle(settlement);
-                    TaxTickPrisoner(settlement);
-                    ForEachBehavior(b => b.OnTaxCollected(this, settlement));
-                }
-
-                Find.LetterStack.ReceiveLetter("FCTaxesBilledShort".Translate(), "FCTaxesBilledDesc".Translate(),
-                    LetterDefOf.PositiveEvent);
-                DirtyFactionProfitCache();
-            }
-            else
-            {
-                Messages.Message("FCNoSettlementsToTax".Translate(), MessageTypeDefOf.NeutralEvent);
-            }
-
-            // Deduct edict upkeep
-            int edictUpkeep = GetEdictUpkeep();
-            if (edictUpkeep > 0)
-            {
-                if (PaymentUtil.GetSilver() >= edictUpkeep)
-                {
-                    PaymentUtil.PaySilver(edictUpkeep, "EdictUpkeep");
-                }
-                else
-                {
-                    RevokeAllEdicts();
-                    Messages.Message("FCEdictUpkeepUnpaid".Translate(), MessageTypeDefOf.NegativeEvent);
-                }
-            }
-
-            TaxTickRegistry.InvokePostTaxResolution(this);
-        }
-
-        public void TaxTickPrisoner(WorldSettlementFC settlement)
-        {
-            int i = 0;
-            while (i < settlement.prisonerList.Count)
-            {
-                FCPrisoner prisoner = settlement.prisonerList[i];
-                bool dead = false;
-
-                switch (prisoner.workload)
-                {
-                    case FCWorkLoad.Heavy:
-                        if (prisoner.AdjustHealth(-20))
-                            dead = true;
-                        break;
-                    case FCWorkLoad.Medium:
-                        if (prisoner.AdjustHealth(-10))
-                            dead = true;
-                        break;
-                    case FCWorkLoad.Light:
-                        if (prisoner.AdjustHealth(4))
-                            dead = true;
-                        break;
-                }
-
-                /* Only increment if the prisoner hasn't died.
-                 * If they *did* die, then AdjustHealth() will have removed them from the list already. So if we increment, then we'll actually skip the next prisoner. */
-                if (!dead) i++;
-            }
-        }
-
-        // resetTraitMercantileCaravanTime removed — mercantile caravan scheduling
-        // is now handled by FCPolicyBehavior_Mercantile.Tick/OnEnacted.
+        // AddTax + TaxTickPrisoner moved to TaxLedger. WorldComponentTick now calls
+        // taxLedger.TaxTick(this, faction) directly. Aggregate income/upkeep/profit
+        // accessors remain here because they read from per-settlement caches.
 
         public double GetTotalIncome() => income;
         public double GetTotalUpkeep() => upkeep;
@@ -1883,52 +1832,9 @@ namespace FactionColonies
 
         #region Events
 
-        public void AddEvent(FCEvent fcevent)
-        {
-            if (fcevent == null) return;
-
-            if (fcevent.goods != null && fcevent.goods.Count > 0)
-            {
-                fcevent.goods = FCEvent.ConsolidateGoods(fcevent.goods);
-            }
-
-            // Tax delivery interception: let registered interceptors redirect taxColony events
-            if (fcevent.def == FCEventDefOf.taxColony && fcevent.source != PlanetTile.Invalid)
-            {
-                WorldSettlementFC sourceSettlement = ReturnSettlementByLocation(fcevent.source);
-                TaxDeliveryRegistry.InvokeOnTaxEventCreated(new TaxDeliveryContext(fcevent, sourceSettlement));
-            }
-
-            //Add event to the manager queue
-            eventManager.Enqueue(fcevent);
-
-            LogUtil.Message($"AddEvent: adding new fcevent {fcevent.def.defName}");
-
-            string sourceId = "event_" + fcevent.def.defName;
-
-            //check if event has a location, if does, add stat modifiers to that specific location;
-            if (fcevent.settlementTraitLocations.Count > 0) //if has specific locations
-            {
-                foreach (WorldSettlementFC location in fcevent.settlementTraitLocations)
-                {
-                    location.AddStatModifiers(fcevent.def.statModifiers, sourceId, fcevent.def.label);
-                    if (fcevent.def.permanentStatModifiers.Count > 0)
-                        location.AddPermanentModifiers(fcevent.def.permanentStatModifiers, sourceId, fcevent.def.label);
-                }
-            }
-            else
-            {
-                //if no specific location then faction wide — apply to all settlements
-                foreach (WorldSettlementFC settlement in settlements)
-                {
-                    settlement.AddStatModifiers(fcevent.def.statModifiers, sourceId, fcevent.def.label);
-                    if (fcevent.def.permanentStatModifiers.Count > 0)
-                        settlement.AddPermanentModifiers(fcevent.def.permanentStatModifiers, sourceId, fcevent.def.label);
-                }
-            }
-
-            InvalidateFactionStatCache();
-        }
+        // AddEvent moved to FCEventManager.AddEvent. Call faction.eventManager.AddEvent(evt)
+        // directly. The manager owns goods consolidation, tax delivery interception, the
+        // raw queue append, and the FCEventHandlerExtension OnEventQueued dispatch.
 
         // Thin delegators to FCEventManager. Invariants (fired flag, version bump)
         // are enforced by the manager; see FCEventManager.Remove / RemoveWhere.
@@ -1952,7 +1858,7 @@ namespace FactionColonies
                 FCEvent tmpEvt = FCEventMaker.MakeRandomEvent(FCEventMaker.ReturnRandomEvent(), null);
                 if (tmpEvt != null)
                 {
-                    FactionCache.FactionComp.AddEvent(tmpEvt);
+                    eventManager.AddEvent(tmpEvt);
                     randomEventLastAdded = 0f;
 
                     Find.LetterStack.ReceiveLetter("FCRandomEventLetterLabel".Translate(), FCEventMaker.BuildEventLetterBody(tmpEvt), LetterDefOf.NeutralEvent);
@@ -1972,7 +1878,7 @@ namespace FactionColonies
             }
         }
 
-        private bool RandomEventsDisabledOrNoSettlements() => FactionCache.FactionComp.settlements.Count == 0 || FCSettings.disableRandomEvents;
+        private bool RandomEventsDisabledOrNoSettlements() => settlements.Count == 0 || FCSettings.disableRandomEvents;
 
         #endregion
 
@@ -2088,48 +1994,6 @@ namespace FactionColonies
         #endregion
 
         #region ID Generation
-
-        public int GetNextSettlementFCID()
-        {
-            nextSettlementFCID++;
-            return nextSettlementFCID;
-        }
-
-        public int GetNextMercenaryID()
-        {
-            nextMercenaryID++;
-            return nextMercenaryID;
-        }
-
-        public int GetNextMilitaryFireSupportID()
-        {
-            nextMilitaryFireSupportID++;
-            return nextMilitaryFireSupportID;
-        }
-
-        public int GetNextMercenarySquadID()
-        {
-            nextMercenarySquadID++;
-            return nextMercenarySquadID;
-        }
-
-        public int GetNextTaxID()
-        {
-            nextTaxID++;
-            return nextTaxID;
-        }
-
-        public int GetNextEventID()
-        {
-            nextEventID++;
-            return nextEventID;
-        }
-
-        public int GetNextBillID()
-        {
-            nextBillID++;
-            return nextBillID;
-        }
 
         public int GetNextPrisonerID()
         {
@@ -2366,7 +2230,7 @@ namespace FactionColonies
         /// </summary>
         public void RebuildCaravanTraderKinds()
         {
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
             if (faction is null) return;
             List<TraderKindDef> result = BuildCaravanTraderKinds(techLevel);
             if (result.Count > 0)
@@ -2513,10 +2377,10 @@ namespace FactionColonies
         /// </summary>
         private void SyncGoodwillWithAverages()
         {
-            if (settlements.Any() && FactionCache.PlayerColonyFaction != null)
+            if (settlements.Any() && FindFC.EmpireFaction != null)
             {
-                FactionCache.PlayerColonyFaction.TryAffectGoodwillWith(Find.FactionManager.OfPlayer,
-                    (Convert.ToInt32(averageHappiness) - FactionCache.PlayerColonyFaction.PlayerGoodwill));
+                FindFC.EmpireFaction.TryAffectGoodwillWith(Find.FactionManager.OfPlayer,
+                    (Convert.ToInt32(averageHappiness) - FindFC.EmpireFaction.PlayerGoodwill));
             }
         }
 

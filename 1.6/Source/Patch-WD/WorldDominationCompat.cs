@@ -41,7 +41,7 @@ namespace FactionColonies.WD
         private static void Postfix(Faction f, ref bool __result)
         {
             if (__result) return;
-            if (FactionCache.IsPlayerColonyFaction(f))
+            if (FindFC.IsEmpireFaction(f))
             {
                 __result = true;
             }
@@ -99,7 +99,7 @@ namespace FactionColonies.WD
     {
         private static void Postfix()
         {
-            if (FactionCache.PlayerColonyFaction != null)
+            if (FindFC.EmpireFaction != null)
             {
                 RelationsUtilFC.ResetPlayerColonyRelations();
             }
@@ -111,7 +111,7 @@ namespace FactionColonies.WD
     {
         private static void Postfix()
         {
-            if (FactionCache.PlayerColonyFaction != null)
+            if (FindFC.EmpireFaction != null)
             {
                 RelationsUtilFC.ResetPlayerColonyRelations();
             }
@@ -133,12 +133,12 @@ namespace FactionColonies.WD
         {
             if (__result == null) return;
 
-            if (FactionCache.PlayerColonyFaction == null) return;
+            if (FindFC.EmpireFaction == null) return;
 
             SpreadLogEntry.FactionStat removed = null;
             for (int i = 0; i < __result.FactionStats.Count; i++)
             {
-                if (FactionCache.IsPlayerColonyFaction(__result.FactionStats[i].faction))
+                if (FindFC.IsEmpireFaction(__result.FactionStats[i].faction))
                 {
                     removed = __result.FactionStats[i];
                     __result.FactionStats.RemoveAt(i);

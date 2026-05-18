@@ -46,7 +46,7 @@ namespace FactionColonies
             this.op = evt?.linkedOperation;
             this.attackerForce = op?.aggressor?.force;
             this.enemy = op?.aggressor?.faction;
-            this.homeSettlement = FactionCache.FactionComp?.ReturnSettlementByLocation(evt?.location ?? PlanetTile.Invalid);
+            this.homeSettlement = FindFC.FactionComp?.ReturnSettlementByLocation(evt?.location ?? PlanetTile.Invalid);
 
             doCloseX = true;
             forcePause = true;
@@ -177,7 +177,7 @@ namespace FactionColonies
             rows.Clear();
             externalRows.Clear();
 
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
             if (pool is null || homeSettlement is null || attackerForce is null)
             {
@@ -216,13 +216,13 @@ namespace FactionColonies
                         aggressor = new MilitaryOperationParticipant { faction = enemy, force = attackerForce },
                         defender = new MilitaryOperationParticipant
                         {
-                            faction = FactionCache.PlayerColonyFaction,
+                            faction = FindFC.EmpireFaction,
                             squad = squad,
                             force = defenderForce,
                             homeSettlement = squad.settlement
                         }
                     };
-                    FactionCache.EnemyPower?.ApplyBattleModifiers(rowCtx, defenderForce, isAttacker: false);
+                    FindFC.EnemyPower?.ApplyBattleModifiers(rowCtx, defenderForce, isAttacker: false);
                     defenderEff = defenderForce.militaryEfficiency;
                 }
 

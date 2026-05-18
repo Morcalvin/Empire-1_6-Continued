@@ -171,7 +171,7 @@ namespace FactionColonies
             // trading.
             float extraScale = 3f;
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is object)
             {
                 // Also scale by tech level

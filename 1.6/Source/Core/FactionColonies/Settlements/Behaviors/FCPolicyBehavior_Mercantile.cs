@@ -30,7 +30,7 @@ namespace FactionColonies
                 worker.def = IncidentDefOf.TraderCaravanArrival;
                 IncidentParms parms =
                     StorytellerUtility.DefaultParmsNow(IncidentCategoryDefOf.Misc, map);
-                parms.faction = FactionCache.PlayerColonyFaction;
+                parms.faction = FindFC.EmpireFaction;
                 // Policy-driven trader: bypass storyteller throttling and third-party
                 // CanFireNow patches that suppress trader caravans (e.g. RimWar's restrictEvents).
                 parms.forced = true;

@@ -18,7 +18,7 @@ namespace FactionColonies
             /* Empire's own settlements draw their own UI in SettlementWindowFC. */
             if (__instance is WorldSettlementFC) return;
 
-            EnemyPower power = FactionCache.EnemyPower?.GetOrCompute(__instance);
+            EnemyPower power = FindFC.EnemyPower?.GetOrCompute(__instance);
             if (power is null) return;
 
             string forceText = TextUtil.FormatRange(power.MinForceRemaining, power.MaxForceRemaining, "0");

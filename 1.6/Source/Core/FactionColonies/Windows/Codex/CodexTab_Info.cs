@@ -499,7 +499,7 @@ namespace FactionColonies
                 ICodexDynamicProvider provider = selectedEntry.DynamicProvider;
                 if (provider is object)
                 {
-                    FactionFC faction = FactionCache.FactionComp;
+                    FactionFC faction = FindFC.FactionComp;
                     if (faction is object)
                     {
                         string dynamic = null;

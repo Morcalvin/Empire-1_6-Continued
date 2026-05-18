@@ -25,7 +25,7 @@ namespace FactionColonies
                 return;
             }
 
-            Faction playerColonyFaction = FactionCache.PlayerColonyFaction;
+            Faction playerColonyFaction = FindFC.EmpireFaction;
 
             // Only allow drafting Empire defenders during an active battle
             if (__instance.Faction == playerColonyFaction && settlementFc.MilitaryComp?.isUnderAttack == true)
@@ -81,13 +81,13 @@ namespace FactionColonies
                     {
                         action.toggleAction = () =>
                         {
-                            found.SetFaction(FactionCache.PlayerColonyFaction);
+                            found.SetFaction(FindFC.EmpireFaction);
                             milComp.draftedNPCs.Remove(found);
                             // Re-add to defenders list and defense lord after undrafting. Routes
                             // through the BattlefieldContext so per-op pawn lists stay aligned.
                             if (milComp.defenders.Any())
                             {
-                                BattlefieldContext bf = FactionCache.MilitaryManager?.GetBattlefield(milComp.WorldSettlement.Tile);
+                                BattlefieldContext bf = FindFC.MilitaryManager?.GetBattlefield(milComp.WorldSettlement.Tile);
                                 bf?.RegisterPawnsAsDefenders(new List<Pawn> { found }, assignToLord: false);
 
                                 Pawn anchor = milComp.defenders.FirstOrDefault();
@@ -142,7 +142,7 @@ namespace FactionColonies
                     return;
                 }
 
-                List<FloatMenuOption> settlementList = FactionCache.FactionComp.settlements.Select(settlement => new FloatMenuOption("FCFloatMenuOptionSendPrisonerToSettlement".Translate(settlement.Name, settlement.settlementLevel, settlement.prisonerList.Count()), delegate
+                List<FloatMenuOption> settlementList = FindFC.Settlements.Select(settlement => new FloatMenuOption("FCFloatMenuOptionSendPrisonerToSettlement".Translate(settlement.Name, settlement.settlementLevel, settlement.prisonerList.Count()), delegate
                 {
                     //disappear prisoner
                     TravelUtil.SendPrisoner(prisoner, settlement);
@@ -166,8 +166,8 @@ namespace FactionColonies
                 return;
             }
 
-            if (FactionCache.FactionComp is null) return;
-            if (!FactionCache.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) return;
+            if (FindFC.FactionComp is null) return;
+            if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) return;
             if (!CanSendPrisoner(__instance)) return;
 
             __result = __result.Append(SendPrisonerAction(__instance));

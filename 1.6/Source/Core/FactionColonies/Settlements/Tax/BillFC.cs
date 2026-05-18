@@ -92,10 +92,10 @@ namespace FactionColonies
 
         public void SetUniqueLoadID()
         {
-            FactionFC comp = FactionCache.FactionComp;
+            FactionFC comp = FindFC.FactionComp;
             if (comp is object)
             {
-                loadID = comp.GetNextBillID();
+                loadID = comp.taxLedger.NextBillId();
             }
             else
             {
@@ -107,7 +107,7 @@ namespace FactionColonies
         /*-*-*- Penalty helpers -*-*-*/
 
         /* Direct: store the raw amount as a positive magnitude. Polarity is applied
-         * at penalty time by BillUtility.ApplyPenalties. */
+         * at penalty time by ApplyUnpaidPenalties / ApplyLatePaidPenalties below. */
         public void AddUnpaidPenalty(BillPenaltyStat stat, double amount)
         {
             unpaidPenalties.Add(new BillStatPenalty(stat, amount));
@@ -136,31 +136,85 @@ namespace FactionColonies
             return k * Math.Abs(taxes.silverAmount) / Math.Max(1.0, income);
         }
 
+        /*-*-*- Penalty application -*-*-*/
+
+        /// <summary>Applies this bill's unpaid penalties to its settlement and shows the
+        /// "not enough silver" message. Called when the bill expires without being resolved.</summary>
+        public void ApplyUnpaidPenalties()
+        {
+            if (settlement is null)
+            {
+                LogUtil.Warning("BillFC.ApplyUnpaidPenalties: bill has null settlement (loadID=" + loadID + "). Skipping penalty.");
+                return;
+            }
+            string penaltyDesc = ApplyAndDescribe(unpaidPenalties);
+            string message = "FCNotEnoughSilverForBill".Translate(settlement.Name);
+            if ((taxes?.itemTithes?.Count ?? 0) > 0)
+                message += $" {"FCConfiscatedTithes".Translate()}";
+            message += $" {penaltyDesc}.";
+            Messages.Message(new Message(message, MessageTypeDefOf.NegativeEvent));
+        }
+
+        /// <summary>Applies this bill's late-paid penalties to its settlement. No message
+        /// (callers batch a per-cycle letter — see TaxLedger.ProcessBills).</summary>
+        public void ApplyLatePaidPenalties()
+        {
+            if (settlement is null) return;
+            ApplyAndDescribe(latePaidPenalties);
+        }
+
+        private string ApplyAndDescribe(List<BillStatPenalty> penalties)
+        {
+            if (penalties is null || penalties.Count == 0) return "";
+            string desc = "";
+            foreach (BillStatPenalty p in penalties)
+            {
+                if (desc.Length > 0) desc += ", ";
+                desc += ApplyOne(p);
+            }
+            return desc;
+        }
+
+        private string ApplyOne(BillStatPenalty p)
+        {
+            double gain = 0;
+            string penalty = "";
+            switch (p.stat)
+            {
+                case BillPenaltyStat.Unrest:
+                    gain = settlement.GainUnrest(p.amount);
+                    penalty = $"{TextUtil.ColorizeAdditiveBonus(gain, true)} {"FCUnrest".Translate()}";
+                    break;
+                case BillPenaltyStat.Happiness:
+                    gain = settlement.GainHappiness(-p.amount);
+                    penalty = $"{TextUtil.ColorizeAdditiveBonus(gain)} {"FCHappiness".Translate()}";
+                    break;
+                case BillPenaltyStat.Loyalty:
+                    gain = settlement.GainLoyalty(-p.amount);
+                    penalty = $"{TextUtil.ColorizeAdditiveBonus(gain)} {"FCLoyality".Translate()}";
+                    break;
+                case BillPenaltyStat.Prosperity:
+                    gain = settlement.GainProsperity(-p.amount);
+                    penalty = $"{TextUtil.ColorizeAdditiveBonus(gain)} {"FCProsperity".Translate()}";
+                    break;
+            }
+            return penalty;
+        }
+
         /*-*-*- Resolution -*-*-*/
 
         public bool Resolve()
         {
-            FactionFC factionfc = FactionCache.FactionComp;
-            if (AttemptResolve())
-            {
-                return true;
-            }
+            if (AttemptResolve()) return true;
 
-            if (settlement != null)
-            {
-                BillUtility.ApplyPenaltiesWithMessage(settlement, this);
-            }
-            else
-            {
-                LogUtil.Warning("BillFC.Resolve: bill has null settlement (loadID=" + loadID + "). Skipping penalty.");
-            }
-            factionfc.Bills.Remove(this);
+            ApplyUnpaidPenalties();
+            FindFC.TaxLedger?.RemoveBill(this);
             return false;
         }
 
         public bool AttemptResolve()
         {
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             if (PaymentUtil.GetSilver() >= -1 * taxes.silverAmount || taxes.silverAmount >= 0)
             { //if have enough silver on the current map to pay  & map belongs to player
 

@@ -66,7 +66,7 @@ namespace FactionColonies
             faction.factionColorSecondary = tempSecondaryColor;
             faction.hasFactionColorSecondary = tempHasSecondaryColor;
 
-            Faction fact = FactionCache.PlayerColonyFaction;
+            Faction fact = FindFC.EmpireFaction;
             if (fact != null)
             {
                 fact.Name = tempName;

@@ -57,4 +57,19 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_3</defName>
+		<label>Backend Refactors</label>
+		<description>Some backend reorganization of the code. Player-facing functionality should not be affected.</description>
+		<releaseDate>2026-05-18</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Create a FindFC class, similar to Verse.Find</li>
+		<li>Pull Tax and Event code out of the FactionFC World Component</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

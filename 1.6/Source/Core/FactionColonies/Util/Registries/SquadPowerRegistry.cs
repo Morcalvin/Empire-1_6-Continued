@@ -81,7 +81,7 @@ namespace FactionColonies
             // Cost displays (deployment / upgrade UI) still call GetCurrentLoadoutCost.
             double level = LevelFromCost(squad.GetEffectiveLoadoutCost());
             double efficiency = 1.0;
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is object && squad.settlement is object)
             {
                 efficiency = faction.GetStatValue(FCStatDefOf.militaryCombatEfficiency, squad.settlement);

@@ -45,7 +45,7 @@ namespace FactionColonies
 
         private void SetAsEmpireCapital()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction != null && Map != null)
             {
                 PlanetTile newTile = Map.Parent.Tile;
@@ -80,7 +80,7 @@ namespace FactionColonies
                 if (lastKnownTile != currentTile)
                 {
                     // The gravship has moved! Update the capital location
-                    FactionFC faction = FactionCache.FactionComp;
+                    FactionFC faction = FindFC.FactionComp;
                     if (faction != null)
                     {
                         PlanetTile oldCapital = faction.capitalLocation;
@@ -189,7 +189,7 @@ namespace FactionColonies
             // If this was the active capital spot and it's being destroyed, clear the capital
             if (isActiveCapitalSpot)
             {
-                FactionFC faction = FactionCache.FactionComp;
+                FactionFC faction = FindFC.FactionComp;
                 if (faction != null)
                 {
                     faction.capitalLocation = PlanetTile.Invalid;

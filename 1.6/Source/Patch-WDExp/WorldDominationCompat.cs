@@ -43,7 +43,7 @@ namespace FactionColonies.WDExp
         private static void Postfix(Faction f, ref bool __result)
         {
             if (__result) return;
-            if (FactionCache.IsPlayerColonyFaction(f))
+            if (FindFC.IsEmpireFaction(f))
             {
                 __result = true;
             }
@@ -68,7 +68,7 @@ namespace FactionColonies.WDExp
 
             // Sample the baseline through the worldcomp so faction-level efficiency modifiers apply.
             // WD's traveler strength dictates militaryLevel, so we override the sampled level with it.
-            EnemyPower entry = FactionCache.EnemyPower?.GetOrCompute(traveler.Faction);
+            EnemyPower entry = FindFC.EnemyPower?.GetOrCompute(traveler.Faction);
             MilitaryForce attackingForce = entry?.SampleBattleForce(traveler.Faction);
             if (attackingForce is null)
             {
@@ -153,7 +153,7 @@ namespace FactionColonies.WDExp
     {
         private static void Postfix()
         {
-            if (FactionCache.PlayerColonyFaction != null)
+            if (FindFC.EmpireFaction != null)
             {
                 RelationsUtilFC.ResetPlayerColonyRelations();
             }
@@ -165,7 +165,7 @@ namespace FactionColonies.WDExp
     {
         private static void Postfix()
         {
-            if (FactionCache.PlayerColonyFaction != null)
+            if (FindFC.EmpireFaction != null)
             {
                 RelationsUtilFC.ResetPlayerColonyRelations();
             }
@@ -187,12 +187,12 @@ namespace FactionColonies.WDExp
         {
             if (__result == null) return;
 
-            if (FactionCache.PlayerColonyFaction == null) return;
+            if (FindFC.EmpireFaction == null) return;
 
             SpreadLogEntry.FactionStat removed = null;
             for (int i = 0; i < __result.FactionStats.Count; i++)
             {
-                if (FactionCache.IsPlayerColonyFaction(__result.FactionStats[i].faction))
+                if (FindFC.IsEmpireFaction(__result.FactionStats[i].faction))
                 {
                     removed = __result.FactionStats[i];
                     __result.FactionStats.RemoveAt(i);

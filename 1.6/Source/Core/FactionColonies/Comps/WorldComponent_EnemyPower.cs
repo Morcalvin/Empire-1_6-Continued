@@ -129,7 +129,7 @@ namespace FactionColonies
             {
                 if (f is null || f.def is null) continue;
                 if (f.IsPlayer) continue;
-                if (FactionCache.IsPlayerColonyFaction(f)) continue;
+                if (FindFC.IsEmpireFaction(f)) continue;
                 currentFactions.Add(f);
             }
 
@@ -322,7 +322,7 @@ namespace FactionColonies
                     if (factionDef.efficiencyVariance.HasValue) efficiencyVariance = factionDef.efficiencyVariance.Value;
                 }
 
-                FactionFC factionComp = FactionCache.FactionComp;
+                FactionFC factionComp = FindFC.FactionComp;
                 if (factionComp is object)
                 {
                     level *= ThreatScalingUtil.ComputeEmpireThreatLevel(factionComp);

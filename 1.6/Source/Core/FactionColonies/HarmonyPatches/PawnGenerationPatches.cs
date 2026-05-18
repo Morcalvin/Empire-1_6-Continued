@@ -20,7 +20,7 @@ namespace FactionColonies
 
         public static void Prefix(ref PawnGenerationRequest request)
         {
-            if (!(request.Faction is null) && request.Faction == FactionCache.PlayerColonyFaction && request.KindDef?.IsHumanLikeRace() == true)
+            if (!(request.Faction is null) && request.Faction == FindFC.EmpireFaction && request.KindDef?.IsHumanLikeRace() == true)
             {
                 if (!(request.ForcedXenotype is null) || !(request.ForcedCustomXenotype is null))
                 {
@@ -44,7 +44,7 @@ namespace FactionColonies
                     }
                 }
 
-                XenotypeFilter filter = FactionCache.FactionComp?.xenotypeFilter;
+                XenotypeFilter filter = FindFC.FactionComp?.xenotypeFilter;
                 if (filter is null) return;
 
                 XenotypeDef chosenXenotype = null;

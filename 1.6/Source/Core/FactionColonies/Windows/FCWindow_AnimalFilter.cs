@@ -39,7 +39,7 @@ namespace FactionColonies
         {
             base.PreOpen();
 
-            faction = FactionCache.FactionComp;
+            faction = FindFC.FactionComp;
             if (faction is null)
             {
                 LogUtil.Error("Null FactionFC WorldComponent when opening FCWindow_AnimalFilter");
@@ -84,7 +84,7 @@ namespace FactionColonies
             // Sub-header: faction name
             Text.Font = GameFont.Small;
             Rect subHeader = new Rect(inRect.x, header.yMax, inRect.width, 26f);
-            Widgets.Label(subHeader, FactionCache.PlayerColonyFaction.Name);
+            Widgets.Label(subHeader, FindFC.EmpireFaction.Name);
 
             // Search bar
             Text.Font = GameFont.Small;

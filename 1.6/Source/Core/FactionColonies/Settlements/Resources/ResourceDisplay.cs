@@ -17,7 +17,7 @@ namespace FactionColonies
             {
                 if (dirtyCachedAmount)
                 {
-                    FactionFC factionFC = FactionCache.FactionComp;
+                    FactionFC factionFC = FindFC.FactionComp;
                     double resource = 0;
                     for (int k = 0; k < factionFC.settlements.Count; k++)
                     {

@@ -27,7 +27,7 @@ namespace FactionColonies
 
         static void Postfix(FactionDef __instance, ref string __result)
         {
-            if (__instance != FactionCache.EmpireFactionDef)
+            if (__instance != FindFC.EmpireFactionDef)
             {
                 return;
             }
@@ -37,7 +37,7 @@ namespace FactionColonies
                 return;
             }
 
-            FactionFC factionComp = FactionCache.FactionComp;
+            FactionFC factionComp = FindFC.FactionComp;
             if (factionComp == null)
             {
                 return;

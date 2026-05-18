@@ -249,8 +249,8 @@ namespace FactionColonies
             // colony faction's tech is Neolithic/Medieval; in that case the assertion still
             // passes because tech-default happens to match).
             bool overrideStillInEffect = result == ThingDefOf.MedicineHerbal
-                && (FactionCache.PlayerColonyFaction?.def?.techLevel != TechLevel.Neolithic
-                    && FactionCache.PlayerColonyFaction?.def?.techLevel != TechLevel.Medieval);
+                && (FindFC.EmpireFaction?.def?.techLevel != TechLevel.Neolithic
+                    && FindFC.EmpireFaction?.def?.techLevel != TechLevel.Medieval);
             TestAssert.IsFalse(overrideStillInEffect,
                 "Unregistered provider should not continue to influence medicine choice");
         }

@@ -49,7 +49,7 @@ namespace FactionColonies.FTV
         {
             if (__result == null || __result.Count == 0) return;
 
-            Faction pColony = FactionCache.PlayerColonyFaction;
+            Faction pColony = FindFC.EmpireFaction;
             if (pColony == null) return;
 
             Faction player = Faction.OfPlayer;

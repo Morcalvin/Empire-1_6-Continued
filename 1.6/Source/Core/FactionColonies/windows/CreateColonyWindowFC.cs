@@ -47,7 +47,7 @@ namespace FactionColonies
             draggable = true;
             preventCameraMotion = false;
             doCloseX = true;
-            faction = FactionCache.FactionComp;
+            faction = FindFC.FactionComp;
             if (faction == null)
             {
                 LogUtil.Error("FactionFC WorldComponent is null in CreateColonyWindowFC constructor!");
@@ -64,7 +64,7 @@ namespace FactionColonies
         //Pre-Opening
         public override void PreOpen()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is null)
             {
                 //panic!
@@ -358,7 +358,7 @@ namespace FactionColonies
                 Find.WindowStack.Add(new FCWindow_SettlementTypePicker(delegate (WorldSettlementDef selected)
                 {
                     currentSettlementType = selected;
-                    FactionCache.FactionComp.layersForTilePicker = selected.planetLayers;
+                    FindFC.FactionComp.layersForTilePicker = selected.planetLayers;
                 }));
             }
             return button.yMax;
@@ -419,7 +419,7 @@ namespace FactionColonies
                     (evt.timeTillTrigger - Find.TickManager.TicksGame).ToTimeString());
             }
             evt.hasCustomDescription = true;
-            faction.AddEvent(evt);
+            faction.eventManager.AddEvent(evt);
 
             faction.settlementCaravansList.Add(evt.location);
             Messages.Message((currentSettlementType.isConstructed ? "FCConstructionToLocation".Translate() : "FCCaravanSentToLocation".Translate()) + " " +
@@ -488,7 +488,7 @@ namespace FactionColonies
         public override void PreClose()
         {
             base.PreClose();
-            FactionFC comp = FactionCache.FactionComp;
+            FactionFC comp = FindFC.FactionComp;
             if (comp != null)
             {
                 comp.layersForTilePicker = null;

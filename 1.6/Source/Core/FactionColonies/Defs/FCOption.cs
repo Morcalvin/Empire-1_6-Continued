@@ -588,7 +588,7 @@ namespace FactionColonies
             if (opt.requiredPolicies == null || opt.requiredPolicies.Count == 0)
                 return true;
 
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             if (opt.requirementMode == FCRequirementMode.Any)
             {

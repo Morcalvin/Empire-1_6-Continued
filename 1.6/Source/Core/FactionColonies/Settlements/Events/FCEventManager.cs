@@ -6,14 +6,17 @@ using Verse;
 
 namespace FactionColonies
 {
-    // Owns the faction's event queue and auxiliary cooldown / fire-count bookkeeping.
-    // The only code that mutates the queue lives here; everywhere else reads via
-    // the IReadOnlyList facade (exposed through FactionFC.Events) or calls one of
-    // the methods below.
+    // Owns the faction's event queue and auxiliary cooldown / fire-count / id-counter
+    // bookkeeping. The only code that mutates the queue lives here; everywhere else
+    // reads via the IReadOnlyList facade (exposed through FactionFC.Events) or calls
+    // one of the methods below.
     //
-    // Side effects that cascade to settlements (stat modifiers, cache invalidation)
-    // are NOT handled here. They live on FactionFC.AddEvent, which calls
-    // Enqueue(evt) as its one queue-touching step.
+    // AddEvent is the public entry point for queueing an event. It owns goods
+    // consolidation, the TaxDeliveryRegistry interception, the raw queue append,
+    // and the FCEventHandlerExtension.OnEventQueued dispatch (whose default impl
+    // applies stat modifiers to settlements). Symmetrically, Remove / RemoveWhere
+    // dispatch OnEventExpired, which by default removes the stat modifiers and
+    // applies prosperityLost.
     //
     // Maintains two in-memory indexes for O(1) event lookups:
     //   defIndex         — groups events by FCEventDef
@@ -25,6 +28,7 @@ namespace FactionColonies
         private Dictionary<string, int> eventCooldowns = new Dictionary<string, int>();
         private Dictionary<string, int> eventFireCounts = new Dictionary<string, int>();
         private int version;
+        private int nextEventId = 1;
 
         /* Indexes (not serialized — rebuilt on load) */
         private Dictionary<FCEventDef, List<FCEvent>> defIndex = new Dictionary<FCEventDef, List<FCEvent>>();
@@ -128,11 +132,40 @@ namespace FactionColonies
         }
 
         /* Mutation methods */
-        // Raw append. Does NOT apply stat modifiers or invalidate caches;
-        // FactionFC.AddEvent is responsible for cascading side effects.
-        public void Enqueue(FCEvent evt)
+
+        /// <summary>Public entry point for adding an event to the queue. Owns goods
+        /// consolidation, tax-delivery interception, the raw queue append, and the
+        /// FCEventHandlerExtension OnEventQueued dispatch (whose default impl applies
+        /// stat modifiers to settlements).</summary>
+        public void AddEvent(FCEvent evt)
         {
             if (evt is null) return;
+
+            if (evt.goods != null && evt.goods.Count > 0)
+                evt.goods = FCEvent.ConsolidateGoods(evt.goods);
+
+            FactionFC faction = FindFC.FactionComp;
+
+            /* Tax delivery interception: registered interceptors may reroute taxColony events. */
+            if (evt.def == FCEventDefOf.taxColony && evt.source != PlanetTile.Invalid)
+            {
+                WorldSettlementFC sourceSettlement = faction.ReturnSettlementByLocation(evt.source);
+                TaxDeliveryRegistry.InvokeOnTaxEventCreated(new TaxDeliveryContext(evt, sourceSettlement));
+            }
+
+            EnqueueInternal(evt);
+
+            /* Post-enqueue lifecycle hook (default: applies stat + permanent modifiers). */
+            FCEventHandlerExtension ext = evt.def?.GetModExtension<FCEventHandlerExtension>();
+            if (ext != null) ext.OnEventQueued(evt, faction);
+            else EventStatModifierApplier.Apply(evt, faction);
+        }
+
+        /* Raw append. Used by AddEvent and SeedFromLegacy; intentionally has no
+         * cascade side effects — load-path stat-modifier reapply lives in
+         * WorldSettlementFC.PostLoadInit. */
+        private void EnqueueInternal(FCEvent evt)
+        {
             events.Add(evt);
             IndexAdd(evt);
             version++;
@@ -143,6 +176,7 @@ namespace FactionColonies
             if (evt is null) return false;
             if (!events.Remove(evt)) return false;
             IndexRemove(evt);
+            DispatchOnEventExpired(evt);
             evt.phase = FCEventPhase.Completed;
             version++;
             return true;
@@ -155,13 +189,33 @@ namespace FactionColonies
             for (int i = events.Count - 1; i >= 0; i--)
             {
                 if (!match(events[i])) continue;
-                IndexRemove(events[i]);
-                events[i].phase = FCEventPhase.Completed;
+                FCEvent evt = events[i];
+                IndexRemove(evt);
                 events.RemoveAt(i);
+                DispatchOnEventExpired(evt);
+                evt.phase = FCEventPhase.Completed;
                 removed++;
             }
             if (removed > 0) version++;
             return removed;
+        }
+
+        private static void DispatchOnEventExpired(FCEvent evt)
+        {
+            FactionFC faction = FindFC.FactionComp;
+            FCEventHandlerExtension ext = evt.def?.GetModExtension<FCEventHandlerExtension>();
+            if (ext != null) ext.OnEventExpired(evt, faction);
+            else EventStatModifierApplier.Remove(evt, faction);
+        }
+
+        /// <summary>Returns the next unique event ID, used by FCEvent's load-id constructor.</summary>
+        public int NextEventId() => ++nextEventId;
+
+        /// <summary>Migration entry point used by FactionFC.ExposeData to seed the
+        /// counter from a legacy <c>nextEventID</c> scribe key on first load.</summary>
+        public void SeedNextEventId(int value)
+        {
+            if (value > nextEventId) nextEventId = value;
         }
 
         public void Clear()
@@ -191,6 +245,8 @@ namespace FactionColonies
 
         // Bulk seed from a legacy list. Used only by FactionFC's save-migration
         // path to move pre-manager events into the manager. Bumps version once.
+        // Bypasses the OnEventQueued lifecycle hook — stat modifiers are reapplied
+        // separately by WorldSettlementFC.PostLoadInit.
         public void SeedFromLegacy(IEnumerable<FCEvent> legacyEvents)
         {
             if (legacyEvents is null) return;
@@ -240,6 +296,7 @@ namespace FactionColonies
             if (eventCooldowns is null) eventCooldowns = new Dictionary<string, int>();
             Scribe_Collections.Look(ref eventFireCounts, "eventFireCounts", LookMode.Value, LookMode.Value);
             if (eventFireCounts is null) eventFireCounts = new Dictionary<string, int>();
+            Scribe_Values.Look(ref nextEventId, "nextEventId", 1);
 
             // Indexes are transient — rebuild as soon as the events list is populated.
             // Must run in LoadingVars (not PostLoadInit): WorldSettlementFC.PostLoadInit

@@ -9,7 +9,7 @@ namespace FactionColonies
     {
         static void Postfix(ResearchProjectDef proj, bool doCompletionDialog = false, Pawn researcher = null)
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             if (fc is object)
             {
                 fc.DirtyTechLevelCache();

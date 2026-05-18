@@ -37,7 +37,7 @@ namespace FactionColonies.RW
 
             // Sample the baseline through the worldcomp so faction-level efficiency modifiers apply.
             // RimWarPoints dictates militaryLevel, so we override the sampled level with it.
-            EnemyPower entry = FactionCache.EnemyPower?.GetOrCompute(attacker.Faction);
+            EnemyPower entry = FindFC.EnemyPower?.GetOrCompute(attacker.Faction);
             MilitaryForce attackingForce = entry?.SampleBattleForce(attacker.Faction);
             if (attackingForce is null)
             {

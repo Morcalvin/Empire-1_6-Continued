@@ -9,7 +9,7 @@ namespace FactionColonies
     {
         public override double CreatePool(double production, WorldSettlementFC settlement = null)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             double result = Math.Max(Math.Round(production * FCSettings.productionResearchBase), 0);
             result *= faction.GetStatValue(FCStatDefOf.researchContributionMultiplier, settlement);
@@ -34,7 +34,7 @@ namespace FactionColonies
                     yield return option;
                 }
             }
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             yield return new FloatMenuOption("FCActivateResearch".Translate(), delegate
             {
@@ -84,7 +84,7 @@ namespace FactionColonies
                 if (Find.ColonistBar.GetColonistsInOrder().Count > 0)
                 {
                     Pawn pawn = Find.ColonistBar.GetColonistsInOrder()[0];
-                    TechLevel techLevel = pawn.Faction?.def?.techLevel ?? FactionCache.FactionComp?.techLevel ?? TechLevel.Industrial;
+                    TechLevel techLevel = pawn.Faction?.def?.techLevel ?? FindFC.FactionComp?.techLevel ?? TechLevel.Industrial;
                     Find.ResearchManager.ResearchPerformed(
                         (float)Math.Ceiling(((1 * Find.ResearchManager.GetProject().CostFactor(techLevel)) /
                             (0.00825 * Find.Storyteller.difficulty.researchSpeedFactor)) * expendedPoints),

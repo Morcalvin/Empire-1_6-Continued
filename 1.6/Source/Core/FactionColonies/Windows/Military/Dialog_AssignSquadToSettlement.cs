@@ -110,7 +110,7 @@ namespace FactionColonies
 
         protected override void Confirm()
         {
-            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc is null || target is null) { Close(); return; }
 
             if (unassignSelected)
@@ -146,7 +146,7 @@ namespace FactionColonies
         {
             rows.Clear();
 
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
             if (pool is null)
             {

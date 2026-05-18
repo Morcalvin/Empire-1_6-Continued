@@ -34,7 +34,7 @@ namespace FactionColonies
         {
             get
             {
-                MilUnitFC blank = FactionCache.FactionComp?.military?.blankUnit;
+                MilUnitFC blank = FindFC.Military?.blankUnit;
                 return blank != null && loadout != null && loadout != blank;
             }
         }
@@ -71,7 +71,7 @@ namespace FactionColonies
 
         public Mercenary(bool blank)
         {
-            loadID = FactionCache.FactionComp.GetNextMercenaryID();
+            loadID = FindFC.Military.NextMercenaryId();
         }
 
         public void ExposeData()

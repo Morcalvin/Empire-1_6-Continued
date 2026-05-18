@@ -270,7 +270,7 @@ namespace FactionColonies
             Rect sliderRect = new Rect(rect.x, sliderY, rect.width, 20f);
             selectedSupport.accuracy = Widgets.HorizontalSlider(sliderRect,
                 selectedSupport.accuracy,
-                Math.Max(3, 15 - FactionCache.FactionComp.ReturnHighestMilitaryLevel()), 30,
+                Math.Max(3, 15 - FindFC.FactionComp.ReturnHighestMilitaryLevel()), 30,
                 roundTo: 1);
 
             Text.Font = fontBefore;
@@ -436,7 +436,8 @@ namespace FactionColonies
             Rect pointRefBtn = new Rect(addBtn.xMax + margin, rect.y, btnW, ButtonHeight);
             if (Widgets.ButtonText(pointRefBtn, "FCSetPointRef".Translate()))
             {
-                List<FloatMenuOption> settlementList = FactionCache.FactionComp
+                List<FloatMenuOption> settlementList = FindFC
+.FactionComp
                     .settlements.Select(settlement => new FloatMenuOption(
                         settlement.Name + "FCMilitaryLevelLabel".Translate() +
                         settlement.settlementMilitaryLevel,

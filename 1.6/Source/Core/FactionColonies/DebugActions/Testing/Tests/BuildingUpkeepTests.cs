@@ -6,7 +6,7 @@ namespace FactionColonies
     {
         private static WorldSettlementFC GetSettlement()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction == null || faction.settlements.Count == 0) return null;
             return faction.settlements.FirstOrDefault(s => s.BuildingsComp != null);
         }

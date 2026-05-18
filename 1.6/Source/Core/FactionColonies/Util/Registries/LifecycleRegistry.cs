@@ -172,9 +172,9 @@ namespace FactionColonies
         {
             RegistryDispatch.EachInvalidating(_research.Items,
                 p => p.OnResearchCompleted(project),
-                () => FactionCache.FactionComp?.InvalidateAllSettlementStatCaches(),
+                () => FindFC.FactionComp?.InvalidateAllSettlementStatCaches(),
                 nameof(IResearchListener.OnResearchCompleted));
-            FactionCache.FactionComp?.InvalidateAllSettlementStatCaches();
+            FindFC.FactionComp?.InvalidateAllSettlementStatCaches();
         }
     }
 }

@@ -12,7 +12,7 @@ namespace FactionColonies
 
         private static WorldSettlementFC GetFirstSettlement()
         {
-            var settlements = FactionCache.FactionComp?.settlements;
+            var settlements = FindFC.Settlements;
             if (settlements == null || settlements.Count == 0)
                 return null;
             return settlements[0];
@@ -25,7 +25,7 @@ namespace FactionColonies
 
         private static void WithFactionModifier(FCStatDef stat, double value, Action action)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             var settlement = faction.settlements[0];
             var mods = new List<FCStatModifier> { new FCStatModifier { stat = stat, value = value } };
             settlement.AddStatModifiers(mods, "titheTest");
@@ -75,7 +75,7 @@ namespace FactionColonies
                 resource.assignedWorkers = 0;
                 resource.SetDirtyCache();
 
-                double multForTotal = FactionCache.FactionComp.GetStatValue(FCStatDefOf.titheValueMultiplier, settlement);
+                double multForTotal = FindFC.FactionComp.GetStatValue(FCStatDefOf.titheValueMultiplier, settlement);
                 double expected = resource.taxableProductionMarketValue * multForTotal + resource.externalTitheBudget;
                 double actual = resource.GetTitheIncome();
 
@@ -100,7 +100,7 @@ namespace FactionColonies
 
             // Manually compute using the same formula that GetTitheIncome should use
             double workerMod = resource.GetTitheModifierPerWorker() * resource.assignedWorkers;
-            double multForTotal = FactionCache.FactionComp.GetStatValue(FCStatDefOf.titheValueMultiplier, settlement);
+            double multForTotal = FindFC.FactionComp.GetStatValue(FCStatDefOf.titheValueMultiplier, settlement);
             double expected = (resource.taxableProductionMarketValue + workerMod) * multForTotal + resource.externalTitheBudget;
             double actual = resource.GetTitheIncome();
 
@@ -142,7 +142,7 @@ namespace FactionColonies
         [EmpireTest("TitheIncome")]
         public static void TitheIncome_AllResources_NonNegative()
         {
-            var faction = FactionCache.FactionComp;
+            var faction = FindFC.FactionComp;
             if (faction == null || faction.settlements.Count == 0)
                 TestAssert.Skip("No faction/settlements");
 

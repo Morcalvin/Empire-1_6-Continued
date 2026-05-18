@@ -43,7 +43,7 @@ namespace FactionColonies
         {
             if (op is null) return;
 
-            BattlefieldContext bf = FactionCache.MilitaryManager?.GetOrCreateBattlefield(op.targetTile);
+            BattlefieldContext bf = FindFC.MilitaryManager?.GetOrCreateBattlefield(op.targetTile);
             if (bf is null)
             {
                 LogUtil.Error($"MilitaryJobHandler_Defend.OnManualResolve: no battlefield context for op id={op.id} at tile {op.targetTile}; falling back to auto-resolve.");
@@ -110,11 +110,11 @@ namespace FactionColonies
         /// <summary>Looks up the per-tile <see cref="BattlefieldContext"/> directly from the manager
         /// so this helper doesn't depend on the comp's private <c>Battlefield</c> backdoor.</summary>
         private static BattlefieldContext BattlefieldFor(WorldSettlementFC settlement)
-            => FactionCache.MilitaryManager?.GetBattlefield(settlement?.Tile ?? PlanetTile.Invalid);
+            => FindFC.MilitaryManager?.GetBattlefield(settlement?.Tile ?? PlanetTile.Invalid);
 
         public static void ApplyWin(WorldSettlementFC settlement, MilitaryOperation op = null, BattleResult result = null)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is null) return;
 
             faction.AddExperienceToFactionLevel(5f);
@@ -154,7 +154,7 @@ namespace FactionColonies
 
         public static void ApplyLoss(WorldSettlementFC settlement, MilitaryOperation op = null, BattleResult result = null)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is null) return;
 
             double happinessLostMultiplier = settlement.GetStatValue(FCStatDefOf.happinessLostMultiplier);

@@ -86,7 +86,7 @@ namespace FactionColonies
 
         private static WorldSettlementFC GetSettlement()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction == null || faction.settlements.Count == 0) return null;
             return faction.settlements.FirstOrDefault(s => s.MilitaryComp != null);
         }
@@ -128,7 +128,7 @@ namespace FactionColonies
             // the home squad fought without it. The squad-only model means CreateMilitaryForceFromSquad
             // (with no homeDefendingForce) should produce a militaryLevel equal to the squad's
             // resolved power level (no settlement-based addition).
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is null) TestAssert.Skip("No FactionFC");
 
             MercenarySquadFC squad = null;
@@ -162,10 +162,10 @@ namespace FactionColonies
             Settlement enemy = Find.WorldObjects.Settlements
                 .FirstOrDefault(s => !(s is WorldSettlementFC)
                     && s.Faction != null && s.Faction != Faction.OfPlayer
-                    && s.Faction != FactionCache.PlayerColonyFaction);
+                    && s.Faction != FindFC.EmpireFaction);
             if (enemy == null) TestAssert.Skip("No enemy settlement on world map");
 
-            WorldComponent_EnemyPower registry = FactionCache.EnemyPower;
+            WorldComponent_EnemyPower registry = FindFC.EnemyPower;
             if (registry == null) TestAssert.Skip("EnemyPower registry not available");
 
             EnemyPower entry = registry.GetOrCompute(enemy);

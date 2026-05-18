@@ -127,7 +127,7 @@ namespace FactionColonies.util
         /// </summary>
         public static PawnKindDef GetFighterForRace(ThingDef race)
         {
-            TechLevel techLevel = FactionCache.FactionComp != null ? FactionCache.FactionComp.techLevel : TechLevel.Industrial;
+            TechLevel techLevel = FindFC.FactionComp?.techLevel ?? TechLevel.Industrial;
             List<PawnKindDef> clones = GetOrCreateClonesForRace(race, techLevel);
             // Fighter is the first template in the array
             return clones.Count > 0 ? clones[0] : PColonyPawnKindDefOf.PColony_Fighter;
@@ -138,7 +138,7 @@ namespace FactionColonies.util
         /// </summary>
         public static PawnKindDef GetVillagerForRace(ThingDef race)
         {
-            TechLevel techLevel = FactionCache.FactionComp != null ? FactionCache.FactionComp.techLevel : TechLevel.Industrial;
+            TechLevel techLevel = FindFC.FactionComp?.techLevel ?? TechLevel.Industrial;
             List<PawnKindDef> clones = GetOrCreateClonesForRace(race, techLevel);
             // Villager is the last template in the array (index 5)
             return clones.Count > 5 ? clones[5] : PColonyPawnKindDefOf.PColony_Villager;
@@ -455,7 +455,7 @@ namespace FactionColonies.util
         /// </summary>
         public static void FixupPawnKindDefs(FactionFC factionFc)
         {
-            Faction empireFaction = FactionCache.PlayerColonyFaction;
+            Faction empireFaction = FindFC.EmpireFaction;
             if (empireFaction == null) return;
 
             TechLevel techLevel = factionFc.techLevel;

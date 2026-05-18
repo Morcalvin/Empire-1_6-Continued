@@ -402,7 +402,7 @@ namespace FactionColonies
                 .FirstOrDefault(w => w is FCWindow_Military);
             currentWindow?.Close();
 
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilitaryWindow duw = MilitaryWindowRegistry.CreateUnits(fc.military, fc);
             FCWindow_Military newWindow = new FCWindow_Military(
                 duw, "FCMilitaryTableButtonCreateUnit".Translate());
@@ -433,7 +433,8 @@ namespace FactionColonies
             Rect pointRefBtn = new Rect(addUnitBtn.xMax + margin, rect.y, btnW, ButtonHeight);
             if (Widgets.ButtonText(pointRefBtn, "FCSetPointRef".Translate()))
             {
-                List<FloatMenuOption> settlementList = FactionCache.FactionComp
+                List<FloatMenuOption> settlementList = FindFC
+.FactionComp
                     .settlements.Select(settlement => new FloatMenuOption(
                         settlement.Name + "FCMilitaryLevelLabel".Translate() +
                         settlement.settlementMilitaryLevel,

@@ -18,8 +18,8 @@ namespace FactionColonies
         static void Postfix(Apparel apparel, Pawn pawn)
         {
             if (pawn is null) return;
-            if (pawn.Faction != FactionCache.PlayerColonyFaction) return;
-            FactionFC factionComp = FactionCache.FactionComp;
+            if (pawn.Faction != FindFC.EmpireFaction) return;
+            FactionFC factionComp = FindFC.FactionComp;
             if (factionComp == null) return;
             if (!factionComp.hasFactionColor && !factionComp.hasFactionColorSecondary) return;
             Color resolved = factionComp.ResolveApparelColor(apparel.def);

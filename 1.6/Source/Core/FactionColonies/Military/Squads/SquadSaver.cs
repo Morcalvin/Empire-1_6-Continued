@@ -291,14 +291,14 @@ namespace FactionColonies
         public MilUnitFC CreateMilUnit()
         {
             PawnKindDef resolvedKind = pawnKind;
-            if (pawnKind != null && FactionCache.FactionComp.xenotypeFilter.GetRaceWeight(pawnKind.race) <= 0)
+            if (pawnKind != null && FindFC.FactionComp.xenotypeFilter.GetRaceWeight(pawnKind.race) <= 0)
             {
-                resolvedKind = FactionCache.PlayerColonyFaction.RandomPawnKind();
+                resolvedKind = FindFC.EmpireFaction.RandomPawnKind();
             }
 
             if (resolvedKind == null)
             {
-                resolvedKind = FactionCache.PlayerColonyFaction?.RandomPawnKind()
+                resolvedKind = FindFC.EmpireFaction?.RandomPawnKind()
                     ?? PawnKindDefOf.Colonist;
                 LogUtil.Warning($"Saved unit '{name}' has no pawnKind (mod removed?), "
                     + $"using {resolvedKind.defName}");
@@ -323,7 +323,7 @@ namespace FactionColonies
 
         public MilUnitFC Import()
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilUnitFC unit = this.CreateMilUnit();
             fc.military.units.Add(unit);
             return unit;
@@ -416,7 +416,7 @@ namespace FactionColonies
             MilSquadFC squad = MilTemplateFactory.CreateSquad(true);
             squad.name = name;
 
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
 
             var milUnits = unitTemplates.Select(unit => unit.CreateMilUnit()).ToList();
 
@@ -433,7 +433,7 @@ namespace FactionColonies
         }
         public MilSquadFC Import()
         {
-            FactionFC fc = FactionCache.FactionComp;
+            FactionFC fc = FindFC.FactionComp;
             MilSquadFC squad = this.CreateMilSquad();
             foreach (MilUnitFC unit in squad.Units.Distinct().Where(unit => !unit.isBlank))
             {
@@ -493,7 +493,7 @@ namespace FactionColonies
         public MilitaryFireSupport Import()
         {
             MilitaryFireSupport fs = CreateFireSupport();
-            FactionCache.FactionComp.military.fireSupportDefs.Add(fs);
+            FindFC.Military.fireSupportDefs.Add(fs);
             return fs;
         }
 

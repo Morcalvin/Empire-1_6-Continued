@@ -14,7 +14,7 @@ namespace FactionColonies
 
         public FCTrader_Research()
         {
-            factionfc = FactionCache.FactionComp;
+            factionfc = FindFC.FactionComp;
         }
 
 
@@ -110,7 +110,7 @@ namespace FactionColonies
         {
             get
             {
-                return FactionCache.PlayerColonyFaction;
+                return FindFC.EmpireFaction;
             }
         }
 

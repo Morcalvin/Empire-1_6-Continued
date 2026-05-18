@@ -69,14 +69,14 @@ namespace FactionColonies.util
 
         private static PawnKindDef GetDefaultFighter()
         {
-            XenotypeFilter filter = FactionCache.FactionComp?.xenotypeFilter;
+            XenotypeFilter filter = FindFC.FactionComp?.xenotypeFilter;
             ThingDef race = filter?.GetRandomRace() ?? ThingDefOf.Human;
             return PawnKindTemplateUtil.GetFighterForRace(race);
         }
 
         private static PawnKindDef GetDefaultVillager()
         {
-            XenotypeFilter filter = FactionCache.FactionComp?.xenotypeFilter;
+            XenotypeFilter filter = FindFC.FactionComp?.xenotypeFilter;
             ThingDef race = filter?.GetRandomRace() ?? ThingDefOf.Human;
             return PawnKindTemplateUtil.GetVillagerForRace(race);
         }
@@ -111,7 +111,7 @@ namespace FactionColonies.util
 
             return new PawnGenerationRequest(
                 kind: pawnKindDef,
-                faction: FactionCache.PlayerColonyFaction,
+                faction: FindFC.EmpireFaction,
                 context: PawnGenerationContext.NonPlayer,
                 tile: -1,
                 forceGenerateNewPawn: false,
@@ -146,7 +146,7 @@ namespace FactionColonies.util
         {
             return new PawnGenerationRequest(
                 kind: race,
-                faction: FactionCache.PlayerColonyFaction,
+                faction: FindFC.EmpireFaction,
                 context: PawnGenerationContext.NonPlayer,
                 tile: -1,
                 forceGenerateNewPawn: false,
@@ -181,7 +181,7 @@ namespace FactionColonies.util
         {
             return new PawnGenerationRequest(
                 kind: GetDefaultFighter(),
-                faction: FactionCache.PlayerColonyFaction,
+                faction: FindFC.EmpireFaction,
                 context: PawnGenerationContext.NonPlayer,
                 tile: -1,
                 forceGenerateNewPawn: false,

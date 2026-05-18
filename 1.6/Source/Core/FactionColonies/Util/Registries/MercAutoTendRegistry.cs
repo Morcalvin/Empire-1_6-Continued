@@ -50,7 +50,7 @@ namespace FactionColonies
          * glitterworld medicine. */
         private static ThingDef PickDefaultMedicine()
         {
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
             TechLevel tech = faction?.def?.techLevel ?? TechLevel.Industrial;
             switch (tech)
             {

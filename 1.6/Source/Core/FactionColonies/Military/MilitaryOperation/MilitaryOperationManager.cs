@@ -121,7 +121,7 @@ namespace FactionColonies
             op.phase = MilitaryOperationPhase.Traveling;
             op.nextPhaseTick = Find.TickManager.TicksGame + Math.Max(0, timeToFinish);
 
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             op.aggressor.homeSettlement = source.settlement;
             op.aggressor.squad = source;
             // Squad-derived force: SquadPowerRegistry maps loadout cost -> military level so
@@ -169,7 +169,7 @@ namespace FactionColonies
             if (target is null) throw new ArgumentNullException(nameof(target));
             if (attackerForce is null) throw new ArgumentNullException(nameof(attackerForce));
 
-            FactionFC factionFC = FactionCache.FactionComp;
+            FactionFC factionFC = FindFC.FactionComp;
             if (factionFC is null) return null;
 
             // Resolve the target settlement (when target is a WorldSettlementFC) so we can run
@@ -191,7 +191,7 @@ namespace FactionColonies
             op.aggressor.faction = attackerFaction;
             op.aggressor.force = attackerForce;
 
-            op.defender.faction = FactionCache.PlayerColonyFaction;
+            op.defender.faction = FindFC.EmpireFaction;
             if (targetSettlement is object)
             {
                 op.defender.homeSettlement = targetSettlement;
@@ -408,7 +408,7 @@ namespace FactionColonies
             op.nextPhaseTick = Find.TickManager.TicksGame
                 + LordJob_DeployMilitary.DefaultMaxDeploymentTime
                 + LordJob_DeployMilitary.PostLeaveGraceTicks;
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             op.aggressor.homeSettlement = source.settlement;
             op.aggressor.squad = source;
             // No defender — Deploy isn't an attack operation, just squad presence.

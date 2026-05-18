@@ -70,13 +70,13 @@ namespace FactionColonies
 
         /// <summary>True when the player's empire is on the defending side (settlement under attack).</summary>
         public bool IsDefensive => defender?.faction is object
-                                && FactionCache.PlayerColonyFaction is object
-                                && defender.faction == FactionCache.PlayerColonyFaction;
+                                && FindFC.EmpireFaction is object
+                                && defender.faction == FindFC.EmpireFaction;
 
         /// <summary>True when the player's empire is on the aggressor side (offensive op).</summary>
         public bool IsOffensive => aggressor?.faction is object
-                                && FactionCache.PlayerColonyFaction is object
-                                && aggressor.faction == FactionCache.PlayerColonyFaction;
+                                && FindFC.EmpireFaction is object
+                                && aggressor.faction == FindFC.EmpireFaction;
 
         public void ExposeData()
         {
@@ -116,7 +116,7 @@ namespace FactionColonies
         public FCEvent ScheduleEvent(FCEventDef eventDef, PlanetTile location, int ticksFromNow,
             string customDescription = null, string customLabel = null)
         {
-            FactionFC factionFC = FactionCache.FactionComp;
+            FactionFC factionFC = FindFC.FactionComp;
             if (factionFC is null)
             {
                 LogUtil.Error($"MilitaryOperation.ScheduleEvent: no FactionFC available; op id={id}.");
@@ -176,7 +176,7 @@ namespace FactionColonies
 
             BattleForceContext ctx = BuildBattleContext();
 
-            WorldComponent_EnemyPower enemyPower = FactionCache.EnemyPower;
+            WorldComponent_EnemyPower enemyPower = FindFC.EnemyPower;
 
             // Lazily create defender force when an offensive op fights a non-Empire faction:
             // CreateOffensiveOp leaves it unset because the enemy is faction-level, not settlement-level.
@@ -366,7 +366,7 @@ namespace FactionColonies
             // Roll up squad injuries onto the loadout BEFORE listeners run, so OnBattleResolved
             // observers see post-battle injury counts. Pawn deaths are already reflected in
             // squad.dead via the Pawn.Kill harmony patch — this call records the wound list.
-            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc is object)
             {
                 if (aggressor?.squad is object) mfc.RegisterSquadInjuries(aggressor.squad);
@@ -387,7 +387,7 @@ namespace FactionColonies
             // defensive ones. Skip on Error results — the battle didn't really happen.
             if (battleResult is object && battleResult.winner != BattleWinner.Error)
             {
-                EmpireThreatAdaptation adapt = FactionCache.FactionComp?.threatAdaptation;
+                EmpireThreatAdaptation adapt = FindFC.ThreatAdaptation;
                 if (adapt is object)
                 {
                     if (victory) adapt.Notify_BattleWon();
@@ -522,7 +522,7 @@ namespace FactionColonies
             // Defense-in-depth: re-register injuries for participating squads. By Resolve time
             // (post-cooldown), pawns are off-map and any wounds carried back are catchable here.
             // HashSet.Add is idempotent, so this is a no-op for already-tracked mercs.
-            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc is object)
             {
                 if (aggressor?.squad is object) mfc.RegisterSquadInjuries(aggressor.squad);
@@ -531,8 +531,7 @@ namespace FactionColonies
             }
 
             LifecycleRegistry.InvokeOnOperationResolved(this);
-
-            FactionCache.MilitaryManager?.Unregister(this);
+            FindFC.MilitaryManager?.Unregister(this);
         }
 
         /// <summary>
@@ -541,7 +540,7 @@ namespace FactionColonies
         /// </summary>
         public BattlefieldContext AttachToBattlefield()
         {
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null) return null;
             BattlefieldContext ctx = manager.GetOrCreateBattlefield(targetTile);
             ctx.Join(this);
@@ -552,7 +551,7 @@ namespace FactionColonies
         public void DetachFromBattlefield()
         {
             if (!battlefieldRef.Valid) return;
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             BattlefieldContext ctx = manager?.GetBattlefield(battlefieldRef);
             ctx?.Detach(this);
             battlefieldRef = PlanetTile.Invalid;

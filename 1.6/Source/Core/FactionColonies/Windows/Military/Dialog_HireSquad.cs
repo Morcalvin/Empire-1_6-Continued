@@ -25,7 +25,7 @@ namespace FactionColonies
         public Dialog_HireSquad(WorldSettlementFC targetSettlement)
         {
             this.targetSettlement = targetSettlement;
-            this.mfc = FactionCache.FactionComp?.military;
+            this.mfc = FindFC.Military;
             doCloseX = true;
             forcePause = false;
             absorbInputAroundWindow = true;

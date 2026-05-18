@@ -17,7 +17,7 @@ namespace FactionColonies
 
         private WorldSettlementFC LookupSettlement(Map map)
         {
-            FactionFC settlementFaction = FactionCache.FactionComp;
+            FactionFC settlementFaction = FindFC.FactionComp;
             return settlementFaction.ReturnSettlementByLocation(map.Tile);
         }
 
@@ -46,7 +46,7 @@ namespace FactionColonies
             int randomInRange2 = range.RandomInRange;
             CellRect cellRect = new CellRect(c.x - randomInRange1 / 2, c.z - randomInRange2 / 2, randomInRange1,
                 randomInRange2);
-            Faction faction = FactionCache.PlayerColonyFaction;
+            Faction faction = FindFC.EmpireFaction;
             cellRect.ClipInsideMap(map);
             ResolveParams resolveParams = new ResolveParams();
             if (Settlement.settlementLevel >= 7)

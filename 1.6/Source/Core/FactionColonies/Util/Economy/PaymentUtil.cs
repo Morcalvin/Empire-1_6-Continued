@@ -24,118 +24,7 @@ namespace FactionColonies
         public const string Reason_SquadUpgrade = "squad_upgrade";
         public const string Reason_SquadFillSlot = "squad_fill_slot";
 
-        public static (List<BillFC>, List<BillFC>) returnBillTypes(List<BillFC> bills)
-        {
-            List<BillFC> positiveBills = new List<BillFC>();
-            List<BillFC> negativeBills = new List<BillFC>();
-
-            foreach (BillFC bill in bills)
-            {
-                if (bill.taxes.silverAmount >= 0)
-                {
-                    positiveBills.Add(bill);
-                }
-                else
-                {
-                    negativeBills.Add(bill);
-                }
-            }
-
-            return (negativeBills, positiveBills);
-        }
-
-        public static void AutoresolveBills(List<BillFC> bills)
-        {
-            int resolvedBills = 0;
-
-            (List<BillFC> negativeBills, List<BillFC> positiveBills) = returnBillTypes(bills);
-
-            // Offset negative bills against positive bills, then resolve any remainder.
-            int i = 0;
-            int maxOuterIterations = bills.Count * bills.Count + 1;
-            int outerIterations = 0;
-            while (i < negativeBills.Count)
-            {
-                if (++outerIterations > maxOuterIterations)
-                {
-                    LogUtil.Error($"AutoresolveBills: exceeded {maxOuterIterations} outer iterations. Bailing out to prevent freeze.");
-                    break;
-                }
-                BillFC negativeBill = negativeBills[i];
-                bool matched = false;
-                int j = 0;
-                int maxInnerIterations = bills.Count * 2 + 1;
-                int innerIterations = 0;
-                while (j < positiveBills.Count)
-                {
-                    if (++innerIterations > maxInnerIterations)
-                    {
-                        LogUtil.Error("AutoresolveBills: exceeded max inner iterations. Bailing out to prevent freeze.");
-                        break;
-                    }
-                    BillFC positiveBill = positiveBills[j];
-                    float result = positiveBill.taxes.silverAmount + negativeBill.taxes.silverAmount;
-                    if (result == 0)
-                    {
-                        // Bills cancel each other out — resolve both, restart outer
-                        positiveBill.taxes.silverAmount = 0;
-                        negativeBill.taxes.silverAmount = 0;
-                        positiveBill.Resolve();
-                        negativeBill.Resolve();
-                        resolvedBills += 2;
-                        (negativeBills, positiveBills) = returnBillTypes(bills);
-                        i = 0;
-                        matched = true;
-                        break;
-                    }
-                    else if (result > 0)
-                    {
-                        // Positive bill covers the negative — resolve negative, restart outer
-                        positiveBill.taxes.silverAmount = result;
-                        negativeBill.taxes.silverAmount = 0;
-                        negativeBill.Resolve();
-                        resolvedBills++;
-                        (negativeBills, positiveBills) = returnBillTypes(bills);
-                        i = 0;
-                        matched = true;
-                        break;
-                    }
-                    else // result < 0
-                    {
-                        // Negative exceeds positive — resolve positive, continue inner
-                        positiveBill.taxes.silverAmount = 0;
-                        negativeBill.taxes.silverAmount = result;
-                        positiveBill.Resolve();
-                        resolvedBills++;
-                        (negativeBills, positiveBills) = returnBillTypes(bills);
-                        j = 0;
-                        continue;
-                    }
-                }
-
-                if (!matched)
-                {
-                    if (negativeBill.AttemptResolve())
-                    {
-                        (negativeBills, positiveBills) = returnBillTypes(bills);
-                        resolvedBills++;
-                    }
-                    else
-                    {
-                        i++;  // Only skip bills that genuinely can't be resolved
-                    }
-                }
-            }
-
-            // Resolve remaining positive bills
-            foreach (BillFC positiveBill in new List<BillFC>(positiveBills))
-            {
-                positiveBill.Resolve();
-                resolvedBills++;
-            }
-
-            Messages.Message("FCNumberTaxesHasBeenSolved".Translate(resolvedBills), MessageTypeDefOf.NeutralEvent);
-        }
+        /* returnBillTypes + AutoresolveBills moved to TaxLedger as private/instance methods. */
 
         public static void PlaceThing(Thing thing)
         {
@@ -216,42 +105,7 @@ namespace FactionColonies
 
             return true;
         }
-        /// <summary>Create a deployment-cost bill against <paramref name="squad"/>'s home
-        /// settlement. The bill is appended to <c>FactionFC.Bills</c> and obligates the
-        /// player for <c>squad.DeploymentCost()</c> silver, due in
-        /// <c>FCSettings.deploymentBillLifespan_days</c> days. No-op when cost is zero
-        /// (slider at 0%) or godMode is on.</summary>
-        /// <returns>The created <see cref="BillFC"/>, or <c>null</c> when no bill was
-        /// created (no squad, zero cost, godMode, no home settlement, or no faction).</returns>
-        public static BillFC CreateDeploymentCostBill(MercenarySquadFC squad)
-        {
-            if (squad is null) return null;
-            int cost = squad.DeploymentCost();
-            if (cost <= 0 || DebugSettings.godMode) return null;
-
-            WorldSettlementFC home = squad.settlement;
-            if (home is null)
-            {
-                LogUtil.Warning($"CreateDeploymentCostBill: squad {squad.GetUniqueLoadID()} has no home settlement; skipping bill.");
-                return null;
-            }
-
-            FactionFC fc = FactionCache.FactionComp;
-            if (fc is null) return null;
-
-            int lifespanTicks = Math.Max(1, FCSettings.deploymentBillLifespan_days) * GenDate.TicksPerDay;
-            BillFC bill = new BillFC(home, lifespanTicks);
-            bill.label = "FCBillKindSquadDeployment".Translate();
-            bill.taxes.silverAmount = -cost;
-            /* silverAmount must be set BEFORE the Scaled helpers -- they read it for
-             * the linear scaling computation. */
-            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Unrest, 10);
-            bill.AddUnpaidPenaltyScaled(BillPenaltyStat.Happiness, 10);
-            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Unrest, 4);
-            bill.AddLatePaidPenaltyScaled(BillPenaltyStat.Happiness, 4);
-            fc.Bills.Add(bill);
-            return bill;
-        }
+        /* CreateDeploymentCostBill moved to TaxLedger as an instance factory method. */
 
         public static int GetSilver()
         {
@@ -301,7 +155,7 @@ namespace FactionColonies
 
         public static List<Thing> GenerateRaidLoot(int lootLevel, TechLevel techLevel)
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             float lootMultiplier = (float)faction.GetStatValue(FCStatDefOf.lootMultiplier);
 
@@ -339,7 +193,7 @@ namespace FactionColonies
             raceChoice = faction.RandomPawnKind();
 
             pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind: raceChoice,
-                faction: FactionCache.PlayerColonyFaction, context: PawnGenerationContext.NonPlayer, tile: -1,
+                faction: FindFC.EmpireFaction, context: PawnGenerationContext.NonPlayer, tile: -1,
                 forceGenerateNewPawn: false, allowDead: false, allowDowned: false,
                 canGeneratePawnRelations: false, mustBeCapableOfViolence: true, colonistRelationChanceFactor: 0,
                 forceAddFreeWarmLayerIfNeeded: false, allowGay: false, allowFood: false, allowAddictions: false,
@@ -405,7 +259,7 @@ namespace FactionColonies
             }
 
             // Fallback to existing tax map logic
-            return FactionCache.FactionComp.TaxMap;
+            return FindFC.TaxMap;
         }
 
         public static bool CheckForActiveTaxDeliverySpot(out IntVec3 dropSpot, out Map taxMap)

@@ -144,7 +144,7 @@ namespace FactionColonies
             }
             else
             {
-                param.techLevel = FactionCache.PlayerColonyFaction.def.techLevel;
+                param.techLevel = FindFC.EmpireFaction.def.techLevel;
             }
 
             return param;

@@ -41,7 +41,7 @@ namespace FactionColonies
         {
             base.PreOpen();
 
-            faction = FactionCache.FactionComp;
+            faction = FindFC.FactionComp;
             if (faction == null)
             {
                 LogUtil.Error("Null FactionFC WorldComponent when opening FCCustomizeXenotypesWindow");
@@ -104,7 +104,7 @@ namespace FactionColonies
 
             Text.Font = GameFont.Small;
             Rect subHeader = new Rect(boundingBox.x, header.yMax, boundingBox.width, 30f);
-            Widgets.Label(subHeader, FactionCache.PlayerColonyFaction.Name);
+            Widgets.Label(subHeader, FindFC.EmpireFaction.Name);
 
             float availHeight = boundingBox.yMax - subHeader.yMax - CloseButSize.y - margin;
 

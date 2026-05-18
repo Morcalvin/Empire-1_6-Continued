@@ -80,7 +80,7 @@ namespace FactionColonies
         public static void BuildBattleContext_ReflectsParticipantsAndTarget()
         {
             var op = new MilitaryOperation(-1, MilitaryJobDefOf.RaidEnemySettlement, new PlanetTile(42), null);
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
 
             BattleForceContext ctx = op.BuildBattleContext();
             TestAssert.IsNotNull(ctx);
@@ -106,11 +106,11 @@ namespace FactionColonies
         [EmpireTest("Military")]
         public static void IsDefensive_PlayerFactionAsDefender_True()
         {
-            if (FactionCache.PlayerColonyFaction is null)
+            if (FindFC.EmpireFaction is null)
                 TestAssert.Skip("No player colony faction");
 
             var op = Make();
-            op.defender.faction = FactionCache.PlayerColonyFaction;
+            op.defender.faction = FindFC.EmpireFaction;
             TestAssert.IsTrue(op.IsDefensive);
             TestAssert.IsFalse(op.IsOffensive);
         }
@@ -118,11 +118,11 @@ namespace FactionColonies
         [EmpireTest("Military")]
         public static void IsOffensive_PlayerFactionAsAggressor_True()
         {
-            if (FactionCache.PlayerColonyFaction is null)
+            if (FindFC.EmpireFaction is null)
                 TestAssert.Skip("No player colony faction");
 
             var op = Make();
-            op.aggressor.faction = FactionCache.PlayerColonyFaction;
+            op.aggressor.faction = FindFC.EmpireFaction;
             TestAssert.IsTrue(op.IsOffensive);
             TestAssert.IsFalse(op.IsDefensive);
         }

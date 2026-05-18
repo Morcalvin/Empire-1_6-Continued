@@ -22,7 +22,7 @@ namespace FactionColonies
             {
                 if (localfaction == null)
                 {
-                    localfaction = FactionCache.FactionComp;
+                    localfaction = FindFC.FactionComp;
                 }
                 return localfaction;
             }
@@ -156,7 +156,7 @@ namespace FactionColonies
 
         public virtual string GetSettlementName(string fallback = "Settlement")
         {
-            Faction pfaction = FactionCache.PlayerColonyFaction;
+            Faction pfaction = FindFC.EmpireFaction;
             if (pfaction?.def.settlementNameMaker == null)
             {
                 return fallback;

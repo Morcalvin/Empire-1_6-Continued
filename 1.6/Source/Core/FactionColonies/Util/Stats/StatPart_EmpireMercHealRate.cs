@@ -38,14 +38,14 @@ namespace FactionColonies
             factor = 1f;
             if (!req.HasThing || !(req.Thing is Pawn pawn)) return false;
 
-            Mercenary merc = FactionCache.FactionComp?.military?.GetRegisteredInjuredMerc(pawn);
+            Mercenary merc = FindFC.Military?.GetRegisteredInjuredMerc(pawn);
             if (merc is null) return false;
 
             // On-map mercs follow vanilla healing — we only boost while abstracted at base.
             if (pawn.Map != null) return false;
 
             WorldSettlementFC settlement = merc.settlement ?? merc.squad?.getSettlement;
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             double settlementMult = (faction is object && settlement is object)
                 ? faction.GetStatValue(FCStatDefOf.mercHealRateMultiplier, settlement)
                 : 1.0;

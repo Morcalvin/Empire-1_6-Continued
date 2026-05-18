@@ -16,12 +16,6 @@ namespace FactionColonies
     /// </summary>
     public static class FactionCache
     {
-        private static Faction _cachedColonyFaction = null;
-        private static Faction _cachedPlayerFaction = null;
-        private static FactionFC _cachedFactionWorldComp = null;
-        private static MilitaryOperationManager _cachedMilitaryManager = null;
-        private static WorldComponent_EnemyPower _cachedEnemyPower = null;
-        private static FactionDef _cachedFactionDef = null;
         private static List<PawnKindDef> _cachedPawnKindDefs = null;
         private static Dictionary<(Type, string), FieldInfo> _cachedFields = new Dictionary<(Type, string), FieldInfo>();
         private static List<XenotypeDef> _cachedXenotypeList = null;
@@ -47,34 +41,6 @@ namespace FactionColonies
         private static Dictionary<TechLevel, TechLevelBarrier> _cachedTechBarriers = null;
         private static ResearchProjectDef _cachedTransportPods = null;
 
-        public static FactionFC FactionComp => _cachedFactionWorldComp ?? (_cachedFactionWorldComp = Find.World?.GetComponent<FactionFC>());
-
-        /// <summary>
-        /// Shortcut to <see cref="FactionFC.militaryOperationManager"/>. Returns null if the
-        /// faction component itself is not yet loaded.
-        /// </summary>
-        public static MilitaryOperationManager MilitaryManager
-            => _cachedMilitaryManager ?? (_cachedMilitaryManager = FactionComp?.militaryOperationManager);
-        /// <summary>
-        /// Per-world cache of enemy-faction and enemy-settlement power baselines, plus the
-        /// only sanctioned site for invoking <see cref="BattleModifierRegistry"/>. Used by
-        /// the squad-attack window (range display), battle engagement (variance roll +
-        /// modifier pass), and AI-attack force generation.
-        /// </summary>
-        public static WorldComponent_EnemyPower EnemyPower =>
-            _cachedEnemyPower ??
-            (_cachedEnemyPower = Find.World?.GetComponent<WorldComponent_EnemyPower>());
-        /// <summary>
-        /// The NPC Empire faction that the player created and controls.
-        /// </summary>
-        public static Faction PlayerColonyFaction => _cachedColonyFaction ??
-                                                     (_cachedColonyFaction = Find.FactionManager?.FirstFactionOfDef(EmpireFactionDef));
-        public static bool IsPlayerColonyFaction(Faction f) => !(PlayerColonyFaction is null) && f == PlayerColonyFaction;
-        /// <summary>
-        /// The player faction itself.
-        /// </summary>
-        public static Faction PlayerFaction => _cachedPlayerFaction ??
-                                               (_cachedPlayerFaction = Find.FactionManager?.AllFactions?.FirstOrDefault(faction => faction.IsPlayer));
         public static List<PawnKindDef> AllPawnKindDefs
         {
             get
@@ -110,7 +76,7 @@ namespace FactionColonies
             FieldCache.Add((typ, field), fieldInfo);
             return fieldInfo;
         }
-        public static FactionDef EmpireFactionDef => _cachedFactionDef ?? (_cachedFactionDef = DefDatabase<FactionDef>.GetNamed("PColony"));
+
         public static List<XenotypeDef> XenotypeDefs => _cachedXenotypeList ?? (_cachedXenotypeList = DefDatabase<XenotypeDef>.AllDefsListForReading);
         public static List<CustomXenotype> CustomXenotypes
         {
@@ -545,13 +511,7 @@ namespace FactionColonies
         public static void InvalidateCache()
         {
             LogUtil.Message("Invalidating FactionCache...");
-            _cachedColonyFaction = null;
-            _cachedPlayerFaction = null;
             _cachedPawnKindDefs = null;
-            _cachedFactionWorldComp = null;
-            _cachedMilitaryManager = null;
-            _cachedEnemyPower = null;
-            _cachedFactionDef = null;
             _cachedFields.Clear();
             _cachedRaceList = null;
             _cachedXenotypeList = null;

@@ -40,7 +40,7 @@ namespace FactionColonies
                 IncidentParms parms = new IncidentParms
                 {
                     target = Find.CurrentMap,
-                    faction = FactionCache.PlayerColonyFaction,
+                    faction = FindFC.EmpireFaction,
                     points = 999,
                     raidArrivalModeForQuickMilitaryAid = true,
                     raidNeverFleeIndividual = true,

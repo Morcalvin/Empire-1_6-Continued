@@ -80,7 +80,7 @@ namespace FactionColonies.util
             LogUtil.Message("Creating new XenotypeFilter");
             this.factionFc = factionFc;
             militaryFC = factionFc.military;
-            faction = FactionCache.EmpireFactionDef;
+            faction = FindFC.EmpireFactionDef;
         }
 
         private void InvalidateNonViolentCache()
@@ -92,7 +92,7 @@ namespace FactionColonies.util
         {
             this.factionFc = factionFc;
             militaryFC = factionFc.military;
-            faction = FactionCache.EmpireFactionDef;
+            faction = FindFC.EmpireFactionDef;
             LogUtil.Message("XenotypeFilter FinalizeInit");
 
             if (XenoCompleteWeight == 0)

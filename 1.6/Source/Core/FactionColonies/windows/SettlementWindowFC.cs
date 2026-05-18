@@ -75,7 +75,7 @@ namespace FactionColonies
         {
             base.PreOpen();
             maxScroll = (settlement.Resources.Count * ScrollSpacing) - ScrollHeight;
-            factionfc = FactionCache.FactionComp;
+            factionfc = FindFC.FactionComp;
             Color baseColor = settlement.settlementDef.accentColor ?? Color.white;
             accentColor = baseColor * Color.gray;
             highlightColor = baseColor * Color.white;
@@ -1198,7 +1198,7 @@ namespace FactionColonies
         private void BuildPerSquadMenu(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            MilitaryFC mfc = FactionCache.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             List<FloatMenuOption> list = new List<FloatMenuOption>();
 
             list.Add(new FloatMenuOption("FCSquadMenuInspect".Translate(),

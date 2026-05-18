@@ -57,7 +57,7 @@ namespace FactionColonies
 
         private static MercenarySquadFC FindStationedSquad()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
             if (faction is null) return null;
             foreach (WorldSettlementFC s in faction.settlements)
             {

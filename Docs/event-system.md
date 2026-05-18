@@ -185,7 +185,7 @@ if (evt != null)
     // Optionally set settlement locations
     evt.settlementTraitLocations = new List<WorldSettlementFC> { targetSettlement };
 
-    FactionCache.FactionComp.AddEvent(evt);
+    FindFC.EventManager.AddEvent(evt);
 }
 ```
 

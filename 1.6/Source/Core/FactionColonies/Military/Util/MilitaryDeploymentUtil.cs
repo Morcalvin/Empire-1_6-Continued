@@ -50,7 +50,7 @@ namespace FactionColonies
             IncidentParms parms = new IncidentParms
             {
                 target = currentMap,
-                faction = FactionCache.PlayerColonyFaction,
+                faction = FindFC.EmpireFaction,
                 podOpenDelay = 140,
                 points = 999,
                 raidArrivalModeForQuickMilitaryAid = true,
@@ -92,13 +92,9 @@ namespace FactionColonies
                 ? "FCDeploymentSuccessDesc".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap, squad.DeploymentCost(), FCSettings.deploymentBillLifespan_days)
                 : "FCDeploymentSuccessDescNoBill".Translate(squad.DisplayName, squad.settlement?.Name, currentMap.Parent.LabelCap);
             Find.LetterStack.ReceiveLetter("FCDeploymentSuccessLabel".Translate(), deploymentDesc, LetterDefOf.NeutralEvent, new LookTargets(equippedPawns));
+            FindFC.MilitaryManager?.CreateDeployOp(squad, currentMap.Tile);
 
-            // Deploy is a manager op: CreateDeployOp registers the squad, sets phase=Engaged,
-            // and fires LifecycleRegistry.InvokeOnOperationCreated. Squad-first: pass the squad,
-            // not the settlement; the op's home settlement is read from squad.settlement.
-            FactionCache.MilitaryManager?.CreateDeployOp(squad, currentMap.Tile);
-
-            LordMaker.MakeNewLord(FactionCache.PlayerColonyFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);
+            LordMaker.MakeNewLord(FindFC.EmpireFaction, new LordJob_DeployMilitary(dropPosition, squad), currentMap, equippedPawns);
         }
 
         /// <summary>
@@ -140,7 +136,7 @@ namespace FactionColonies
                     return;
                 }
 
-                BillFC deploymentBill = PaymentUtil.CreateDeploymentCostBill(squad);
+                BillFC deploymentBill = FindFC.TaxLedger.CreateDeploymentCostBill(squad);
                 SpawnSquad(settlement, squad, dropPosition, DropPod, deploymentBill);
                 DebugTools.curTool = null;
             });
@@ -156,7 +152,7 @@ namespace FactionColonies
         /// <param name="DropPod"></param>
         public static void CallinExtraForces(WorldSettlementFC settlement, bool DropPod)
         {
-            MercenarySquadFC squad = FactionCache.FactionComp.military.CreateMercenarySquad(settlement, true);
+            MercenarySquadFC squad = FindFC.Military.CreateMercenarySquad(settlement, true);
             if (squad == null) return;
             // Copy the outfit from the settlement's primary stationed squad (any squad with an
             // outfit will do — we just need a template to clone the gear from).
@@ -189,7 +185,7 @@ namespace FactionColonies
                         List<ThingDef> projectiles = new List<ThingDef>(support.projectiles);
                         MilitaryFireSupport fireSupport = new MilitaryFireSupport("fireSupport", map, target.Cell,
                             projectiles.Count() * 15, 600, support.accuracy, projectiles, settlement.Tile);
-                        FactionCache.FactionComp.military.fireSupport.Add(fireSupport);
+                        FindFC.Military.fireSupport.Add(fireSupport);
 
                         Messages.Message("FCFireSupportNameWillBeFiredOnPosition".Translate(support.name), MessageTypeDefOf.ThreatSmall);
                         if (settlement.MilitaryComp != null)
@@ -232,7 +228,7 @@ namespace FactionColonies
             out double level, out double efficiency,
             out double levelVariance, out double efficiencyVariance)
         {
-            EnemyPowerTechDef d = FactionCache.EnemyPower?.GetTechDef(tl);
+            EnemyPowerTechDef d = FindFC.EnemyPower?.GetTechDef(tl);
             if (d is null)
             {
                 /* Pre-world / test path: no WorldComponent yet. Read DefDatabase directly. */

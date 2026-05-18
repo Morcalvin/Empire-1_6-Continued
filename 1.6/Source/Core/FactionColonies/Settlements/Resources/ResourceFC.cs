@@ -24,7 +24,7 @@ namespace FactionColonies
             set
             {
                 savedAssignedWorkers = value;
-                FactionCache.FactionComp?.SetDirtyResourceDisplayCache(def);
+                FindFC.FactionComp?.SetDirtyResourceDisplayCache(def);
             }
         }
 
@@ -378,7 +378,7 @@ namespace FactionColonies
         }
         public double GetTitheIncome()
         {
-            double multForTotal = FactionCache.FactionComp.GetStatValue(FCStatDefOf.titheValueMultiplier, settlement);
+            double multForTotal = FindFC.FactionComp.GetStatValue(FCStatDefOf.titheValueMultiplier, settlement);
             return ((taxableProductionMarketValue + GetTotalTitheModifierForWorkers()) * multForTotal) + externalTitheBudget;
         }
         public void RefreshOnRandomTitheBudgetChange()
@@ -396,7 +396,7 @@ namespace FactionColonies
             dirtyTitheCache = true;
             SetDirtyRandomTitheCache();
             dirtyFilteredRandomTitheCache = true;
-            FactionCache.FactionComp?.SetDirtyResourceDisplayCache(def);
+            FindFC.FactionComp?.SetDirtyResourceDisplayCache(def);
         }
         public void SetDirtyRandomTitheCache()
         {
@@ -674,7 +674,7 @@ namespace FactionColonies
          */
         public void ResetThingFilter()
         {
-            FactionFC faction = FactionCache.FactionComp;
+            FactionFC faction = FindFC.FactionComp;
 
             if (def == null)
                 return;
@@ -700,11 +700,11 @@ namespace FactionColonies
                     ResetThingFilter();
                 }
 
-                FactionFC faction = FactionCache.FactionComp;
+                FactionFC faction = FindFC.FactionComp;
                 ThingSetMaker thingSetMaker = new ThingSetMaker_Count();
                 ThingSetMakerParams param = new ThingSetMakerParams();
                 param.filter = new ThingFilter();
-                param.techLevel = FactionCache.PlayerColonyFaction.def.techLevel;
+                param.techLevel = FindFC.EmpireFaction.def.techLevel;
                 param.countRange = new IntRange(1, 1);
 
                 TechLevel tmplevel = TechLevel.Undefined;
@@ -1138,7 +1138,7 @@ namespace FactionColonies
                         ThingSetMakerParams param = new ThingSetMakerParams();
                         param.totalMarketValueRange = new FloatRange((float)randomBudget, (float)(randomBudget + GetTotalTitheModifierForWorkers()));
                         param.filter = randomTitheFilter;
-                        param.techLevel = FactionCache.PlayerColonyFaction.def.techLevel;
+                        param.techLevel = FindFC.EmpireFaction.def.techLevel;
 
                         LogUtil.Message($"  randomTitheFilter has {randomTitheFilter.AllowedDefCount} allowed items");
 

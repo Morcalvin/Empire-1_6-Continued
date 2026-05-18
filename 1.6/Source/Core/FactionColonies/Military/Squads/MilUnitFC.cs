@@ -43,13 +43,13 @@ namespace FactionColonies
 
         public MilUnitFC(bool blank)
         {
-            loadID = FactionCache.FactionComp.NextUnitID;
+            loadID = FindFC.Military.NextUnitId();
             isBlank = blank;
             equipmentTotalCost = 0;
 
             try
             {
-                Faction playerFaction = FactionCache.PlayerColonyFaction;
+                Faction playerFaction = FindFC.EmpireFaction;
                 if (playerFaction != null && playerFaction.def.pawnGroupMakers.Any() &&
                     playerFaction.def.pawnGroupMakers.Any(pgm => pgm.options?.Any() == true))
                 {
@@ -208,7 +208,7 @@ namespace FactionColonies
 
                 if (previewPawn != null && previewPawn.Faction == null)
                 {
-                    Faction empireFaction = FactionCache.PlayerColonyFaction;
+                    Faction empireFaction = FindFC.EmpireFaction;
                     if (empireFaction != null)
                         previewPawn.SetFaction(empireFaction);
                 }
@@ -248,7 +248,7 @@ namespace FactionColonies
             target.apparel?.DestroyAll();
             target.equipment?.DestroyAllEquipment();
 
-            FactionFC factionComp = FactionCache.FactionComp;
+            FactionFC factionComp = FindFC.FactionComp;
             if (source.apparel != null && target.apparel != null)
             {
                 foreach (SavedThing a in source.apparel)
@@ -469,7 +469,7 @@ namespace FactionColonies
 
         public void RemoveUnit()
         {
-            FactionCache.FactionComp.military.units.Remove(this);
+            FindFC.Military.units.Remove(this);
         }
 
         /* Deep copy used by per-merc owned-loadout snapshots. The clone is owned by a

@@ -23,7 +23,7 @@ namespace FactionColonies
                 return false;
             }
 
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null)
             {
                 LogUtil.Error("AttackPlayerSettlement: MilitaryManager unavailable.");
@@ -45,7 +45,7 @@ namespace FactionColonies
         public static void AttackRaidTarget(MilitaryForce attackingForce, IRaidTarget target, Faction enemyFaction)
         {
             if (target?.WorldObject is null) return;
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             if (manager is null)
             {
                 LogUtil.Error("AttackRaidTarget: MilitaryManager unavailable.");
@@ -67,11 +67,11 @@ namespace FactionColonies
         /// </summary>
         public static void ChangeDefendingMilitaryForce(FCEvent evt, WorldSettlementFC settlementOfMilitaryForce)
         {
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             if (factionfc is null) return;
             WorldSettlementFC homeSettlement = factionfc.ReturnSettlementByLocation(evt.location);
 
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
@@ -132,11 +132,11 @@ namespace FactionColonies
         {
             if (squad?.settlement is null) return;
 
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             if (factionfc is null) return;
             WorldSettlementFC homeSettlement = factionfc.ReturnSettlementByLocation(evt.location);
 
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
@@ -183,10 +183,10 @@ namespace FactionColonies
         /// </summary>
         public static void ChangeDefendingToExternalForce(FCEvent evt, IAutoDefender defender)
         {
-            FactionFC factionfc = FactionCache.FactionComp;
+            FactionFC factionfc = FindFC.FactionComp;
             if (factionfc is null) return;
 
-            MilitaryOperationManager manager = FactionCache.MilitaryManager;
+            MilitaryOperationManager manager = FindFC.MilitaryManager;
             MilitaryOperation op = evt.linkedOperation;
             if (op is null)
             {
@@ -238,12 +238,12 @@ namespace FactionColonies
 
         public static FCEvent ReturnMilitaryEventByLocation(PlanetTile location)
         {
-            return FactionCache.FactionComp.FindEventByDefAndLocation(FCEventDefOf.settlementBeingAttacked, location);
+            return FindFC.FactionComp.FindEventByDefAndLocation(FCEventDefOf.settlementBeingAttacked, location);
         }
 
         public static IReadOnlyList<FCEvent> ReturnMilitaryEventsByLocation(PlanetTile location)
         {
-            return FactionCache.FactionComp.FindAllEventsByDefAndLocation(FCEventDefOf.settlementBeingAttacked, location);
+            return FindFC.FactionComp.FindAllEventsByDefAndLocation(FCEventDefOf.settlementBeingAttacked, location);
         }
 
         /// <summary>Returns the first available squad stationed at <paramref name="settlement"/>,
