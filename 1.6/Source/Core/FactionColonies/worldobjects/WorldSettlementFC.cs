@@ -266,7 +266,7 @@ namespace FactionColonies
             get
             {
                 List<MercenarySquadFC> result = new List<MercenarySquadFC>();
-                List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
+                List<MercenarySquadFC> pool = FindFC.Military?.mercenarySquads;
                 if (pool is null) return result;
                 for (int i = 0; i < pool.Count; i++)
                 {
@@ -285,7 +285,7 @@ namespace FactionColonies
         {
             get
             {
-                List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
+                List<MercenarySquadFC> pool = FindFC.Military?.mercenarySquads;
                 if (pool is null) return null;
                 for (int i = 0; i < pool.Count; i++)
                 {
@@ -303,7 +303,7 @@ namespace FactionColonies
         {
             get
             {
-                List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
+                List<MercenarySquadFC> pool = FindFC.Military?.mercenarySquads;
                 if (pool is null) return null;
                 for (int i = 0; i < pool.Count; i++)
                 {

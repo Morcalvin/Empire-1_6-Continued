@@ -110,7 +110,7 @@ namespace FactionColonies
 
         protected override void Confirm()
         {
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc is null || target is null) { Close(); return; }
 
             if (unassignSelected)

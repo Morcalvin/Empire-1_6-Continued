@@ -531,7 +531,7 @@ namespace FactionColonies
         [DebugAction("Empire", "Clear All Events", allowedGameStates = AllowedGameStates.Playing)]
         private static void ClearAllEvents()
         {
-            FindFC.FactionComp?.eventManager?.Clear();
+            FindFC.EventManager?.Clear();
         }
 
         [DebugAction("Empire", "Clear All Bills", allowedGameStates = AllowedGameStates.Playing)]
@@ -627,7 +627,7 @@ namespace FactionColonies
 
         private static void WithSquadChoice(Action<MercenarySquadFC> callback)
         {
-            List<MercenarySquadFC> pool = FindFC.FactionComp?.military?.mercenarySquads;
+            List<MercenarySquadFC> pool = FindFC.Military?.mercenarySquads;
             List<DebugMenuOption> list = new List<DebugMenuOption>();
             if (pool is object)
             {

@@ -34,7 +34,7 @@ namespace FactionColonies
         {
             get
             {
-                MilUnitFC blank = FindFC.FactionComp?.military?.blankUnit;
+                MilUnitFC blank = FindFC.Military?.blankUnit;
                 return blank != null && loadout != null && loadout != blank;
             }
         }

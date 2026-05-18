@@ -313,7 +313,7 @@ namespace FactionColonies
                     slot.currentLoadout = blueprint.Clone();
                 }
             }
-            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.Military?.RebuildMercenaryPawnSet();
             LifecycleRegistry.InvokeOnSquadUpgraded(this);
             return true;
         }
@@ -344,7 +344,7 @@ namespace FactionColonies
                Keep `loadout` (pool reference) so Fill can reuse it. */
             merc.ownedLoadout = null;
             merc.currentLoadout = null;
-            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.Military?.RebuildMercenaryPawnSet();
             Messages.Message("FCMercDismissed".Translate(), MessageTypeDefOf.NeutralEvent, false);
             return true;
         }
@@ -359,7 +359,7 @@ namespace FactionColonies
             if (mercenaries is null) return false;
             if (IsBusy) return false;
             if (!mercenaries.Remove(merc)) return false;
-            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.Military?.RebuildMercenaryPawnSet();
             return true;
         }
 

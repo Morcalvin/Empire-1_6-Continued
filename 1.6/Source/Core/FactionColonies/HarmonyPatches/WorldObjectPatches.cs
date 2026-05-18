@@ -14,7 +14,7 @@ namespace FactionColonies
         public static void Postfix(WorldObject o)
         {
             if (o is Settlement)
-                FindFC.FactionComp?.roadBuilder?.FlagUpdateRoadQueues();
+                FindFC.RoadBuilder?.FlagUpdateRoadQueues();
         }
     }
 
@@ -24,7 +24,7 @@ namespace FactionColonies
         public static void Postfix(WorldObject o)
         {
             if (o is Settlement)
-                FindFC.FactionComp?.roadBuilder?.FlagUpdateRoadQueues();
+                FindFC.RoadBuilder?.FlagUpdateRoadQueues();
         }
     }
 
@@ -34,7 +34,7 @@ namespace FactionColonies
         public static void Postfix(WorldObject __instance)
         {
             if (__instance is Settlement)
-                FindFC.FactionComp?.roadBuilder?.FlagUpdateRoadQueues();
+                FindFC.RoadBuilder?.FlagUpdateRoadQueues();
         }
     }
 

@@ -1079,7 +1079,7 @@ namespace FactionColonies
             }
 
             ls.Gap(12f);
-            FCRoadQueue queue = FindFC.FactionComp?.roadBuilder?.roadQueue;
+            FCRoadQueue queue = FindFC.RoadBuilder?.roadQueue;
             if (queue is object && ls.ButtonText("FCSettingFlushRoadCache".Translate()))
             {
                 queue.FlushCache();

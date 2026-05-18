@@ -12,7 +12,7 @@ namespace FactionColonies
             if (__instance.IsMercenary())
             {
                 if (__instance.Faction != FindFC.EmpireFaction) __instance.SetFaction(FindFC.EmpireFaction);
-                var mfc = FindFC.FactionComp?.military;
+                var mfc = FindFC.Military;
                 if (mfc is null) return true;
                 MercenarySquadFC squad = mfc.ReturnSquadFromUnit(__instance);
                 if (squad != null)
@@ -40,7 +40,7 @@ namespace FactionColonies
                         // Mark the slot empty — keep the Mercenary entry so its loadout reference
                         // survives for Fill, but null its pawn.
                         merc.pawn = null;
-                        FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
+                        FindFC.Military?.RebuildMercenaryPawnSet();
                     }
 
                     squad.Equipment.RemoveDroppedEquipment();
@@ -65,7 +65,7 @@ namespace FactionColonies
     {
         static bool Prefix(Corpse corpse)
         {
-            if (FindFC.FactionComp?.military?.IsMercenaryPawn(corpse.InnerPawn) == true)
+            if (FindFC.Military?.IsMercenaryPawn(corpse.InnerPawn) == true)
             {
                 //corpse.InnerPawn.SetFaction(FactionColonies.getPlayerColonyFaction());
                 corpse.Destroy();
@@ -81,7 +81,7 @@ namespace FactionColonies
     {
         static bool Prefix(Pawn pawn)
         {
-            if (FindFC.FactionComp?.military?.IsMercenaryPawn(pawn) == true)
+            if (FindFC.Military?.IsMercenaryPawn(pawn) == true)
             {
                 return false;
             }

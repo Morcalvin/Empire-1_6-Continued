@@ -366,7 +366,7 @@ namespace FactionColonies
             // Roll up squad injuries onto the loadout BEFORE listeners run, so OnBattleResolved
             // observers see post-battle injury counts. Pawn deaths are already reflected in
             // squad.dead via the Pawn.Kill harmony patch — this call records the wound list.
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc is object)
             {
                 if (aggressor?.squad is object) mfc.RegisterSquadInjuries(aggressor.squad);
@@ -387,7 +387,7 @@ namespace FactionColonies
             // defensive ones. Skip on Error results — the battle didn't really happen.
             if (battleResult is object && battleResult.winner != BattleWinner.Error)
             {
-                EmpireThreatAdaptation adapt = FindFC.FactionComp?.threatAdaptation;
+                EmpireThreatAdaptation adapt = FindFC.ThreatAdaptation;
                 if (adapt is object)
                 {
                     if (victory) adapt.Notify_BattleWon();
@@ -522,7 +522,7 @@ namespace FactionColonies
             // Defense-in-depth: re-register injuries for participating squads. By Resolve time
             // (post-cooldown), pawns are off-map and any wounds carried back are catchable here.
             // HashSet.Add is idempotent, so this is a no-op for already-tracked mercs.
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc is object)
             {
                 if (aggressor?.squad is object) mfc.RegisterSquadInjuries(aggressor.squad);

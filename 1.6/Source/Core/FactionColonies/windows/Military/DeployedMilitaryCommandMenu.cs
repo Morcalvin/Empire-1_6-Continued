@@ -157,7 +157,7 @@ namespace FactionColonies
             // immediately freed.
             MilitaryOperation op = squad.Operation;
             if (op is object) FindFC.MilitaryManager?.Unregister(op);
-            FindFC.FactionComp?.military?.RegisterSquadInjuries(squad);
+            FindFC.Military?.RegisterSquadInjuries(squad);
         }
 
         /// <summary>

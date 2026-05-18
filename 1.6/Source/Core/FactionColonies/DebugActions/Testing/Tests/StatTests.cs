@@ -18,7 +18,7 @@ namespace FactionColonies
 
         private static WorldSettlementFC GetFirstSettlement()
         {
-            var settlements = FindFC.FactionComp?.settlements;
+            var settlements = FindFC.Settlements;
             if (settlements == null || settlements.Count == 0)
                 return null;
             return settlements[0];

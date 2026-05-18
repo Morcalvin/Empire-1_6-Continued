@@ -331,7 +331,7 @@ namespace FactionColonies
 
         private void OpenPickFromPoolMenu()
         {
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc?.units is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             foreach (MilUnitFC unit in mfc.units)

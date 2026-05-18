@@ -264,7 +264,7 @@ namespace FactionColonies
                     "FCSquadActDismissConfirm".Translate(captured.DisplayName),
                     delegate
                     {
-                        FindFC.FactionComp?.military?.DismissSquad(captured);
+                        FindFC.Military?.DismissSquad(captured);
                         Close();
                     }));
             }
@@ -369,7 +369,7 @@ namespace FactionColonies
             bx += btnW + gap;
 
             /* Add unit: pick from saved blueprints, fill an empty slot, break template association. */
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             bool hasBlueprints = mfc?.units != null && mfc.units.Any(u => u != null && !u.isBlank);
             bool hasFreeSlot = squad.mercenaries != null && squad.mercenaries.Any(m => m != null && m.pawn is null);
             bool canAddUnit = !squad.IsBusy && hasBlueprints && hasFreeSlot;
@@ -680,14 +680,14 @@ namespace FactionColonies
             MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
             if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
-            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.Military?.RebuildMercenaryPawnSet();
         }
 
         /*-*-*-*-* Template menu *-*-*-*-*/
 
         private void OpenTemplateMenu()
         {
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc?.squads is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             options.Add(new FloatMenuOption("FCNone".Translate(), delegate { SquadUpgradeUtil.SwapTemplate(squad, null); }));
@@ -703,7 +703,7 @@ namespace FactionColonies
 
         private void OpenAddUnitMenu()
         {
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc?.units is null) return;
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             foreach (MilUnitFC unit in mfc.units)
@@ -765,7 +765,7 @@ namespace FactionColonies
             slot.currentLoadout = blueprint.Clone();
 
             if (squad.outfit != null) SquadUpgradeUtil.SwapTemplate(squad, null);
-            FindFC.FactionComp?.military?.RebuildMercenaryPawnSet();
+            FindFC.Military?.RebuildMercenaryPawnSet();
         }
 
         /*-*-*-*-* Submod sections *-*-*-*-*/

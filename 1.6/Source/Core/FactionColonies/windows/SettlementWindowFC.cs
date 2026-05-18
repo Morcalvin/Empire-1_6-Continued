@@ -1198,7 +1198,7 @@ namespace FactionColonies
         private void BuildPerSquadMenu(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             List<FloatMenuOption> list = new List<FloatMenuOption>();
 
             list.Add(new FloatMenuOption("FCSquadMenuInspect".Translate(),

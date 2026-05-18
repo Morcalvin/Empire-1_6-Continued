@@ -25,7 +25,7 @@ namespace FactionColonies
         public override void PostClose()
         {
             base.PostClose();
-            FindFC.FactionComp?.military?.CheckMilitaryUtilForErrors();
+            FindFC.Military?.CheckMilitaryUtilForErrors();
         }
 
         public override void DoWindowContents(Rect inRect)

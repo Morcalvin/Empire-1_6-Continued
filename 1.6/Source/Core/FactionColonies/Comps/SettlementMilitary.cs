@@ -818,7 +818,7 @@ namespace FactionColonies
             if (!militaryBusy) return; // No active op — nothing to do
 
             // Register injuries across every stationed squad so injured pawns get healed.
-            MilitaryFC mfc = FindFC.FactionComp?.military;
+            MilitaryFC mfc = FindFC.Military;
             if (mfc != null)
             {
                 List<MercenarySquadFC> stationed = WorldSettlement?.StationedSquads;

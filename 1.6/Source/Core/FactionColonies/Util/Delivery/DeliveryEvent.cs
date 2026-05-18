@@ -42,14 +42,14 @@ namespace FactionColonies.util
 
         public static void Action(FCEvent evt)
         {
-            Action(evt, FindFC.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false);
+            Action(evt, FindFC.Settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false);
         }
 
         public static void Action(FCEvent evt, Letter let, Message msg = null, bool CanUseShuttle = false)
         {
             evt.let = let;
             evt.msg = msg;
-            Action(evt, CanUseShuttle || (FindFC.FactionComp?.settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false));
+            Action(evt, CanUseShuttle || (FindFC.Settlements?.FirstOrFallback(settlement => settlement.Tile == evt.source)?.BuildingsComp?.HasBuilding(BuildingFCDefOf.shuttlePort) ?? false));
         }
 
         public static void Action(FCEvent evt, bool canUseShuttle)
