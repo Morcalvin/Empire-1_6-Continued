@@ -87,10 +87,23 @@ namespace FactionColonies.util
             public float PainFactorProduct = 1f;
         }
 
-        /* Floor on the final xenotype factor. Prevents free or paid-to-take mercs. */
-        private const float MIN_FACTOR = 0.1f;
+        /* Floor on the final xenotype factor (post quarter-rounding). Prevents free mercs. */
+        private const float MIN_FACTOR = 0.25f;
         /* Synergy multiplier applied to min(shooting, melee) when both share a sign. */
         private const float BothCombatBonus = 0.5f;
+
+        /* Piecewise-linear curve applied to per-stat / per-aptitude / per-cap raw contributions
+         * (and to DmgResistBonus). Identity in [-1, +1]; slope 1/3 outside up to plus/minus 2 at
+         * plus/minus 4; SimpleCurve.Evaluate clamps to endpoint y-values past that. Mirrors the
+         * shape of vanilla's PriceUtility.AverageSkillCurve. */
+        private static readonly SimpleCurve _statContributionCurve = new SimpleCurve
+        {
+            new CurvePoint(-4f, -2f),
+            new CurvePoint(-1f, -1f),
+            new CurvePoint( 0f,  0f),
+            new CurvePoint( 1f,  1f),
+            new CurvePoint( 4f,  2f),
+        };
 
         private static readonly Dictionary<XenotypeDef, GeneValueComponents> _xenotypeComponentsCache
             = new Dictionary<XenotypeDef, GeneValueComponents>();
@@ -197,13 +210,15 @@ namespace FactionColonies.util
 
         private static float ApplyCap(float factor)
         {
-            if (factor < MIN_FACTOR) factor = MIN_FACTOR;
             if (!FCSettings.geneValueFactorUnlimited)
             {
                 float cap = FCSettings.geneValueMaxFactor;
                 if (factor > cap) factor = cap;
             }
-            return (float)Math.Round((double)factor, 2);
+            /* Round to nearest 0.25 so xenotype prices snap to clean quarter steps. */
+            factor = (float)(Math.Round((double)factor * 4.0, MidpointRounding.AwayFromZero) / 4.0);
+            if (factor < MIN_FACTOR) factor = MIN_FACTOR;
+            return factor;
         }
 
         /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
@@ -303,30 +318,36 @@ namespace FactionColonies.util
             GeneValueComponents c = default(GeneValueComponents);
             if (p is null) return c;
 
-            /* statOffsets: normalize against baseline, apply inverse-direction, weight, classify, bucket. */
+            /* statOffsets: normalize against baseline, apply inverse-direction, curve, weight, classify, bucket.
+             * The curve compresses extreme normalized values (e.g. ComfyTemperatureMin offsets normalized
+             * against a 0-baseline stat can run to +/-20+) into a bounded contribution. */
             foreach (KeyValuePair<StatDef, float> kvp in p.StatOffsetSum)
             {
                 StatDef stat = kvp.Key;
                 float weight = StatWeight(stat);
                 if (weight == 0f) continue;
                 float denom = Mathf.Max(1f, Mathf.Abs(stat.defaultBaseValue));
-                float normalized = kvp.Value / denom;
-                if (InverseDirectionStats.Contains(stat)) normalized = -normalized;
-                AddToBucket(ref c, ClassifyStat(stat), normalized * weight);
+                float raw = kvp.Value / denom;
+                if (InverseDirectionStats.Contains(stat)) raw = -raw;
+                float curved = _statContributionCurve.Evaluate(raw);
+                AddToBucket(ref c, ClassifyStat(stat), curved * weight);
             }
 
-            /* statFactors: bonus = (product - 1), apply inverse-direction, weight, classify, bucket. */
+            /* statFactors: bonus = (product - 1), apply inverse-direction, curve, weight, classify, bucket.
+             * The curve caps a single large factor (e.g. InjuryHealingFactor x4 -> raw +3) at the curve
+             * endpoint without flat clamping. */
             foreach (KeyValuePair<StatDef, float> kvp in p.StatFactorProduct)
             {
                 StatDef stat = kvp.Key;
                 float weight = StatWeight(stat);
                 if (weight == 0f) continue;
-                float bonus = kvp.Value - 1f;
-                if (InverseDirectionStats.Contains(stat)) bonus = -bonus;
-                AddToBucket(ref c, ClassifyStat(stat), bonus * weight);
+                float raw = kvp.Value - 1f;
+                if (InverseDirectionStats.Contains(stat)) raw = -raw;
+                float curved = _statContributionCurve.Evaluate(raw);
+                AddToBucket(ref c, ClassifyStat(stat), curved * weight);
             }
 
-            /* capMods: combined contribution per capacity, all routed to Shared (sight/manipulation/
+            /* capMods: combined contribution per capacity, curve, then route to Shared (sight/manipulation/
              * moving/consciousness affect both combat styles). */
             HashSet<PawnCapacityDef> seenCaps = new HashSet<PawnCapacityDef>();
             foreach (KeyValuePair<PawnCapacityDef, float> kvp in p.CapOffsetSum)
@@ -334,20 +355,24 @@ namespace FactionColonies.util
                 seenCaps.Add(kvp.Key);
                 float factorProd;
                 if (!p.CapFactorProduct.TryGetValue(kvp.Key, out factorProd)) factorProd = 1f;
-                c.EffectShared += (kvp.Value + (factorProd - 1f)) * 0.5f;
+                float raw = kvp.Value + (factorProd - 1f);
+                c.EffectShared += _statContributionCurve.Evaluate(raw) * 0.5f;
             }
             foreach (KeyValuePair<PawnCapacityDef, float> kvp in p.CapFactorProduct)
             {
                 if (seenCaps.Contains(kvp.Key)) continue;
-                c.EffectShared += (kvp.Value - 1f) * 0.5f;
+                float raw = kvp.Value - 1f;
+                c.EffectShared += _statContributionCurve.Evaluate(raw) * 0.5f;
             }
 
-            /* Aptitudes: Shooting/Melee route to their buckets, Medicine to NonCombat. */
+            /* Aptitudes: Shooting/Melee route to their buckets, Medicine to NonCombat. Curve the
+             * level*0.05 raw before weighting so a single huge aptitude stack still saturates cleanly. */
             foreach (KeyValuePair<SkillDef, int> kvp in p.AptitudeSum)
             {
                 float weight = SkillWeight(kvp.Key);
                 if (weight == 0f) continue;
-                float contribution = kvp.Value * weight * 0.05f;
+                float raw = kvp.Value * 0.05f;
+                float contribution = _statContributionCurve.Evaluate(raw) * weight;
                 if (kvp.Key == SkillDefOf.Shooting)   c.EffectShooting += contribution;
                 else if (kvp.Key == SkillDefOf.Melee) c.EffectMelee    += contribution;
                 else                                   c.EffectNonCombat += contribution;
@@ -359,10 +384,12 @@ namespace FactionColonies.util
             c.ArcBonus  = p.ArcSum;
             c.PainBonus = 1f - p.PainFactorProduct;
 
+            /* DmgResistBonus: sum of per-type (1 - product), then curved. Sanguophage's Flame x4 alone
+             * gives -3; without the curve it'd swamp a 0.3 weight to -0.9. */
             float dmgR = 0f;
             foreach (KeyValuePair<DamageDef, float> kvp in p.DamageFactorProduct)
                 dmgR += 1f - kvp.Value;
-            c.DmgResistBonus = dmgR;
+            c.DmgResistBonus = _statContributionCurve.Evaluate(dmgR);
 
             return c;
         }

@@ -157,10 +157,10 @@ namespace FactionColonies
          * into a cost multiplier applied to a mercenary's base race cost. Weights are
          * applied at read time over cached unweighted components, so changing these
          * sliders is free (no cache invalidation needed). No hard cap on the final factor. */
-        public const float DEFAULT_GENE_W_MVF       = 1.00f;  // marketValueFactor
+        public const float DEFAULT_GENE_W_MVF       = 0.00f;  // marketValueFactor (disabled by default)
         public const float DEFAULT_GENE_W_MET       = 0.02f;  // metabolism
-        public const float DEFAULT_GENE_W_ARC       = 0.20f;  // archites
-        public const float DEFAULT_GENE_W_EFFECTS   = 0.50f;  // stat bonuses
+        public const float DEFAULT_GENE_W_ARC       = 0.30f;  // archites
+        public const float DEFAULT_GENE_W_EFFECTS   = 0.75f;  // stat bonuses
         public const float DEFAULT_GENE_W_PAIN      = 0.20f;  // pain bonus
         public const float DEFAULT_GENE_W_DMGRESIST = 0.30f;  // damage resist
         public static float geneValueWeightMvf       = DEFAULT_GENE_W_MVF;

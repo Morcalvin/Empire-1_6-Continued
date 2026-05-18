@@ -91,9 +91,9 @@ Values in between dampen the effect of military efficiency on the auto combat.</
 	<FCSettingGeneValueWeightEffects>Stat &amp; Capacity Effects</FCSettingGeneValueWeightEffects>
 	<FCSettingGeneValueWeightEffectsTip>Weight on a gene's category-weighted stat factors, stat offsets, capacity modifiers, and skill aptitudes. Combat-category stats count most; social stats and unknown categories count nothing.</FCSettingGeneValueWeightEffectsTip>
 	<FCSettingGeneValueWeightPain>Pain Modifier</FCSettingGeneValueWeightPain>
-	<FCSettingGeneValueWeightPainTip>Weight on a gene's pain-factor change. Pain reduction (painFactor &lt; 1) raises price; pain increase (painFactor &gt; 1) lowers it.</FCSettingGeneValueWeightPainTip>
+	<FCSettingGeneValueWeightPainTip>Weight on a gene's pain-factor change. Pain reduction raises price, and vice versa.</FCSettingGeneValueWeightPainTip>
 	<FCSettingGeneValueWeightDmgResist>Damage Resistance</FCSettingGeneValueWeightDmgResist>
-	<FCSettingGeneValueWeightDmgResistTip>Weight on a gene's damage-type factors. Resistance (factor &lt; 1, e.g. fire resistance) raises price; vulnerability (factor &gt; 1) lowers it. Summed across all damage types the gene touches.</FCSettingGeneValueWeightDmgResistTip>
+	<FCSettingGeneValueWeightDmgResistTip>Weight on a gene's damage-type factors. Resistance raises price, and vice versa.</FCSettingGeneValueWeightDmgResistTip>
 	<FCSettingGeneValueFactorUnlimited>Uncapped Gene Factor</FCSettingGeneValueFactorUnlimited>
 	<FCSettingGeneValueFactorUnlimitedTip>When enabled (default), the xenotype cost factor has no upper bound. Disable to clamp the final factor at a configurable maximum.</FCSettingGeneValueFactorUnlimitedTip>
 	<FCSettingGeneValueMaxFactor>Max Gene Factor</FCSettingGeneValueMaxFactor>
