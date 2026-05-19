@@ -50,7 +50,6 @@ namespace FactionColonies
             {
                 PlanetTile newTile = Map.Parent.Tile;
                 faction.capitalLocation = newTile;
-                faction.capitalPlanet = Find.World.info.name;
                 lastKnownTile = newTile;
 
                 LogUtil.Message($"Capital Building: Set Empire capital to tile {newTile}");
@@ -85,7 +84,6 @@ namespace FactionColonies
                     {
                         PlanetTile oldCapital = faction.capitalLocation;
                         faction.capitalLocation = currentTile;
-                        faction.capitalPlanet = Find.World.info.name;
                         lastKnownTile = currentTile;
 
                         LogUtil.Message($"Empire capital location updated from {oldCapital} to {currentTile} (gravship moved)");

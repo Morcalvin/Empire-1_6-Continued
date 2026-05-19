@@ -50,21 +50,21 @@ namespace FactionColonies
 
             cardScrollPositions = new Vector2[FCSettings.maxPolicyCount];
 
-            if (faction.policies.Count != 0)
+            if (FindFC.PolicyManager.policies.Count != 0)
             {
-                foreach (FCPolicy policy in faction.policies)
+                foreach (FCPolicy policy in FindFC.PolicyManager.policies)
                 {
                     selectedPolicies.Add(policy.def);
                 }
             }
-            if (faction.policies.Count == FCSettings.maxPolicyCount)
+            if (FindFC.PolicyManager.policies.Count == FCSettings.maxPolicyCount)
             {
                 traitsChosen = true;
             }
             else
             {
                 traitsChosen = false;
-                faction.RemoveAllPolicies(faction.policies);
+                FindFC.PolicyManager.RemoveAllPolicies(FindFC.PolicyManager.policies);
             }
         }
 
@@ -154,12 +154,12 @@ namespace FactionColonies
                 {
                     foreach (FCPolicyDef policy in selectedPolicies)
                     {
-                        if (!faction.policies.Any((FCPolicy p) => p.def == policy))
+                        if (!FindFC.PolicyManager.policies.Any((FCPolicy p) => p.def == policy))
                         {
-                            faction.policies.Add(new FCPolicy(policy));
+                            FindFC.PolicyManager.policies.Add(new FCPolicy(policy));
                         }
                     }
-                    faction.RebuildBehaviorCache();
+                    FindFC.PolicyManager.RebuildBehaviorCache();
                 }
 
                 Find.WindowStack.TryRemove(this);
@@ -388,8 +388,8 @@ namespace FactionColonies
                 Messages.Message("FCClearPoliciesInsufficientSilver".Translate(cost), MessageTypeDefOf.RejectInput);
                 return;
             }
-            faction.RemoveAllPolicies(faction.policies);
-            faction.RebuildBehaviorCache();
+            FindFC.PolicyManager.RemoveAllPolicies(FindFC.PolicyManager.policies);
+            FindFC.PolicyManager.RebuildBehaviorCache();
             selectedPolicies.Clear();
             traitsChosen = false;
             ResetCardScrollPositions();

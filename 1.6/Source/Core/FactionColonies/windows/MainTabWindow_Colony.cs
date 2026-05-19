@@ -340,17 +340,17 @@ namespace FactionColonies
 
             // --- Policies ---
             float policySize = 40f;
-            if (faction.policies.Count == FCSettings.maxPolicyCount)
+            if (FindFC.PolicyManager.policies.Count == FCSettings.maxPolicyCount)
             {
-                float leftX = panel.x + (panel.width - (policySize * faction.policies.Count) - (margin * (faction.policies.Count - 1))) / 2f;
-                for (int i = 0; i < faction.policies.Count; i++)
+                float leftX = panel.x + (panel.width - (policySize * FindFC.PolicyManager.policies.Count) - (margin * (FindFC.PolicyManager.policies.Count - 1))) / 2f;
+                for (int i = 0; i < FindFC.PolicyManager.policies.Count; i++)
                 {
                     Rect policyBox = new Rect(leftX + (i * (policySize + margin)), y, policySize, policySize);
-                    if (Widgets.ButtonImage(policyBox, faction.policies[i].def.IconLight))
+                    if (Widgets.ButtonImage(policyBox, FindFC.PolicyManager.policies[i].def.IconLight))
                     {
                         Find.WindowStack.Add(new FactionCustomizePoliciesWindowFC(faction));
                     }
-                    TooltipHandler.TipRegion(policyBox, faction.policies[i].def.PolicyText());
+                    TooltipHandler.TipRegion(policyBox, FindFC.PolicyManager.policies[i].def.PolicyText());
                 }
             }
             else
@@ -373,7 +373,7 @@ namespace FactionColonies
             bool hasOpenSlots = false;
             for (int slot = 0; slot < 5; slot++)
             {
-                FCPolicy current = faction.factionTraits[slot];
+                FCPolicy current = FindFC.PolicyManager.factionTraits[slot];
                 bool isLocked = faction.factionLevel < (slot + 1);
                 bool isOpen = !isLocked && current.def == FCPolicyDefOf.empty;
                 if (isOpen) hasOpenSlots = true;
@@ -455,7 +455,7 @@ namespace FactionColonies
         {
             // Collect action buttons from all active policy/trait extensions
             List<(TaggedString label, Action onClick)> actionButtons = new List<(TaggedString, Action)>();
-            faction.ForEachBehavior(b =>
+            FindFC.PolicyManager.ForEachBehavior(b =>
             {
                 var buttons = b.GetMainTabActionButtons(faction);
                 if (buttons != null)
@@ -1775,7 +1775,7 @@ namespace FactionColonies
                 if (!noFireSupport)
                 {
                     bool fsDisabled = milComp.artilleryTimer > Find.TickManager.TicksGame
-                        || !faction.IsActionAllowed(FCActionType.UseFireSupport);
+                        || !FindFC.FactionComp.IsActionAllowed(FCActionType.UseFireSupport);
                     float fsBtnH = lineH - 6f;
                     float fsBtnY = topY + (lineH - fsBtnH) / 2f;
                     Rect fsSupportRect = new Rect(contentX + contentW - fsBtnW, fsBtnY, fsBtnW, fsBtnH);
@@ -2063,10 +2063,10 @@ namespace FactionColonies
             {
                 Find.WindowStack.Add(new FloatMenu(DeploymentOptions(settlement)));
             }
-            else if (milComp.IsMilitaryBusy(true) && milComp.IsMilitarySquadValid() && faction.IsActionAllowed(FCActionType.DeployExtraSquad))
+            else if (milComp.IsMilitaryBusy(true) && milComp.IsMilitarySquadValid() && FindFC.FactionComp.IsActionAllowed(FCActionType.DeployExtraSquad))
             {
                 List<FloatMenuOption> extraOptions = new List<FloatMenuOption>();
-                faction.ForEachBehavior(b =>
+                FindFC.PolicyManager.ForEachBehavior(b =>
                 {
                     var options = b.GetExtraDeploymentOptions(faction, settlement, milComp);
                     if (options != null) extraOptions.AddRange(options);

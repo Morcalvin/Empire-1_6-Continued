@@ -508,7 +508,7 @@ namespace FactionColonies
             double upkeep = building.upkeep;
 
             FactionFC faction = FindFC.FactionComp;
-            upkeep = faction.FoldBehaviors(upkeep, (b, u) => b.ModifyBuildingUpkeep(building, u, WorldSettlement));
+            upkeep = FindFC.PolicyManager.FoldBehaviors(upkeep, (b, u) => b.ModifyBuildingUpkeep(building, u, WorldSettlement));
 
             return (int)upkeep;
         }

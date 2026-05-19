@@ -461,7 +461,7 @@ namespace FactionColonies
         {
             if (settlementCostModified)
             {
-                faction.ForEachBehavior(b => b.OnSettlementCostPaid(faction));
+                FindFC.PolicyManager.ForEachBehavior(b => b.OnSettlementCostPaid(faction));
             }
         }
 

@@ -389,6 +389,53 @@ namespace FactionColonies
                 settlement.DirtyProfitCache();
             }
         }
+
+        /* Tithe-flag mutators: prefer these over assigning the fields directly so the
+         * profit cache stays in sync. */
+        public void SetTithesPaused(bool paused)
+        {
+            if (tithesPaused == paused) return;
+            tithesPaused = paused;
+            settlement?.DirtyProfitCache();
+        }
+
+        public void SetHasRandomTithe(bool enabled)
+        {
+            if (hasRandomTithe == enabled) return;
+            hasRandomTithe = enabled;
+            settlement?.DirtyProfitCache();
+        }
+
+        public void SetDisburseTitheStock(bool enabled)
+        {
+            if (disburseTitheStock == enabled) return;
+            disburseTitheStock = enabled;
+            settlement?.DirtyProfitCache();
+        }
+
+        public void SetAutoMaxRandomTithe(bool enabled)
+        {
+            if (autoMaxRandomTithe == enabled) return;
+            bool wasEnabled = autoMaxRandomTithe;
+            autoMaxRandomTithe = enabled;
+            // When toggling auto-max off, snap stored budget to current effective max.
+            if (!enabled && wasEnabled)
+            {
+                storedRandomTitheBudget = Math.Max(0, (int)(GetTitheIncome() - titheTotalValueNoRandom));
+                storedRandomTitheBudgetBuffer = storedRandomTitheBudget.ToString();
+            }
+            settlement?.DirtyProfitCache();
+        }
+
+        public void SetStoredRandomTitheBudget(int budget)
+        {
+            int clamped = Math.Max(0, budget);
+            if (storedRandomTitheBudget == clamped) return;
+            storedRandomTitheBudget = clamped;
+            storedRandomTitheBudgetBuffer = storedRandomTitheBudget.ToString();
+            RefreshOnRandomTitheBudgetChange();
+        }
+
         public void SetDirtyCache()
         {
             SetDirtyCacheProdBase();

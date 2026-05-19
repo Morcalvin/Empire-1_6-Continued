@@ -30,7 +30,6 @@ namespace FactionColonies
 
         /* Capital & Maps */
         public PlanetTile capitalLocation = PlanetTile.Invalid;
-        public string capitalPlanet;
         private Map taxMap;
 
         public Map TaxMap
@@ -114,7 +113,7 @@ namespace FactionColonies
          * is stable, paid in full each tax cycle, so it's added directly to averaged upkeep. */
         public bool HasTaxAverageData => settlements.Any(s => s.HasTaxAverageData);
         public double averageIncome => settlements.Sum(s => s.averageTotalIncome);
-        public double averageUpkeep => settlements.Sum(s => s.averageTotalUpkeep) + GetEdictUpkeep();
+        public double averageUpkeep => settlements.Sum(s => s.averageTotalUpkeep) + policyManager.GetEdictUpkeep();
         public double averageProfit => averageIncome - averageUpkeep;
 
         /* Lazy-Cached Tech Level */
@@ -134,53 +133,14 @@ namespace FactionColonies
         private bool DirtyGrandThingListFlag = true;
         private List<ThingDef> grandThingList = null;
 
-        /* Stat & Behavior Caches */
+        /* Faction-level stat cache. Invalidated by InvalidateFactionStatCache (e.g. on policy
+         * mutations); read by GetFactionStatValue. Policy/trait/edict/behavior state moved to
+         * PolicyManager; access via FindFC.PolicyManager. */
         private Dictionary<FCStatDef, double> cachedFactionStatValues = new Dictionary<FCStatDef, double>();
-        private List<FCPolicyBehavior> _cachedBehaviors = null;
-        public List<FCPolicyBehavior> cachedBehaviors
-        {
-            get
-            {
-                if (_cachedBehaviors is null)
-                    RebuildBehaviorCache();
-                return _cachedBehaviors;
-            }
-        }
-        private HashSet<FCActionType> _cachedBlockedActions;
-        private HashSet<FCActionType> _cachedEnabledActions;
-        private HashSet<MilitaryJobDef> _cachedBlockedJobs;
-        private HashSet<MilitaryJobDef> _cachedEnabledJobs;
 
-        /* Policies & Traits */
-        public List<FCPolicy> policies = new List<FCPolicy>();
-        public List<FCPolicy> factionTraits = new List<FCPolicy>
-        {
-            new FCPolicy(FCPolicyDefOf.empty),
-            new FCPolicy(FCPolicyDefOf.empty),
-            new FCPolicy(FCPolicyDefOf.empty),
-            new FCPolicy(FCPolicyDefOf.empty),
-            new FCPolicy(FCPolicyDefOf.empty)
-        };
-
-        /* Edicts (toggleable faction-level policies) */
-        public Dictionary<FCPolicyCategory, FCPolicy> edicts = new Dictionary<FCPolicyCategory, FCPolicy>();
-        private HashSet<FCPolicyCategory> pendingEdictActivations = new HashSet<FCPolicyCategory>();
-
-        // Minimum faction level required to unlock each edict category
-        public static readonly Dictionary<FCPolicyCategory, int> EdictCategoryUnlockLevels = new Dictionary<FCPolicyCategory, int>
-        {
-            { FCPolicyCategory.Social, 2 },
-            { FCPolicyCategory.Tax, 3 },
-            { FCPolicyCategory.Doctrine, 3 },
-            { FCPolicyCategory.Military, 4 }
-        };
+        public PolicyManager policyManager = new PolicyManager();
 
         /* Events & Bills */
-        // LEGACY: populated only when loading pre-manager saves. Migrated into
-        // eventManager during ExposeData(ResolvingCrossRefs) and then nulled out.
-        // DO NOT READ. Use the Events property instead.
-        private List<FCEvent> events = new List<FCEvent>();
-
         public FCEventManager eventManager = new FCEventManager();
 
         // The canonical read path for the event queue. Delegates to the manager.
@@ -207,7 +167,6 @@ namespace FactionColonies
 
         /* Military & Roads */
         public MilitaryFC military = new MilitaryFC();
-        private MilitaryFC _legacyMilitary = null;
         public EmpireThreatAdaptation threatAdaptation = new EmpireThreatAdaptation();
         public FCRoadBuilder roadBuilder = new FCRoadBuilder();
 
@@ -228,8 +187,8 @@ namespace FactionColonies
 
         /* ID Counters */
         // Unit/squad/mercenary/mercenarySquad/fireSupport ID counters now live on
-        // MilitaryFC (next to the collections they index). Legacy save migration
-        // shim in ExposeData seeds them from old scribe keys on first load.
+        // MilitaryFC (next to the collections they index). See the Legacy Save
+        // Migration State block at the end of this region for the load-time shim.
         public int nextPrisonerID = 1;
 
         /* Filters & Misc */
@@ -238,9 +197,25 @@ namespace FactionColonies
         public List<PlanetLayerDef> layersForTilePicker = null;
         public float tradedAmount = 0;
 
-        /* Legacy tax/billing scribe keys. Only populated when loading a pre-extraction
-         * save. New saves write nothing.
-         * The migration shim in ResolvingCrossRefs below moves them into the ledger. */
+        /*-*-*-*-* Legacy Save Migration State *-*-*-*-*/
+        /* All fields below exist only to round-trip pre-extraction save data into the
+         * current managers (TaxLedger, FCEventManager, PolicyManager, MilitaryFC). They
+         * are read during ExposeData's LoadingVars phase by ScribeAndMigrateLegacyState(),
+         * consumed during ResolvingCrossRefs / PostLoadInit, and then reset to null /
+         * sentinel so subsequent saves omit the legacy XML keys.
+         *
+         * To drop pre-extraction save compatibility: delete this block, delete
+         * ScribeAndMigrateLegacyState(), and delete its call site in ExposeData. */
+
+        // Pre-FCEventManager events list. Mirrored under the legacy "events" XML key;
+        // drained into eventManager during ResolvingCrossRefs. DO NOT READ — use Events.
+        private List<FCEvent> events = new List<FCEvent>();
+
+        // Pre-1.5 MilitaryCustomizationUtil -> MilitaryFC rename. Loaded into this buffer
+        // during LoadingVars, swapped onto `military` during PostLoadInit.
+        private MilitaryFC _legacyMilitary = null;
+
+        // Pre-TaxLedger flat tax/billing scribe keys.
         List<BillFC> legacyBills = null;
         List<BillFC> legacyOldBills = null;
         bool legacyAutoResolve = false;
@@ -250,14 +225,19 @@ namespace FactionColonies
         int legacyNextBillId = -1;
         int legacyNextEventId = -1;
 
-        /* Cross-phase migration buffers for legacy ID counters. Scribe_*.Look reads
-         * during LoadingVars, the SeedNextIds consumer runs during ResolvingCrossRefs;
-         * must be class fields so values survive the phase transition. */
+        // Pre-MilitaryFC.SeedNextIds ID counters. Scribe_Values reads during LoadingVars,
+        // the SeedNextIds consumer runs during PostLoadInit; must be class fields so
+        // values survive the phase transition.
         int legacyNextUnitId = -1;
         int legacyNextSquadId = -1;
         int legacyNextMercId = -1;
         int legacyNextMercSquadId = -1;
         int legacyNextFireSupportId = -1;
+
+        // Pre-PolicyManager policy/trait/edict lists. Drained into policyManager during PostLoadInit.
+        List<FCPolicy> legacyPolicies = null;
+        List<FCPolicy> legacyFactionTraits = null;
+        Dictionary<FCPolicyCategory, FCPolicy> legacyEdicts = null;
 
         #endregion
 
@@ -299,7 +279,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref foundingTick, "foundingTick", defaultValue: 0);
             Scribe_Values.Look(ref startingLongLat, "foundingLongLat");
             Scribe_Values.Look(ref capitalLocation, "capitalLocation");
-            Scribe_Values.Look(ref capitalPlanet, "capitalPlanet");
             Scribe_References.Look(ref taxMap, "taxMap");
             Scribe_Values.Look(ref factionCreated, "factionCreated");
 
@@ -312,7 +291,6 @@ namespace FactionColonies
             Scribe_Values.Look(ref _upkeep, "upkeep");
             Scribe_Values.Look(ref _profit, "profit");
 
-            // taxTimeDue moved to TaxLedger; legacy key is migrated below.
             Scribe_Values.Look(ref timeStart, "timeStart", -1);
             Scribe_Values.Look(ref uiTimeUpdate, "uiTimeUpdate");
             Scribe_Values.Look(ref militaryTimeDue, "militaryTimeDue", -1);
@@ -324,27 +302,12 @@ namespace FactionColonies
             Scribe_Values.Look(ref factionColorSecondary, "factionColorSecondary", Color.white);
 
             Scribe_Collections.Look(ref settlements, "settlements", LookMode.Reference);
-            Scribe_Collections.Look(ref policies, "factionPolicies", LookMode.Deep);
 
-            // Legacy field. Still scribed under its original "events" name so old saves
-            // load into it. The ResolvingCrossRefs block below moves its contents into
-            // eventManager and nulls it out.
-            Scribe_Collections.Look(ref events, "events", LookMode.Deep);
+            Scribe_Deep.Look(ref policyManager, "policyManager");
+            if (policyManager is null) policyManager = new PolicyManager();
 
-            // Manager owns events / cooldowns / fire counts going forward.
             Scribe_Deep.Look(ref eventManager, "eventManager");
             if (eventManager is null) eventManager = new FCEventManager();
-
-            // Migrate pre-manager saves: move legacy events list into the manager.
-            // Runs during ResolvingCrossRefs so it completes BEFORE any PostLoadInit
-            // consumer (e.g. WorldSettlementFC stat-modifier reapply) reads Events.
-            if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs
-                && events != null && events.Count > 0)
-            {
-                eventManager.SeedFromLegacy(events);
-                events = null;
-                LogUtil.MessageForce("FactionFC: migrated legacy events list into FCEventManager.");
-            }
 
             Scribe_Deep.Look(ref militaryOperationManager, "militaryOperationManager");
             if (militaryOperationManager is null) militaryOperationManager = new MilitaryOperationManager();
@@ -362,54 +325,84 @@ namespace FactionColonies
             Scribe_Deep.Look(ref xenotypeFilter, "xenotypeFilter");
             Scribe_Deep.Look(ref animalFilter, "animalFilter");
 
-            /* Legacy ID scribe keys. Only populated when loading a pre-extraction save.
-             * Migration shim below seeds MilitaryFC. Buffers are class fields (see top of
-             * ExposeData) so values loaded in LoadingVars survive into ResolvingCrossRefs. */
+            //Military Data
+            Scribe_Deep.Look(ref military, "militaryFC");
+
+            //Load ID tracking
+            Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
+
+            //Tax/billing
+            Scribe_Deep.Look(ref taxLedger, "taxLedger");
+            if (taxLedger is null) taxLedger = new TaxLedger();
+
+            //Road builder
+            Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
+
+            //Threat adaptation
+            Scribe_Deep.Look(ref threatAdaptation, "threatAdaptation");
+            if (threatAdaptation == null) threatAdaptation = new EmpireThreatAdaptation();
+
+            //Settlement Leveling
+            Scribe_Values.Look(ref factionLevel, "factionLevel");
+            Scribe_Values.Look(ref factionXPCurrent, "factionXPCurrent");
+            Scribe_Values.Look(ref factionXPGoal, "factionXPGoal");
+
+            // Legacy save migration — see helper for the full scribe + migration pipeline.
+            ScribeAndMigrateLegacyState();
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit) PostLoadInit();
+
+            //Research Trading
+            Scribe_Values.Look(ref tradedAmount, "tradedAmount");
+
+            //Random Event
+            Scribe_Values.Look(ref randomEventLastAdded, "randomEventLastAddedTick");
+            // eventCooldowns / eventFireCounts now live on eventManager (scribed above).
+        }
+
+        /*-*-*-*-* Legacy Save Migration *-*-*-*-*/
+        /// <summary>
+        /// All legacy-save migration logic. Reads pre-extraction XML keys during LoadingVars
+        /// and drains them into the modern managers during ResolvingCrossRefs / PostLoadInit.
+        /// Called once from <see cref="ExposeData"/>, after the modern managers
+        /// (taxLedger, eventManager, policyManager, military) have been Scribe_Deep'd.
+        ///
+        /// To drop pre-extraction save compatibility: delete this method, delete its call
+        /// site in ExposeData, and delete the Legacy Save Migration State block in the
+        /// field-declarations region.
+        /// </summary>
+        private void ScribeAndMigrateLegacyState()
+        {
+            /* Phase 1: scribe legacy XML keys.
+             * Scribe_*.Look runs in all phases; sentinel defaults ensure new saves omit
+             * these keys once the buffers have been reset post-migration. */
+
+            // Pre-PolicyManager policy/trait/edict — explicit LoadingVars gate (no write on Saving).
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                Scribe_Collections.Look(ref legacyPolicies, "factionPolicies", LookMode.Deep);
+                Scribe_Collections.Look(ref legacyFactionTraits, "factionTraits", LookMode.Deep);
+                Scribe_Collections.Look(ref legacyEdicts, "edicts", LookMode.Value, LookMode.Deep);
+            }
+
+            // Pre-FCEventManager events list.
+            Scribe_Collections.Look(ref events, "events", LookMode.Deep);
+
+            // Pre-MilitaryFC.SeedNextIds ID counters.
             Scribe_Values.Look(ref legacyNextUnitId, "nextUnitID", -1);
             Scribe_Values.Look(ref legacyNextSquadId, "nextSquadID", -1);
             Scribe_Values.Look(ref legacyNextMercId, "nextMercenaryID", -1);
             Scribe_Values.Look(ref legacyNextMercSquadId, "nextMercenarySquadID", -1);
             Scribe_Values.Look(ref legacyNextFireSupportId, "nextMilitaryFireSupportID", -1);
 
-            //Military Data
-            // Empire Refactored v1.5 renamed MilitaryCustomizationUtil to MilitaryFC. This block of code
-            // handles migrating save data from a pre-1.5 save.
-            Scribe_Deep.Look(ref military, "militaryFC");
+            // Pre-1.5 MilitaryCustomizationUtil -> MilitaryFC rename. LoadingVars-gated to
+            // avoid spurious empty writes on save.
             if (Scribe.mode == LoadSaveMode.LoadingVars)
             {
                 Scribe_Deep.Look(ref _legacyMilitary, "militaryCustomizationUtil");
             }
-            if (Scribe.mode == LoadSaveMode.PostLoadInit)
-            {
-                if (military is null && _legacyMilitary is object) military = _legacyMilitary;
-                if (military is null) military = new MilitaryFC();
-                _legacyMilitary = null;
 
-                if ((legacyNextUnitId != -1 || legacyNextSquadId != -1
-                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
-                    || legacyNextFireSupportId != -1))
-                {
-                    military.SeedNextIds(
-                        legacyNextUnitId, legacyNextSquadId,
-                        legacyNextMercId, legacyNextMercSquadId,
-                        legacyNextFireSupportId);
-                    LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
-                    /* Reset to sentinel so subsequent saves omit these legacy XML keys. */
-                    legacyNextUnitId = -1;
-                    legacyNextSquadId = -1;
-                    legacyNextMercId = -1;
-                    legacyNextMercSquadId = -1;
-                    legacyNextFireSupportId = -1;
-                }
-            }
-
-            //Load ID tracking
-            Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
-
-            /* Tax/billing — nested element. Legacy flat keys below are migrated on first load. */
-            Scribe_Deep.Look(ref taxLedger, "taxLedger");
-            if (taxLedger is null) taxLedger = new TaxLedger();
-
+            // Pre-TaxLedger flat tax/billing keys.
             Scribe_Values.Look(ref legacyNextTaxId, "nextTaxID", -1);
             Scribe_Values.Look(ref legacyNextBillId, "nextBillID", -1);
             Scribe_Values.Look(ref legacyNextEventId, "nextEventID", -1);
@@ -419,8 +412,19 @@ namespace FactionColonies
             Scribe_Values.Look(ref legacyAllowLate, "allowLatePayments", true);
             Scribe_Values.Look(ref legacyTaxTimeDue, "taxTimeDue", -1);
 
+            /* Phase 2: ResolvingCrossRefs migrations. Run before any PostLoadInit consumer
+             * (e.g. WorldSettlementFC stat-modifier reapply) reads the managers. */
             if (Scribe.mode == LoadSaveMode.ResolvingCrossRefs)
             {
+                // events → eventManager
+                if (events != null && events.Count > 0)
+                {
+                    eventManager.SeedFromLegacy(events);
+                    events = null;
+                    LogUtil.MessageForce("FactionFC: migrated legacy events list into FCEventManager.");
+                }
+
+                // Legacy tax fields → taxLedger
                 if (taxLedger.IsEmpty
                     && (legacyBills != null || legacyOldBills != null
                         || legacyTaxTimeDue != -1 || legacyAutoResolve
@@ -451,32 +455,42 @@ namespace FactionColonies
                 }
             }
 
-            //Road builder
-            Scribe_Deep.Look(ref roadBuilder, "roadBuilder");
+            /* Phase 3: PostLoadInit migrations. Cross-refs resolved by this point. */
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                // Pre-1.5 military rename swap + new-instance fallback.
+                if (military is null && _legacyMilitary is object) military = _legacyMilitary;
+                if (military is null) military = new MilitaryFC();
+                _legacyMilitary = null;
 
-            //Threat adaptation
-            Scribe_Deep.Look(ref threatAdaptation, "threatAdaptation");
-            if (threatAdaptation == null) threatAdaptation = new EmpireThreatAdaptation();
+                // ID counters → military.SeedNextIds
+                if (legacyNextUnitId != -1 || legacyNextSquadId != -1
+                    || legacyNextMercId != -1 || legacyNextMercSquadId != -1
+                    || legacyNextFireSupportId != -1)
+                {
+                    military.SeedNextIds(
+                        legacyNextUnitId, legacyNextSquadId,
+                        legacyNextMercId, legacyNextMercSquadId,
+                        legacyNextFireSupportId);
+                    LogUtil.MessageForce("FactionFC: migrated legacy ID counters into MilitaryFC.");
+                    /* Reset to sentinel so subsequent saves omit these legacy XML keys. */
+                    legacyNextUnitId = -1;
+                    legacyNextSquadId = -1;
+                    legacyNextMercId = -1;
+                    legacyNextMercSquadId = -1;
+                    legacyNextFireSupportId = -1;
+                }
 
-            // Legacy trait Scribe_Values removed — state is now in FCPolicyBehavior subclasses,
-            // serialized via FCPolicy.ExposeData -> FCPolicyBehavior.ExposeData.
-
-            //Settlement Leveling
-            Scribe_Values.Look(ref factionLevel, "factionLevel");
-            Scribe_Values.Look(ref factionXPCurrent, "factionXPCurrent");
-            Scribe_Values.Look(ref factionXPGoal, "factionXPGoal");
-            Scribe_Collections.Look(ref factionTraits, "factionTraits", LookMode.Deep);
-
-            Scribe_Collections.Look(ref edicts, "edicts", LookMode.Value, LookMode.Deep);
-            if (edicts == null) edicts = new Dictionary<FCPolicyCategory, FCPolicy>();
-            if (Scribe.mode == LoadSaveMode.PostLoadInit) PostLoadInit();
-
-            //Research Trading
-            Scribe_Values.Look(ref tradedAmount, "tradedAmount");
-
-            //Random Event
-            Scribe_Values.Look(ref randomEventLastAdded, "randomEventLastAddedTick");
-            // eventCooldowns / eventFireCounts now live on eventManager (scribed above).
+                // Pre-manager policy/trait/edict lists → policyManager
+                if (legacyPolicies != null || legacyFactionTraits != null || legacyEdicts != null)
+                {
+                    policyManager.SeedFromLegacy(legacyPolicies, legacyFactionTraits, legacyEdicts);
+                    legacyPolicies = null;
+                    legacyFactionTraits = null;
+                    legacyEdicts = null;
+                    LogUtil.MessageForce("FactionFC: migrated legacy policies/traits/edicts into PolicyManager.");
+                }
+            }
         }
 
         private void ScrubNullSettlements(string caller = "")
@@ -632,11 +646,11 @@ namespace FactionColonies
 
         private void RebuildPendingEdictActivations()
         {
-            pendingEdictActivations.Clear();
-            foreach (var kvp in edicts)
+            policyManager.pendingEdictActivations.Clear();
+            foreach (var kvp in policyManager.edicts)
             {
                 if (kvp.Value != null && !kvp.Value.IsFullyActive)
-                    pendingEdictActivations.Add(kvp.Key);
+                    policyManager.pendingEdictActivations.Add(kvp.Key);
             }
         }
 
@@ -766,8 +780,8 @@ namespace FactionColonies
             {
                 FCEventMaker.ProcessEvents();
                 taxLedger.ProcessBills();
-                if (pendingEdictActivations.Count > 0)
-                    CheckEdictActivations();
+                if (policyManager.pendingEdictActivations.Count > 0)
+                    policyManager.CheckEdictActivations();
                 if (faction is object)
                     roadBuilder.RoadTick();
             }
@@ -911,7 +925,7 @@ namespace FactionColonies
         public void TickActions()
         {
             // Dispatch Tick to all active behavior instances
-            ForEachBehavior(b => b.Tick(this));
+            policyManager.ForEachBehavior(b => b.Tick(this));
         }
 
         #endregion
@@ -945,7 +959,7 @@ namespace FactionColonies
         private void RecomputeTotalProfit()
         {
             _income = settlements.Sum(s => s.totalIncome);
-            _upkeep = settlements.Sum(s => s.totalUpkeep) + GetEdictUpkeep();
+            _upkeep = settlements.Sum(s => s.totalUpkeep) + policyManager.GetEdictUpkeep();
             _profit = _income - _upkeep;
             dirtyFactionProfitCache = false;
         }
@@ -1140,7 +1154,7 @@ namespace FactionColonies
             }
 
             // Apply runtime-dependent behavior modifiers (uncached — may depend on settlement state)
-            foreach (FCPolicyBehavior b in cachedBehaviors)
+            foreach (FCPolicyBehavior b in policyManager.CachedBehaviors)
             {
                 try
                 {
@@ -1183,17 +1197,17 @@ namespace FactionColonies
 
             double value = stat.IdentityValue;
 
-            foreach (FCPolicy p in policies)
+            foreach (FCPolicy p in policyManager.policies)
             {
                 if (p?.def is null) continue;
                 value = AccumulateStatModifiersValue(value, stat, p.def.statModifiers);
             }
-            foreach (FCPolicy p in factionTraits)
+            foreach (FCPolicy p in policyManager.factionTraits)
             {
                 if (p?.def is null || p.def == FCPolicyDefOf.empty) continue;
                 value = AccumulateStatModifiersValue(value, stat, p.def.statModifiers);
             }
-            foreach (FCPolicy edict in edicts.Values)
+            foreach (FCPolicy edict in policyManager.edicts.Values)
             {
                 if (edict?.def is null || !edict.IsFullyActive) continue;
                 value = AccumulateStatModifiersValue(value, stat, edict.def.statModifiers);
@@ -1234,17 +1248,17 @@ namespace FactionColonies
             bool isAdditive = stat.aggregation == FCStatAggregation.Additive;
             bool invert = stat.invertedForDisplay;
 
-            foreach (FCPolicy p in policies)
+            foreach (FCPolicy p in policyManager.policies)
             {
                 if (p?.def is null) continue;
                 desc = AccumulateStatModifiersDesc(desc, stat, p.def.statModifiers, p.def.LabelCap, hardinvert);
             }
-            foreach (FCPolicy p in factionTraits)
+            foreach (FCPolicy p in policyManager.factionTraits)
             {
                 if (p?.def is null || p.def == FCPolicyDefOf.empty) continue;
                 desc = AccumulateStatModifiersDesc(desc, stat, p.def.statModifiers, p.def.LabelCap, hardinvert);
             }
-            foreach (FCPolicy edict in edicts.Values)
+            foreach (FCPolicy edict in policyManager.edicts.Values)
             {
                 if (edict?.def is null || !edict.IsFullyActive) continue;
                 desc = AccumulateStatModifiersDesc(desc, stat, edict.def.statModifiers, $"{edict.def.LabelCap} ({"FCEdict".Translate()})", hardinvert);
@@ -1289,389 +1303,57 @@ namespace FactionColonies
 
         #endregion
 
-        #region Behavior System
+        /* Policy/edict/trait/behavior state and methods moved to PolicyManager.
+         * Access via FindFC.PolicyManager or this.policyManager. */
+
+        #region Cross-System Check Aggregators
+
+        /* Aggregator checks that combine contributions from every relevant system. */
 
         /// <summary>
-        /// Rebuilds the cached behavior list from active policies and traits.
-        /// Order: policies first (in list order), then traits (in slot order).
-        /// This order determines ModifyStat chaining — currently no two behaviors modify the same stat.
+        /// True if all contributing systems permit this action.
         /// </summary>
-        public void RebuildBehaviorCache()
+        public bool IsActionAllowed(FCActionType action)
         {
-            LogUtil.Message("Rebuilding faction behavior cache");
-            _cachedBehaviors = new List<FCPolicyBehavior>();
-            foreach (FCPolicy p in policies)
-            {
-                if (p?.behavior != null)
-                    _cachedBehaviors.Add(p.behavior);
-            }
-            foreach (FCPolicy p in factionTraits)
-            {
-                if (p?.def is null || p.def == FCPolicyDefOf.empty) continue;
-                if (p.behavior != null)
-                    _cachedBehaviors.Add(p.behavior);
-            }
-            foreach (FCPolicy edict in edicts.Values)
-            {
-                if (edict?.behavior != null)
-                    _cachedBehaviors.Add(edict.behavior);
-            }
-
-            RebuildActionCache();
-
-            // Policy/trait changes affect faction-level stat values and behavior ModifyStat results
-            InvalidateFactionStatCache();
-        }
-
-        private void RebuildActionCache()
-        {
-            _cachedBlockedActions = new HashSet<FCActionType>();
-            _cachedEnabledActions = new HashSet<FCActionType>();
-            _cachedBlockedJobs = new HashSet<MilitaryJobDef>();
-            _cachedEnabledJobs = new HashSet<MilitaryJobDef>();
-            foreach (FCPolicy p in policies)
-            {
-                if (p?.def is null) continue;
-                if (p.def.blockedActions != null) foreach (var a in p.def.blockedActions) _cachedBlockedActions.Add(a);
-                if (p.def.enabledActions != null) foreach (var a in p.def.enabledActions) _cachedEnabledActions.Add(a);
-                if (p.def.blockedMilitaryJobs != null) foreach (var j in p.def.blockedMilitaryJobs) _cachedBlockedJobs.Add(j);
-                if (p.def.enabledMilitaryJobs != null) foreach (var j in p.def.enabledMilitaryJobs) _cachedEnabledJobs.Add(j);
-            }
-            foreach (FCPolicy p in factionTraits)
-            {
-                if (p?.def is null || p.def == FCPolicyDefOf.empty) continue;
-                if (p.def.blockedActions != null) foreach (var a in p.def.blockedActions) _cachedBlockedActions.Add(a);
-                if (p.def.enabledActions != null) foreach (var a in p.def.enabledActions) _cachedEnabledActions.Add(a);
-                if (p.def.blockedMilitaryJobs != null) foreach (var j in p.def.blockedMilitaryJobs) _cachedBlockedJobs.Add(j);
-                if (p.def.enabledMilitaryJobs != null) foreach (var j in p.def.enabledMilitaryJobs) _cachedEnabledJobs.Add(j);
-            }
-            foreach (FCPolicy edict in edicts.Values)
-            {
-                if (edict?.def is null || !edict.IsFullyActive) continue;
-                if (edict.def.blockedActions != null) foreach (var a in edict.def.blockedActions) _cachedBlockedActions.Add(a);
-                if (edict.def.enabledActions != null) foreach (var a in edict.def.enabledActions) _cachedEnabledActions.Add(a);
-                if (edict.def.blockedMilitaryJobs != null) foreach (var j in edict.def.blockedMilitaryJobs) _cachedBlockedJobs.Add(j);
-                if (edict.def.enabledMilitaryJobs != null) foreach (var j in edict.def.enabledMilitaryJobs) _cachedEnabledJobs.Add(j);
-            }
-            _cachedEnabledActions.ExceptWith(_cachedBlockedActions);
-            _cachedEnabledJobs.ExceptWith(_cachedBlockedJobs);
-        }
-
-        public void ForEachBehavior(Action<FCPolicyBehavior> action)
-        {
-            foreach (FCPolicyBehavior b in cachedBehaviors)
-            {
-                try
-                {
-                    action(b);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"Policy behavior error: {e}");
-                }
-            }
-        }
-
-        public T FoldBehaviors<T>(T seed, Func<FCPolicyBehavior, T, T> folder)
-        {
-            foreach (FCPolicyBehavior b in cachedBehaviors)
-            {
-                try
-                {
-                    seed = folder(b, seed);
-                }
-                catch (Exception e)
-                {
-                    LogUtil.Error($"Policy behavior fold error: {e}");
-                }
-            }
-            return seed;
+            if (!policyManager.IsActionAllowed(action)) return false;
+            return true;
         }
 
         /// <summary>
-        /// Calls OnRemoved on all behaviors in the given policy list, then clears it.
-        /// Use this instead of directly clearing/replacing policy lists.
+        /// True if all contributing systems permit this military job.
         /// </summary>
-        public void RemoveAllPolicies(List<FCPolicy> policyList)
+        public bool IsMilitaryJobAllowed(MilitaryJobDef job)
         {
-            foreach (FCPolicy p in policyList)
-            {
-                if (p?.behavior != null)
-                {
-                    try { p.behavior.OnRemoved(this); }
-                    catch (Exception e) { LogUtil.Error($"FCPolicyBehavior.OnRemoved error for '{p.def?.defName}': {e}"); }
-                }
-            }
-            policyList.Clear();
+            if (!policyManager.IsMilitaryJobAllowed(job)) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// True if any contributing system prevents building destruction on battle loss.
+        /// </summary>
+        public bool IsBuildingDestructionPrevented()
+        {
+            if (policyManager.AnyPolicyPreventsBuildingDestruction()) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// True if any contributing system suppresses the member-death penalty.
+        /// </summary>
+        public bool IsMemberDeathPenaltySuppressed()
+        {
+            if (policyManager.AnyPolicySuppressesMemberDeathPenalty()) return true;
+            return false;
         }
 
         #endregion
 
-        #region Policy & Action Checks
-
-        public bool HasPolicy(FCPolicyDef def)
-        {
-            //Don't game the system
-            if (policies.Count < 2)
-            {
-                return false;
-            }
-
-            foreach (FCPolicy policy in policies)
-            {
-                if (policy.def == def)
-                    return true;
-            }
-
-            return false;
-        }
-
-        public bool HasTrait(FCPolicyDef def)
-        {
-            foreach (FCPolicy trait in factionTraits)
-            {
-                if (trait.def == def)
-                    return true;
-            }
-
-            return false;
-        }
-
-        #region Edicts
-
-        public bool IsEdictCategoryUnlocked(FCPolicyCategory category)
-        {
-            if (!EdictCategoryUnlockLevels.TryGetValue(category, out int required))
-                return false;
-            return factionLevel >= required;
-        }
-
-        public FCPolicy GetActiveEdict(FCPolicyCategory category)
-        {
-            edicts.TryGetValue(category, out FCPolicy edict);
-            return edict;
-        }
-
-        public bool HasEdict(FCPolicyDef def)
-        {
-            if (!edicts.TryGetValue(def.category, out FCPolicy edict)) return false;
-            return edict.def == def;
-        }
+        #region Event Manager Passthroughs
 
         public void RecordEventCooldown(FCEventDef def) => eventManager.RecordCooldown(def);
         public bool IsEventOnCooldown(FCEventDef def) => eventManager.IsOnCooldown(def);
         public void RecordEventFired(FCEventDef def) => eventManager.RecordFired(def);
         public bool HasReachedMaxFireCount(FCEventDef def) => eventManager.HasReachedMaxFireCount(def);
-
-        public void EnactEdict(FCPolicyDef def)
-        {
-            if (!def.IsEdict)
-            {
-                LogUtil.Error($"EnactEdict called on non-edict def '{def.defName}'");
-                return;
-            }
-            if (!IsEdictCategoryUnlocked(def.category))
-            {
-                Messages.Message("FCEdictCategoryLocked".Translate(), MessageTypeDefOf.RejectInput);
-                return;
-            }
-            if (def.factionLevelRequirement > 0 && factionLevel < def.factionLevelRequirement)
-            {
-                Messages.Message("FCEdictLevelRequired".Translate(def.factionLevelRequirement), MessageTypeDefOf.RejectInput);
-                return;
-            }
-
-            // Check incompatibility with active core policies and traits
-            if (!def.incompatiblePolicies.NullOrEmpty())
-            {
-                foreach (FCPolicyDef blocked in def.incompatiblePolicies)
-                {
-                    if (HasPolicy(blocked) || HasTrait(blocked))
-                    {
-                        Messages.Message("FCEdictIncompatible".Translate(def.LabelCap, blocked.LabelCap), MessageTypeDefOf.RejectInput);
-                        return;
-                    }
-                }
-            }
-
-            // Check policy prerequisites
-            if (!def.MeetsPolicyRequirements(this, out string failReason))
-            {
-                Messages.Message(failReason, MessageTypeDefOf.RejectInput);
-                return;
-            }
-
-            // Revoke existing edict in this category (if any)
-            RevokeEdict(def.category, silent: true);
-
-            FCPolicy edict = new FCPolicy(def);
-            edicts[def.category] = edict;
-            if (def.enactDuration > 0)
-                pendingEdictActivations.Add(def.category);
-            RebuildBehaviorCache();
-            DirtyFactionProfitCache();
-            Messages.Message("FCEdictEnacted".Translate(def.LabelCap), MessageTypeDefOf.PositiveEvent);
-        }
-
-        public void RevokeEdict(FCPolicyCategory category, bool silent = false)
-        {
-            if (!edicts.TryGetValue(category, out FCPolicy edict)) return;
-
-            if (edict.behavior != null)
-            {
-                try { edict.behavior.OnRemoved(this); }
-                catch (Exception e) { LogUtil.Error($"Edict behavior OnRemoved error for '{edict.def?.defName}': {e}"); }
-            }
-
-            string label = edict.def?.LabelCap ?? "";
-            FCPolicyDef revokedDef = edict.def;
-            edicts.Remove(category);
-            pendingEdictActivations.Remove(category);
-            RebuildBehaviorCache();
-            DirtyFactionProfitCache();
-            if (!silent)
-                Messages.Message("FCEdictRevoked".Translate(label), MessageTypeDefOf.NeutralEvent);
-
-            // Cascade: revoke any active edicts that depended on the one just removed
-            if (revokedDef != null)
-            {
-                List<FCPolicyCategory> toRevoke = new List<FCPolicyCategory>();
-                foreach (KeyValuePair<FCPolicyCategory, FCPolicy> kvp in edicts)
-                {
-                    if (kvp.Value.def.requiredPolicies.NullOrEmpty()) continue;
-                    if (!kvp.Value.def.MeetsPolicyRequirements(this, out _))
-                        toRevoke.Add(kvp.Key);
-                }
-                foreach (FCPolicyCategory cat in toRevoke)
-                {
-                    if (!edicts.TryGetValue(cat, out FCPolicy policy)) continue;
-                    string depLabel = policy.def?.LabelCap ?? "";
-                    Messages.Message("FCEdictRevokedDependency".Translate(depLabel, label), MessageTypeDefOf.NeutralEvent);
-                    RevokeEdict(cat, silent: true);
-                }
-            }
-        }
-
-        public void RevokeAllEdicts()
-        {
-            // Copy keys to avoid modifying collection during iteration
-            List<FCPolicyCategory> categories = new List<FCPolicyCategory>(edicts.Keys);
-            foreach (FCPolicyCategory cat in categories)
-            {
-                RevokeEdict(cat, silent: true);
-            }
-        }
-
-        public int GetEdictUpkeep()
-        {
-            int total = 0;
-            foreach (FCPolicy edict in edicts.Values)
-            {
-                if (edict.IsFullyActive)
-                    total += edict.def.upkeepSilver;
-            }
-            return total;
-        }
-
-        private void CheckEdictActivations()
-        {
-            bool anyActivated = false;
-            List<FCPolicyCategory> toRemove = new List<FCPolicyCategory>();
-            foreach (FCPolicyCategory cat in pendingEdictActivations)
-            {
-                if (!edicts.TryGetValue(cat, out FCPolicy edict) || edict.IsFullyActive)
-                {
-                    toRemove.Add(cat);
-                    if (edicts.ContainsKey(cat))
-                        anyActivated = true;
-                }
-            }
-            foreach (FCPolicyCategory cat in toRemove)
-                pendingEdictActivations.Remove(cat);
-
-            if (anyActivated)
-            {
-                InvalidateFactionStatCache();
-                DirtyFactionProfitCache();
-            }
-        }
-
-        #endregion
-
-        public bool AnyPolicyBlocks(FCActionType action) => _cachedBlockedActions?.Contains(action) ?? false;
-        public bool AnyPolicyEnables(FCActionType action) => _cachedEnabledActions?.Contains(action) ?? false;
-
-        /// <summary>
-        /// Unified check: for opt-out actions, returns true unless blocked. For opt-in actions, returns true only if enabled.
-        /// </summary>
-        public bool IsActionAllowed(FCActionType action)
-        {
-            if (FCActionTypeUtil.RequiresEnable(action))
-                return AnyPolicyEnables(action);
-            return !AnyPolicyBlocks(action);
-        }
-
-        /// <summary>
-        /// Checks if a specific military job is allowed. Respects defaultEnabled on the job def,
-        /// plus policy/trait overrides. Does NOT check the DeployMilitary action gate — caller must check that separately.
-        /// </summary>
-        public bool IsMilitaryJobAllowed(MilitaryJobDef job)
-        {
-            if (_cachedBlockedJobs != null && _cachedBlockedJobs.Contains(job)) return false;
-            if (!job.defaultEnabled)
-                return _cachedEnabledJobs != null && _cachedEnabledJobs.Contains(job);
-            return true;
-        }
-
-        /// <summary>
-        /// Returns true if any active policy prevents building destruction on battle loss.
-        /// Uses the new data-driven preventBuildingDestruction flag on FCPolicyDef.
-        /// </summary>
-        public bool AnyPolicyPreventsBuildingDestruction()
-        {
-            foreach (FCPolicy p in policies)
-            {
-                if (p?.def != null && p.def.preventBuildingDestruction)
-                    return true;
-            }
-            foreach (FCPolicy p in factionTraits)
-            {
-                if (p?.def is null || p.def == FCPolicyDefOf.empty) continue;
-                if (p.def.preventBuildingDestruction)
-                    return true;
-            }
-            foreach (FCPolicy edict in edicts.Values)
-            {
-                if (edict?.def != null && edict.IsFullyActive && edict.def.preventBuildingDestruction)
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Returns true if any active policy suppresses member death penalties.
-        /// Uses the new data-driven suppressMemberDeathPenalty flag on FCPolicyDef.
-        /// </summary>
-        public bool AnyPolicySuppressesMemberDeathPenalty()
-        {
-            foreach (FCPolicy p in policies)
-            {
-                if (p?.def != null && p.def.suppressMemberDeathPenalty)
-                    return true;
-            }
-            foreach (FCPolicy p in factionTraits)
-            {
-                if (p?.def is null || p.def == FCPolicyDefOf.empty) continue;
-                if (p.def.suppressMemberDeathPenalty)
-                    return true;
-            }
-            foreach (FCPolicy edict in edicts.Values)
-            {
-                if (edict?.def != null && edict.IsFullyActive && edict.def.suppressMemberDeathPenalty)
-                    return true;
-            }
-            return false;
-        }
 
         #endregion
 
@@ -1681,37 +1363,37 @@ namespace FactionColonies
 
         void ISettlementListener.OnSettlementCreated(WorldSettlementFC settlement)
         {
-            ForEachBehavior(b => b.OnSettlementCreated(this, settlement));
+            policyManager.ForEachBehavior(b => b.OnSettlementCreated(this, settlement));
         }
 
         void ISettlementListener.OnSettlementRemoved(WorldSettlementFC settlement)
         {
-            ForEachBehavior(b => b.OnSettlementRemoved(this, settlement));
+            policyManager.ForEachBehavior(b => b.OnSettlementRemoved(this, settlement));
         }
 
         void ISettlementListener.OnSettlementUpgraded(WorldSettlementFC settlement, int oldLevel, int newLevel)
         {
-            ForEachBehavior(b => b.OnSettlementUpgraded(this, settlement, newLevel));
+            policyManager.ForEachBehavior(b => b.OnSettlementUpgraded(this, settlement, newLevel));
         }
 
         void ISettlementListener.OnSettlementTypeChanged(WorldSettlementFC settlement, WorldSettlementDef oldDef, WorldSettlementDef newDef)
         {
-            ForEachBehavior(b => b.OnSettlementTypeChanged(this, settlement, oldDef, newDef));
+            policyManager.ForEachBehavior(b => b.OnSettlementTypeChanged(this, settlement, oldDef, newDef));
         }
 
         void ISettlementListener.OnBuildingConstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
         {
-            ForEachBehavior(b => b.OnBuildingConstructed(this, settlement, building, slot));
+            policyManager.ForEachBehavior(b => b.OnBuildingConstructed(this, settlement, building, slot));
         }
 
         void ISettlementListener.OnBuildingDeconstructed(WorldSettlementFC settlement, BuildingFCDef building, int slot)
         {
-            ForEachBehavior(b => b.OnBuildingDeconstructed(this, settlement, building, slot));
+            policyManager.ForEachBehavior(b => b.OnBuildingDeconstructed(this, settlement, building, slot));
         }
 
         void IResearchListener.OnResearchCompleted(ResearchProjectDef project)
         {
-            ForEachBehavior(b => b.OnResearchCompleted(this, project));
+            policyManager.ForEachBehavior(b => b.OnResearchCompleted(this, project));
         }
 
         void IMercenarySquadListener.OnMercenaryDeath(MercenaryDeathEvent evt)
@@ -1738,12 +1420,12 @@ namespace FactionColonies
             if (aggressorHome is object)
             {
                 bool isExtra = op.aggressor?.squad?.isExtraSquad ?? false;
-                ForEachBehavior(b => b.OnSquadDeployed(this, op, aggressorHome, isExtra));
+                policyManager.ForEachBehavior(b => b.OnSquadDeployed(this, op, aggressorHome, isExtra));
             }
             if (defenderHome is object && defenderHome != aggressorHome)
             {
                 bool isExtra = op.defender?.squad?.isExtraSquad ?? false;
-                ForEachBehavior(b => b.OnSquadDeployed(this, op, defenderHome, isExtra));
+                policyManager.ForEachBehavior(b => b.OnSquadDeployed(this, op, defenderHome, isExtra));
             }
         }
 
@@ -1758,9 +1440,9 @@ namespace FactionColonies
             WorldSettlementFC aggressorHome = op.aggressor?.homeSettlement;
             WorldSettlementFC defenderHome = op.defender?.homeSettlement;
             if (aggressorHome is object)
-                ForEachBehavior(b => b.OnSquadRecalled(this, op, aggressorHome));
+                policyManager.ForEachBehavior(b => b.OnSquadRecalled(this, op, aggressorHome));
             if (defenderHome is object && defenderHome != aggressorHome)
-                ForEachBehavior(b => b.OnSquadRecalled(this, op, defenderHome));
+                policyManager.ForEachBehavior(b => b.OnSquadRecalled(this, op, defenderHome));
         }
 
         void IMilitaryOperationListener.OnBattleResolved(MilitaryOperation op, bool victory, BattleResult result)
@@ -1769,26 +1451,26 @@ namespace FactionColonies
             WorldSettlementFC settlement = op.aggressor?.homeSettlement ?? op.defender?.homeSettlement;
             if (settlement is null) return;
 
-            ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
+            policyManager.ForEachBehavior(b => b.OnBattleResolved(this, settlement, op.kind, victory, result));
         }
 
         void IMercenarySquadListener.OnSquadHired(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            ForEachBehavior(b => b.OnSquadHired(this, squad));
+            policyManager.ForEachBehavior(b => b.OnSquadHired(this, squad));
         }
 
         void IMercenarySquadListener.OnSquadDismissed(MercenarySquadFC squad)
         {
             if (squad is null) return;
-            ForEachBehavior(b => b.OnSquadDismissed(this, squad));
+            policyManager.ForEachBehavior(b => b.OnSquadDismissed(this, squad));
         }
 
         void IMercenarySquadListener.OnSquadUpgraded(MercenarySquadFC squad)
         {
             if (squad is null) return;
             MilitaryFC.NotifyIfUnderfunded(squad);
-            ForEachBehavior(b => b.OnSquadUpgraded(this, squad));
+            policyManager.ForEachBehavior(b => b.OnSquadUpgraded(this, squad));
         }
 
         #endregion
@@ -2289,7 +1971,7 @@ namespace FactionColonies
                 if (typeId == "Exotic")
                 {
                     bool hasLevel = factionLevel >= 4;
-                    bool hasMercantile = HasPolicy(FCPolicyDefOf.mercantile);
+                    bool hasMercantile = policyManager.HasPolicy(FCPolicyDefOf.mercantile);
                     if (!hasLevel && !hasMercantile)
                         continue;
 
@@ -2300,7 +1982,7 @@ namespace FactionColonies
                 }
                 else if (typeId == "Slaver")
                 {
-                    if (HasPolicy(FCPolicyDefOf.pacifist) || HasPolicy(FCPolicyDefOf.egalitarian))
+                    if (policyManager.HasPolicy(FCPolicyDefOf.pacifist) || policyManager.HasPolicy(FCPolicyDefOf.egalitarian))
                         continue;
 
                     string defName = isNeolithic
@@ -2388,7 +2070,7 @@ namespace FactionColonies
 
             // Try new behavior system first
             bool handled = false;
-            ForEachBehavior(b =>
+            policyManager.ForEachBehavior(b =>
             {
                 if (!handled)
                     handled = b.HandleDiplomaticEnvoy(this, faction);

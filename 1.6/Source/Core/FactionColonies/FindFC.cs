@@ -26,6 +26,7 @@ namespace FactionColonies
         private static MilitaryOperationManager _cachedMilitaryManager = null;
         private static FCEventManager _cachedEventManager = null;
         private static TaxLedger _cachedTaxledger = null;
+        private static PolicyManager _cachedPolicyManager = null;
 
         private static MilitaryFC _cachedMilitary = null;
         private static FCRoadBuilder _cachedRoadBuilder = null;
@@ -51,6 +52,7 @@ namespace FactionColonies
         public static MilitaryOperationManager MilitaryManager => _cachedMilitaryManager ?? (_cachedMilitaryManager = FactionComp?.militaryOperationManager);
         public static FCEventManager EventManager => _cachedEventManager ?? (_cachedEventManager = FactionComp?.eventManager);
         public static TaxLedger TaxLedger => _cachedTaxledger ?? (_cachedTaxledger = FactionComp?.taxLedger);
+        public static PolicyManager PolicyManager => _cachedPolicyManager ?? (_cachedPolicyManager = FactionComp?.policyManager);
         public static MilitaryFC Military => _cachedMilitary ?? (_cachedMilitary = FactionComp?.military);
         public static FCRoadBuilder RoadBuilder => _cachedRoadBuilder ?? (_cachedRoadBuilder = FactionComp?.roadBuilder);
         public static EmpireThreatAdaptation ThreatAdaptation => _cachedThreatAdaptation ?? (_cachedThreatAdaptation = FactionComp?.threatAdaptation);
@@ -61,8 +63,6 @@ namespace FactionColonies
         public static Map TaxMap => FactionComp?.TaxMap;
         public static TechLevel TechLevel => FactionComp?.techLevel ?? TechLevel.Undefined;
         public static int FactionLevel => FactionComp?.factionLevel ?? 0;
-        public static List<FCPolicy> Policies => FactionComp?.policies;
-        public static List<FCPolicy> FactionTraits => FactionComp?.factionTraits;
         public static IReadOnlyList<FCEvent> Events => FactionComp?.Events;
         public static PlanetTile CapitalLocation => FactionComp?.capitalLocation ?? PlanetTile.Invalid;
         public static List<WorldSettlementFC> Settlements => FactionComp?.settlements;
@@ -80,6 +80,7 @@ namespace FactionColonies
             _cachedMilitaryManager = null;
             _cachedEventManager = null;
             _cachedTaxledger = null;
+            _cachedPolicyManager = null;
 
             _cachedMilitary = null;
             _cachedRoadBuilder = null;

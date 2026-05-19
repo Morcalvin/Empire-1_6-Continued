@@ -571,11 +571,11 @@ namespace FactionColonies
 
         private static bool HasPolicyOrTrait(FactionFC faction, FCPolicyDef def)
         {
-            foreach (FCPolicy p in faction.policies)
+            foreach (FCPolicy p in FindFC.PolicyManager.policies)
             {
                 if (p.def == def) return true;
             }
-            foreach (FCPolicy t in faction.factionTraits)
+            foreach (FCPolicy t in FindFC.PolicyManager.factionTraits)
             {
                 if (t.def == def) return true;
             }

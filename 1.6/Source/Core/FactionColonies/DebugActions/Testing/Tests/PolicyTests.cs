@@ -13,8 +13,8 @@ namespace FactionColonies
         /// </summary>
         public static (List<FCPolicy> policies, List<FCPolicy> traits) SnapshotPolicies(FactionFC faction)
         {
-            var savedPolicies = new List<FCPolicy>(faction.policies);
-            var savedTraits = new List<FCPolicy>(faction.factionTraits);
+            var savedPolicies = new List<FCPolicy>(FindFC.PolicyManager.policies);
+            var savedTraits = new List<FCPolicy>(FindFC.PolicyManager.factionTraits);
             return (savedPolicies, savedTraits);
         }
 
@@ -24,23 +24,23 @@ namespace FactionColonies
         public static void RestorePolicies(FactionFC faction,
             (List<FCPolicy> policies, List<FCPolicy> traits) snapshot)
         {
-            faction.RemoveAllPolicies(faction.policies);
+            FindFC.PolicyManager.RemoveAllPolicies(FindFC.PolicyManager.policies);
             foreach (FCPolicy p in snapshot.policies)
-                faction.policies.Add(p);
+                FindFC.PolicyManager.policies.Add(p);
 
-            for (int i = 0; i < faction.factionTraits.Count; i++)
+            for (int i = 0; i < FindFC.PolicyManager.factionTraits.Count; i++)
             {
-                if (faction.factionTraits[i]?.behavior != null)
+                if (FindFC.PolicyManager.factionTraits[i]?.behavior != null)
                 {
-                    try { faction.factionTraits[i].behavior.OnRemoved(faction); }
+                    try { FindFC.PolicyManager.factionTraits[i].behavior.OnRemoved(faction); }
                     catch (Exception ex) { LogUtil.Warning($"OnRemoved threw during test cleanup: {ex}"); }
                 }
             }
-            faction.factionTraits.Clear();
+            FindFC.PolicyManager.factionTraits.Clear();
             foreach (FCPolicy t in snapshot.traits)
-                faction.factionTraits.Add(t);
+                FindFC.PolicyManager.factionTraits.Add(t);
 
-            faction.RebuildBehaviorCache();
+            FindFC.PolicyManager.RebuildBehaviorCache();
         }
 
         /// <summary>
@@ -49,8 +49,8 @@ namespace FactionColonies
         public static FCPolicy EnactPolicy(FactionFC faction, FCPolicyDef def)
         {
             var policy = new FCPolicy(def);
-            faction.policies.Add(policy);
-            faction.RebuildBehaviorCache();
+            FindFC.PolicyManager.policies.Add(policy);
+            FindFC.PolicyManager.RebuildBehaviorCache();
             return policy;
         }
 
@@ -59,14 +59,14 @@ namespace FactionColonies
         /// </summary>
         public static FCPolicy SetTrait(FactionFC faction, FCPolicyDef def, int slot)
         {
-            if (faction.factionTraits[slot]?.behavior != null)
+            if (FindFC.PolicyManager.factionTraits[slot]?.behavior != null)
             {
-                try { faction.factionTraits[slot].behavior.OnRemoved(faction); }
+                try { FindFC.PolicyManager.factionTraits[slot].behavior.OnRemoved(faction); }
                 catch (Exception ex) { LogUtil.Warning($"OnRemoved threw during test cleanup: {ex}"); }
             }
             var trait = new FCPolicy(def);
-            faction.factionTraits[slot] = trait;
-            faction.RebuildBehaviorCache();
+            FindFC.PolicyManager.factionTraits[slot] = trait;
+            FindFC.PolicyManager.RebuildBehaviorCache();
             return trait;
         }
 
@@ -75,17 +75,17 @@ namespace FactionColonies
         /// </summary>
         public static void ClearAll(FactionFC faction)
         {
-            faction.RemoveAllPolicies(faction.policies);
-            for (int i = 0; i < faction.factionTraits.Count; i++)
+            FindFC.PolicyManager.RemoveAllPolicies(FindFC.PolicyManager.policies);
+            for (int i = 0; i < FindFC.PolicyManager.factionTraits.Count; i++)
             {
-                if (faction.factionTraits[i]?.behavior != null)
+                if (FindFC.PolicyManager.factionTraits[i]?.behavior != null)
                 {
-                    try { faction.factionTraits[i].behavior.OnRemoved(faction); }
+                    try { FindFC.PolicyManager.factionTraits[i].behavior.OnRemoved(faction); }
                     catch (Exception ex) { LogUtil.Warning($"OnRemoved threw during test cleanup: {ex}"); }
                 }
-                faction.factionTraits[i] = new FCPolicy(FCPolicyDefOf.empty);
+                FindFC.PolicyManager.factionTraits[i] = new FCPolicy(FCPolicyDefOf.empty);
             }
-            faction.RebuildBehaviorCache();
+            FindFC.PolicyManager.RebuildBehaviorCache();
         }
     }
 
@@ -230,12 +230,12 @@ namespace FactionColonies
             try
             {
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.AreEqual(0, faction.cachedBehaviors.Count, "After clearing, cachedBehaviors should be empty");
+                TestAssert.AreEqual(0, FindFC.PolicyManager.CachedBehaviors.Count, "After clearing, cachedBehaviors should be empty");
 
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.militaristic);
-                TestAssert.IsTrue(faction.cachedBehaviors.Count > 0,
+                TestAssert.IsTrue(FindFC.PolicyManager.CachedBehaviors.Count > 0,
                     "After enacting policy with behavior, cachedBehaviors should be non-empty");
-                TestAssert.IsTrue(faction.cachedBehaviors[0] is FCPolicyBehavior_Militaristic,
+                TestAssert.IsTrue(FindFC.PolicyManager.CachedBehaviors[0] is FCPolicyBehavior_Militaristic,
                     "Cached behavior should be Militaristic instance");
             }
             finally
@@ -254,10 +254,10 @@ namespace FactionColonies
             try
             {
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.militaristic);
-                TestAssert.IsTrue(faction.cachedBehaviors.Count > 0, "Should have behaviors after enacting");
+                TestAssert.IsTrue(FindFC.PolicyManager.CachedBehaviors.Count > 0, "Should have behaviors after enacting");
 
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.AreEqual(0, faction.cachedBehaviors.Count,
+                TestAssert.AreEqual(0, FindFC.PolicyManager.CachedBehaviors.Count,
                     "After clearing all, cachedBehaviors should be empty");
             }
             finally
@@ -281,13 +281,13 @@ namespace FactionColonies
                 PolicyTestHelper.SetTrait(faction, FCPolicyDefOf.mercantile, 0);
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.militaristic);
 
-                TestAssert.IsTrue(faction.cachedBehaviors.Count >= 2,
+                TestAssert.IsTrue(FindFC.PolicyManager.CachedBehaviors.Count >= 2,
                     "Should have at least 2 behaviors");
 
                 // Policies should come before traits in the cache
-                TestAssert.IsTrue(faction.cachedBehaviors[0] is FCPolicyBehavior_Militaristic,
+                TestAssert.IsTrue(FindFC.PolicyManager.CachedBehaviors[0] is FCPolicyBehavior_Militaristic,
                     "First cached behavior should be from policy (Militaristic), not trait");
-                TestAssert.IsTrue(faction.cachedBehaviors[1] is FCPolicyBehavior_Mercantile,
+                TestAssert.IsTrue(FindFC.PolicyManager.CachedBehaviors[1] is FCPolicyBehavior_Mercantile,
                     "Second cached behavior should be from trait (Mercantile)");
             }
             finally

@@ -164,9 +164,9 @@ namespace FactionColonies
             try
             {
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.RaidEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.RaidEnemySettlement),
                     "Raid should be allowed by default (defaultEnabled=true)");
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
                     "Capture should be allowed by default (defaultEnabled=true)");
             }
             finally
@@ -185,7 +185,7 @@ namespace FactionColonies
             try
             {
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.IsFalse(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.EnslaveEnemySettlement),
+                TestAssert.IsFalse(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.EnslaveEnemySettlement),
                     "Enslave should be blocked by default (defaultEnabled=false)");
             }
             finally
@@ -207,7 +207,7 @@ namespace FactionColonies
 
                 // Authoritarian enables EnslaveEnemySettlement
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.authoritarian);
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.EnslaveEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.EnslaveEnemySettlement),
                     "Authoritarian should enable Enslave via enabledMilitaryJobs");
             }
             finally
@@ -229,7 +229,7 @@ namespace FactionColonies
 
                 // Isolationist blocks CaptureEnemySettlement
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.isolationist);
-                TestAssert.IsFalse(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
+                TestAssert.IsFalse(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
                     "Isolationist should block Capture via blockedMilitaryJobs");
             }
             finally
@@ -253,17 +253,17 @@ namespace FactionColonies
                 PolicyTestHelper.ClearAll(faction);
 
                 // Without isolationist, Capture is allowed
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
                     "Capture should be allowed without isolationist");
 
                 // With isolationist, Capture is blocked
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.isolationist);
-                TestAssert.IsFalse(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
+                TestAssert.IsFalse(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
                     "Capture should be blocked by isolationist");
 
                 // Clear and verify it's allowed again
                 PolicyTestHelper.ClearAll(faction);
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
                     "Capture should be allowed again after clearing isolationist");
             }
             finally
@@ -289,13 +289,13 @@ namespace FactionColonies
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.pacifist);
 
                 // Pacifist blocks the DeployMilitary action
-                TestAssert.IsFalse(faction.IsActionAllowed(FactionColonies.util.FCActionType.DeployMilitary),
+                TestAssert.IsFalse(FindFC.FactionComp.IsActionAllowed(FactionColonies.util.FCActionType.DeployMilitary),
                     "Pacifist should block DeployMilitary action");
 
                 // But individual military jobs are NOT blocked at the job level
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.RaidEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.RaidEnemySettlement),
                     "Pacifist should not block Raid at the job level (blocks at action level instead)");
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.CaptureEnemySettlement),
                     "Pacifist should not block Capture at the job level");
             }
             finally
@@ -317,11 +317,11 @@ namespace FactionColonies
                 PolicyTestHelper.EnactPolicy(faction, FCPolicyDefOf.authoritarian);
 
                 // Authoritarian enables Enslave at job level
-                TestAssert.IsTrue(faction.IsMilitaryJobAllowed(MilitaryJobDefOf.EnslaveEnemySettlement),
+                TestAssert.IsTrue(FindFC.FactionComp.IsMilitaryJobAllowed(MilitaryJobDefOf.EnslaveEnemySettlement),
                     "Authoritarian should enable Enslave at job level");
 
                 // Does not affect the DeployMilitary action gate (authoritarian doesn't block/enable it)
-                TestAssert.IsTrue(faction.IsActionAllowed(FactionColonies.util.FCActionType.DeployMilitary),
+                TestAssert.IsTrue(FindFC.FactionComp.IsActionAllowed(FactionColonies.util.FCActionType.DeployMilitary),
                     "Authoritarian should not affect the DeployMilitary action gate");
             }
             finally

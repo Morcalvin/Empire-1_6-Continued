@@ -110,14 +110,14 @@ namespace FactionColonies
                     for (int slot = 0; slot < slotCount && traitIndex < selectedTraits.Count; slot++)
                     {
                         bool isLocked = faction.factionLevel < (slot + 1);
-                        bool isAssigned = faction.factionTraits[slot].def != FCPolicyDefOf.empty;
+                        bool isAssigned = FindFC.PolicyManager.factionTraits[slot].def != FCPolicyDefOf.empty;
                         if (!isLocked && !isAssigned)
                         {
-                            faction.factionTraits[slot] = new FCPolicy(selectedTraits[traitIndex]);
+                            FindFC.PolicyManager.factionTraits[slot] = new FCPolicy(selectedTraits[traitIndex]);
                             traitIndex++;
                         }
                     }
-                    faction.RebuildBehaviorCache();
+                    FindFC.PolicyManager.RebuildBehaviorCache();
                 }
 
                 Find.WindowStack.TryRemove(this);
@@ -145,7 +145,7 @@ namespace FactionColonies
                 Rect row = new Rect(inRect.x, y, inRect.width, traitRowHeight);
                 if (slot % 2 == 0) Widgets.DrawHighlight(row);
 
-                FCPolicy existing = faction.factionTraits[slot];
+                FCPolicy existing = FindFC.PolicyManager.factionTraits[slot];
                 bool isLocked = faction.factionLevel < (slot + 1);
                 bool isAssigned = existing.def != FCPolicyDefOf.empty;
 
@@ -307,7 +307,7 @@ namespace FactionColonies
             for (int slot = 0; slot < slotCount; slot++)
             {
                 bool isLocked = faction.factionLevel < (slot + 1);
-                bool isAssigned = faction.factionTraits[slot].def != FCPolicyDefOf.empty;
+                bool isAssigned = FindFC.PolicyManager.factionTraits[slot].def != FCPolicyDefOf.empty;
                 if (!isLocked && !isAssigned) count++;
             }
             return count;
@@ -316,7 +316,7 @@ namespace FactionColonies
         private List<FCPolicyDef> GetAvailableTraits()
         {
             return DefDatabase<FCPolicyDef>.AllDefs.Where(d => d.category == FCPolicyCategory.Trait
-                                                               && !faction.HasTrait(d)
+                                                               && !FindFC.PolicyManager.HasTrait(d)
                                                                && MeetsTraitPrerequisites(d)).ToList();
         }
 
@@ -328,8 +328,8 @@ namespace FactionColonies
             {
                 foreach (FCPolicyDef req in def.requiredPolicies)
                 {
-                    if (faction.HasTrait(req) || selectedTraits.Contains(req)
-                        || faction.HasPolicy(req) || faction.HasEdict(req))
+                    if (FindFC.PolicyManager.HasTrait(req) || selectedTraits.Contains(req)
+                        || FindFC.PolicyManager.HasPolicy(req) || FindFC.PolicyManager.HasEdict(req))
                         return true;
                 }
                 return false;
@@ -337,8 +337,8 @@ namespace FactionColonies
 
             foreach (FCPolicyDef req in def.requiredPolicies)
             {
-                if (!faction.HasTrait(req) && !selectedTraits.Contains(req)
-                    && !faction.HasPolicy(req) && !faction.HasEdict(req))
+                if (!FindFC.PolicyManager.HasTrait(req) && !selectedTraits.Contains(req)
+                    && !FindFC.PolicyManager.HasPolicy(req) && !FindFC.PolicyManager.HasEdict(req))
                     return false;
             }
             return true;

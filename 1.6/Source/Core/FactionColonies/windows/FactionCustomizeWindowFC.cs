@@ -383,7 +383,7 @@ namespace FactionColonies
         {
             DrawCard(rect);
 
-            bool policiesSelected = faction.policies.Count >= FCSettings.maxPolicyCount;
+            bool policiesSelected = FindFC.PolicyManager.policies.Count >= FCSettings.maxPolicyCount;
             float contentY;
 
             if (policiesSelected)
@@ -391,12 +391,12 @@ namespace FactionColonies
                 // No card label when policies are selected — icons are self-explanatory
                 contentY = rect.y + (rect.height - 50f) / 2f;
                 // Show selected policy icons
-                float totalIconWidth = faction.policies.Count * 32f + (faction.policies.Count - 1) * 5f;
+                float totalIconWidth = FindFC.PolicyManager.policies.Count * 32f + (FindFC.PolicyManager.policies.Count - 1) * 5f;
                 float startX = rect.x + (rect.width - totalIconWidth) / 2f;
 
-                for (int i = 0; i < faction.policies.Count; i++)
+                for (int i = 0; i < FindFC.PolicyManager.policies.Count; i++)
                 {
-                    FCPolicy policy = faction.policies[i];
+                    FCPolicy policy = FindFC.PolicyManager.policies[i];
                     Rect iconRect = new Rect(startX + i * (32f + 5f), contentY, 32f, 32f);
                     Widgets.DrawBoxSolid(iconRect, new Color(0.15f, 0.15f, 0.15f));
 
@@ -409,7 +409,7 @@ namespace FactionColonies
                 }
 
                 // Combined label below
-                string policyNames = string.Join(" \u00b7 ", faction.policies.Select(p => p.def.LabelCap.ToString()));
+                string policyNames = string.Join(" \u00b7 ", FindFC.PolicyManager.policies.Select(p => p.def.LabelCap.ToString()));
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.UpperCenter;
                 UIUtil.DrawColoredLabel(

@@ -46,7 +46,7 @@ namespace FactionColonies
 
             double sumIncome = faction.settlements.Sum(s => s.GetTotalIncome());
             double sumUpkeep = faction.settlements.Sum(s => s.GetTotalUpkeep());
-            int edictUpkeep = faction.GetEdictUpkeep();
+            int edictUpkeep = FindFC.PolicyManager.GetEdictUpkeep();
             double expectedProfit = sumIncome - sumUpkeep - edictUpkeep;
 
             TestAssert.AreEqual(expectedProfit, faction.profit, tolerance: 1.0,

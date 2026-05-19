@@ -1154,6 +1154,22 @@ namespace FactionColonies
             dirtyDescriptionCache = true;
         }
 
+        /* Name mutators: prefer these over assigning Name / ShortName directly so the
+         * description cache stays in sync. */
+        public void SetName(string newName)
+        {
+            if (newName.NullOrEmpty() || newName == Name) return;
+            Name = newName;
+            DirtyDescriptionCache();
+        }
+
+        public void SetShortName(string newShortName)
+        {
+            if (newShortName == ShortName) return;
+            ShortName = newShortName;
+            DirtyDescriptionCache();
+        }
+
         /// <summary>
         /// Workforce composition changed (prisoner workload, worker reallocation). Equivalent
         /// to <see cref="DirtyStatsCache"/> — kept as a named entry point so call sites
@@ -1490,7 +1506,7 @@ namespace FactionColonies
                 desc += factionMods;
 
             // Behavior contributions for taxBonusFlat (e.g., Egalitarian tax-break penalty)
-            faction.ForEachBehavior(b =>
+            FindFC.PolicyManager.ForEachBehavior(b =>
             {
                 string behaviorDesc = b.GetStatDescription(FCStatDefOf.taxBonusFlat, this);
                 if (!behaviorDesc.NullOrEmpty())
@@ -1886,7 +1902,7 @@ namespace FactionColonies
                 desc += faction.GetFactionStatDesc(stat, hardinvert);
 
                 // Behavior runtime contributions (e.g., Egalitarian tax-break modifiers)
-                faction.ForEachBehavior(b =>
+                FindFC.PolicyManager.ForEachBehavior(b =>
                 {
                     string behaviorDesc = b.GetStatDescription(stat, this);
                     if (!behaviorDesc.NullOrEmpty())

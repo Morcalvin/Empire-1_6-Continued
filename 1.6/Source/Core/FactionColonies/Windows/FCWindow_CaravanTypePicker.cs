@@ -211,7 +211,7 @@ namespace FactionColonies
             }
 
             // Exotic
-            bool exoticUnlocked = faction.factionLevel >= 4 || faction.HasPolicy(FCPolicyDefOf.mercantile);
+            bool exoticUnlocked = faction.factionLevel >= 4 || FindFC.PolicyManager.HasPolicy(FCPolicyDefOf.mercantile);
             entries.Add(new CaravanTypeEntry
             {
                 typeId = "Exotic",
@@ -225,10 +225,10 @@ namespace FactionColonies
             });
 
             // Slaver
-            bool slaverBlocked = faction.HasPolicy(FCPolicyDefOf.pacifist)
-                || faction.HasTrait(FCPolicyDefOf.pacifist)
-                || faction.HasPolicy(FCPolicyDefOf.egalitarian)
-                || faction.HasTrait(FCPolicyDefOf.egalitarian);
+            bool slaverBlocked = FindFC.PolicyManager.HasPolicy(FCPolicyDefOf.pacifist)
+                || FindFC.PolicyManager.HasTrait(FCPolicyDefOf.pacifist)
+                || FindFC.PolicyManager.HasPolicy(FCPolicyDefOf.egalitarian)
+                || FindFC.PolicyManager.HasTrait(FCPolicyDefOf.egalitarian);
             entries.Add(new CaravanTypeEntry
             {
                 typeId = "Slaver",

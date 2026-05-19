@@ -576,7 +576,7 @@ namespace FactionColonies
             if (faction == null || settlement == null)
                 TestAssert.Skip("No faction/settlement");
 
-            bool egalitarianActive = faction.policies.Any(p =>
+            bool egalitarianActive = FindFC.PolicyManager.policies.Any(p =>
                 p?.def == FCPolicyDefOf.egalitarian);
             if (!egalitarianActive)
                 TestAssert.Skip("Egalitarian policy not active");
