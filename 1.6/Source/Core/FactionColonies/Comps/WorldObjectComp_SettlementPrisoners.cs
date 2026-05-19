@@ -53,32 +53,51 @@ namespace FactionColonies
             }
         }
 
-        /* Daily health update. Heavy workload damages, Light heals. AdjustHealth -> CheckDead
-         * may remove the prisoner from this list mid-iteration, so don't increment when dead. */
+        /* Daily health update. Heavy workload damages, Light heals. Two-phase to keep
+         * the iteration over prisonerList safe: first pass applies deltas and gathers any
+         * dead prisoners into a scratch list; second pass processes the deaths. */
         public void AdvanceDailyHealth()
         {
             if (prisonerList is null) return;
-            int i = 0;
-            while (i < prisonerList.Count)
+
+            List<FCPrisoner> dead = null;
+            foreach (FCPrisoner p in prisonerList)
             {
-                FCPrisoner prisoner = prisonerList[i];
-                bool dead = false;
-
-                switch (prisoner.workload)
+                switch (p.workload)
                 {
-                    case FCWorkLoad.Heavy:
-                        if (prisoner.AdjustHealth(-4)) dead = true;
-                        break;
-                    case FCWorkLoad.Medium:
-                        if (prisoner.AdjustHealth(-2)) dead = true;
-                        break;
-                    case FCWorkLoad.Light:
-                        if (prisoner.AdjustHealth(1)) dead = true;
-                        break;
+                    case FCWorkLoad.Heavy:  p.AdjustHealth(-4); break;
+                    case FCWorkLoad.Medium: p.AdjustHealth(-2); break;
+                    case FCWorkLoad.Light:  p.AdjustHealth(1);  break;
                 }
-
-                if (!dead) i++;
+                if (p.IsDead)
+                {
+                    if (dead is null) dead = new List<FCPrisoner>();
+                    dead.Add(p);
+                }
             }
+
+            if (dead is null) return;
+            foreach (FCPrisoner d in dead) HandlePrisonerDeath(d);
+        }
+
+        public bool RemovePrisoner(FCPrisoner p)
+        {
+            if (prisonerList is null || p is null) return false;
+            bool removed = prisonerList.Remove(p);
+            if (removed) (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
+            return removed;
+        }
+
+        private void HandlePrisonerDeath(FCPrisoner p)
+        {
+            WorldSettlementFC s = parent as WorldSettlementFC;
+            string pawnName = p.prisoner?.Name?.ToString() ?? "";
+            string sName = s?.Name ?? "";
+            RemovePrisoner(p);
+            Find.LetterStack.ReceiveLetter(
+                "FCPrisonerHasDiedLetter".Translate(),
+                "FCPrisonerHasDied".Translate(pawnName, sName),
+                LetterDefOf.NeutralEvent);
         }
 
         public void AddPrisoner(Pawn pawn)

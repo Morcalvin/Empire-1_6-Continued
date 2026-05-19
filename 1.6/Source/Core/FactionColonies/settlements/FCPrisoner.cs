@@ -117,29 +117,17 @@ namespace FactionColonies
 
 
 
-        public bool AdjustHealth(int value)
+        public void AdjustHealth(int value)
         {
             health += value;
             if (health >= 100)
             {
                 health = 100;
-                if (prisoner != null && prisoner.health != null)
+                if (prisoner is object && prisoner.health is object)
                     HealthUtility.HealNonPermanentInjuriesAndRestoreLegs(prisoner);
             }
-
-            return CheckDead();
         }
 
-        public bool CheckDead()
-        {
-            if (health <= 0)
-            {
-                settlement?.PrisonerComp?.prisonerList?.Remove(this);
-                settlement?.NotifyWorkforceChanged();
-                Find.LetterStack.ReceiveLetter("FCPrisonerHasDiedLetter".Translate(), "FCPrisonerHasDied".Translate(prisoner.Name.ToString(), settlement.Name), LetterDefOf.NeutralEvent);
-                return true;
-            }
-            return false;
-        }
+        public bool IsDead => health <= 0;
     }
 }

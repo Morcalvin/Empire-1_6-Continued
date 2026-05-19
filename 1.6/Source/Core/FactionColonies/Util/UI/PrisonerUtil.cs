@@ -122,8 +122,7 @@ namespace FactionColonies
         public static void SellPrisoner(FCPrisoner p, WorldSettlementFC settlement)
         {
             settlement.AddOneTimeSilverIncome(p.prisoner.MarketValue);
-            settlement.PrisonerComp?.prisonerList?.Remove(p);
-            settlement.DirtyStatsCache();
+            settlement.PrisonerComp?.RemovePrisoner(p);
         }
 
         public static void ReturnPrisonerToPlayer(FCPrisoner p, WorldSettlementFC settlement)
@@ -145,8 +144,7 @@ namespace FactionColonies
                 timeTillTrigger = Find.TickManager.TicksGame + TravelUtil.ReturnTicksToArrive(settlement.Tile, Find.AnyPlayerHomeMap.Tile)
             });
 
-            settlement.PrisonerComp?.prisonerList?.Remove(p);
-            settlement.DirtyStatsCache();
+            settlement.PrisonerComp?.RemovePrisoner(p);
         }
 
         public static void DoActionsMenu(FCPrisoner p, WorldSettlementFC settlement, Action onRemoved)
