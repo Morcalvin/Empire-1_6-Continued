@@ -3,7 +3,6 @@ using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using Verse;
 
@@ -27,40 +26,13 @@ namespace FactionColonies
 
         private static readonly Color healthBarBg = new Color(0.15f, 0.15f, 0.15f);
 
-        private static readonly FieldInfo hostFactionField =
-            typeof(Pawn_GuestTracker).GetField("hostFactionInt", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        public static int CullNullPrisoners(WorldSettlementFC settlement)
-        {
-            List<FCPrisoner> list = settlement?.PrisonerComp?.prisonerList;
-            if (list is null) return 0;
-
-            int removed = 0;
-            for (int i = list.Count - 1; i >= 0; i--)
-            {
-                FCPrisoner p = list[i];
-                if (p is null || p.prisoner is null)
-                {
-                    list.RemoveAt(i);
-                    removed++;
-                }
-            }
-
-            if (removed > 0)
-            {
-                settlement.DirtyStatsCache();
-                LogUtil.Warning("Culled " + removed + " null prisoner(s) from " + settlement.Name);
-            }
-            return removed;
-        }
-
         public static int CullNullPrisoners(FactionFC faction)
         {
             if (faction?.settlements is null) return 0;
             int total = 0;
             for (int i = 0; i < faction.settlements.Count; i++)
             {
-                total += CullNullPrisoners(faction.settlements[i]);
+                total += faction.settlements[i]?.PrisonerComp?.CullNullPrisoners() ?? 0;
             }
             return total;
         }
@@ -74,101 +46,6 @@ namespace FactionColonies
                 if (pawns[i].IsPrisonerOfColony) return true;
             }
             return false;
-        }
-
-        public static void TransferFromCaravan(Pawn pawn, Caravan caravan, WorldSettlementFC settlement)
-        {
-            if (pawn is null || caravan is null || settlement is null) return;
-            caravan.RemovePawn(pawn);
-            caravan.Notify_PawnRemoved(pawn);
-            if (settlement.PrisonerComp is null)
-            {
-                LogUtil.Error($"TransferFromCaravan: settlement {settlement.Name} has no PrisonerComp; cannot transfer {pawn?.Name}.");
-                return;
-            }
-            settlement.PrisonerComp.AddPrisoner(pawn);
-        }
-
-        public static void DoTransferMenu(Caravan caravan, WorldSettlementFC settlement)
-        {
-            if (caravan is null || settlement is null) return;
-
-            List<FloatMenuOption> list = new List<FloatMenuOption>();
-            List<Pawn> pawns = caravan.PawnsListForReading;
-            for (int i = 0; i < pawns.Count; i++)
-            {
-                Pawn captured = pawns[i];
-                if (!captured.IsPrisonerOfColony) continue;
-                list.Add(new FloatMenuOption(
-                    "FCTransferPrisonerOption".Translate(captured.Name.ToStringShort),
-                    delegate { TransferFromCaravan(captured, caravan, settlement); }));
-            }
-
-            if (list.Count == 0)
-            {
-                Messages.Message("FCNoPrisonersInCaravan".Translate(), MessageTypeDefOf.RejectInput);
-                return;
-            }
-
-            Find.WindowStack.Add(new FloatMenu(list));
-        }
-
-        public static void SetWorkload(FCPrisoner p, WorldSettlementFC settlement, FCWorkLoad workload)
-        {
-            p.workload = workload;
-            settlement.DirtyStatsCache();
-        }
-
-        public static void SellPrisoner(FCPrisoner p, WorldSettlementFC settlement)
-        {
-            settlement.AddOneTimeSilverIncome(p.prisoner.MarketValue);
-            settlement.PrisonerComp?.RemovePrisoner(p);
-        }
-
-        public static void ReturnPrisonerToPlayer(FCPrisoner p, WorldSettlementFC settlement)
-        {
-            if (!HealthUtility.TryAnesthetize(p.prisoner))
-                HealthUtility.DamageUntilDowned(p.prisoner, false);
-
-            if (p.prisoner.guest is null)
-                p.prisoner.guest = new Pawn_GuestTracker();
-            p.prisoner.guest.guestStatusInt = GuestStatus.Prisoner;
-            hostFactionField?.SetValue(p.prisoner.guest, Find.FactionManager.OfPlayer);
-
-            DeliveryEvent.CreateDeliveryEvent(new FCEvent
-            {
-                location = Find.AnyPlayerHomeMap.Tile,
-                source = settlement.Tile,
-                goods = new List<Thing> { p.prisoner },
-                customDescription = "FCAPrisonerIsBeingDeliveredToYou".Translate(),
-                timeTillTrigger = Find.TickManager.TicksGame + TravelUtil.ReturnTicksToArrive(settlement.Tile, Find.AnyPlayerHomeMap.Tile)
-            });
-
-            settlement.PrisonerComp?.RemovePrisoner(p);
-        }
-
-        public static void DoActionsMenu(FCPrisoner p, WorldSettlementFC settlement, Action onRemoved)
-        {
-            List<FloatMenuOption> list = new List<FloatMenuOption>();
-
-            if (FindFC.FactionComp.IsActionAllowed(FCActionType.SellPrisoner))
-            {
-                list.Add(new FloatMenuOption(
-                    "FCSellPawn".Translate() + " $" + p.prisoner.MarketValue + " " + "FCSellPawnInfo".Translate(),
-                    delegate
-                    {
-                        SellPrisoner(p, settlement);
-                        onRemoved?.Invoke();
-                    }));
-            }
-
-            list.Add(new FloatMenuOption("FCReturnToPlayer".Translate(), delegate
-            {
-                ReturnPrisonerToPlayer(p, settlement);
-                onRemoved?.Invoke();
-            }));
-
-            Find.WindowStack.Add(new FloatMenu(list));
         }
 
         private static void GetWorkloadPresentation(FCWorkLoad workload, out string label, out string trend, out Color trendColor)
@@ -196,20 +73,6 @@ namespace FactionColonies
                     trendColor = Color.white;
                     return;
             }
-        }
-
-        private static void OpenWorkloadFloatMenu(FCPrisoner prisoner, WorldSettlementFC settlement)
-        {
-            List<FloatMenuOption> wlList = new List<FloatMenuOption>
-            {
-                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
-                    delegate { SetWorkload(prisoner, settlement, FCWorkLoad.Heavy); }),
-                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
-                    delegate { SetWorkload(prisoner, settlement, FCWorkLoad.Medium); }),
-                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
-                    delegate { SetWorkload(prisoner, settlement, FCWorkLoad.Light); })
-            };
-            Find.WindowStack.Add(new FloatMenu(wlList));
         }
 
         /* "Jonathan, Novelist" — title segment colorized via SubtleGrayColor.
@@ -314,7 +177,7 @@ namespace FactionColonies
             Rect actionsRect = new Rect(rightX, row2Y, rightColW, row2H);
             if (UIUtil.ButtonFlat(actionsRect, "FCActions".Translate()))
             {
-                DoActionsMenu(prisoner, settlement, onRemoved);
+                settlement.PrisonerComp?.DoActionsMenu(prisoner, onRemoved);
             }
 
             /* ROW 3: health bar with embedded trend | Workload */
@@ -341,7 +204,7 @@ namespace FactionColonies
             Rect workloadRect = new Rect(rightX, row3Y, rightColW, row3H);
             if (UIUtil.ButtonFlat(workloadRect, "FCWorkload".Translate().CapitalizeFirst() + ": " + wlLabel))
             {
-                OpenWorkloadFloatMenu(prisoner, settlement);
+                settlement.PrisonerComp?.OpenWorkloadFloatMenu(prisoner);
             }
 
             Text.Font = fontBefore;
@@ -440,14 +303,14 @@ namespace FactionColonies
             Rect actionsRect = new Rect(actionsX, botY, actionsW, botRowH);
             if (UIUtil.ButtonFlat(actionsRect, "FCActions".Translate(), highlighted: isHighlighted))
             {
-                DoActionsMenu(prisoner, settlement, onRemoved);
+                settlement.PrisonerComp?.DoActionsMenu(prisoner, onRemoved);
             }
 
             GetWorkloadPresentation(prisoner.workload, out string wlLabel, out string wlTrend, out Color wlTrendColor);
             Rect workloadRect = new Rect(workloadX, botY, workloadW, botRowH);
             if (UIUtil.ButtonFlat(workloadRect, wlLabel, highlighted: isHighlighted))
             {
-                OpenWorkloadFloatMenu(prisoner, settlement);
+                settlement.PrisonerComp?.OpenWorkloadFloatMenu(prisoner);
             }
 
             // Left of buttons: trend label (right-aligned, in trend color)

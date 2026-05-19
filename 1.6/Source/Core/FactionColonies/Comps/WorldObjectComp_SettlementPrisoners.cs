@@ -1,8 +1,10 @@
 using FactionColonies.util;
 using RimWorld;
 using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 using Verse;
 
@@ -36,6 +38,9 @@ namespace FactionColonies
     public class WorldObjectComp_SettlementPrisoners : WorldObjectComp
     {
         public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
+
+        private static readonly FieldInfo hostFactionField =
+            typeof(Pawn_GuestTracker).GetField("hostFactionInt", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public override void PostExposeData()
         {
@@ -80,9 +85,12 @@ namespace FactionColonies
             foreach (FCPrisoner d in dead) HandlePrisonerDeath(d);
         }
 
+        /* The single removal entry point — no other code should call prisonerList.Remove
+         * directly. Null `p` is allowed (and removes the first null entry) so CullNullPrisoners
+         * can route degenerate null FCPrisoner entries through this method too. */
         public bool RemovePrisoner(FCPrisoner p)
         {
-            if (prisonerList is null || p is null) return false;
+            if (prisonerList is null) return false;
             bool removed = prisonerList.Remove(p);
             if (removed) (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
             return removed;
@@ -115,6 +123,142 @@ namespace FactionColonies
             }
             prisonerList.Add(new FCPrisoner(pawn, settlement));
             settlement.DirtyStatsCache();
+        }
+
+        /* Removes any FCPrisoner entries that are themselves null or wrap a null pawn. */
+        public int CullNullPrisoners()
+        {
+            if (prisonerList is null) return 0;
+
+            List<FCPrisoner> toRemove = null;
+            foreach (FCPrisoner p in prisonerList)
+            {
+                if (p?.prisoner is null)
+                {
+                    if (toRemove is null) toRemove = new List<FCPrisoner>();
+                    toRemove.Add(p);
+                }
+            }
+
+            if (toRemove is null) return 0;
+            foreach (FCPrisoner p in toRemove) RemovePrisoner(p);
+
+            WorldSettlementFC s = parent as WorldSettlementFC;
+            LogUtil.Warning("Culled " + toRemove.Count + " null prisoner(s) from " + (s?.Name ?? "<unknown>"));
+            return toRemove.Count;
+        }
+
+        public void TransferFromCaravan(Pawn pawn, Caravan caravan)
+        {
+            if (pawn is null || caravan is null) return;
+            caravan.RemovePawn(pawn);
+            caravan.Notify_PawnRemoved(pawn);
+            AddPrisoner(pawn);
+        }
+
+        public void DoTransferMenu(Caravan caravan)
+        {
+            if (caravan is null) return;
+
+            List<FloatMenuOption> list = new List<FloatMenuOption>();
+            List<Pawn> pawns = caravan.PawnsListForReading;
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                Pawn captured = pawns[i];
+                if (!captured.IsPrisonerOfColony) continue;
+                list.Add(new FloatMenuOption(
+                    "FCTransferPrisonerOption".Translate(captured.Name.ToStringShort),
+                    delegate { TransferFromCaravan(captured, caravan); }));
+            }
+
+            if (list.Count == 0)
+            {
+                Messages.Message("FCNoPrisonersInCaravan".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        public void SetWorkload(FCPrisoner p, FCWorkLoad workload)
+        {
+            if (p is null) return;
+            p.workload = workload;
+            (parent as WorldSettlementFC)?.DirtyStatsCache();
+        }
+
+        public void SellPrisoner(FCPrisoner p)
+        {
+            if (p?.prisoner is null) return;
+            WorldSettlementFC s = parent as WorldSettlementFC;
+            s?.AddOneTimeSilverIncome(p.prisoner.MarketValue);
+            RemovePrisoner(p);
+        }
+
+        public void ReturnPrisonerToPlayer(FCPrisoner p)
+        {
+            if (p?.prisoner is null) return;
+            WorldSettlementFC s = parent as WorldSettlementFC;
+            if (s is null) return;
+
+            if (!HealthUtility.TryAnesthetize(p.prisoner))
+                HealthUtility.DamageUntilDowned(p.prisoner, false);
+
+            if (p.prisoner.guest is null)
+                p.prisoner.guest = new Pawn_GuestTracker();
+            p.prisoner.guest.guestStatusInt = GuestStatus.Prisoner;
+            hostFactionField?.SetValue(p.prisoner.guest, Find.FactionManager.OfPlayer);
+
+            DeliveryEvent.CreateDeliveryEvent(new FCEvent
+            {
+                location = Find.AnyPlayerHomeMap.Tile,
+                source = s.Tile,
+                goods = new List<Thing> { p.prisoner },
+                customDescription = "FCAPrisonerIsBeingDeliveredToYou".Translate(),
+                timeTillTrigger = Find.TickManager.TicksGame + TravelUtil.ReturnTicksToArrive(s.Tile, Find.AnyPlayerHomeMap.Tile)
+            });
+
+            RemovePrisoner(p);
+        }
+
+        public void DoActionsMenu(FCPrisoner p, Action onRemoved)
+        {
+            if (p is null) return;
+            List<FloatMenuOption> list = new List<FloatMenuOption>();
+
+            if (FindFC.FactionComp.IsActionAllowed(FCActionType.SellPrisoner))
+            {
+                list.Add(new FloatMenuOption(
+                    "FCSellPawn".Translate() + " $" + p.prisoner.MarketValue + " " + "FCSellPawnInfo".Translate(),
+                    delegate
+                    {
+                        SellPrisoner(p);
+                        onRemoved?.Invoke();
+                    }));
+            }
+
+            list.Add(new FloatMenuOption("FCReturnToPlayer".Translate(), delegate
+            {
+                ReturnPrisonerToPlayer(p);
+                onRemoved?.Invoke();
+            }));
+
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        public void OpenWorkloadFloatMenu(FCPrisoner p)
+        {
+            if (p is null) return;
+            List<FloatMenuOption> wlList = new List<FloatMenuOption>
+            {
+                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
+                    delegate { SetWorkload(p, FCWorkLoad.Heavy); }),
+                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
+                    delegate { SetWorkload(p, FCWorkLoad.Medium); }),
+                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
+                    delegate { SetWorkload(p, FCWorkLoad.Light); })
+            };
+            Find.WindowStack.Add(new FloatMenu(wlList));
         }
 
         public int ReturnMaxWorkersFromPrisoners()
@@ -154,7 +298,7 @@ namespace FactionColonies
             if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
             if (!PrisonerUtil.HasPrisonersOfColony(caravan)) yield break;
 
-            yield return BuildTransferGizmo(caravan, settlement);
+            yield return BuildTransferGizmo(caravan);
         }
 
         public override IEnumerable<Gizmo> GetGizmos()
@@ -173,10 +317,10 @@ namespace FactionColonies
             if (caravan is null) yield break;
             if (!PrisonerUtil.HasPrisonersOfColony(caravan)) yield break;
 
-            yield return BuildTransferGizmo(caravan, settlement);
+            yield return BuildTransferGizmo(caravan);
         }
 
-        private static Command_Action BuildTransferGizmo(Caravan caravan, WorldSettlementFC settlement)
+        private Command_Action BuildTransferGizmo(Caravan caravan)
         {
             return new Command_Action
             {
@@ -185,7 +329,7 @@ namespace FactionColonies
                 icon = TexLoad.iconMilitary,
                 action = delegate
                 {
-                    PrisonerUtil.DoTransferMenu(caravan, settlement);
+                    DoTransferMenu(caravan);
                 }
             };
         }

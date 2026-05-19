@@ -23,7 +23,7 @@ namespace FactionColonies
         {
             this.faction = FindFC.FactionComp;
             this.settlement = settlement;
-            PrisonerUtil.CullNullPrisoners(settlement);
+            settlement.PrisonerComp?.CullNullPrisoners();
             this.prisoners = settlement.PrisonerComp?.prisonerList ?? new List<FCPrisoner>();
 
             this.forcePause = false;
