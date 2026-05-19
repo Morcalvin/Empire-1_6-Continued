@@ -32,15 +32,16 @@ namespace FactionColonies
 
         public static int CullNullPrisoners(WorldSettlementFC settlement)
         {
-            if (settlement?.prisonerList is null) return 0;
+            List<FCPrisoner> list = settlement?.PrisonerComp?.prisonerList;
+            if (list is null) return 0;
 
             int removed = 0;
-            for (int i = settlement.prisonerList.Count - 1; i >= 0; i--)
+            for (int i = list.Count - 1; i >= 0; i--)
             {
-                FCPrisoner p = settlement.prisonerList[i];
+                FCPrisoner p = list[i];
                 if (p is null || p.prisoner is null)
                 {
-                    settlement.prisonerList.RemoveAt(i);
+                    list.RemoveAt(i);
                     removed++;
                 }
             }
@@ -80,7 +81,12 @@ namespace FactionColonies
             if (pawn is null || caravan is null || settlement is null) return;
             caravan.RemovePawn(pawn);
             caravan.Notify_PawnRemoved(pawn);
-            settlement.AddPrisoner(pawn);
+            if (settlement.PrisonerComp is null)
+            {
+                LogUtil.Error($"TransferFromCaravan: settlement {settlement.Name} has no PrisonerComp; cannot transfer {pawn?.Name}.");
+                return;
+            }
+            settlement.PrisonerComp.AddPrisoner(pawn);
         }
 
         public static void DoTransferMenu(Caravan caravan, WorldSettlementFC settlement)
@@ -116,7 +122,7 @@ namespace FactionColonies
         public static void SellPrisoner(FCPrisoner p, WorldSettlementFC settlement)
         {
             settlement.AddOneTimeSilverIncome(p.prisoner.MarketValue);
-            settlement.prisonerList.Remove(p);
+            settlement.PrisonerComp?.prisonerList?.Remove(p);
             settlement.DirtyStatsCache();
         }
 
@@ -139,7 +145,7 @@ namespace FactionColonies
                 timeTillTrigger = Find.TickManager.TicksGame + TravelUtil.ReturnTicksToArrive(settlement.Tile, Find.AnyPlayerHomeMap.Tile)
             });
 
-            settlement.prisonerList.Remove(p);
+            settlement.PrisonerComp?.prisonerList?.Remove(p);
             settlement.DirtyStatsCache();
         }
 
@@ -173,17 +179,17 @@ namespace FactionColonies
             {
                 case FCWorkLoad.Heavy:
                     label = "FCHeavy".Translate().CapitalizeFirst();
-                    trend = "-20/tick";
+                    trend = "-4/day";
                     trendColor = AccentUtil.StatBad;
                     return;
                 case FCWorkLoad.Medium:
                     label = "FCMedium".Translate().CapitalizeFirst();
-                    trend = "-10/tick";
+                    trend = "-2/day";
                     trendColor = AccentUtil.StatMedGood;
                     return;
                 case FCWorkLoad.Light:
                     label = "FCLight".Translate().CapitalizeFirst();
-                    trend = "+4/tick";
+                    trend = "+1/day";
                     trendColor = AccentUtil.StatGood;
                     return;
                 default:
@@ -225,6 +231,15 @@ namespace FactionColonies
             if (pawn is null) return "";
             try { return pawn.MainDesc(writeFaction: true); }
             catch { return ""; }
+        }
+
+        /* Just the prisoner's home faction name (e.g. "New Arrivals"). Used by the
+         * compact row where the full MainDesc string is too wide for a 2-column card. */
+        private static string BuildFactionLabel(Pawn pawn)
+        {
+            Faction f = pawn?.Faction;
+            if (f is null || f.Hidden) return "";
+            return f.Name;
         }
 
         /* Rich 95px prisoner row (settlement window).
@@ -336,10 +351,10 @@ namespace FactionColonies
             GUI.color = origColor;
         }
 
-        /* Compact 56px prisoner row (faction-wide tab).
-           Two rows next to a 40×40 portrait:
-             Top:    [i] Name, Title ... ... ... ... Male, 63 of NewArr.   $value
-             Bottom: [== bar 100 ==] +4/tick                  [Workload] [Actions] */
+        /* Compact ~46px prisoner card (faction-wide tab, 2 cards per row).
+           Two rows next to a 38×38 portrait:
+             Top:    [i] Name, Title ... ... ... ... New Arrivals   $value
+             Bottom: Health: 100/100 ... +1/day  [Light]  [Actions] */
         public static void DrawPrisonerRowCompact(Rect box, FCPrisoner prisoner, WorldSettlementFC settlement, int altIndex, Action onRemoved)
         {
             GameFont fontBefore = Text.Font;
@@ -376,10 +391,11 @@ namespace FactionColonies
             float centerX = portraitRect.xMax + (pad * 2);
             float rightEdge = box.xMax - pad;
 
-            /* Button geometry (computed up front so the top-row subtitle can right-align
-               to the trend's right edge on the row below). */
-            const float actionsW = 90f;
-            const float workloadW = 130f;
+            /* Button geometry (computed up front so the top-row faction label can
+               right-align to the trend's right edge on the row below). Narrower than
+               the pre-2-column layout: workload label drops its "Workload: " prefix. */
+            const float actionsW = 70f;
+            const float workloadW = 100f;
             const float btnGap = 4f;
             const float trendW = 50f;
 
@@ -390,19 +406,19 @@ namespace FactionColonies
 
             /* TOP ROW */
             // Far right: $value
-            const float valueW = 70f;
+            const float valueW = 60f;
             Rect valueRect = new Rect(rightEdge - valueW, topY, valueW, topRowH);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
             Widgets.Label(valueRect, "$" + (int)(prisoner.prisoner?.MarketValue ?? 0));
 
-            // Subtitle (gender, age, faction) right-aligned to the trend's right edge below
-            const float subtitleW = 220f;
-            Rect subtitleRect = new Rect(trendRightEdge - subtitleW, topY, subtitleW, topRowH);
+            // Faction label right-aligned to the trend's right edge below
+            const float subtitleW = 120f;
+            Rect subtitleRect = new Rect(valueRect.x - subtitleW - 4f, topY, subtitleW, topRowH);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
             GUI.color = ColoredText.SubtleGrayColor;
-            Widgets.Label(subtitleRect, BuildSubtitle(prisoner.prisoner));
+            Widgets.Label(subtitleRect, BuildFactionLabel(prisoner.prisoner));
             GUI.color = origColor;
 
             // Left of center: info button + name+title
@@ -431,7 +447,7 @@ namespace FactionColonies
 
             GetWorkloadPresentation(prisoner.workload, out string wlLabel, out string wlTrend, out Color wlTrendColor);
             Rect workloadRect = new Rect(workloadX, botY, workloadW, botRowH);
-            if (UIUtil.ButtonFlat(workloadRect, "FCWorkload".Translate().CapitalizeFirst() + ": " + wlLabel, highlighted: isHighlighted))
+            if (UIUtil.ButtonFlat(workloadRect, wlLabel, highlighted: isHighlighted))
             {
                 OpenWorkloadFloatMenu(prisoner, settlement);
             }
@@ -444,18 +460,11 @@ namespace FactionColonies
             Widgets.Label(trendRect, wlTrend);
             GUI.color = origColor;
 
-            // Health bar fills the remaining left side, vertically centered
-            float healthBarH = 14f;
-            float healthBarY = botY + (botRowH - healthBarH) / 2f;
-            float healthBarX = centerX;
-            float healthBarW = trendRect.x - healthBarX - 4f;
-            Rect healthBarRect = new Rect(healthBarX, healthBarY, healthBarW, healthBarH);
-            float healthFrac = prisoner.health / 100f;
-            Color healthColor = AccentUtil.GetStatColor(prisoner.health, false);
-            UIUtil.DrawProgressBarColors(healthBarRect, healthFrac, healthBarBg, healthColor);
+            // Health text fills the remaining left side, color-graded by health value
+            Rect healthRect = new Rect(centerX, botY, trendRect.x - centerX - 4f, botRowH);
             Text.Font = GameFont.Tiny;
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(healthBarRect, "Health".Translate().CapitalizeFirst() + ": " + (int)prisoner.health);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            UIUtil.DrawColoredLabel(healthRect, "Health: " + (int)prisoner.health + "/100", AccentUtil.GetStatColor(prisoner.health, false));
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;

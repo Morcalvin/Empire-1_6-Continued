@@ -24,7 +24,7 @@ namespace FactionColonies
             this.faction = FindFC.FactionComp;
             this.settlement = settlement;
             PrisonerUtil.CullNullPrisoners(settlement);
-            this.prisoners = settlement.prisonerList;
+            this.prisoners = settlement.PrisonerComp?.prisonerList ?? new List<FCPrisoner>();
 
             this.forcePause = false;
             this.draggable = true;

@@ -124,7 +124,6 @@ namespace FactionColonies
                     bills.Add(bill);
 
                     TextUtil.GetTownTitle(settlement);
-                    TaxTickPrisoner(settlement);
                     FindFC.PolicyManager.ForEachBehavior(b => b.OnTaxCollected(faction, settlement));
                 }
 
@@ -153,36 +152,6 @@ namespace FactionColonies
             }
 
             TaxTickRegistry.InvokePostTaxResolution(faction);
-        }
-
-        public void TaxTickPrisoner(WorldSettlementFC settlement)
-        {
-            if (settlement is null) return;
-            int i = 0;
-            while (i < settlement.prisonerList.Count)
-            {
-                FCPrisoner prisoner = settlement.prisonerList[i];
-                bool dead = false;
-
-                switch (prisoner.workload)
-                {
-                    case FCWorkLoad.Heavy:
-                        if (prisoner.AdjustHealth(-20)) dead = true;
-                        break;
-                    case FCWorkLoad.Medium:
-                        if (prisoner.AdjustHealth(-10)) dead = true;
-                        break;
-                    case FCWorkLoad.Light:
-                        if (prisoner.AdjustHealth(4)) dead = true;
-                        break;
-                }
-
-                /* Only increment if the prisoner hasn't died.
-                 * If they *did* die, then AdjustHealth() will have removed them from
-                 * the list already. So if we increment, then we'll actually skip the
-                 * next prisoner. */
-                if (!dead) i++;
-            }
         }
 
         /*-*-*- Bill processing -*-*-*/

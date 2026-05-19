@@ -111,7 +111,7 @@ namespace FactionColonies
             {
                 Pawn prisoner = PaymentUtil.GeneratePrisoner(enemyFaction);
                 text += "FCPrisonerCaptureInfo".Translate(prisoner.Name.ToString(), home.Name);
-                home.AddPrisoner(prisoner);
+                home.PrisonerComp?.AddPrisoner(prisoner);
             }
 
             string body = "FCRaidEnemySettlementSuccess".Translate(target.LabelCap) + "\n" + text;

@@ -2303,7 +2303,7 @@ namespace FactionColonies
             int totalPrisoners = 0;
             for (int i = 0; i < faction.settlements.Count; i++)
             {
-                totalPrisoners += faction.settlements[i].prisonerList?.Count ?? 0;
+                totalPrisoners += faction.settlements[i].PrisonerComp?.prisonerList?.Count ?? 0;
             }
 
             float tableY = y;
@@ -2334,6 +2334,8 @@ namespace FactionColonies
             const float sectionHeaderH = 32f;
             const float rowGap = 1f;
             const float sectionGap = 6f;
+            const float prisonerRowIndent = 16f;
+            const float cardGap = 6f;
 
             float innerX = x + margin + pad;
             float innerW = width - (margin + pad) * 2f;
@@ -2341,9 +2343,10 @@ namespace FactionColonies
             float contentH = 0f;
             for (int i = 0; i < faction.settlements.Count; i++)
             {
-                int count = faction.settlements[i].prisonerList?.Count ?? 0;
+                int count = faction.settlements[i].PrisonerComp?.prisonerList?.Count ?? 0;
                 if (count == 0) continue;
-                contentH += sectionHeaderH + count * (PrisonerUtil.CompactRowHeight + rowGap) + sectionGap;
+                int rows = Mathf.CeilToInt(count / 2f);
+                contentH += sectionHeaderH + rows * (PrisonerUtil.CompactRowHeight + rowGap) + sectionGap;
             }
 
             Rect viewRect = new Rect(innerX, tableY, innerW, tableH);
@@ -2354,7 +2357,8 @@ namespace FactionColonies
             for (int i = 0; i < faction.settlements.Count; i++)
             {
                 WorldSettlementFC s = faction.settlements[i];
-                if (s.prisonerList is null || s.prisonerList.Count == 0) continue;
+                List<FCPrisoner> sList = s.PrisonerComp?.prisonerList;
+                if (sList is null || sList.Count == 0) continue;
 
                 // Section header: framed box wrapping accent + name (clickable) + count badge
                 Color settlementAccent = AccentUtil.GetSettlementAccent(s);
@@ -2381,17 +2385,24 @@ namespace FactionColonies
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleRight;
                 GUI.color = Color.gray;
-                Widgets.Label(countRect, "(" + s.prisonerList.Count + ")");
+                Widgets.Label(countRect, "(" + sList.Count + ")");
                 GUI.color = origColor;
 
                 cy += sectionHeaderH;
 
-                const float prisonerRowIndent = 16f;
-                for (int j = 0; j < s.prisonerList.Count; j++)
+                /* 2-card grid. Even indices populate the left column, odd indices the right.
+                 * Row cursor advances only after the right card (or after a final odd-left card). */
+                float cardW = (scrollRect.width - prisonerRowIndent - cardGap) / 2f;
+                for (int j = 0; j < sList.Count; j++)
                 {
-                    Rect rowBox = new Rect(prisonerRowIndent, cy, scrollRect.width - prisonerRowIndent, PrisonerUtil.CompactRowHeight);
-                    PrisonerUtil.DrawPrisonerRowCompact(rowBox, s.prisonerList[j], s, altIndex++, null);
-                    cy += PrisonerUtil.CompactRowHeight + rowGap;
+                    bool isLeft = (j % 2) == 0;
+                    float cardX = isLeft ? prisonerRowIndent : prisonerRowIndent + cardW + cardGap;
+                    Rect rowBox = new Rect(cardX, cy, cardW, PrisonerUtil.CompactRowHeight);
+                    PrisonerUtil.DrawPrisonerRowCompact(rowBox, sList[j], s, altIndex++, null);
+                    if (!isLeft || j == sList.Count - 1)
+                    {
+                        cy += PrisonerUtil.CompactRowHeight + rowGap;
+                    }
                 }
 
                 cy += sectionGap;
