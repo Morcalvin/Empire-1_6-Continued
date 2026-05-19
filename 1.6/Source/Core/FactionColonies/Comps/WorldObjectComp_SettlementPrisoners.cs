@@ -4,7 +4,6 @@ using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using UnityEngine;
 using Verse;
 
@@ -38,9 +37,6 @@ namespace FactionColonies
     public class WorldObjectComp_SettlementPrisoners : WorldObjectComp
     {
         public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
-
-        private static readonly FieldInfo hostFactionField =
-            typeof(Pawn_GuestTracker).GetField("hostFactionInt", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public override void PostExposeData()
         {
@@ -205,9 +201,8 @@ namespace FactionColonies
                 HealthUtility.DamageUntilDowned(p.prisoner, false);
 
             if (p.prisoner.guest is null)
-                p.prisoner.guest = new Pawn_GuestTracker();
-            p.prisoner.guest.guestStatusInt = GuestStatus.Prisoner;
-            hostFactionField?.SetValue(p.prisoner.guest, Find.FactionManager.OfPlayer);
+                p.prisoner.guest = new Pawn_GuestTracker(p.prisoner);
+            p.prisoner.guest.SetGuestStatus(Find.FactionManager.OfPlayer, GuestStatus.Prisoner);
 
             DeliveryEvent.CreateDeliveryEvent(new FCEvent
             {
