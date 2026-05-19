@@ -147,7 +147,7 @@ namespace FactionColonies
         {
             List<FloatMenuOption> list = new List<FloatMenuOption>();
 
-            if (FactionCache.FactionComp.IsActionAllowed(FCActionType.SellPrisoner))
+            if (FindFC.FactionComp.IsActionAllowed(FCActionType.SellPrisoner))
             {
                 list.Add(new FloatMenuOption(
                     "FCSellPawn".Translate() + " $" + p.prisoner.MarketValue + " " + "FCSellPawnInfo".Translate(),

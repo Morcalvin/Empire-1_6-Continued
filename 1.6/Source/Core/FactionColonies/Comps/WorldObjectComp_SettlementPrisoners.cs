@@ -43,8 +43,8 @@ namespace FactionColonies
             WorldSettlementFC settlement = parent as WorldSettlementFC;
             if (settlement is null) yield break;
             if (caravan is null || caravan.Tile != parent.Tile) yield break;
-            if (FactionCache.FactionComp is null) yield break;
-            if (!FactionCache.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
+            if (FindFC.FactionComp is null) yield break;
+            if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
             if (!PrisonerUtil.HasPrisonersOfColony(caravan)) yield break;
 
             yield return BuildTransferGizmo(caravan, settlement);
@@ -59,8 +59,8 @@ namespace FactionColonies
 
             WorldSettlementFC settlement = parent as WorldSettlementFC;
             if (settlement is null) yield break;
-            if (FactionCache.FactionComp is null) yield break;
-            if (!FactionCache.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
+            if (FindFC.FactionComp is null) yield break;
+            if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
 
             Caravan caravan = Find.WorldObjects.PlayerControlledCaravanAt(parent.Tile);
             if (caravan is null) yield break;
