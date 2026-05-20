@@ -54,17 +54,17 @@ namespace FactionColonies
             {
                 case FCWorkLoad.Heavy:
                     label = "FCHeavy".Translate().CapitalizeFirst();
-                    trend = "-4/day";
+                    trend = "FCPrisonerHealthChangePerDay".Translate("-4");
                     trendColor = AccentUtil.StatBad;
                     return;
                 case FCWorkLoad.Medium:
                     label = "FCMedium".Translate().CapitalizeFirst();
-                    trend = "-2/day";
+                    trend = "FCPrisonerHealthChangePerDay".Translate("-2");
                     trendColor = AccentUtil.StatMedGood;
                     return;
                 case FCWorkLoad.Light:
                     label = "FCLight".Translate().CapitalizeFirst();
-                    trend = "+1/day";
+                    trend = "FCPrisonerHealthChangePerDay".Translate("+1");
                     trendColor = AccentUtil.StatGood;
                     return;
                 default:

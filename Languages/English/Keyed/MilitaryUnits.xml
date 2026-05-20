@@ -141,9 +141,10 @@
 	<FCHeavy>heavy</FCHeavy>
 	<FCMedium>medium</FCMedium>
 	<FCLight>light</FCLight>
-	<FCHeavyExplanation>Adds +2 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 20.</FCHeavyExplanation>
-	<FCMediumExplanation>Adds +1 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 10.</FCMediumExplanation>
-	<FCLightExplanation>Adds +1 to worker hard cap (Over-Max Workers). Increases health by 4</FCLightExplanation>
+	<FCHeavyExplanation>Adds +2 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 4 per day.</FCHeavyExplanation>
+	<FCMediumExplanation>Adds +1 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 2 per day.</FCMediumExplanation>
+	<FCLightExplanation>Adds +1 to worker hard cap (Over-Max Workers). Restores health by 1 per day.</FCLightExplanation>
+	<FCPrisonerHealthChangePerDay>{0}/day</FCPrisonerHealthChangePerDay>
 	<FCSellPawn>Sell Pawn</FCSellPawn>
 	<FCReturnToPlayer>Return To Player</FCReturnToPlayer>
 	<FCSellPawnInfo>Value will be added to next bill from the settlement</FCSellPawnInfo>

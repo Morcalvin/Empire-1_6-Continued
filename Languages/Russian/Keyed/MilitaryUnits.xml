@@ -137,9 +137,9 @@
   <FCHeavy>тяжелая</FCHeavy>
   <FCMedium>средняя</FCMedium>
   <FCLight>легкая</FCLight>
-  <FCHeavyExplanation>Добавляет +2 к мягкому лимиту рабочих (макс. до увеличения стоимости). Уменьшает здоровье на 20.</FCHeavyExplanation>
-  <FCMediumExplanation>Добавляет +1 к мягкому лимиту рабочих (макс. до увеличения стоимости). Уменьшает здоровье на 10.</FCMediumExplanation>
-  <FCLightExplanation>Добавляет +1 к жесткому лимиту рабочих (сверхлимитные). Увеличивает здоровье на 4.</FCLightExplanation>
+  <FCHeavyExplanation>Добавляет +2 к мягкому лимиту рабочих (макс. до увеличения стоимости). Уменьшает здоровье на 4 в день.</FCHeavyExplanation>
+  <FCMediumExplanation>Добавляет +1 к мягкому лимиту рабочих (макс. до увеличения стоимости). Уменьшает здоровье на 2 в день.</FCMediumExplanation>
+  <FCLightExplanation>Добавляет +1 к жесткому лимиту рабочих (сверхлимитные). Увеличивает здоровье на 1 в день.</FCLightExplanation>
   <FCSellPawn>Продать персонажа</FCSellPawn>
   <FCReturnToPlayer>Вернуть игроку</FCReturnToPlayer>
   <FCSellPawnInfo>Стоимость будет добавлена к следующему счету из колонии</FCSellPawnInfo>

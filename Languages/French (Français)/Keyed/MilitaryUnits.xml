@@ -225,11 +225,11 @@
 	
   <FCLight>légère</FCLight>
 	
-  <FCHeavyExplanation>Ajoute +2 au plafond souple des ouvriers (ouvriers max avant augmentation des coûts). Réduit la santé de 20.</FCHeavyExplanation>
-	
-  <FCMediumExplanation>Ajoute +1 au plafond souple des ouvriers (ouvriers max avant augmentation des coûts). Réduit la santé de 10.</FCMediumExplanation>
-	
-  <FCLightExplanation>Ajoute +1 au plafond dur des ouvriers (ouvriers au-delà du maximum). Augmente la santé de 4.</FCLightExplanation>
+  <FCHeavyExplanation>Ajoute +2 au plafond souple des ouvriers (ouvriers max avant augmentation des coûts). Réduit la santé de 4 par jour.</FCHeavyExplanation>
+
+  <FCMediumExplanation>Ajoute +1 au plafond souple des ouvriers (ouvriers max avant augmentation des coûts). Réduit la santé de 2 par jour.</FCMediumExplanation>
+
+  <FCLightExplanation>Ajoute +1 au plafond dur des ouvriers (ouvriers au-delà du maximum). Augmente la santé de 1 par jour.</FCLightExplanation>
 	
   <FCSellPawn>Vendre le pion</FCSellPawn>
 	
