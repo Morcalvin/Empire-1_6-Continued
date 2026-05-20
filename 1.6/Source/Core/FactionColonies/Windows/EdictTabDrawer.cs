@@ -1,6 +1,5 @@
 using FactionColonies.util;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using Verse;
 
@@ -21,7 +20,6 @@ namespace FactionColonies
             FCPolicyCategory.Military
         };
 
-        private static Dictionary<FCPolicyCategory, List<FCPolicyDef>> cachedEdictsByCategory;
         private static Dictionary<FCPolicyCategory, Vector2> columnScrollPositions = new Dictionary<FCPolicyCategory, Vector2>();
 
         private const float Margin = 5f;
@@ -39,21 +37,6 @@ namespace FactionColonies
         public static void OnTabSwitch()
         {
             columnScrollPositions.Clear();
-            cachedEdictsByCategory = null;
-        }
-
-        private static Dictionary<FCPolicyCategory, List<FCPolicyDef>> GetEdictsByCategory()
-        {
-            if (cachedEdictsByCategory != null) return cachedEdictsByCategory;
-
-            cachedEdictsByCategory = new Dictionary<FCPolicyCategory, List<FCPolicyDef>>();
-            foreach (FCPolicyCategory cat in EdictCategories)
-            {
-                cachedEdictsByCategory[cat] = DefDatabase<FCPolicyDef>.AllDefs
-                    .Where(d => d.category == cat)
-                    .ToList();
-            }
-            return cachedEdictsByCategory;
         }
 
         private static string GetCategoryLabel(FCPolicyCategory category)
@@ -97,8 +80,6 @@ namespace FactionColonies
 
         public static void Draw(Rect rect, FactionFC faction)
         {
-            Dictionary<FCPolicyCategory, List<FCPolicyDef>> edictsByCategory = GetEdictsByCategory();
-
             // Description header
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
@@ -116,7 +97,7 @@ namespace FactionColonies
                 FCPolicyCategory category = EdictCategories[i];
                 float colX = rect.x + Margin + i * (columnWidth + ColumnGap);
                 Rect colRect = new Rect(colX, topY, columnWidth, columnsHeight);
-                DrawColumn(colRect, category, edictsByCategory[category], faction);
+                DrawColumn(colRect, category, FactionCache.GetPoliciesByCategory(category), faction);
             }
 
             // Bottom bar - total upkeep
@@ -348,13 +329,11 @@ namespace FactionColonies
                         delegate
                         {
                             FindFC.PolicyManager.EnactEdict(def);
-                            cachedEdictsByCategory = null;
                         }));
                 }
                 else
                 {
                     FindFC.PolicyManager.EnactEdict(def);
-                    cachedEdictsByCategory = null;
                 }
             }
 

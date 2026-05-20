@@ -93,20 +93,15 @@ namespace FactionColonies
             parentWindow = window;
             allTechGroups = new List<TechGroup>();
 
-            var grouped = DefDatabase<BuildingFCDef>.AllDefsListForReading
-                .Where(d => d.defName != "Empty" && d.defName != "Construction")
-                .GroupBy(d => d.techLevel)
-                .OrderBy(g => (int)g.Key);
-
-            foreach (var g in grouped)
+            foreach (var kvp in FactionCache.BuildingDefsByTechLevel.OrderBy(g => (int)g.Key))
             {
                 TechGroup tg = new TechGroup
                 {
-                    techLevel = g.Key,
-                    buildings = g.OrderBy(b => b.LabelCap.RawText).ToList()
+                    techLevel = kvp.Key,
+                    buildings = kvp.Value
                 };
                 allTechGroups.Add(tg);
-                expandedGroups.Add(g.Key);
+                expandedGroups.Add(kvp.Key);
             }
 
             // Build direct-parent map (child -> its immediate parent in the upgrade tree)

@@ -160,9 +160,9 @@ namespace FactionColonies
                 if (cachedCompatibleSettlements is null)
                 {
                     cachedCompatibleSettlements = new List<WorldSettlementDef>();
-                    foreach (WorldSettlementDef def in DefDatabase<WorldSettlementDef>.AllDefsListForReading)
+                    foreach (WorldSettlementDef def in FactionCache.AvailableWorldSettlementDefs)
                     {
-                        if (def.available && CanBeBuiltForSettlementType(def))
+                        if (CanBeBuiltForSettlementType(def))
                             cachedCompatibleSettlements.Add(def);
                     }
                 }

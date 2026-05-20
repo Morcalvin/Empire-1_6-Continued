@@ -66,9 +66,7 @@ namespace FactionColonies
         {
             parentWindow = window;
 
-            List<WorldSettlementDef> allDefs = DefDatabase<WorldSettlementDef>.AllDefsListForReading
-                .Where(d => d.available)
-                .ToList();
+            List<WorldSettlementDef> allDefs = FactionCache.AvailableWorldSettlementDefs;
 
             // Group by planet layer. Settlements with empty planetLayers default to Surface.
             Dictionary<string, LayerGroup> groupMap = new Dictionary<string, LayerGroup>();

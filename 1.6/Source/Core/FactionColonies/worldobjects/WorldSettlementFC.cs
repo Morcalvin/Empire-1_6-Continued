@@ -647,7 +647,7 @@ namespace FactionColonies
                 LogUtil.Message($"Using biome {settlementDef.biomeResourceOverride.defName} as override for settlement {Name} of type {settlementDef}");
                 useTileBiome = false;
                 biomeDef = settlementDef.biomeResourceOverride;
-                if (!DefDatabase<BiomeResourceDef>.AllDefs.Contains(biomeDef))
+                if (!FactionCache.BiomeResourceDefSet.Contains(biomeDef))
                 {
                     LogUtil.Error($"Settlement {Name} of type {settlementDef.LabelCap} has invalid override biome. Falling back onto tile biome");
                     biomeDef = BiomeResourceDefOf.defaultBiome;

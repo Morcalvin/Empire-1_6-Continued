@@ -44,9 +44,7 @@ namespace FactionColonies
             this.faction = faction;
             header = "FCPolicySelection".Translate();
 
-            allCorePolicies = DefDatabase<FCPolicyDef>.AllDefs
-                .Where(d => d.category == FCPolicyCategory.Core)
-                .ToList();
+            allCorePolicies = FactionCache.GetPoliciesByCategory(FCPolicyCategory.Core);
 
             cardScrollPositions = new Vector2[FCSettings.maxPolicyCount];
 

@@ -68,10 +68,7 @@ namespace FactionColonies
         public CodexTab_Resources(CodexWindow window)
         {
             parentWindow = window;
-            resourceDefs = DefDatabase<ResourceTypeDef>.AllDefsListForReading
-                .OrderBy(d => d.uiPriority)
-                .ThenBy(d => d.LabelCap.RawText)
-                .ToList();
+            resourceDefs = FactionCache.SortedResourceTypeDefsForUI;
 
             if (resourceDefs.Count > 0)
                 selectedResource = resourceDefs[0];

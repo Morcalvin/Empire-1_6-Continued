@@ -77,10 +77,8 @@ namespace FactionColonies
         private static ThingFilter BuildAllResourceThingDefs()
         {
             ThingFilter filter = new ThingFilter();
-            foreach (ResourceTypeDef rtd in DefDatabase<ResourceTypeDef>.AllDefs)
+            foreach (ResourceTypeDef rtd in FactionCache.NonPoolResourceTypeDefs)
             {
-                if (rtd.isPoolResource)
-                    continue;
                 rtd.FilterResourceForTrade(filter);
             }
             return filter;

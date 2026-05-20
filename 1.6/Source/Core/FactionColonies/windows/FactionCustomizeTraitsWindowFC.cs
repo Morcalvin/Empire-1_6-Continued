@@ -315,9 +315,9 @@ namespace FactionColonies
 
         private List<FCPolicyDef> GetAvailableTraits()
         {
-            return DefDatabase<FCPolicyDef>.AllDefs.Where(d => d.category == FCPolicyCategory.Trait
-                                                               && !FindFC.PolicyManager.HasTrait(d)
-                                                               && MeetsTraitPrerequisites(d)).ToList();
+            return FactionCache.GetPoliciesByCategory(FCPolicyCategory.Trait)
+                .Where(d => !FindFC.PolicyManager.HasTrait(d) && MeetsTraitPrerequisites(d))
+                .ToList();
         }
 
         private bool MeetsTraitPrerequisites(FCPolicyDef def)

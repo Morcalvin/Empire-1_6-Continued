@@ -542,7 +542,7 @@ namespace FactionColonies
         private void RebuildFactionResources()
         {
             factionResources.Clear();
-            foreach (ResourceTypeDef resourceTypeDef in DefDatabase<ResourceTypeDef>.AllDefs)
+            foreach (ResourceTypeDef resourceTypeDef in FactionCache.AllResourceTypeDefs)
             {
                 factionResources.Add(new ResourceDisplay(resourceTypeDef));
                 LogUtil.Message($"Added ResourceDisplay for resourceTypeDef {resourceTypeDef} to FactionFC.factionResources");
@@ -1593,9 +1593,9 @@ namespace FactionColonies
 
         private void EnsureResourcePools()
         {
-            foreach (ResourceTypeDef def in DefDatabase<ResourceTypeDef>.AllDefs)
+            foreach (ResourceTypeDef def in FactionCache.PoolResourceTypeDefs)
             {
-                if (def.isPoolResource && !resourcePools.Any(p => p.resource == def))
+                if (!resourcePools.Any(p => p.resource == def))
                 {
                     resourcePools.Add(new ResourcePool { resource = def, pool = 0 });
                 }
@@ -1922,9 +1922,9 @@ namespace FactionColonies
         private void InitEnabledCaravanTypes()
         {
             enabledCaravanTypes = new List<string>();
-            foreach (ResourceTypeDef rtd in DefDatabase<ResourceTypeDef>.AllDefs)
+            foreach (ResourceTypeDef rtd in FactionCache.TitheableResourceTypeDefs)
             {
-                if (!rtd.isPoolResource && rtd.CanTithe && rtd.ResourceTypeAllowedByTech(_techLevel))
+                if (rtd.ResourceTypeAllowedByTech(_techLevel))
                     enabledCaravanTypes.Add(rtd.defName);
             }
         }
