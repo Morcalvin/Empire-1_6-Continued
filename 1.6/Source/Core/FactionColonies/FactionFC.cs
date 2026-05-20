@@ -1526,9 +1526,10 @@ namespace FactionColonies
 
         #region Tax & Billing
 
-        // AddTax + TaxTickPrisoner moved to TaxLedger. WorldComponentTick now calls
+        // AddTax moved to TaxLedger. WorldComponentTick now calls
         // taxLedger.TaxTick(this, faction) directly. Aggregate income/upkeep/profit
         // accessors remain here because they read from per-settlement caches.
+        // Prisoner daily health updates live on WorldObjectComp_SettlementPrisoners.CompTick.
 
         public double GetTotalIncome() => income;
         public double GetTotalUpkeep() => upkeep;

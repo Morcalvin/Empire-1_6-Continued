@@ -415,5 +415,25 @@ namespace FactionColonies
 
             return curY + 1f - rect.y;
         }
+
+        public static bool InfoCardThing(Rect rect, Thing thing)
+        {
+            if (InfoCardButtonWorker(rect))
+            {
+                Find.WindowStack.Add(new Dialog_InfoCard(thing));
+                return true;
+            }
+            return false;
+        }
+        // Widgets.InfoCardButtonWorker is private... so for our personalized InfoCardThing, we need to copy that
+        //   function here.
+        private static bool InfoCardButtonWorker(Rect rect)
+        {
+            MouseoverSounds.DoRegion(rect);
+            TooltipHandler.TipRegionByKey(rect, "DefInfoTip");
+            bool result = Widgets.ButtonImage(rect, TexButton.Info, GUI.color);
+            UIHighlighter.HighlightOpportunity(rect, "InfoCard");
+            return result;
+        }
     }
 }

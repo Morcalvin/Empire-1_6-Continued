@@ -1072,7 +1072,7 @@ namespace FactionColonies
                     return "FCSpecialActions".Translate();
                 case SettlementButtonType.Prisoners:
                     string label = "FCPrisonersMenu".Translate();
-                    int count = settlement.prisonerList.Count;
+                    int count = settlement.PrisonerComp?.prisonerList?.Count ?? 0;
                     return count > 0 ? label + " (" + count + ")" : label;
                 case SettlementButtonType.Military:
                     return "FCMilitary".Translate();

@@ -119,12 +119,13 @@ namespace FactionColonies
             foreach (WorldSettlementFC settlement in FindFC.Settlements)
             {
                 list.Add(new DebugMenuOption(
-                    $"{settlement.Name} - Level: {settlement.settlementLevel} - Prisoners: {settlement.prisonerList.Count()}",
+                    $"{settlement.Name} - Level: {settlement.settlementLevel} - Prisoners: {settlement.PrisonerComp?.prisonerList?.Count ?? 0}",
                     DebugMenuOptionMode.Action, delegate
                     {
                         foreach (Pawn pawn in selected)
                         {
-                            TravelUtil.SendPrisoner(pawn, settlement);
+                            settlement.PrisonerComp?.AddPrisoner(pawn);
+                            if (pawn.Spawned) pawn.DeSpawn();
 
                             foreach (var bed in Find.Maps.Where(map => map.IsPlayerHome).SelectMany(map =>
                                 map.listerBuildings.allBuildingsColonist).OfType<Building_Bed>())
@@ -693,7 +694,7 @@ namespace FactionColonies
         {
             foreach (WorldSettlementFC s in FindFC.Settlements)
             {
-                LogUtil.MessageForce($"[{s.Name}] Lv{s.settlementLevel} | Happy:{s.happiness:F0} Loyal:{s.loyalty:F0} Unrest:{s.unrest:F0} Prosper:{s.prosperity:F0} | Workers:{s.workers}/{s.workersMax} Prisoners:{s.prisonerList.Count}");
+                LogUtil.MessageForce($"[{s.Name}] Lv{s.settlementLevel} | Happy:{s.happiness:F0} Loyal:{s.loyalty:F0} Unrest:{s.unrest:F0} Prosper:{s.prosperity:F0} | Workers:{s.workers}/{s.workersMax} Prisoners:{s.PrisonerComp?.prisonerList?.Count ?? 0}");
             }
         }
 

@@ -25,7 +25,8 @@ namespace FactionColonies
             "FCBills".Translate(),
             "FCEvents".Translate(),
             "FCMilitary".Translate(),
-            "FCEdicts".Translate()
+            "FCEdicts".Translate(),
+            "FCPrisoners".Translate()
         };
         private Dictionary<string, Action<Rect>> overviewFuncs = new Dictionary<string, Action<Rect>>();
 
@@ -51,6 +52,10 @@ namespace FactionColonies
         // ===== MILITARY STATE =====
         private Vector2 militaryScroll;
         private MilitaryFC militaryFC;
+
+        // ===== PRISONERS STATE =====
+        private Vector2 prisonersScroll;
+        private HashSet<int> collapsedPrisonerSections = new HashSet<int>();
 
         // ===== SORTED LIST CACHES =====
         private List<BillFC> cachedSortedBills;
@@ -112,6 +117,14 @@ namespace FactionColonies
                 EdictTabDrawer.OnTabSwitch();
             }, () => curTab == overviewTabs[4]));
             overviewFuncs.Add(overviewTabs[4], DrawEdictsTab);
+            // Prisoners tab
+            tabs.Add(new TabRecord(overviewTabs[5], delegate
+            {
+                curTab = overviewTabs[5];
+                PrisonerUtil.CullNullPrisoners(faction);
+                prisonersScroll = Vector2.zero;
+            }, () => curTab == overviewTabs[5]));
+            overviewFuncs.Add(overviewTabs[5], DrawPrisonersTab);
         }
 
         public override void PostClose()
@@ -2257,6 +2270,177 @@ namespace FactionColonies
                     return "FCMilPowerTipNoMilitary".Translate();
             }
             return "";
+        }
+
+        // ===== PRISONERS TAB =====
+
+        private void DrawPrisonersTab(Rect rect)
+        {
+            float x = rect.x;
+            float y = rect.y;
+            float width = rect.width;
+
+            // --- Header: faction icon + name label (matches Military tab style) ---
+            float buttonHeight = 35f;
+
+            Rect iconRect = new Rect(x + margin, y + margin, buttonHeight, buttonHeight);
+            Widgets.ButtonImage(iconRect, faction.factionIcon);
+
+            Rect labelBox = new Rect(iconRect.xMax + margin, y + margin, rect.xMax - iconRect.xMax - (margin * 2), buttonHeight);
+            Rect labelTextBox = new Rect(labelBox.x + margin, labelBox.y, labelBox.width - (margin * 2), labelBox.height);
+
+            GameFont fontBefore = Text.Font;
+            TextAnchor anchorBefore = Text.Anchor;
+            Color origColor = GUI.color;
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.DrawHighlight(labelBox);
+            Widgets.Label(labelTextBox, faction.name ?? "");
+
+            y += buttonHeight + margin * 2;
+
+            // --- Tally prisoners across all settlements ---
+            int totalPrisoners = 0;
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                totalPrisoners += faction.settlements[i].PrisonerComp?.prisonerList?.Count ?? 0;
+            }
+
+            float tableY = y;
+            float tableH = rect.yMax - tableY - margin;
+            if (tableH <= 0f)
+            {
+                Text.Font = fontBefore;
+                Text.Anchor = anchorBefore;
+                return;
+            }
+
+            // Empty state
+            if (totalPrisoners == 0)
+            {
+                Text.Font = GameFont.Medium;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = Color.gray;
+                Widgets.Label(new Rect(rect.x, tableY + tableH * 0.35f, rect.width, 40f),
+                    "FCNoPrisonersFaction".Translate());
+                GUI.color = origColor;
+                Text.Font = fontBefore;
+                Text.Anchor = anchorBefore;
+                return;
+            }
+
+            // --- Scrollable grouped list ---
+            const float pad = 4f;
+            const float sectionHeaderH = 32f;
+            const float rowGap = 1f;
+            const float sectionGap = 6f;
+            const float prisonerRowIndent = 16f;
+            const float cardGap = 6f;
+
+            float innerX = x + margin + pad;
+            float innerW = width - (margin + pad) * 2f;
+
+            float contentH = 0f;
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                WorldSettlementFC ss = faction.settlements[i];
+                int count = ss.PrisonerComp?.prisonerList?.Count ?? 0;
+                if (count == 0) continue;
+                contentH += sectionHeaderH + sectionGap;
+                if (!collapsedPrisonerSections.Contains(ss.ID))
+                {
+                    int rows = Mathf.CeilToInt(count / 2f);
+                    contentH += rows * (PrisonerUtil.CompactRowHeight + rowGap);
+                }
+            }
+
+            Rect viewRect = new Rect(innerX, tableY, innerW, tableH);
+            Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref prisonersScroll, contentH);
+
+            float cy = 0f;
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                WorldSettlementFC s = faction.settlements[i];
+                List<FCPrisoner> sList = s.PrisonerComp?.prisonerList;
+                if (sList is null || sList.Count == 0) continue;
+
+                bool collapsed = collapsedPrisonerSections.Contains(s.ID);
+
+                /* Section panel — dark overlay spanning the header + all card rows (if expanded).
+                 * Drawn first so the lighter header highlight and per-card highlights layer on top. */
+                float sectionH = sectionHeaderH;
+                if (!collapsed)
+                {
+                    int rows = Mathf.CeilToInt(sList.Count / 2f);
+                    sectionH += rows * (PrisonerUtil.CompactRowHeight + rowGap);
+                }
+                Widgets.DrawBoxSolid(new Rect(0f, cy, scrollRect.width, sectionH), ColorUtil.Gray1);
+
+                // Section header: light highlight band + accent + name (clickable) + count badge (collapse toggle)
+                Color settlementAccent = AccentUtil.GetSettlementAccent(s);
+                Rect headerBoxRect = new Rect(0f, cy, scrollRect.width, sectionHeaderH);
+                Widgets.DrawBoxSolid(headerBoxRect, ColorUtil.Gray3);
+                Widgets.DrawBoxSolid(new Rect(0f, cy, PrisonerUtil.AccentWidth, sectionHeaderH), settlementAccent);
+
+                float headerContentX = PrisonerUtil.AccentWidth + 6f;
+                const float countColW = 90f;
+                Rect nameRect = new Rect(headerContentX, cy, scrollRect.width - headerContentX - countColW - 4f, sectionHeaderH);
+
+                Text.Font = GameFont.Medium;
+                Text.Anchor = TextAnchor.MiddleLeft;
+                GUI.color = settlementAccent;
+                Widgets.Label(nameRect, s.Name);
+                GUI.color = origColor;
+
+                if (Mouse.IsOver(nameRect))
+                    Widgets.DrawHighlight(nameRect);
+                if (Widgets.ButtonInvisible(nameRect))
+                    Find.WindowStack.Add(new SettlementWindowFc(s));
+
+                Rect countRect = new Rect(scrollRect.width - countColW - 4f, cy, countColW, sectionHeaderH);
+                if (Mouse.IsOver(countRect))
+                    Widgets.DrawHighlight(countRect);
+                if (Widgets.ButtonInvisible(countRect))
+                {
+                    if (collapsed) collapsedPrisonerSections.Remove(s.ID);
+                    else collapsedPrisonerSections.Add(s.ID);
+                    collapsed = !collapsed;
+                }
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.MiddleRight;
+                GUI.color = Color.gray;
+                Widgets.Label(countRect, "(" + sList.Count + ") " + (collapsed ? "▶" : "▼"));
+                GUI.color = origColor;
+
+                cy += sectionHeaderH;
+
+                if (!collapsed)
+                {
+                    /* 2-card grid with checkerboard highlight: (row + col) parity.
+                     * Row cursor advances only after the right card (or after a final odd-left card). */
+                    float cardW = (scrollRect.width - prisonerRowIndent - cardGap) / 2f;
+                    for (int j = 0; j < sList.Count; j++)
+                    {
+                        bool isLeft = (j % 2) == 0;
+                        float cardX = isLeft ? prisonerRowIndent : prisonerRowIndent + cardW + cardGap;
+                        Rect rowBox = new Rect(cardX, cy, cardW, PrisonerUtil.CompactRowHeight);
+                        int checker = (j / 2) + (j % 2);  // (0,0)/(1,1)=highlight, (0,1)/(1,0)=plain
+                        PrisonerUtil.DrawPrisonerRowCompact(rowBox, sList[j], s, checker, null);
+                        if (!isLeft || j == sList.Count - 1)
+                        {
+                            cy += PrisonerUtil.CompactRowHeight + rowGap;
+                        }
+                    }
+                }
+
+                cy += sectionGap;
+            }
+
+            ScrollUtil.EndScrollView();
+
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
         }
 
     }

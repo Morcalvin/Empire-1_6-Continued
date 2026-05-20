@@ -164,7 +164,11 @@ namespace FactionColonies
         private Dictionary<FCStatDef, double> cachedStatValues = new Dictionary<FCStatDef, double>();
         private Dictionary<FCStatDef, string> cachedStatDescs = new Dictionary<FCStatDef, string>();
 
-        public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
+        /* Legacy save migration: prisoner data lived on the settlement under the
+         * "prisonerList" XML key until WorldObjectComp_SettlementPrisoners took ownership.
+         * Filled only during LoadingVars and drained into PrisonerComp.prisonerList during
+         * PostLoadInit, then reset to null so subsequent saves omit the legacy key. */
+        private List<FCPrisoner> _legacyPrisonerList = null;
 
         public float oneTimeSilverIncome;
         public List<Thing> tithe = new List<Thing>();
@@ -228,6 +232,8 @@ namespace FactionColonies
         private bool checkedMilitaryComp = false;
         private WorldObjectComp_SettlementBuildings cachedBuildingsComp = null;
         private bool checkedBuildingsComp = false;
+        private WorldObjectComp_SettlementPrisoners cachedPrisonerComp = null;
+        private bool checkedPrisonerComp = false;
 
         // A private state variable
         private bool calculatingTax = false;
@@ -255,6 +261,23 @@ namespace FactionColonies
                     }
                 }
                 return cachedMilitaryComp;
+            }
+        }
+
+        public WorldObjectComp_SettlementPrisoners PrisonerComp
+        {
+            get
+            {
+                if (!checkedPrisonerComp)
+                {
+                    cachedPrisonerComp = GetComponent<WorldObjectComp_SettlementPrisoners>();
+                    checkedPrisonerComp = true;
+                    if (cachedPrisonerComp == null)
+                    {
+                        LogUtil.Warning($"Attempted to access settlement {Name}'s PrisonerComp, but it doesn't have one");
+                    }
+                }
+                return cachedPrisonerComp;
             }
         }
 
@@ -732,8 +755,10 @@ namespace FactionColonies
             Scribe_Values.Look(ref _startUpgradeTick, "startupgradetick", -1);
             Scribe_Values.Look(ref _finishUpgradeTick, "finishupgradetick", -1);
 
-            //Prisoners
-            Scribe_Collections.Look(ref prisonerList, "prisonerList", LookMode.Deep);
+            //Prisoners — legacy buffer; modern data lives on PrisonerComp.
+            //Gated to LoadingVars so Saving never re-emits the legacy <prisonerList> key.
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+                Scribe_Collections.Look(ref _legacyPrisonerList, "prisonerList", LookMode.Deep);
 
             // We never want permanentModifiers to be null. So just always check it here.
             if (permanentModifiers is null) permanentModifiers = new List<PermanentStatModifier>();
@@ -782,6 +807,31 @@ namespace FactionColonies
             {
                 LogUtil.Warning($"factionComp is null in PoastLoadInit phase for settlement {Name}");
             }
+
+            // Migration: drain legacy <prisonerList> key into PrisonerComp.prisonerList.
+            // Old saves stored the prisoner list on this settlement; it now lives on the comp.
+            if (_legacyPrisonerList != null && _legacyPrisonerList.Count > 0)
+            {
+                WorldObjectComp_SettlementPrisoners pComp = PrisonerComp;
+                if (pComp is object)
+                {
+                    if (pComp.prisonerList is null) pComp.prisonerList = new List<FCPrisoner>();
+                    foreach (FCPrisoner p in _legacyPrisonerList)
+                    {
+                        if (p is null) continue;
+                        // Defensive: Scribe_References should already have rebound this, but the
+                        // legacy code path didn't always preserve the back-ref cleanly.
+                        if (p.settlement is null) p.settlement = this;
+                        pComp.prisonerList.Add(p);
+                    }
+                    LogUtil.MessageForce($"WorldSettlementFC {Name}: migrated {_legacyPrisonerList.Count} legacy prisoners into PrisonerComp.");
+                }
+                else
+                {
+                    LogUtil.Error($"WorldSettlementFC {Name}: cannot migrate {_legacyPrisonerList.Count} legacy prisoners — no PrisonerComp on this settlement.");
+                }
+            }
+            _legacyPrisonerList = null;
 
             DirtyDescriptionCache();
 
@@ -880,20 +930,6 @@ namespace FactionColonies
                 }
             }
             base.Notify_MyMapAboutToBeRemoved();
-        }
-
-        public void AddPrisoner(Pawn prisoner)
-        {
-            // FCPrisoner is the canonical deep owner of the held pawn. If WorldPawns
-            // already has it (e.g., redressed by PawnGenerator, passed via LeaveMap,
-            // dropped from a caravan), pull it out so save doesn't double-scribe.
-            // The conditional Scribe in FCPrisoner.ExposeData defends on-map cases.
-            if (prisoner is object && Find.WorldPawns is object && Find.WorldPawns.Contains(prisoner))
-            {
-                Find.WorldPawns.RemovePawn(prisoner);
-            }
-            prisonerList.Add(new FCPrisoner(prisoner, this));
-            DirtyStatsCache();
         }
 
         public void UpgradeSettlement(int times = 1, bool setFlags = false)
@@ -1193,9 +1229,9 @@ namespace FactionColonies
 
             //Worker Stats
             _workersMax = settlementDef.workersMaxBase + (settlementLevel * (settlementDef.workersMaxMult + extraWorkersSoftcap)) +
-                         GetStatValue(FCStatDefOf.workerBaseMax) + ReturnMaxWorkersFromPrisoners();
+                         GetStatValue(FCStatDefOf.workerBaseMax) + (PrisonerComp?.ReturnMaxWorkersFromPrisoners() ?? 0);
             _workersUltraMax = _workersMax + settlementDef.workersUltraMaxBase + overMaxAdjustment + (settlementLevel * settlementDef.workersUltraMaxMult) +
-                              GetStatValue(FCStatDefOf.workerBaseOverMax) + ReturnOverMaxWorkersFromPrisoners();
+                              GetStatValue(FCStatDefOf.workerBaseOverMax) + (PrisonerComp?.ReturnOverMaxWorkersFromPrisoners() ?? 0);
 
             dirtyStatsCache = false;
             dirtyProfitCache = true;
@@ -1918,31 +1954,6 @@ namespace FactionColonies
         {
             BuildingsComp?.DeconstructBuilding(buildingSlot);
         }
-
-        private int ReturnMaxWorkersFromPrisoners()
-        {
-            int num = 0;
-            foreach (FCPrisoner prisoner in prisonerList)
-            {
-                switch (prisoner.workload)
-                {
-                    case FCWorkLoad.Medium:
-                        num++;
-                        break;
-                    case FCWorkLoad.Heavy:
-                        num += 2;
-                        break;
-                }
-            }
-
-            return num;
-        }
-
-        private int ReturnOverMaxWorkersFromPrisoners()
-        {
-            return prisonerList.Count(prisoner => prisoner.workload == FCWorkLoad.Light);
-        }
-
 
         public bool ValidConstructBuilding(BuildingFCDef building, int buildingSlot)
         {
