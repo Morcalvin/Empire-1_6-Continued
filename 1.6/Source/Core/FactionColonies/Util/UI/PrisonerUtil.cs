@@ -255,7 +255,16 @@ namespace FactionColonies
             Color accentColor = prisoner.prisoner?.Faction?.Color ?? Color.gray;
             Widgets.DrawBoxSolid(new Rect(box.x, box.y, AccentWidth, box.height), accentColor);
 
-            float contentStartX = box.x + AccentWidth;
+            // Secondary accent: vertical health bar, bottom-filled, color-graded.
+            float healthBarX = box.x + AccentWidth + 1f;
+            Widgets.DrawBoxSolid(new Rect(healthBarX, box.y, AccentWidth, box.height), healthBarBg);
+            float healthFrac = Mathf.Clamp01(prisoner.health / 100f);
+            float fillH = box.height * healthFrac;
+            Widgets.DrawBoxSolid(
+                new Rect(healthBarX, box.y + box.height - fillH, AccentWidth, fillH),
+                AccentUtil.GetStatColor(prisoner.health, false));
+
+            float contentStartX = box.x + AccentWidth * 2f + 1f;
 
             // Portrait — vertically centered in the row
             float portraitY = box.y + (box.height - compactPortraitSz) / 2f;
@@ -282,7 +291,7 @@ namespace FactionColonies
             const float actionsW = 70f;
             const float workloadW = 100f;
             const float btnGap = 4f;
-            const float trendW = 50f;
+            const float trendW = 45f;
 
             float actionsX = rightEdge - actionsW;
             float workloadX = actionsX - btnGap - workloadW;
@@ -324,12 +333,14 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleRight;
                 UIUtil.DrawColoredLabel(factionNameRect, factionName, FactionRelationColor(homeFaction));
             }
-            // Next-right: faction icon (untinted — only the name carries the relation color)
+            // Next-right: faction icon tinted with the faction's own Color
             if (factionIcon != null)
             {
                 float iconX = subtitleRight - factionNameW - factionIconSz;
                 Rect iconRect = new Rect(iconX, topY + (topRowH - factionIconSz) / 2f, factionIconSz, factionIconSz);
+                GUI.color = homeFaction.Color;
                 GUI.DrawTexture(iconRect, factionIcon);
+                GUI.color = origColor;
             }
             // Left-most: gray "Male, age N (M) of "
             float prefixRight = subtitleRight - factionNameW - factionIconW;
@@ -382,7 +393,7 @@ namespace FactionColonies
              * eats some of the health text's right edge when present, but never overlaps
              * the trend label. */
             bool downed = prisoner.prisoner is object && prisoner.prisoner.Downed;
-            const float badgeW = 120f;
+            const float badgeW = 110f;
             const float badgeGap = 6f;
             float healthRightEdge = trendRect.x - 4f;
             if (downed)
