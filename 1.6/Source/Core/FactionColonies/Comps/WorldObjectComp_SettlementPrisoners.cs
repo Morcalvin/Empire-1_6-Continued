@@ -77,8 +77,11 @@ namespace FactionColonies
                 }
             }
 
-            if (dead is null) return;
-            foreach (FCPrisoner d in dead) HandlePrisonerDeath(d);
+            if (dead != null)
+                foreach (FCPrisoner d in dead) HandlePrisonerDeath(d);
+
+            // A Light-workload heal may have un-downed a prisoner, so refresh the worker cap.
+            (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
         }
 
         /* The single removal entry point — no other code should call prisonerList.Remove
@@ -256,19 +259,17 @@ namespace FactionColonies
             Find.WindowStack.Add(new FloatMenu(wlList));
         }
 
+        /* Downed prisoners can't perform any work, so they're excluded from worker contributions. */
         public int ReturnMaxWorkersFromPrisoners()
         {
             int num = 0;
-            foreach (FCPrisoner prisoner in prisonerList)
+            foreach (FCPrisoner p in prisonerList)
             {
-                switch (prisoner.workload)
+                if (p?.prisoner is null || p.prisoner.Downed) continue;
+                switch (p.workload)
                 {
-                    case FCWorkLoad.Medium:
-                        num++;
-                        break;
-                    case FCWorkLoad.Heavy:
-                        num += 2;
-                        break;
+                    case FCWorkLoad.Medium: num++; break;
+                    case FCWorkLoad.Heavy:  num += 2; break;
                 }
             }
             return num;
@@ -276,7 +277,8 @@ namespace FactionColonies
 
         public int ReturnOverMaxWorkersFromPrisoners()
         {
-            return prisonerList.Count(prisoner => prisoner.workload == FCWorkLoad.Light);
+            return prisonerList.Count(p =>
+                p?.prisoner is object && !p.prisoner.Downed && p.workload == FCWorkLoad.Light);
         }
 
         public override IEnumerable<Gizmo> GetCaravanGizmos(Caravan caravan)

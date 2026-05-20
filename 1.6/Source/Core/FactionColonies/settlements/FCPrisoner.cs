@@ -1,5 +1,6 @@
 ﻿using RimWorld;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Verse;
 
@@ -123,8 +124,21 @@ namespace FactionColonies
             if (health >= 100)
             {
                 health = 100;
-                if (prisoner is object && prisoner.health is object)
-                    HealthUtility.HealNonPermanentInjuriesAndRestoreLegs(prisoner);
+                HealNonPermanentInjuries();
+            }
+        }
+
+        /* Rimworld's HealthUtility.HealNonPermanentInjuriesAndRestoreLegs is the closest
+         * vanilla helper, but its leg-restoration side effect is undesirable here — a
+         * prisoner reaching full "health" shouldn't magically regrow missing limbs. */
+        private void HealNonPermanentInjuries()
+        {
+            if (prisoner?.health?.hediffSet is null) return;
+            List<Hediff> hediffs = prisoner.health.hediffSet.hediffs;
+            for (int i = hediffs.Count - 1; i >= 0; i--)
+            {
+                if (hediffs[i] is Hediff_Injury injury && !injury.IsPermanent())
+                    prisoner.health.RemoveHediff(injury);
             }
         }
 
