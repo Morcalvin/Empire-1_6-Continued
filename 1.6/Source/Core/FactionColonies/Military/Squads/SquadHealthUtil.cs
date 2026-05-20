@@ -73,14 +73,21 @@ namespace FactionColonies
                     merc.needs.food = new Need_Food(merc);
                 if (merc.needs.rest == null)
                     merc.needs.rest = new Need_Rest(merc);
-                if (!merc.AnimalOrWildMan() && merc.needs.joy == null)
+                if (merc.RaceProps is null)
+                {
+                    LogUtil.Warning($"ResetNeeds encountered merc ({merc.Name}) with null RaceProps. Skipping");
+                    continue;
+                }
+                if (merc.RaceProps.Humanlike && merc.needs.joy == null)
                     merc.needs.joy = new Need_Joy(merc);
                 merc.needs.food.CurLevel = merc.needs.food.MaxLevel;
                 merc.needs.rest.CurLevel = merc.needs.rest.MaxLevel;
-                if (!merc.AnimalOrWildMan())
+                if (merc.RaceProps.Humanlike)
                 {
-                    merc.needs.joy.CurLevel = merc.needs.joy.MaxLevel;
-                    merc.needs.mood.thoughts.memories.TryGainMemory(DefDatabase<ThoughtDef>.GetNamed("FC_Mercenary"));
+                    if (merc.needs.joy != null)
+                        merc.needs.joy.CurLevel = merc.needs.joy.MaxLevel;
+                    if (merc.needs.mood?.thoughts?.memories != null)
+                        merc.needs.mood.thoughts.memories.TryGainMemory(DefDatabase<ThoughtDef>.GetNamed("FC_Mercenary"));
                 }
             }
         }

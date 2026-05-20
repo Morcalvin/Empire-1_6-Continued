@@ -104,4 +104,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_6</defName>
+		<label>Merc Needs Fix</label>
+		<description>Hardens some of the checks in ResetNeeds to prevent weird modded races from throwing errors.</description>
+		<releaseDate>2026-05-20</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Check RaceProps.Humanlike instead of !AnimalOrWildMan</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
