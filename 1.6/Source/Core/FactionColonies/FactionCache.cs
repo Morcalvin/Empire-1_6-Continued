@@ -40,6 +40,18 @@ namespace FactionColonies
         private static List<MilitaryJobDef> _cachedHostileMilitaryJobs = null;
         private static Dictionary<TechLevel, TechLevelBarrier> _cachedTechBarriers = null;
         private static ResearchProjectDef _cachedTransportPods = null;
+        private static List<ResourceTypeDef> _cachedResourceTypeDefs = null;
+        private static List<ResourceTypeDef> _cachedPoolResourceTypeDefs = null;
+        private static List<ResourceTypeDef> _cachedNonPoolResourceTypeDefs = null;
+        private static List<ResourceTypeDef> _cachedTitheableResourceTypeDefs = null;
+        private static List<ResourceTypeDef> _cachedSortedResourceTypeDefsForUI = null;
+        private static Dictionary<FCPolicyCategory, List<FCPolicyDef>> _cachedPoliciesByCategory = null;
+        private static List<WorldSettlementDef> _cachedAvailableWorldSettlementDefs = null;
+        private static HashSet<string> _cachedEventFollowUpDefNames = null;
+        private static List<FCEventDef> _cachedRandomRollableEvents = null;
+        private static List<FCEventDef> _cachedAllRandomEventDefs = null;
+        private static HashSet<BiomeResourceDef> _cachedBiomeResourceDefSet = null;
+        private static Dictionary<TechLevel, List<BuildingFCDef>> _cachedBuildingDefsByTechLevel = null;
 
         public static List<PawnKindDef> AllPawnKindDefs
         {
@@ -508,6 +520,218 @@ namespace FactionColonies
             }
         }
 
+        /*-*-*-*-*/
+        /* ResourceTypeDef caches */
+        /*-*-*-*-*/
+
+        public static List<ResourceTypeDef> AllResourceTypeDefs => _cachedResourceTypeDefs ??
+                                                                   (_cachedResourceTypeDefs = DefDatabase<ResourceTypeDef>.AllDefsListForReading);
+
+        public static List<ResourceTypeDef> PoolResourceTypeDefs
+        {
+            get
+            {
+                if (_cachedPoolResourceTypeDefs is null)
+                {
+                    _cachedPoolResourceTypeDefs = new List<ResourceTypeDef>();
+                    foreach (ResourceTypeDef rtd in AllResourceTypeDefs)
+                    {
+                        if (rtd.isPoolResource) _cachedPoolResourceTypeDefs.Add(rtd);
+                    }
+                }
+                return _cachedPoolResourceTypeDefs;
+            }
+        }
+
+        public static List<ResourceTypeDef> NonPoolResourceTypeDefs
+        {
+            get
+            {
+                if (_cachedNonPoolResourceTypeDefs is null)
+                {
+                    _cachedNonPoolResourceTypeDefs = new List<ResourceTypeDef>();
+                    foreach (ResourceTypeDef rtd in AllResourceTypeDefs)
+                    {
+                        if (!rtd.isPoolResource) _cachedNonPoolResourceTypeDefs.Add(rtd);
+                    }
+                }
+                return _cachedNonPoolResourceTypeDefs;
+            }
+        }
+
+        /// <summary>
+        /// Non-pool resources that allow tithing. Tech-level eligibility is NOT applied here —
+        /// callers must still filter by <c>ResourceTypeAllowedByTech(techLevel)</c> when tech matters.
+        /// </summary>
+        public static List<ResourceTypeDef> TitheableResourceTypeDefs
+        {
+            get
+            {
+                if (_cachedTitheableResourceTypeDefs is null)
+                {
+                    _cachedTitheableResourceTypeDefs = new List<ResourceTypeDef>();
+                    foreach (ResourceTypeDef rtd in AllResourceTypeDefs)
+                    {
+                        if (!rtd.isPoolResource && rtd.CanTithe) _cachedTitheableResourceTypeDefs.Add(rtd);
+                    }
+                }
+                return _cachedTitheableResourceTypeDefs;
+            }
+        }
+
+        public static List<ResourceTypeDef> SortedResourceTypeDefsForUI => _cachedSortedResourceTypeDefsForUI ??
+                                                                           (_cachedSortedResourceTypeDefsForUI = AllResourceTypeDefs
+                                                                               .OrderBy(d => d.uiPriority)
+                                                                               .ThenBy(d => d.LabelCap.RawText)
+                                                                               .ToList());
+
+        /*-*-*-*-*/
+        /* Policy / Settlement / Event / Biome caches */
+        /*-*-*-*-*/
+
+        public static Dictionary<FCPolicyCategory, List<FCPolicyDef>> PoliciesByCategory
+        {
+            get
+            {
+                if (_cachedPoliciesByCategory is null)
+                {
+                    _cachedPoliciesByCategory = new Dictionary<FCPolicyCategory, List<FCPolicyDef>>();
+                    foreach (FCPolicyDef policy in AllFCPolicies)
+                    {
+                        if (!_cachedPoliciesByCategory.TryGetValue(policy.category, out List<FCPolicyDef> list))
+                        {
+                            list = new List<FCPolicyDef>();
+                            _cachedPoliciesByCategory[policy.category] = list;
+                        }
+                        list.Add(policy);
+                    }
+                }
+                return _cachedPoliciesByCategory;
+            }
+        }
+
+        public static List<FCPolicyDef> GetPoliciesByCategory(FCPolicyCategory cat)
+        {
+            return PoliciesByCategory.TryGetValue(cat, out List<FCPolicyDef> list) ? list : new List<FCPolicyDef>();
+        }
+
+        public static List<WorldSettlementDef> AvailableWorldSettlementDefs
+        {
+            get
+            {
+                if (_cachedAvailableWorldSettlementDefs is null)
+                {
+                    _cachedAvailableWorldSettlementDefs = new List<WorldSettlementDef>();
+                    foreach (WorldSettlementDef def in DefDatabase<WorldSettlementDef>.AllDefsListForReading)
+                    {
+                        if (def.available) _cachedAvailableWorldSettlementDefs.Add(def);
+                    }
+                }
+                return _cachedAvailableWorldSettlementDefs;
+            }
+        }
+
+        /// <summary>
+        /// defNames of events referenced as <c>followingEvent</c> / <c>followingEvent2</c> by some other event,
+        /// i.e. events that are continuations, not independent triggers.
+        /// </summary>
+        public static HashSet<string> EventFollowUpDefNames
+        {
+            get
+            {
+                if (_cachedEventFollowUpDefNames is null)
+                {
+                    _cachedEventFollowUpDefNames = new HashSet<string>();
+                    foreach (FCEventDef def in DefDatabase<FCEventDef>.AllDefsListForReading)
+                    {
+                        if (def.followingEvent != null) _cachedEventFollowUpDefNames.Add(def.followingEvent.defName);
+                        if (def.followingEvent2 != null) _cachedEventFollowUpDefNames.Add(def.followingEvent2.defName);
+                    }
+                }
+                return _cachedEventFollowUpDefNames;
+            }
+        }
+
+        /// <summary>
+        /// Events that are eligible to be picked as a top-level random event:
+        /// not a follow-up of any other event, and either <c>activateAtStart</c> or
+        /// a no-option random event. Per-event validity (faction/settlement gating, weight, etc.)
+        /// is still checked at the call site.
+        /// </summary>
+        public static List<FCEventDef> RandomRollableEvents
+        {
+            get
+            {
+                if (_cachedRandomRollableEvents is null)
+                {
+                    HashSet<string> followUps = EventFollowUpDefNames;
+                    _cachedRandomRollableEvents = new List<FCEventDef>();
+                    foreach (FCEventDef def in DefDatabase<FCEventDef>.AllDefsListForReading)
+                    {
+                        if (followUps.Contains(def.defName)) continue;
+                        if (def.activateAtStart || (def.isRandomEvent && def.options.Count == 0))
+                        {
+                            _cachedRandomRollableEvents.Add(def);
+                        }
+                    }
+                }
+                return _cachedRandomRollableEvents;
+            }
+        }
+
+        /// <summary>
+        /// All events with <c>isRandomEvent == true</c>. Used by the random-event picker; per-event
+        /// validity (settings toggle, stat ranges, settlement state, etc.) is still applied at the call site.
+        /// </summary>
+        public static List<FCEventDef> AllRandomEventDefs
+        {
+            get
+            {
+                if (_cachedAllRandomEventDefs is null)
+                {
+                    _cachedAllRandomEventDefs = new List<FCEventDef>();
+                    foreach (FCEventDef def in DefDatabase<FCEventDef>.AllDefsListForReading)
+                    {
+                        if (def.isRandomEvent) _cachedAllRandomEventDefs.Add(def);
+                    }
+                }
+                return _cachedAllRandomEventDefs;
+            }
+        }
+
+        public static HashSet<BiomeResourceDef> BiomeResourceDefSet => _cachedBiomeResourceDefSet ??
+                                                                       (_cachedBiomeResourceDefSet = new HashSet<BiomeResourceDef>(DefDatabase<BiomeResourceDef>.AllDefsListForReading));
+
+        /// <summary>
+        /// All buildable BuildingFCDefs (excludes "Empty" and "Construction") grouped by tech level,
+        /// inner lists sorted by LabelCap.
+        /// </summary>
+        public static Dictionary<TechLevel, List<BuildingFCDef>> BuildingDefsByTechLevel
+        {
+            get
+            {
+                if (_cachedBuildingDefsByTechLevel is null)
+                {
+                    _cachedBuildingDefsByTechLevel = new Dictionary<TechLevel, List<BuildingFCDef>>();
+                    foreach (BuildingFCDef building in DefDatabase<BuildingFCDef>.AllDefsListForReading)
+                    {
+                        if (building.defName == "Empty" || building.defName == "Construction") continue;
+                        if (!_cachedBuildingDefsByTechLevel.TryGetValue(building.techLevel, out List<BuildingFCDef> list))
+                        {
+                            list = new List<BuildingFCDef>();
+                            _cachedBuildingDefsByTechLevel[building.techLevel] = list;
+                        }
+                        list.Add(building);
+                    }
+                    foreach (var kvp in _cachedBuildingDefsByTechLevel)
+                    {
+                        kvp.Value.Sort((a, b) => string.Compare(a.LabelCap.RawText, b.LabelCap.RawText, StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+                return _cachedBuildingDefsByTechLevel;
+            }
+        }
+
         public static void InvalidateCache()
         {
             LogUtil.Message("Invalidating FactionCache...");
@@ -531,6 +755,19 @@ namespace FactionColonies
 
             _cachedTechBarriers = null;
             _cachedTransportPods = null;
+
+            _cachedResourceTypeDefs = null;
+            _cachedPoolResourceTypeDefs = null;
+            _cachedNonPoolResourceTypeDefs = null;
+            _cachedTitheableResourceTypeDefs = null;
+            _cachedSortedResourceTypeDefsForUI = null;
+            _cachedPoliciesByCategory = null;
+            _cachedAvailableWorldSettlementDefs = null;
+            _cachedEventFollowUpDefNames = null;
+            _cachedRandomRollableEvents = null;
+            _cachedAllRandomEventDefs = null;
+            _cachedBiomeResourceDefSet = null;
+            _cachedBuildingDefsByTechLevel = null;
 
             InvalidateCustomXenotypeCache();
         }

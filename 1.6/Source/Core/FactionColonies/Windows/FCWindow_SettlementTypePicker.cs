@@ -25,8 +25,7 @@ namespace FactionColonies
             absorbInputAroundWindow = true;
             forcePause = false;
 
-            allTypes = DefDatabase<WorldSettlementDef>.AllDefs
-                .Where(d => d.available)
+            allTypes = FactionCache.AvailableWorldSettlementDefs
                 .OrderBy(d => d.IsUnlocked() ? 0 : 1)
                 .ThenBy(d => d.LabelCap.ToString())
                 .ToList();

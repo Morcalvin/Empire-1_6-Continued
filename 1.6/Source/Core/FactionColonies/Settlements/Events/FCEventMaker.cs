@@ -170,7 +170,7 @@ namespace FactionColonies
         {
             List<FCEventDef> tmpEventList = new List<FCEventDef>();
 
-            foreach (FCEventDef eventDef in DefDatabase<FCEventDef>.AllDefsListForReading)
+            foreach (FCEventDef eventDef in FactionCache.AllRandomEventDefs)
             {
                 if (IsValidRandomEvent(eventDef))
                 {

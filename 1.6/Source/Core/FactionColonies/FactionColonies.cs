@@ -812,23 +812,7 @@ namespace FactionColonies
             ls.Label("FCSettingConfigureEvents".Translate());
             ls.Gap(5f);
 
-            // Build set of events that are follow-ups of other events (not independent triggers)
-            HashSet<string> followUpDefNames = new HashSet<string>();
-            foreach (FCEventDef def in DefDatabase<FCEventDef>.AllDefsListForReading)
-            {
-                if (def.followingEvent != null) followUpDefNames.Add(def.followingEvent.defName);
-                if (def.followingEvent2 != null) followUpDefNames.Add(def.followingEvent2.defName);
-            }
-
-            List<FCEventDef> rootEvents = new List<FCEventDef>();
-            foreach (FCEventDef def in DefDatabase<FCEventDef>.AllDefsListForReading)
-            {
-                if (followUpDefNames.Contains(def.defName)) continue;
-                if (def.activateAtStart || (def.isRandomEvent && def.options.Count == 0))
-                {
-                    rootEvents.Add(def);
-                }
-            }
+            List<FCEventDef> rootEvents = FactionCache.RandomRollableEvents;
 
             // Group by category, then sort alphabetically within each group
             var grouped = new Dictionary<string, List<FCEventDef>>();

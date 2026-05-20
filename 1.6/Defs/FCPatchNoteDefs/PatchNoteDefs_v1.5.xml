@@ -118,4 +118,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_7</defName>
+		<label>More Caching</label>
+		<description>Makes more use of Def caching. Will this actually produce a notable performance improvement? I doubt it. But at least all our Def grabbing is in one place! ...Just, don&apos;t ever hot-reload your defs, please.</description>
+		<releaseDate>2026-05-20</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Adds more Def caching to FactionCache</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

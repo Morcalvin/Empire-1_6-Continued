@@ -202,7 +202,7 @@ namespace FactionColonies
             {
                 currentBiomeSelected = currentSettlementType.biomeResourceOverride;
                 //default biome
-                if (!DefDatabase<BiomeResourceDef>.AllDefs.Contains(currentBiomeSelected))
+                if (!FactionCache.BiomeResourceDefSet.Contains(currentBiomeSelected))
                 {
                     LogUtil.Error($"Settlement type {currentSettlementType.LabelCap} has an invalid override biome. Using default biome.");
                     currentBiomeSelected = BiomeResourceDefOf.defaultBiome;
@@ -234,7 +234,7 @@ namespace FactionColonies
 
         private static WorldSettlementDef GetDefaultSettlementType()
         {
-            foreach (WorldSettlementDef def in DefDatabase<WorldSettlementDef>.AllDefs)
+            foreach (WorldSettlementDef def in FactionCache.AvailableWorldSettlementDefs)
             {
                 if (def.IsUnlocked()) return def;
             }

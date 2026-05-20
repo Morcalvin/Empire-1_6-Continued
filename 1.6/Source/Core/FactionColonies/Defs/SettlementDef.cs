@@ -253,7 +253,7 @@ namespace FactionColonies
             base.ResolveReferences();
             if (defaultResources)
             {
-                foreach (ResourceTypeDef rtd in DefDatabase<ResourceTypeDef>.AllDefs)
+                foreach (ResourceTypeDef rtd in FactionCache.AllResourceTypeDefs)
                 {
                     if (rtd.isDefaultResource && !resources.Any(rb => rb.resourceDef == rtd))
                     {
