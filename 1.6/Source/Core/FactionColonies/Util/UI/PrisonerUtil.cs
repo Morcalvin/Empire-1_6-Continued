@@ -246,11 +246,8 @@ namespace FactionColonies
             TextAnchor anchorBefore = Text.Anchor;
             Color origColor = GUI.color;
 
-            bool isHighlighted = altIndex % 2 == 0;
-            if (isHighlighted)
-            {
-                Widgets.DrawHighlight(box);
-            }
+            bool isHighlighted = true;
+            Widgets.DrawBoxSolid(box, ColorUtil.Gray2);
 
             Color accentColor = prisoner.prisoner?.Faction?.Color ?? Color.gray;
             Widgets.DrawBoxSolid(new Rect(box.x, box.y, AccentWidth, box.height), accentColor);

@@ -2367,10 +2367,20 @@ namespace FactionColonies
 
                 bool collapsed = collapsedPrisonerSections.Contains(s.ID);
 
-                // Section header: framed box wrapping accent + name (clickable) + count badge (collapse toggle)
+                /* Section panel — dark overlay spanning the header + all card rows (if expanded).
+                 * Drawn first so the lighter header highlight and per-card highlights layer on top. */
+                float sectionH = sectionHeaderH;
+                if (!collapsed)
+                {
+                    int rows = Mathf.CeilToInt(sList.Count / 2f);
+                    sectionH += rows * (PrisonerUtil.CompactRowHeight + rowGap);
+                }
+                Widgets.DrawBoxSolid(new Rect(0f, cy, scrollRect.width, sectionH), ColorUtil.Gray1);
+
+                // Section header: light highlight band + accent + name (clickable) + count badge (collapse toggle)
                 Color settlementAccent = AccentUtil.GetSettlementAccent(s);
                 Rect headerBoxRect = new Rect(0f, cy, scrollRect.width, sectionHeaderH);
-                Widgets.DrawMenuSection(headerBoxRect);
+                Widgets.DrawBoxSolid(headerBoxRect, ColorUtil.Gray3);
                 Widgets.DrawBoxSolid(new Rect(0f, cy, PrisonerUtil.AccentWidth, sectionHeaderH), settlementAccent);
 
                 float headerContentX = PrisonerUtil.AccentWidth + 6f;
