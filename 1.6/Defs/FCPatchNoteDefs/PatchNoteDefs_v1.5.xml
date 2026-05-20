@@ -132,4 +132,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_8</defName>
+		<label>Vehicle Framework Compat Fix</label>
+		<description>Fixes an issue where joining a manual battle with a vehicle and never dismounting the pawns inside can result in both getting silently purged when the battle is over.</description>
+		<releaseDate>2026-05-20</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>When checking for battle end-state, loop over AllPawnsSpawned with a Faction.OfPlayer filter instead of looping over FreeColonistsSpawned</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

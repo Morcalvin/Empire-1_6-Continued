@@ -203,8 +203,9 @@ namespace FactionColonies
             MilitaryOperation primaryDef = FirstDefensiveOp();
             var defenderSet = new HashSet<Pawn>(defenderPawns);
             Lord battleLord = null;
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
+                if (pawn.Faction != Faction.OfPlayer) continue;
                 if (pawn.Dead || pawn.Downed) continue;
                 if (!defenderSet.Contains(pawn))
                 {
@@ -215,6 +216,9 @@ namespace FactionColonies
                         primaryDef.defender.initialPawnCount++;
                     }
                 }
+                // Skip lord assignment for non-humanlike pawns. VehiclePawns conflict with
+                // Lord duties (see VehicleFrameworkCompat.cs); animals aren't given duties.
+                if (pawn.RaceProps?.intelligence != Intelligence.Humanlike) continue;
                 if (pawn.GetLord() is null)
                 {
                     if (battleLord is null)
@@ -325,7 +329,17 @@ namespace FactionColonies
 
             if (activeOps == null || activeOps.Count == 0)
             {
-                bool playerOnMap = map is object && map.mapPawns?.FreeColonistsSpawnedCount > 0;
+                // Use AllPawnsSpawned + faction filter so VehiclePawns count as "player on map".
+                // FreeColonistsSpawnedCount would miss a parked vehicle and prematurely
+                // tear down the battlefield context while the player is still around.
+                bool playerOnMap = false;
+                if (map is object && map.mapPawns is object)
+                {
+                    foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+                    {
+                        if (pawn.Faction == Faction.OfPlayer) { playerOnMap = true; break; }
+                    }
+                }
                 if (playerOnMap)
                 {
                     awaitingPlayerExit = true;
@@ -1144,11 +1158,16 @@ namespace FactionColonies
             }
             draftedNPCs.Clear();
 
-            // Check for player pawns on the map
+            // Check for player units on the map. Use AllPawnsSpawned + faction filter
+            // instead of FreeColonistsSpawned so VehiclePawns (and player animals) count.
+            // Pawns aboard a VehiclePawn are not directly spawned, but the vehicle itself
+            // is a player-faction Pawn — detecting the vehicle is enough to keep the map
+            // alive so the player can drive off and reform the caravan.
             List<Pawn> playerPawns = new List<Pawn>();
             bool anyMobile = false;
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
+                if (pawn.Faction != Faction.OfPlayer) continue;
                 playerPawns.Add(pawn);
                 if (!pawn.Downed) anyMobile = true;
             }
