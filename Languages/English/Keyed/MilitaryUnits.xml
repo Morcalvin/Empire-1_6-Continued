@@ -145,6 +145,9 @@
 	<FCMediumExplanation>Adds +1 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 2 per day.</FCMediumExplanation>
 	<FCLightExplanation>Adds +1 to worker hard cap (Over-Max Workers). Restores health by 1 per day.</FCLightExplanation>
 	<FCPrisonerHealthChangePerDay>{0}/day</FCPrisonerHealthChangePerDay>
+	<FCPrisonerDownedNoWork>Downed: No Work</FCPrisonerDownedNoWork>
+	<FCAge>age</FCAge>
+	<FCOf>of</FCOf>
 	<FCSellPawn>Sell Pawn</FCSellPawn>
 	<FCReturnToPlayer>Return To Player</FCReturnToPlayer>
 	<FCSellPawnInfo>Value will be added to next bill from the settlement</FCSellPawnInfo>
@@ -152,6 +155,7 @@
 	<FCAPrisonerIsBeingDeliveredToYou>A prisoner is being delivered to you</FCAPrisonerIsBeingDeliveredToYou>
 	<FCNoPrisoners>No prisoners at this settlement.</FCNoPrisoners>
 	<FCNoPrisonersInCaravan>No prisoners in this caravan.</FCNoPrisonersInCaravan>
+	<FCNoPrisonersFaction>No prisoners.</FCNoPrisonersFaction>
 	<FCPrisonerWindowTitle>Prisoners — {0}</FCPrisonerWindowTitle>
 	<FCTransferPrisonerToSettlement>Transfer prisoner to settlement</FCTransferPrisonerToSettlement>
 	<FCTransferPrisonerOption>Transfer {0}</FCTransferPrisonerOption>

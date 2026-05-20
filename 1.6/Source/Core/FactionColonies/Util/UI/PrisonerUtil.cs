@@ -103,6 +103,30 @@ namespace FactionColonies
             return f.Name;
         }
 
+        /* "Male, age 63 (115)" — pawn descriptor without the faction segment. The faction
+         * gets rendered separately on the compact card so it can wear an icon and a
+         * relation-derived color. Caller appends " of " when a faction follows. */
+        private static string BuildSubtitlePrefix(Pawn pawn)
+        {
+            if (pawn is null) return "";
+            string gender = pawn.GetGenderLabel().CapitalizeFirst();
+            string age = "FCAge".Translate();
+            int bio = pawn.ageTracker?.AgeBiologicalYears ?? 0;
+            int chrono = pawn.ageTracker?.AgeChronologicalYears ?? bio;
+            if (chrono != bio)
+                return gender + ", " + age + " " + bio + " (" + chrono + ")";
+            return gender + ", " + age + " " + bio;
+        }
+
+        /* Faction-name color in the prisoner card subtitle, keyed off relation kind with
+         * the player faction. Delegates to vanilla FactionRelationKindUtility.GetColor for
+         * the actual palette; only adds the null/hidden/player short-circuits. */
+        private static Color FactionRelationColor(Faction f)
+        {
+            if (f is null || f.Hidden || f == Faction.OfPlayer) return ColoredText.SubtleGrayColor;
+            return f.RelationKindWith(Faction.OfPlayer).GetColor();
+        }
+
         /* Rich 95px prisoner row (settlement window).
            Three content rows next to the portrait:
              Row 1: Name, TitleShort (gray) ............... [info]      | $value
@@ -266,20 +290,53 @@ namespace FactionColonies
             float trendLeftEdge = trendRightEdge - trendW;
 
             /* TOP ROW */
-            // Far right: $value
-            const float valueW = 60f;
+            // Far right: $value (narrow column — $1430 is ~35px in Tiny, 45 leaves padding)
+            const float valueW = 45f;
             Rect valueRect = new Rect(rightEdge - valueW, topY, valueW, topRowH);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleRight;
             Widgets.Label(valueRect, "$" + (int)(prisoner.prisoner?.MarketValue ?? 0));
 
-            // Faction label right-aligned to the trend's right edge below
-            const float subtitleW = 120f;
-            Rect subtitleRect = new Rect(valueRect.x - subtitleW - 4f, topY, subtitleW, topRowH);
+            /* Subtitle slot — three right-aligned segments:
+             *   "Male, age 39 (116) of "   [factionIcon]   FactionName
+             * Faction name is colored by relation kind; prefix stays gray. */
+            const float subtitleW = 240f;
+            float subtitleRight = valueRect.x - 4f;
+            float subtitleLeft = subtitleRight - subtitleW;
             Text.Font = GameFont.Tiny;
+
+            Faction homeFaction = prisoner.prisoner?.Faction;
+            string factionName = BuildFactionLabel(prisoner.prisoner);
+            Texture2D factionIcon = (homeFaction is object && !homeFaction.Hidden) ? homeFaction.def?.FactionIcon : null;
+            string subtitlePrefix = BuildSubtitlePrefix(prisoner.prisoner);
+            // Only append the " of " connector when a faction segment will actually follow.
+            if (!string.IsNullOrEmpty(subtitlePrefix) && !string.IsNullOrEmpty(factionName))
+                subtitlePrefix += " " + "FCOf".Translate() + " ";
+
+            float factionNameW = string.IsNullOrEmpty(factionName) ? 0f : Text.CalcSize(factionName).x + 2f;
+            const float factionIconSz = 16f;
+            float factionIconW = factionIcon != null ? factionIconSz + 2f : 0f;
+
+            // Right-most: faction name
+            if (!string.IsNullOrEmpty(factionName))
+            {
+                Rect factionNameRect = new Rect(subtitleRight - factionNameW, topY, factionNameW, topRowH);
+                Text.Anchor = TextAnchor.MiddleRight;
+                UIUtil.DrawColoredLabel(factionNameRect, factionName, FactionRelationColor(homeFaction));
+            }
+            // Next-right: faction icon (untinted — only the name carries the relation color)
+            if (factionIcon != null)
+            {
+                float iconX = subtitleRight - factionNameW - factionIconSz;
+                Rect iconRect = new Rect(iconX, topY + (topRowH - factionIconSz) / 2f, factionIconSz, factionIconSz);
+                GUI.DrawTexture(iconRect, factionIcon);
+            }
+            // Left-most: gray "Male, age N (M) of "
+            float prefixRight = subtitleRight - factionNameW - factionIconW;
+            Rect prefixRect = new Rect(subtitleLeft, topY, prefixRight - subtitleLeft, topRowH);
             Text.Anchor = TextAnchor.MiddleRight;
             GUI.color = ColoredText.SubtleGrayColor;
-            Widgets.Label(subtitleRect, BuildFactionLabel(prisoner.prisoner));
+            Widgets.Label(prefixRect, subtitlePrefix);
             GUI.color = origColor;
 
             // Left of center: info button + name+title
@@ -290,7 +347,7 @@ namespace FactionColonies
             }
 
             float nameX = centerX + infoBtnSz + 4f;
-            float nameW = subtitleRect.x - nameX - 4f;
+            float nameW = subtitleLeft - nameX - 4f;
             Rect nameRect = new Rect(nameX, topY, nameW, topRowH);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
@@ -321,11 +378,26 @@ namespace FactionColonies
             Widgets.Label(trendRect, wlTrend);
             GUI.color = origColor;
 
+            /* Optional "Downed: No Work" badge between health text and trend. The badge
+             * eats some of the health text's right edge when present, but never overlaps
+             * the trend label. */
+            bool downed = prisoner.prisoner is object && prisoner.prisoner.Downed;
+            const float badgeW = 120f;
+            const float badgeGap = 6f;
+            float healthRightEdge = trendRect.x - 4f;
+            if (downed)
+            {
+                Rect badgeRect = new Rect(trendRect.x - badgeGap - badgeW, botY, badgeW, botRowH);
+                Text.Anchor = TextAnchor.MiddleRight;
+                UIUtil.DrawColoredLabel(badgeRect, "FCPrisonerDownedNoWork".Translate(), AccentUtil.StatBad);
+                healthRightEdge = badgeRect.x - 4f;
+            }
+
             // Health text fills the remaining left side, color-graded by health value
-            Rect healthRect = new Rect(centerX, botY, trendRect.x - centerX - 4f, botRowH);
+            Rect healthRect = new Rect(centerX, botY, healthRightEdge - centerX, botRowH);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleLeft;
-            UIUtil.DrawColoredLabel(healthRect, "Health: " + (int)prisoner.health + "/100", AccentUtil.GetStatColor(prisoner.health, false));
+            UIUtil.DrawColoredLabel(healthRect, "Health".Translate().CapitalizeFirst() + ": " + (int)prisoner.health + "/100", AccentUtil.GetStatColor(prisoner.health, false));
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;

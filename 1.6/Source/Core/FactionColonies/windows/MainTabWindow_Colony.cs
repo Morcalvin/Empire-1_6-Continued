@@ -55,6 +55,7 @@ namespace FactionColonies
 
         // ===== PRISONERS STATE =====
         private Vector2 prisonersScroll;
+        private HashSet<int> collapsedPrisonerSections = new HashSet<int>();
 
         // ===== SORTED LIST CACHES =====
         private List<BillFC> cachedSortedBills;
@@ -2322,7 +2323,7 @@ namespace FactionColonies
                 Text.Anchor = TextAnchor.MiddleCenter;
                 GUI.color = Color.gray;
                 Widgets.Label(new Rect(rect.x, tableY + tableH * 0.35f, rect.width, 40f),
-                    "FCNoPrisoners".Translate());
+                    "FCNoPrisonersFaction".Translate());
                 GUI.color = origColor;
                 Text.Font = fontBefore;
                 Text.Anchor = anchorBefore;
@@ -2343,24 +2344,30 @@ namespace FactionColonies
             float contentH = 0f;
             for (int i = 0; i < faction.settlements.Count; i++)
             {
-                int count = faction.settlements[i].PrisonerComp?.prisonerList?.Count ?? 0;
+                WorldSettlementFC ss = faction.settlements[i];
+                int count = ss.PrisonerComp?.prisonerList?.Count ?? 0;
                 if (count == 0) continue;
-                int rows = Mathf.CeilToInt(count / 2f);
-                contentH += sectionHeaderH + rows * (PrisonerUtil.CompactRowHeight + rowGap) + sectionGap;
+                contentH += sectionHeaderH + sectionGap;
+                if (!collapsedPrisonerSections.Contains(ss.ID))
+                {
+                    int rows = Mathf.CeilToInt(count / 2f);
+                    contentH += rows * (PrisonerUtil.CompactRowHeight + rowGap);
+                }
             }
 
             Rect viewRect = new Rect(innerX, tableY, innerW, tableH);
             Rect scrollRect = ScrollUtil.BeginScrollView(viewRect, ref prisonersScroll, contentH);
 
             float cy = 0f;
-            int altIndex = 0;
             for (int i = 0; i < faction.settlements.Count; i++)
             {
                 WorldSettlementFC s = faction.settlements[i];
                 List<FCPrisoner> sList = s.PrisonerComp?.prisonerList;
                 if (sList is null || sList.Count == 0) continue;
 
-                // Section header: framed box wrapping accent + name (clickable) + count badge
+                bool collapsed = collapsedPrisonerSections.Contains(s.ID);
+
+                // Section header: framed box wrapping accent + name (clickable) + count badge (collapse toggle)
                 Color settlementAccent = AccentUtil.GetSettlementAccent(s);
                 Rect headerBoxRect = new Rect(0f, cy, scrollRect.width, sectionHeaderH);
                 Widgets.DrawMenuSection(headerBoxRect);
@@ -2382,26 +2389,38 @@ namespace FactionColonies
                     Find.WindowStack.Add(new SettlementWindowFc(s));
 
                 Rect countRect = new Rect(scrollRect.width - countColW - 4f, cy, countColW, sectionHeaderH);
+                if (Mouse.IsOver(countRect))
+                    Widgets.DrawHighlight(countRect);
+                if (Widgets.ButtonInvisible(countRect))
+                {
+                    if (collapsed) collapsedPrisonerSections.Remove(s.ID);
+                    else collapsedPrisonerSections.Add(s.ID);
+                    collapsed = !collapsed;
+                }
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleRight;
                 GUI.color = Color.gray;
-                Widgets.Label(countRect, "(" + sList.Count + ")");
+                Widgets.Label(countRect, "(" + sList.Count + ") " + (collapsed ? "▶" : "▼"));
                 GUI.color = origColor;
 
                 cy += sectionHeaderH;
 
-                /* 2-card grid. Even indices populate the left column, odd indices the right.
-                 * Row cursor advances only after the right card (or after a final odd-left card). */
-                float cardW = (scrollRect.width - prisonerRowIndent - cardGap) / 2f;
-                for (int j = 0; j < sList.Count; j++)
+                if (!collapsed)
                 {
-                    bool isLeft = (j % 2) == 0;
-                    float cardX = isLeft ? prisonerRowIndent : prisonerRowIndent + cardW + cardGap;
-                    Rect rowBox = new Rect(cardX, cy, cardW, PrisonerUtil.CompactRowHeight);
-                    PrisonerUtil.DrawPrisonerRowCompact(rowBox, sList[j], s, altIndex++, null);
-                    if (!isLeft || j == sList.Count - 1)
+                    /* 2-card grid with checkerboard highlight: (row + col) parity.
+                     * Row cursor advances only after the right card (or after a final odd-left card). */
+                    float cardW = (scrollRect.width - prisonerRowIndent - cardGap) / 2f;
+                    for (int j = 0; j < sList.Count; j++)
                     {
-                        cy += PrisonerUtil.CompactRowHeight + rowGap;
+                        bool isLeft = (j % 2) == 0;
+                        float cardX = isLeft ? prisonerRowIndent : prisonerRowIndent + cardW + cardGap;
+                        Rect rowBox = new Rect(cardX, cy, cardW, PrisonerUtil.CompactRowHeight);
+                        int checker = (j / 2) + (j % 2);  // (0,0)/(1,1)=highlight, (0,1)/(1,0)=plain
+                        PrisonerUtil.DrawPrisonerRowCompact(rowBox, sList[j], s, checker, null);
+                        if (!isLeft || j == sList.Count - 1)
+                        {
+                            cy += PrisonerUtil.CompactRowHeight + rowGap;
+                        }
                     }
                 }
 
