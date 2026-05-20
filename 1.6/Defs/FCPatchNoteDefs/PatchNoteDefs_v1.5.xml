@@ -86,4 +86,22 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_5</defName>
+		<label>Prisoner Update</label>
+		<description>A polish and balance pass for prisoners.</description>
+		<releaseDate>2026-05-19</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Adds a prisoner tab to the main tab window, giving an overview of all prisoners in your empire</li>
+		<li>Prisoners now lose health on a daily basis, instead of on each tax tick</li>
+		<li>Downed prisoners do not grant a worker bonus</li>
+		<li>Prisoners at full health no longer magically regrow their legs</li>
+		<li>Prisoners must be physically transported to the destination settlement and then transfer via world map gizmo. No more magical teleportation</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
