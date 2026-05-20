@@ -879,4 +879,32 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_63</defName>
+		<label>Merc Needs Fix</label>
+		<description>Empire sets merc needs to full before they&apos;re deployed, but modded races can mess with this check. This update makes the checks stricter.</description>
+		<releaseDate>2026-05-20</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Gate needs checks behind RaceProps.Humanlike instead of !AnimalOrWildMan()</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_64</defName>
+		<label>Mercantile Exotic Caravan Fix</label>
+		<description>Fixes an issue where having the Mercantile trait wouldn&apos;t actually unlock the exotic caravan type.</description>
+		<releaseDate>2026-05-20</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Use faction.HasTrait() to check for mercantile, not faction.HasPolicy(). I knew keeping traits and policies as the same deftype would bite me in the ass one day</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
