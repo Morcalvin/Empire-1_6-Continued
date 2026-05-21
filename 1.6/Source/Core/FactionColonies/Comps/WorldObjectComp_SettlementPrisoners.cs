@@ -4,7 +4,7 @@ using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
+using System.Text;
 using Verse;
 
 namespace FactionColonies
@@ -37,6 +37,7 @@ namespace FactionColonies
     public class WorldObjectComp_SettlementPrisoners : WorldObjectComp
     {
         public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
+        public WorldSettlementFC Parent => parent as WorldSettlementFC;
 
         /* Per-settlement override of FactionFC.defaultPrisonerWorkload. When
          * hasDefaultWorkloadOverride is false the settlement inherits the faction value. */
@@ -103,7 +104,42 @@ namespace FactionColonies
             }
 
             if (dead != null)
-                foreach (FCPrisoner d in dead) HandlePrisonerDeath(d);
+            {
+                WorldSettlementFC s = parent as WorldSettlementFC;
+                string sName = s?.Name ?? "";
+                Faction player = Find.FactionManager.OfPlayer;
+                Faction empire = FindFC.EmpireFaction;
+                const int goodwillPerDeath = -2;
+
+                List<string> deadNames = new List<string>(dead.Count);
+                Dictionary<Faction, int> goodwillByFaction = new Dictionary<Faction, int>();
+
+                for (int i = 0; i < dead.Count; i++)
+                {
+                    string name;
+                    Faction home;
+                    DropDeadPrisoner(dead[i], out name, out home);
+                    deadNames.Add(name);
+
+                    /* Skip non-relations factions: null, the player itself, our allied empire,
+                     * hidden factions (mechs etc.), permanent enemies (goodwill is locked). */
+                    if (home is null || home == player || home == empire
+                        || home.Hidden || home.def.permanentEnemy) continue;
+
+                    bool applied = home.TryAffectGoodwillWith(
+                        player, goodwillPerDeath,
+                        canSendMessage: false, canSendHostilityLetter: false,
+                        reason: HistoryEventDefOf.PrisonerDied);
+                    if (applied)
+                    {
+                        int total;
+                        if (!goodwillByFaction.TryGetValue(home, out total)) total = 0;
+                        goodwillByFaction[home] = total + goodwillPerDeath;
+                    }
+                }
+
+                SendDeathLetter(sName, deadNames, goodwillByFaction);
+            }
 
             // A Light-workload heal may have un-downed a prisoner, so refresh the worker cap.
             (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
@@ -120,16 +156,52 @@ namespace FactionColonies
             return removed;
         }
 
-        private void HandlePrisonerDeath(FCPrisoner p)
+        /* Removes the prisoner and returns the data the death-letter builder needs.
+         * homeFaction is the prisoner's original faction (pawn.guest.HomeFaction) — used
+         * by the caller to apply a goodwill penalty against the player. */
+        private void DropDeadPrisoner(FCPrisoner p, out string pawnName, out Faction homeFaction)
         {
-            WorldSettlementFC s = parent as WorldSettlementFC;
-            string pawnName = p.prisoner?.Name?.ToString() ?? "";
-            string sName = s?.Name ?? "";
+            pawnName    = p.prisoner?.Name?.ToString() ?? "";
+            homeFaction = p.prisoner?.Faction;
             RemovePrisoner(p);
-            Find.LetterStack.ReceiveLetter(
-                "FCPrisonerHasDiedLetter".Translate(),
-                "FCPrisonerHasDied".Translate(pawnName, sName),
-                LetterDefOf.NeutralEvent);
+        }
+
+        private static void SendDeathLetter(
+            string settlementName,
+            List<string> deadNames,
+            Dictionary<Faction, int> goodwillByFaction)
+        {
+            string title;
+            string body;
+            if (deadNames.Count == 1)
+            {
+                // Preserve existing single-death wording.
+                title = "FCPrisonerHasDiedLetter".Translate();
+                body  = "FCPrisonerHasDied".Translate(deadNames[0], settlementName);
+            }
+            else
+            {
+                StringBuilder header = new StringBuilder();
+                header.AppendLine("FCPrisonersHaveDiedBody".Translate(deadNames.Count, settlementName));
+                header.AppendLine();
+                foreach (string deadname in deadNames)
+                    header.AppendLine("  - " + deadname);
+                title = "FCPrisonersHaveDiedLetter".Translate();
+                body  = header.ToString().TrimEnd();
+            }
+
+            if (goodwillByFaction.Count > 0)
+            {
+                StringBuilder sb = new StringBuilder(body);
+                sb.AppendLine();
+                sb.AppendLine();
+                sb.AppendLine("FCPrisonerDeathGoodwillHeader".Translate());
+                foreach (KeyValuePair<Faction, int> kvp in goodwillByFaction)
+                    sb.AppendLine("  " + kvp.Key.Name + ": " + kvp.Value);
+                body = sb.ToString().TrimEnd();
+            }
+
+            Find.LetterStack.ReceiveLetter(title, body, LetterDefOf.NeutralEvent);
         }
 
         public void AddPrisoner(Pawn pawn)
