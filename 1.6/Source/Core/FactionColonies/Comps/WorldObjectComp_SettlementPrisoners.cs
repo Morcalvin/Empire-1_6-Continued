@@ -90,12 +90,7 @@ namespace FactionColonies
             List<FCPrisoner> dead = null;
             foreach (FCPrisoner p in prisonerList)
             {
-                switch (p.workload)
-                {
-                    case FCWorkLoad.Heavy:  p.AdjustHealth(-4); break;
-                    case FCWorkLoad.Medium: p.AdjustHealth(-2); break;
-                    case FCWorkLoad.Light:  p.AdjustHealth(1);  break;
-                }
+                p.AdjustHealth(p.workload);
                 if (p.IsDead)
                 {
                     if (dead is null) dead = new List<FCPrisoner>();
@@ -343,16 +338,8 @@ namespace FactionColonies
         public void OpenWorkloadFloatMenu(FCPrisoner p)
         {
             if (p is null) return;
-            List<FloatMenuOption> wlList = new List<FloatMenuOption>
-            {
-                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
-                    delegate { SetWorkload(p, FCWorkLoad.Heavy); }),
-                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
-                    delegate { SetWorkload(p, FCWorkLoad.Medium); }),
-                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
-                    delegate { SetWorkload(p, FCWorkLoad.Light); })
-            };
-            Find.WindowStack.Add(new FloatMenu(wlList));
+            Find.WindowStack.Add(new FloatMenu(
+                FCWorkLoadInfo.BuildSelectionMenu(delegate (FCWorkLoad w) { SetWorkload(p, w); })));
         }
 
         /* Sets this settlement's default-workload override for newly captured prisoners.
@@ -360,15 +347,7 @@ namespace FactionColonies
          * FactionFC.defaultPrisonerWorkload again. */
         public void OpenDefaultWorkloadFloatMenu()
         {
-            List<FloatMenuOption> list = new List<FloatMenuOption>
-            {
-                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
-                    delegate { SetDefaultWorkloadOverride(FCWorkLoad.Heavy); }),
-                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
-                    delegate { SetDefaultWorkloadOverride(FCWorkLoad.Medium); }),
-                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
-                    delegate { SetDefaultWorkloadOverride(FCWorkLoad.Light); })
-            };
+            List<FloatMenuOption> list = FCWorkLoadInfo.BuildSelectionMenu(SetDefaultWorkloadOverride);
             if (hasDefaultWorkloadOverride)
             {
                 list.Add(new FloatMenuOption("FCUseFactionDefault".Translate(),
@@ -381,16 +360,7 @@ namespace FactionColonies
          * Routes each assignment through SetWorkload so DirtyStatsCache fires correctly. */
         public void OpenBulkSetWorkloadFloatMenu()
         {
-            List<FloatMenuOption> list = new List<FloatMenuOption>
-            {
-                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
-                    delegate { BulkSetWorkload(FCWorkLoad.Heavy); }),
-                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
-                    delegate { BulkSetWorkload(FCWorkLoad.Medium); }),
-                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
-                    delegate { BulkSetWorkload(FCWorkLoad.Light); })
-            };
-            Find.WindowStack.Add(new FloatMenu(list));
+            Find.WindowStack.Add(new FloatMenu(FCWorkLoadInfo.BuildSelectionMenu(BulkSetWorkload)));
         }
 
         public void BulkSetWorkload(FCWorkLoad w)
@@ -406,19 +376,20 @@ namespace FactionColonies
             foreach (FCPrisoner p in prisonerList)
             {
                 if (p?.prisoner is null || p.prisoner.Downed) continue;
-                switch (p.workload)
-                {
-                    case FCWorkLoad.Medium: num++; break;
-                    case FCWorkLoad.Heavy:  num += 2; break;
-                }
+                num += FCWorkLoadInfo.WorkerSlots(p.workload);
             }
             return num;
         }
 
         public int ReturnOverMaxWorkersFromPrisoners()
         {
-            return prisonerList.Count(p =>
-                p?.prisoner is object && !p.prisoner.Downed && p.workload == FCWorkLoad.Light);
+            int num = 0;
+            foreach (FCPrisoner p in prisonerList)
+            {
+                if (p?.prisoner is null || p.prisoner.Downed) continue;
+                num += FCWorkLoadInfo.OverMaxSlots(p.workload);
+            }
+            return num;
         }
 
         public override IEnumerable<Gizmo> GetCaravanGizmos(Caravan caravan)
