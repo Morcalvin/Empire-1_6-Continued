@@ -141,9 +141,19 @@
 	<FCHeavy>heavy</FCHeavy>
 	<FCMedium>medium</FCMedium>
 	<FCLight>light</FCLight>
+	<FCDebugLight>debug light</FCDebugLight>
+	<FCDebugHeavy>debug heavy</FCDebugHeavy>
 	<FCHeavyExplanation>Adds +2 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 4 per day.</FCHeavyExplanation>
 	<FCMediumExplanation>Adds +1 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 2 per day.</FCMediumExplanation>
 	<FCLightExplanation>Adds +1 to worker hard cap (Over-Max Workers). Restores health by 1 per day.</FCLightExplanation>
+	<FCDebugLightExplanation>DEBUG ONLY. +1 worker soft cap, +1 worker hard cap. Reduces health by 50 per day.</FCDebugLightExplanation>
+	<FCDebugHeavyExplanation>DEBUG ONLY. +2 worker soft cap, +2 worker hard cap. Reduces healty by 100 per day.</FCDebugHeavyExplanation>
+	<FCSetDefaultWorkload>Default workload</FCSetDefaultWorkload>
+	<FCSetDefaultWorkloadShort>Default</FCSetDefaultWorkloadShort>
+	<FCBulkSetWorkload>Bulk set workloads</FCBulkSetWorkload>
+	<FCBulkSetWorkloadShort>Bulk set</FCBulkSetWorkloadShort>
+	<FCUseFactionDefault>Use faction default</FCUseFactionDefault>
+	<FCFromFaction>Faction</FCFromFaction>
 	<FCPrisonerHealthChangePerDay>{0}/day</FCPrisonerHealthChangePerDay>
 	<FCPrisonerDownedNoWork>Downed: No Work</FCPrisonerDownedNoWork>
 	<FCAge>age</FCAge>

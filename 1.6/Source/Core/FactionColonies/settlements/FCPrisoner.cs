@@ -7,13 +7,6 @@ using Verse;
 
 namespace FactionColonies
 {
-    public enum FCWorkLoad : Byte
-    {
-        Light, //Adds to overmax
-        Medium, //Adds 1 to max
-        Heavy //Adds 2 to max
-    }
-
     public class FCPrisoner : ILoadReferenceable, IExposable
     {
         public Pawn prisoner;
@@ -118,9 +111,9 @@ namespace FactionColonies
 
 
 
-        public void AdjustHealth(int value)
+        public void AdjustHealth(FCWorkLoad workload)
         {
-            health += value;
+            health += FCWorkLoadInfo.HealthDelta(workload);
             if (health >= 100)
             {
                 health = 100;

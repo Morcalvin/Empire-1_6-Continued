@@ -37,11 +37,15 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Title bar — reserve ~40px on the right for the "(N)" badge and truncate
-            // the title label instead of wrapping to a second line.
+            // Title bar — title (truncated) | count badge
             const float countBadgeW = 40f;
-            Rect titleRect = new Rect(inRect.x, inRect.y, inRect.width - countBadgeW, titleHeight);
-            Rect countRect = new Rect(titleRect.xMax, inRect.y, countBadgeW, titleHeight);
+            const float btnGap = 4f;
+            const float btnRowGap = 4f;
+            float btnW = (inRect.width - btnGap) / 2f;
+            WorldObjectComp_SettlementPrisoners comp = settlement.PrisonerComp;
+
+            Rect countRect = new Rect(inRect.xMax - countBadgeW, inRect.y, countBadgeW, titleHeight);
+            Rect titleRect = new Rect(inRect.x, inRect.y, countRect.x - inRect.x, titleHeight);
 
             bool wordWrapBefore = Text.WordWrap;
             Text.WordWrap = false;
@@ -57,8 +61,34 @@ namespace FactionColonies
             }
 
             // Divider
-            float contentY = titleRect.yMax + dividerGap;
             UIUtil.DrawColoredHorizontalLine(inRect.x, titleRect.yMax + (dividerGap / 2f), inRect.width, Color.gray);
+
+            // Button row (right-aligned, above prisoner list)
+            float buttonRowY = titleRect.yMax + dividerGap;
+            float contentY = buttonRowY;
+
+            if (comp is object)
+            {
+                Rect bulkRect = new Rect(inRect.xMax - btnW, buttonRowY, btnW, titleHeight);
+                Rect defaultRect = new Rect(bulkRect.x - btnGap - btnW, buttonRowY, btnW, titleHeight);
+
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                string defaultBtnLabel = comp.hasDefaultWorkloadOverride
+                    ? "FCSetDefaultWorkloadShort".Translate() + ": " + PrisonerUtil.WorkloadLabel(comp.defaultWorkloadOverride)
+                    : "FCSetDefaultWorkloadShort".Translate() + ": " + "FCFromFaction".Translate()
+                        + " (" + PrisonerUtil.WorkloadLabel(comp.GetEffectiveDefaultWorkload()) + ")";
+                if (UIUtil.ButtonFlat(defaultRect, defaultBtnLabel))
+                    comp.OpenDefaultWorkloadFloatMenu();
+
+                if (prisoners.Count > 0)
+                {
+                    if (UIUtil.ButtonFlat(bulkRect, "FCBulkSetWorkloadShort".Translate()))
+                        comp.OpenBulkSetWorkloadFloatMenu();
+                }
+
+                contentY = buttonRowY + titleHeight + btnRowGap;
+            }
 
             float contentHeight = inRect.height - contentY;
 

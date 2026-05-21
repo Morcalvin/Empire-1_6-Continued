@@ -4,7 +4,7 @@ using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
+using System.Text;
 using Verse;
 
 namespace FactionColonies
@@ -37,12 +37,38 @@ namespace FactionColonies
     public class WorldObjectComp_SettlementPrisoners : WorldObjectComp
     {
         public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
+        public WorldSettlementFC WorldSettlement => parent as WorldSettlementFC;
+
+        /* Per-settlement override of FactionFC.defaultPrisonerWorkload. When
+         * hasDefaultWorkloadOverride is false the settlement inherits the faction value. */
+        public bool hasDefaultWorkloadOverride;
+        public FCWorkLoad defaultWorkloadOverride = FCWorkLoad.Light;
 
         public override void PostExposeData()
         {
             base.PostExposeData();
             Scribe_Collections.Look(ref prisonerList, "prisoners", LookMode.Deep);
             if (prisonerList is null) prisonerList = new List<FCPrisoner>();
+            Scribe_Values.Look(ref hasDefaultWorkloadOverride, "hasDefaultWorkloadOverride", false);
+            Scribe_Values.Look(ref defaultWorkloadOverride, "defaultWorkloadOverride", FCWorkLoad.Light);
+        }
+
+        public FCWorkLoad GetEffectiveDefaultWorkload()
+        {
+            if (hasDefaultWorkloadOverride) return defaultWorkloadOverride;
+            FactionFC comp = FindFC.FactionComp;
+            return comp?.defaultPrisonerWorkload ?? FCWorkLoad.Light;
+        }
+
+        public void SetDefaultWorkloadOverride(FCWorkLoad w)
+        {
+            hasDefaultWorkloadOverride = true;
+            defaultWorkloadOverride = w;
+        }
+
+        public void ClearDefaultWorkloadOverride()
+        {
+            hasDefaultWorkloadOverride = false;
         }
 
         public override void CompTick()
@@ -64,12 +90,7 @@ namespace FactionColonies
             List<FCPrisoner> dead = null;
             foreach (FCPrisoner p in prisonerList)
             {
-                switch (p.workload)
-                {
-                    case FCWorkLoad.Heavy:  p.AdjustHealth(-4); break;
-                    case FCWorkLoad.Medium: p.AdjustHealth(-2); break;
-                    case FCWorkLoad.Light:  p.AdjustHealth(1);  break;
-                }
+                p.AdjustHealth(p.workload);
                 if (p.IsDead)
                 {
                     if (dead is null) dead = new List<FCPrisoner>();
@@ -78,10 +99,44 @@ namespace FactionColonies
             }
 
             if (dead != null)
-                foreach (FCPrisoner d in dead) HandlePrisonerDeath(d);
+            {
+                string sName = WorldSettlement?.Name ?? "";
+                Faction player = Find.FactionManager.OfPlayer;
+                Faction empire = FindFC.EmpireFaction;
+                const int goodwillPerDeath = -2;
+
+                List<string> deadNames = new List<string>(dead.Count);
+                Dictionary<Faction, int> goodwillByFaction = new Dictionary<Faction, int>();
+
+                for (int i = 0; i < dead.Count; i++)
+                {
+                    string name;
+                    Faction home;
+                    DropDeadPrisoner(dead[i], out name, out home);
+                    deadNames.Add(name);
+
+                    /* Skip non-relations factions: null, the player itself, our allied empire,
+                     * hidden factions (mechs etc.), permanent enemies (goodwill is locked). */
+                    if (home is null || home == player || home == empire
+                        || home.Hidden || home.def.permanentEnemy) continue;
+
+                    bool applied = home.TryAffectGoodwillWith(
+                        player, goodwillPerDeath,
+                        canSendMessage: false, canSendHostilityLetter: false,
+                        reason: HistoryEventDefOf.PrisonerDied);
+                    if (applied)
+                    {
+                        int total;
+                        if (!goodwillByFaction.TryGetValue(home, out total)) total = 0;
+                        goodwillByFaction[home] = total + goodwillPerDeath;
+                    }
+                }
+
+                SendDeathLetter(sName, deadNames, goodwillByFaction);
+            }
 
             // A Light-workload heal may have un-downed a prisoner, so refresh the worker cap.
-            (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
+            WorldSettlement?.NotifyWorkforceChanged();
         }
 
         /* The single removal entry point — no other code should call prisonerList.Remove
@@ -91,25 +146,61 @@ namespace FactionColonies
         {
             if (prisonerList is null) return false;
             bool removed = prisonerList.Remove(p);
-            if (removed) (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
+            if (removed) WorldSettlement?.NotifyWorkforceChanged();
             return removed;
         }
 
-        private void HandlePrisonerDeath(FCPrisoner p)
+        /* Removes the prisoner and returns the data the death-letter builder needs.
+         * homeFaction is the prisoner's original faction (pawn.guest.HomeFaction) — used
+         * by the caller to apply a goodwill penalty against the player. */
+        private void DropDeadPrisoner(FCPrisoner p, out string pawnName, out Faction homeFaction)
         {
-            WorldSettlementFC s = parent as WorldSettlementFC;
-            string pawnName = p.prisoner?.Name?.ToString() ?? "";
-            string sName = s?.Name ?? "";
+            pawnName    = p.prisoner?.Name?.ToString() ?? "";
+            homeFaction = p.prisoner?.Faction;
             RemovePrisoner(p);
-            Find.LetterStack.ReceiveLetter(
-                "FCPrisonerHasDiedLetter".Translate(),
-                "FCPrisonerHasDied".Translate(pawnName, sName),
-                LetterDefOf.NeutralEvent);
+        }
+
+        private static void SendDeathLetter(
+            string settlementName,
+            List<string> deadNames,
+            Dictionary<Faction, int> goodwillByFaction)
+        {
+            string title;
+            string body;
+            if (deadNames.Count == 1)
+            {
+                // Preserve existing single-death wording.
+                title = "FCPrisonerHasDiedLetter".Translate();
+                body  = "FCPrisonerHasDied".Translate(deadNames[0], settlementName);
+            }
+            else
+            {
+                StringBuilder header = new StringBuilder();
+                header.AppendLine("FCPrisonersHaveDiedBody".Translate(deadNames.Count, settlementName));
+                header.AppendLine();
+                foreach (string deadname in deadNames)
+                    header.AppendLine("  - " + deadname);
+                title = "FCPrisonersHaveDiedLetter".Translate();
+                body  = header.ToString().TrimEnd();
+            }
+
+            if (goodwillByFaction.Count > 0)
+            {
+                StringBuilder sb = new StringBuilder(body);
+                sb.AppendLine();
+                sb.AppendLine();
+                sb.AppendLine("FCPrisonerDeathGoodwillHeader".Translate());
+                foreach (KeyValuePair<Faction, int> kvp in goodwillByFaction)
+                    sb.AppendLine("  " + kvp.Key.Name + ": " + kvp.Value);
+                body = sb.ToString().TrimEnd();
+            }
+
+            Find.LetterStack.ReceiveLetter(title, body, LetterDefOf.NeutralEvent);
         }
 
         public void AddPrisoner(Pawn pawn)
         {
-            WorldSettlementFC settlement = parent as WorldSettlementFC;
+            WorldSettlementFC settlement = WorldSettlement;
             if (settlement is null || pawn is null) return;
 
             // FCPrisoner is the canonical deep owner of the held pawn. If WorldPawns
@@ -120,7 +211,9 @@ namespace FactionColonies
             {
                 Find.WorldPawns.RemovePawn(pawn);
             }
-            prisonerList.Add(new FCPrisoner(pawn, settlement));
+            FCPrisoner created = new FCPrisoner(pawn, settlement);
+            created.workload = GetEffectiveDefaultWorkload();
+            prisonerList.Add(created);
             settlement.DirtyStatsCache();
         }
 
@@ -142,8 +235,7 @@ namespace FactionColonies
             if (toRemove is null) return 0;
             foreach (FCPrisoner p in toRemove) RemovePrisoner(p);
 
-            WorldSettlementFC s = parent as WorldSettlementFC;
-            LogUtil.Warning("Culled " + toRemove.Count + " null prisoner(s) from " + (s?.Name ?? "<unknown>"));
+            LogUtil.Warning("Culled " + toRemove.Count + " null prisoner(s) from " + (WorldSettlement?.Name ?? "<unknown>"));
             return toRemove.Count;
         }
 
@@ -183,21 +275,20 @@ namespace FactionColonies
         {
             if (p is null) return;
             p.workload = workload;
-            (parent as WorldSettlementFC)?.DirtyStatsCache();
+            WorldSettlement?.DirtyStatsCache();
         }
 
         public void SellPrisoner(FCPrisoner p)
         {
             if (p?.prisoner is null) return;
-            WorldSettlementFC s = parent as WorldSettlementFC;
-            s?.AddOneTimeSilverIncome(p.prisoner.MarketValue);
+            WorldSettlement?.AddOneTimeSilverIncome(p.prisoner.MarketValue);
             RemovePrisoner(p);
         }
 
         public void ReturnPrisonerToPlayer(FCPrisoner p)
         {
             if (p?.prisoner is null) return;
-            WorldSettlementFC s = parent as WorldSettlementFC;
+            WorldSettlementFC s = WorldSettlement;
             if (s is null) return;
 
             if (!HealthUtility.TryAnesthetize(p.prisoner))
@@ -247,16 +338,35 @@ namespace FactionColonies
         public void OpenWorkloadFloatMenu(FCPrisoner p)
         {
             if (p is null) return;
-            List<FloatMenuOption> wlList = new List<FloatMenuOption>
+            Find.WindowStack.Add(new FloatMenu(
+                FCWorkLoadInfo.BuildSelectionMenu(delegate (FCWorkLoad w) { SetWorkload(p, w); })));
+        }
+
+        /* Sets this settlement's default-workload override for newly captured prisoners.
+         * The "Use faction default" option clears the override so the settlement inherits
+         * FactionFC.defaultPrisonerWorkload again. */
+        public void OpenDefaultWorkloadFloatMenu()
+        {
+            List<FloatMenuOption> list = FCWorkLoadInfo.BuildSelectionMenu(SetDefaultWorkloadOverride);
+            if (hasDefaultWorkloadOverride)
             {
-                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
-                    delegate { SetWorkload(p, FCWorkLoad.Heavy); }),
-                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
-                    delegate { SetWorkload(p, FCWorkLoad.Medium); }),
-                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
-                    delegate { SetWorkload(p, FCWorkLoad.Light); })
-            };
-            Find.WindowStack.Add(new FloatMenu(wlList));
+                list.Add(new FloatMenuOption("FCUseFactionDefault".Translate(),
+                    delegate { ClearDefaultWorkloadOverride(); }));
+            }
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        /* Bulk-applies the chosen workload to every prisoner in this settlement.
+         * Routes each assignment through SetWorkload so DirtyStatsCache fires correctly. */
+        public void OpenBulkSetWorkloadFloatMenu()
+        {
+            Find.WindowStack.Add(new FloatMenu(FCWorkLoadInfo.BuildSelectionMenu(BulkSetWorkload)));
+        }
+
+        public void BulkSetWorkload(FCWorkLoad w)
+        {
+            if (prisonerList is null) return;
+            for (int i = 0; i < prisonerList.Count; i++) SetWorkload(prisonerList[i], w);
         }
 
         /* Downed prisoners can't perform any work, so they're excluded from worker contributions. */
@@ -266,19 +376,20 @@ namespace FactionColonies
             foreach (FCPrisoner p in prisonerList)
             {
                 if (p?.prisoner is null || p.prisoner.Downed) continue;
-                switch (p.workload)
-                {
-                    case FCWorkLoad.Medium: num++; break;
-                    case FCWorkLoad.Heavy:  num += 2; break;
-                }
+                num += FCWorkLoadInfo.WorkerSlots(p.workload);
             }
             return num;
         }
 
         public int ReturnOverMaxWorkersFromPrisoners()
         {
-            return prisonerList.Count(p =>
-                p?.prisoner is object && !p.prisoner.Downed && p.workload == FCWorkLoad.Light);
+            int num = 0;
+            foreach (FCPrisoner p in prisonerList)
+            {
+                if (p?.prisoner is null || p.prisoner.Downed) continue;
+                num += FCWorkLoadInfo.OverMaxSlots(p.workload);
+            }
+            return num;
         }
 
         public override IEnumerable<Gizmo> GetCaravanGizmos(Caravan caravan)
@@ -288,8 +399,7 @@ namespace FactionColonies
                 yield return gizmo;
             }
 
-            WorldSettlementFC settlement = parent as WorldSettlementFC;
-            if (settlement is null) yield break;
+            if (WorldSettlement is null) yield break;
             if (caravan is null || caravan.Tile != parent.Tile) yield break;
             if (FindFC.FactionComp is null) yield break;
             if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
@@ -305,8 +415,7 @@ namespace FactionColonies
                 yield return gizmo;
             }
 
-            WorldSettlementFC settlement = parent as WorldSettlementFC;
-            if (settlement is null) yield break;
+            if (WorldSettlement is null) yield break;
             if (FindFC.FactionComp is null) yield break;
             if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
 

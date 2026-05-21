@@ -146,4 +146,21 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_9</defName>
+		<label>Prisoners Update 2</label>
+		<description>Adds some quality-of-life features to prisoner handling, and also a slight balance pass.</description>
+		<releaseDate>2026-05-21</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Adds buttons to set the default prisoner workload on a faction and per-settlement basis</li>
+		<li>Adds buttons to bulk set prisoner workloads on a faction and per-settlement basis</li>
+		<li>Multiple prisoner deaths at the same settlement are bundled into one letter</li>
+		<li>Prisoner deaths now grant a -2 relations penalty with the prisoner&apos;s home faction</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
