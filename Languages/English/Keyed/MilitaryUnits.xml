@@ -144,6 +144,12 @@
 	<FCHeavyExplanation>Adds +2 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 4 per day.</FCHeavyExplanation>
 	<FCMediumExplanation>Adds +1 to worker soft cap (Max Workers Before Scaling Costs). Reduces health by 2 per day.</FCMediumExplanation>
 	<FCLightExplanation>Adds +1 to worker hard cap (Over-Max Workers). Restores health by 1 per day.</FCLightExplanation>
+	<FCSetDefaultWorkload>Default workload</FCSetDefaultWorkload>
+	<FCSetDefaultWorkloadShort>Default</FCSetDefaultWorkloadShort>
+	<FCBulkSetWorkload>Bulk set workloads</FCBulkSetWorkload>
+	<FCBulkSetWorkloadShort>Bulk set</FCBulkSetWorkloadShort>
+	<FCUseFactionDefault>Use faction default</FCUseFactionDefault>
+	<FCFromFaction>Faction</FCFromFaction>
 	<FCPrisonerHealthChangePerDay>{0}/day</FCPrisonerHealthChangePerDay>
 	<FCPrisonerDownedNoWork>Downed: No Work</FCPrisonerDownedNoWork>
 	<FCAge>age</FCAge>

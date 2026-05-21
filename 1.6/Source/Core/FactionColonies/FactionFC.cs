@@ -191,6 +191,10 @@ namespace FactionColonies
         // Migration State block at the end of this region for the load-time shim.
         public int nextPrisonerID = 1;
 
+        /* Workload assigned to new prisoners on capture. Per-settlement override lives on
+         * WorldObjectComp_SettlementPrisoners.defaultWorkloadOverride. */
+        public FCWorkLoad defaultPrisonerWorkload = FCWorkLoad.Light;
+
         /* Filters & Misc */
         public XenotypeFilter xenotypeFilter;
         public AnimalFilter animalFilter;
@@ -330,6 +334,9 @@ namespace FactionColonies
 
             //Load ID tracking
             Scribe_Values.Look(ref nextPrisonerID, "nextPrisonerID", 1);
+
+            //Prisoner defaults
+            Scribe_Values.Look(ref defaultPrisonerWorkload, "defaultPrisonerWorkload", FCWorkLoad.Light);
 
             //Tax/billing
             Scribe_Deep.Look(ref taxLedger, "taxLedger");

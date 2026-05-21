@@ -48,6 +48,60 @@ namespace FactionColonies
             return false;
         }
 
+        public static string WorkloadLabel(FCWorkLoad w)
+        {
+            switch (w)
+            {
+                case FCWorkLoad.Heavy:  return "FCHeavy".Translate().CapitalizeFirst();
+                case FCWorkLoad.Medium: return "FCMedium".Translate().CapitalizeFirst();
+                case FCWorkLoad.Light:  return "FCLight".Translate().CapitalizeFirst();
+                default: return "?";
+            }
+        }
+
+        /* Faction-scope: sets FactionFC.defaultPrisonerWorkload. Settlements with their
+         * own override are unaffected. */
+        public static void OpenFactionDefaultWorkloadFloatMenu(FactionFC faction)
+        {
+            if (faction is null) return;
+            List<FloatMenuOption> list = new List<FloatMenuOption>
+            {
+                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
+                    delegate { faction.defaultPrisonerWorkload = FCWorkLoad.Heavy; }),
+                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
+                    delegate { faction.defaultPrisonerWorkload = FCWorkLoad.Medium; }),
+                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
+                    delegate { faction.defaultPrisonerWorkload = FCWorkLoad.Light; })
+            };
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        /* Faction-scope: bulk-applies the chosen workload to every prisoner in every
+         * settlement. Routes through each settlement's SetWorkload so per-settlement
+         * stat caches dirty correctly. */
+        public static void OpenFactionBulkSetWorkloadFloatMenu(FactionFC faction)
+        {
+            if (faction?.settlements is null) return;
+            List<FloatMenuOption> list = new List<FloatMenuOption>
+            {
+                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
+                    delegate { BulkSetAllSettlements(faction, FCWorkLoad.Heavy); }),
+                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
+                    delegate { BulkSetAllSettlements(faction, FCWorkLoad.Medium); }),
+                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
+                    delegate { BulkSetAllSettlements(faction, FCWorkLoad.Light); })
+            };
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        private static void BulkSetAllSettlements(FactionFC faction, FCWorkLoad w)
+        {
+            for (int i = 0; i < faction.settlements.Count; i++)
+            {
+                faction.settlements[i]?.PrisonerComp?.BulkSetWorkload(w);
+            }
+        }
+
         private static void GetWorkloadPresentation(FCWorkLoad workload, out string label, out string trend, out Color trendColor)
         {
             switch (workload)

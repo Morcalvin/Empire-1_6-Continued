@@ -37,11 +37,17 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Title bar — reserve ~40px on the right for the "(N)" badge and truncate
-            // the title label instead of wrapping to a second line.
+            // Title bar — title (truncated) | count badge | Default workload | Bulk set
             const float countBadgeW = 40f;
-            Rect titleRect = new Rect(inRect.x, inRect.y, inRect.width - countBadgeW, titleHeight);
-            Rect countRect = new Rect(titleRect.xMax, inRect.y, countBadgeW, titleHeight);
+            const float btnW = 135f;
+            const float btnGap = 4f;
+            WorldObjectComp_SettlementPrisoners comp = settlement.PrisonerComp;
+
+            float bxRight = inRect.xMax;
+            Rect bulkRect = new Rect(bxRight - btnW, inRect.y, btnW, titleHeight);
+            Rect defaultRect = new Rect(bulkRect.x - btnGap - btnW, inRect.y, btnW, titleHeight);
+            Rect countRect = new Rect(defaultRect.x - btnGap - countBadgeW, inRect.y, countBadgeW, titleHeight);
+            Rect titleRect = new Rect(inRect.x, inRect.y, countRect.x - inRect.x, titleHeight);
 
             bool wordWrapBefore = Text.WordWrap;
             Text.WordWrap = false;
@@ -54,6 +60,23 @@ namespace FactionColonies
             {
                 Text.Anchor = TextAnchor.MiddleRight;
                 UIUtil.DrawColoredLabel(countRect, "(" + prisoners.Count + ")", Color.gray);
+            }
+
+            if (comp is object)
+            {
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                string defaultBtnLabel = comp.hasDefaultWorkloadOverride
+                    ? "FCSetDefaultWorkloadShort".Translate() + ": " + PrisonerUtil.WorkloadLabel(comp.defaultWorkloadOverride)
+                    : "FCSetDefaultWorkloadShort".Translate() + ": " + "FCFromFaction".Translate();
+                if (UIUtil.ButtonFlat(defaultRect, defaultBtnLabel))
+                    comp.OpenDefaultWorkloadFloatMenu();
+
+                if (prisoners.Count > 0)
+                {
+                    if (UIUtil.ButtonFlat(bulkRect, "FCBulkSetWorkloadShort".Translate()))
+                        comp.OpenBulkSetWorkloadFloatMenu();
+                }
             }
 
             // Divider

@@ -2280,13 +2280,16 @@ namespace FactionColonies
             float y = rect.y;
             float width = rect.width;
 
-            // --- Header: faction icon + name label (matches Military tab style) ---
+            // --- Header: faction icon + name label + workload buttons (matches Military tab style) ---
+            float buttonWidth = 187f;
             float buttonHeight = 35f;
+            bool hasSettlements = faction.settlements?.Count > 0;
+            float bx = hasSettlements ? rect.xMax - buttonWidth * 2 - margin : rect.xMax - margin;
 
             Rect iconRect = new Rect(x + margin, y + margin, buttonHeight, buttonHeight);
             Widgets.ButtonImage(iconRect, faction.factionIcon);
 
-            Rect labelBox = new Rect(iconRect.xMax + margin, y + margin, rect.xMax - iconRect.xMax - (margin * 2), buttonHeight);
+            Rect labelBox = new Rect(iconRect.xMax + margin, y + margin, bx - iconRect.xMax - (margin * 2), buttonHeight);
             Rect labelTextBox = new Rect(labelBox.x + margin, labelBox.y, labelBox.width - (margin * 2), labelBox.height);
 
             GameFont fontBefore = Text.Font;
@@ -2297,6 +2300,19 @@ namespace FactionColonies
             Text.Anchor = TextAnchor.MiddleLeft;
             Widgets.DrawHighlight(labelBox);
             Widgets.Label(labelTextBox, faction.name ?? "");
+
+            if (hasSettlements)
+            {
+                string defLabel = "FCSetDefaultWorkload".Translate() + ": " +
+                                  PrisonerUtil.WorkloadLabel(faction.defaultPrisonerWorkload);
+                if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight), defLabel))
+                    PrisonerUtil.OpenFactionDefaultWorkloadFloatMenu(faction);
+                bx += buttonWidth;
+
+                if (Widgets.ButtonTextSubtle(new Rect(bx, y + margin, buttonWidth, buttonHeight),
+                                             "FCBulkSetWorkload".Translate()))
+                    PrisonerUtil.OpenFactionBulkSetWorkloadFloatMenu(faction);
+            }
 
             y += buttonHeight + margin * 2;
 

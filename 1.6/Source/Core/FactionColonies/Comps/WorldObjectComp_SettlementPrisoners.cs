@@ -38,11 +38,36 @@ namespace FactionColonies
     {
         public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
 
+        /* Per-settlement override of FactionFC.defaultPrisonerWorkload. When
+         * hasDefaultWorkloadOverride is false the settlement inherits the faction value. */
+        public bool hasDefaultWorkloadOverride;
+        public FCWorkLoad defaultWorkloadOverride = FCWorkLoad.Light;
+
         public override void PostExposeData()
         {
             base.PostExposeData();
             Scribe_Collections.Look(ref prisonerList, "prisoners", LookMode.Deep);
             if (prisonerList is null) prisonerList = new List<FCPrisoner>();
+            Scribe_Values.Look(ref hasDefaultWorkloadOverride, "hasDefaultWorkloadOverride", false);
+            Scribe_Values.Look(ref defaultWorkloadOverride, "defaultWorkloadOverride", FCWorkLoad.Light);
+        }
+
+        public FCWorkLoad GetEffectiveDefaultWorkload()
+        {
+            if (hasDefaultWorkloadOverride) return defaultWorkloadOverride;
+            FactionFC comp = FindFC.FactionComp;
+            return comp?.defaultPrisonerWorkload ?? FCWorkLoad.Light;
+        }
+
+        public void SetDefaultWorkloadOverride(FCWorkLoad w)
+        {
+            hasDefaultWorkloadOverride = true;
+            defaultWorkloadOverride = w;
+        }
+
+        public void ClearDefaultWorkloadOverride()
+        {
+            hasDefaultWorkloadOverride = false;
         }
 
         public override void CompTick()
@@ -120,7 +145,9 @@ namespace FactionColonies
             {
                 Find.WorldPawns.RemovePawn(pawn);
             }
-            prisonerList.Add(new FCPrisoner(pawn, settlement));
+            FCPrisoner created = new FCPrisoner(pawn, settlement);
+            created.workload = GetEffectiveDefaultWorkload();
+            prisonerList.Add(created);
             settlement.DirtyStatsCache();
         }
 
@@ -257,6 +284,50 @@ namespace FactionColonies
                     delegate { SetWorkload(p, FCWorkLoad.Light); })
             };
             Find.WindowStack.Add(new FloatMenu(wlList));
+        }
+
+        /* Sets this settlement's default-workload override for newly captured prisoners.
+         * The "Use faction default" option clears the override so the settlement inherits
+         * FactionFC.defaultPrisonerWorkload again. */
+        public void OpenDefaultWorkloadFloatMenu()
+        {
+            List<FloatMenuOption> list = new List<FloatMenuOption>
+            {
+                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
+                    delegate { SetDefaultWorkloadOverride(FCWorkLoad.Heavy); }),
+                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
+                    delegate { SetDefaultWorkloadOverride(FCWorkLoad.Medium); }),
+                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
+                    delegate { SetDefaultWorkloadOverride(FCWorkLoad.Light); })
+            };
+            if (hasDefaultWorkloadOverride)
+            {
+                list.Add(new FloatMenuOption("FCUseFactionDefault".Translate(),
+                    delegate { ClearDefaultWorkloadOverride(); }));
+            }
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        /* Bulk-applies the chosen workload to every prisoner in this settlement.
+         * Routes each assignment through SetWorkload so DirtyStatsCache fires correctly. */
+        public void OpenBulkSetWorkloadFloatMenu()
+        {
+            List<FloatMenuOption> list = new List<FloatMenuOption>
+            {
+                new FloatMenuOption("FCHeavy".Translate().CapitalizeFirst() + " - " + "FCHeavyExplanation".Translate(),
+                    delegate { BulkSetWorkload(FCWorkLoad.Heavy); }),
+                new FloatMenuOption("FCMedium".Translate().CapitalizeFirst() + " - " + "FCMediumExplanation".Translate(),
+                    delegate { BulkSetWorkload(FCWorkLoad.Medium); }),
+                new FloatMenuOption("FCLight".Translate().CapitalizeFirst() + " - " + "FCLightExplanation".Translate(),
+                    delegate { BulkSetWorkload(FCWorkLoad.Light); })
+            };
+            Find.WindowStack.Add(new FloatMenu(list));
+        }
+
+        public void BulkSetWorkload(FCWorkLoad w)
+        {
+            if (prisonerList is null) return;
+            for (int i = 0; i < prisonerList.Count; i++) SetWorkload(prisonerList[i], w);
         }
 
         /* Downed prisoners can't perform any work, so they're excluded from worker contributions. */
