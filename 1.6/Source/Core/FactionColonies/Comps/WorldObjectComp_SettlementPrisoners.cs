@@ -37,7 +37,7 @@ namespace FactionColonies
     public class WorldObjectComp_SettlementPrisoners : WorldObjectComp
     {
         public List<FCPrisoner> prisonerList = new List<FCPrisoner>();
-        public WorldSettlementFC Parent => parent as WorldSettlementFC;
+        public WorldSettlementFC WorldSettlement => parent as WorldSettlementFC;
 
         /* Per-settlement override of FactionFC.defaultPrisonerWorkload. When
          * hasDefaultWorkloadOverride is false the settlement inherits the faction value. */
@@ -105,8 +105,7 @@ namespace FactionColonies
 
             if (dead != null)
             {
-                WorldSettlementFC s = parent as WorldSettlementFC;
-                string sName = s?.Name ?? "";
+                string sName = WorldSettlement?.Name ?? "";
                 Faction player = Find.FactionManager.OfPlayer;
                 Faction empire = FindFC.EmpireFaction;
                 const int goodwillPerDeath = -2;
@@ -142,7 +141,7 @@ namespace FactionColonies
             }
 
             // A Light-workload heal may have un-downed a prisoner, so refresh the worker cap.
-            (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
+            WorldSettlement?.NotifyWorkforceChanged();
         }
 
         /* The single removal entry point — no other code should call prisonerList.Remove
@@ -152,7 +151,7 @@ namespace FactionColonies
         {
             if (prisonerList is null) return false;
             bool removed = prisonerList.Remove(p);
-            if (removed) (parent as WorldSettlementFC)?.NotifyWorkforceChanged();
+            if (removed) WorldSettlement?.NotifyWorkforceChanged();
             return removed;
         }
 
@@ -206,7 +205,7 @@ namespace FactionColonies
 
         public void AddPrisoner(Pawn pawn)
         {
-            WorldSettlementFC settlement = parent as WorldSettlementFC;
+            WorldSettlementFC settlement = WorldSettlement;
             if (settlement is null || pawn is null) return;
 
             // FCPrisoner is the canonical deep owner of the held pawn. If WorldPawns
@@ -241,8 +240,7 @@ namespace FactionColonies
             if (toRemove is null) return 0;
             foreach (FCPrisoner p in toRemove) RemovePrisoner(p);
 
-            WorldSettlementFC s = parent as WorldSettlementFC;
-            LogUtil.Warning("Culled " + toRemove.Count + " null prisoner(s) from " + (s?.Name ?? "<unknown>"));
+            LogUtil.Warning("Culled " + toRemove.Count + " null prisoner(s) from " + (WorldSettlement?.Name ?? "<unknown>"));
             return toRemove.Count;
         }
 
@@ -282,21 +280,20 @@ namespace FactionColonies
         {
             if (p is null) return;
             p.workload = workload;
-            (parent as WorldSettlementFC)?.DirtyStatsCache();
+            WorldSettlement?.DirtyStatsCache();
         }
 
         public void SellPrisoner(FCPrisoner p)
         {
             if (p?.prisoner is null) return;
-            WorldSettlementFC s = parent as WorldSettlementFC;
-            s?.AddOneTimeSilverIncome(p.prisoner.MarketValue);
+            WorldSettlement?.AddOneTimeSilverIncome(p.prisoner.MarketValue);
             RemovePrisoner(p);
         }
 
         public void ReturnPrisonerToPlayer(FCPrisoner p)
         {
             if (p?.prisoner is null) return;
-            WorldSettlementFC s = parent as WorldSettlementFC;
+            WorldSettlementFC s = WorldSettlement;
             if (s is null) return;
 
             if (!HealthUtility.TryAnesthetize(p.prisoner))
@@ -431,8 +428,7 @@ namespace FactionColonies
                 yield return gizmo;
             }
 
-            WorldSettlementFC settlement = parent as WorldSettlementFC;
-            if (settlement is null) yield break;
+            if (WorldSettlement is null) yield break;
             if (caravan is null || caravan.Tile != parent.Tile) yield break;
             if (FindFC.FactionComp is null) yield break;
             if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
@@ -448,8 +444,7 @@ namespace FactionColonies
                 yield return gizmo;
             }
 
-            WorldSettlementFC settlement = parent as WorldSettlementFC;
-            if (settlement is null) yield break;
+            if (WorldSettlement is null) yield break;
             if (FindFC.FactionComp is null) yield break;
             if (!FindFC.FactionComp.IsActionAllowed(FCActionType.SendPrisoner)) yield break;
 
