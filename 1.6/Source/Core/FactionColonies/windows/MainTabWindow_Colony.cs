@@ -2281,7 +2281,7 @@ namespace FactionColonies
             float width = rect.width;
 
             // --- Header: faction icon + name label + workload buttons (matches Military tab style) ---
-            float buttonWidth = 187f;
+            float buttonWidth = 210f;
             float buttonHeight = 35f;
             bool hasSettlements = faction.settlements?.Count > 0;
             float bx = hasSettlements ? rect.xMax - buttonWidth * 2 - margin : rect.xMax - margin;
@@ -2393,7 +2393,7 @@ namespace FactionColonies
                 }
                 Widgets.DrawBoxSolid(new Rect(0f, cy, scrollRect.width, sectionH), ColorUtil.Gray1);
 
-                // Section header: light highlight band + accent + name (clickable) + count badge (collapse toggle)
+                // Section header: light highlight band + accent + name (clickable) + inline workload buttons + count badge (collapse toggle)
                 Color settlementAccent = AccentUtil.GetSettlementAccent(s);
                 Rect headerBoxRect = new Rect(0f, cy, scrollRect.width, sectionHeaderH);
                 Widgets.DrawBoxSolid(headerBoxRect, ColorUtil.Gray3);
@@ -2401,7 +2401,16 @@ namespace FactionColonies
 
                 float headerContentX = PrisonerUtil.AccentWidth + 6f;
                 const float countColW = 90f;
-                Rect nameRect = new Rect(headerContentX, cy, scrollRect.width - headerContentX - countColW - 4f, sectionHeaderH);
+                const float sectionBtnW = 160f;
+                const float sectionBtnGap = 4f;
+                const float sectionBtnH = 26f;
+                float sectionBtnY = cy + (sectionHeaderH - sectionBtnH) / 2f;
+
+                float countRectX = scrollRect.width - countColW - 4f;
+                Rect bulkBtnRect = new Rect(countRectX - sectionBtnGap - sectionBtnW, sectionBtnY, sectionBtnW, sectionBtnH);
+                Rect defaultBtnRect = new Rect(bulkBtnRect.x - sectionBtnGap - sectionBtnW, sectionBtnY, sectionBtnW, sectionBtnH);
+
+                Rect nameRect = new Rect(headerContentX, cy, defaultBtnRect.x - headerContentX - 4f, sectionHeaderH);
 
                 Text.Font = GameFont.Medium;
                 Text.Anchor = TextAnchor.MiddleLeft;
@@ -2414,7 +2423,24 @@ namespace FactionColonies
                 if (Widgets.ButtonInvisible(nameRect))
                     Find.WindowStack.Add(new SettlementWindowFc(s));
 
-                Rect countRect = new Rect(scrollRect.width - countColW - 4f, cy, countColW, sectionHeaderH);
+                /* Settlement-level workload buttons inline in the section header - section is
+                 * only drawn when sList.Count > 0, so bulk-set is always meaningful. */
+                WorldObjectComp_SettlementPrisoners sComp = s.PrisonerComp;
+                if (sComp is object)
+                {
+                    string sDefLabel = sComp.hasDefaultWorkloadOverride
+                        ? "FCSetDefaultWorkloadShort".Translate() + ": " + PrisonerUtil.WorkloadLabel(sComp.defaultWorkloadOverride)
+                        : "FCSetDefaultWorkloadShort".Translate() + ": " + "FCFromFaction".Translate()
+                            + " (" + PrisonerUtil.WorkloadLabel(sComp.GetEffectiveDefaultWorkload()) + ")";
+                    Text.Font = GameFont.Tiny;
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    if (UIUtil.ButtonFlat(defaultBtnRect, sDefLabel))
+                        sComp.OpenDefaultWorkloadFloatMenu();
+                    if (UIUtil.ButtonFlat(bulkBtnRect, "FCBulkSetWorkloadShort".Translate()))
+                        sComp.OpenBulkSetWorkloadFloatMenu();
+                }
+
+                Rect countRect = new Rect(countRectX, cy, countColW, sectionHeaderH);
                 if (Mouse.IsOver(countRect))
                     Widgets.DrawHighlight(countRect);
                 if (Widgets.ButtonInvisible(countRect))

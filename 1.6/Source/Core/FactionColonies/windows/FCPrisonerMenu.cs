@@ -37,16 +37,14 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Title bar — title (truncated) | count badge | Default workload | Bulk set
+            // Title bar — title (truncated) | count badge
             const float countBadgeW = 40f;
-            const float btnW = 135f;
             const float btnGap = 4f;
+            const float btnRowGap = 4f;
+            float btnW = (inRect.width - btnGap) / 2f;
             WorldObjectComp_SettlementPrisoners comp = settlement.PrisonerComp;
 
-            float bxRight = inRect.xMax;
-            Rect bulkRect = new Rect(bxRight - btnW, inRect.y, btnW, titleHeight);
-            Rect defaultRect = new Rect(bulkRect.x - btnGap - btnW, inRect.y, btnW, titleHeight);
-            Rect countRect = new Rect(defaultRect.x - btnGap - countBadgeW, inRect.y, countBadgeW, titleHeight);
+            Rect countRect = new Rect(inRect.xMax - countBadgeW, inRect.y, countBadgeW, titleHeight);
             Rect titleRect = new Rect(inRect.x, inRect.y, countRect.x - inRect.x, titleHeight);
 
             bool wordWrapBefore = Text.WordWrap;
@@ -62,13 +60,24 @@ namespace FactionColonies
                 UIUtil.DrawColoredLabel(countRect, "(" + prisoners.Count + ")", Color.gray);
             }
 
+            // Divider
+            UIUtil.DrawColoredHorizontalLine(inRect.x, titleRect.yMax + (dividerGap / 2f), inRect.width, Color.gray);
+
+            // Button row (right-aligned, above prisoner list)
+            float buttonRowY = titleRect.yMax + dividerGap;
+            float contentY = buttonRowY;
+
             if (comp is object)
             {
+                Rect bulkRect = new Rect(inRect.xMax - btnW, buttonRowY, btnW, titleHeight);
+                Rect defaultRect = new Rect(bulkRect.x - btnGap - btnW, buttonRowY, btnW, titleHeight);
+
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.MiddleCenter;
                 string defaultBtnLabel = comp.hasDefaultWorkloadOverride
                     ? "FCSetDefaultWorkloadShort".Translate() + ": " + PrisonerUtil.WorkloadLabel(comp.defaultWorkloadOverride)
-                    : "FCSetDefaultWorkloadShort".Translate() + ": " + "FCFromFaction".Translate();
+                    : "FCSetDefaultWorkloadShort".Translate() + ": " + "FCFromFaction".Translate()
+                        + " (" + PrisonerUtil.WorkloadLabel(comp.GetEffectiveDefaultWorkload()) + ")";
                 if (UIUtil.ButtonFlat(defaultRect, defaultBtnLabel))
                     comp.OpenDefaultWorkloadFloatMenu();
 
@@ -77,11 +86,9 @@ namespace FactionColonies
                     if (UIUtil.ButtonFlat(bulkRect, "FCBulkSetWorkloadShort".Translate()))
                         comp.OpenBulkSetWorkloadFloatMenu();
                 }
-            }
 
-            // Divider
-            float contentY = titleRect.yMax + dividerGap;
-            UIUtil.DrawColoredHorizontalLine(inRect.x, titleRect.yMax + (dividerGap / 2f), inRect.width, Color.gray);
+                contentY = buttonRowY + titleHeight + btnRowGap;
+            }
 
             float contentHeight = inRect.height - contentY;
 
