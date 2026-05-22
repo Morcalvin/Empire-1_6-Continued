@@ -448,6 +448,30 @@ namespace FactionColonies.util
         }
 
         /// <summary>
+        /// If <paramref name="pawnKind"/> is one of Empire's base template PawnKindDefs
+        /// (e.g. PColony_Fighter), reassigns it to the race-specific clone for
+        /// <paramref name="race"/> at the current Empire tech level. Returns true if a
+        /// reassignment was made. Used by <see cref="FactionColonies.MilUnitFC"/> to recover
+        /// from BackCompatibility remapping clone-defName saves back to the base template.
+        /// </summary>
+        public static bool TryRestoreRaceSpecificClone(ref PawnKindDef pawnKind, ThingDef race)
+        {
+            if (pawnKind is null || race is null) return false;
+            int templateIndex = GetTemplateIndex(pawnKind);
+            if (templateIndex < 0) return false;
+
+            TechLevel techLevel = FindFC.FactionComp != null
+                ? FindFC.FactionComp.techLevel
+                : TechLevel.Industrial;
+
+            List<PawnKindDef> clones = GetOrCreateClonesForRace(race, techLevel);
+            if (templateIndex >= clones.Count) return false;
+
+            pawnKind = clones[templateIndex];
+            return true;
+        }
+
+        /// <summary>
         /// After loading, pawn kindDefs were remapped to base templates by BackCompatibility.
         /// This restores the correct race-specific clone, preserving the pawn.def == kindDef.race
         /// invariant that PawnGenerator.IsValidCandidateToRedress and other systems rely on.

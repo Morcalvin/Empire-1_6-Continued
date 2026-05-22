@@ -19,6 +19,13 @@ namespace FactionColonies
         public XenotypeDef xenotype;
         public string customXenotypeName;
 
+        // Race hint that survives clone-defName remapping by BackCompatPatches.
+        // RandomPawnKind() returns a runtime clone (e.g. PColony_Fighter_Milira) that
+        // isn't registered in DefDatabase, so on load Scribe collapses it to the base
+        // template (race=Human). Saving the race here lets PostLoadInit restore the
+        // correct race-specific clone via PawnKindTemplateUtil.
+        private ThingDef pawnKindRaceHint;
+
         // Def-based equipment storage
         public List<SavedThing> weapons = new List<SavedThing>();
         public List<SavedThing> apparel = new List<SavedThing>();
@@ -159,6 +166,10 @@ namespace FactionColonies
             Scribe_Defs.Look(ref xenotype, "xenotype");
             Scribe_Values.Look(ref customXenotypeName, "customXenotypeName");
 
+            if (Scribe.mode == LoadSaveMode.Saving)
+                pawnKindRaceHint = pawnKind?.race;
+            Scribe_Defs.Look(ref pawnKindRaceHint, "pawnKindRace");
+
             // Def-based equipment storage
             Scribe_Collections.Look(ref weapons, "weapons", LookMode.Deep);
             Scribe_Collections.Look(ref apparel, "apparel", LookMode.Deep);
@@ -171,6 +182,24 @@ namespace FactionColonies
                 // Mutual exclusivity: prefer XenotypeDef if both are set
                 if (xenotype != null && customXenotypeName != null)
                     customXenotypeName = null;
+
+                RestoreClonedPawnKindIfRemapped();
+            }
+        }
+
+        /// <summary>
+        /// If pawnKind was a runtime clone (e.g. PColony_Fighter_Milira) when saved,
+        /// Scribe's cross-ref resolution will have collapsed it to the base template
+        /// (PColony_Fighter, race=Human) via BackCompatPatches. Use the saved race
+        /// hint to re-fetch the correct race-specific clone.
+        /// </summary>
+        private void RestoreClonedPawnKindIfRemapped()
+        {
+            if (pawnKind is null || pawnKindRaceHint is null) return;
+            if (pawnKind.race == pawnKindRaceHint) return;
+            if (!PawnKindTemplateUtil.TryRestoreRaceSpecificClone(ref pawnKind, pawnKindRaceHint))
+            {
+                LogUtil.Warning($"MilUnitFC '{name}': could not restore race-specific clone for race '{pawnKindRaceHint.defName}' on template '{pawnKind.defName}'.");
             }
         }
 

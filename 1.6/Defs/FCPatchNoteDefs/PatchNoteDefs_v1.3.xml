@@ -895,13 +895,27 @@
 	</FactionColonies.PatchNoteDef>
 
 	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
-		<defName>1_3_64</defName>
-		<label>Mercantile Exotic Caravan Fix</label>
-		<description>Fixes an issue where having the Mercantile trait wouldn&apos;t actually unlock the exotic caravan type.</description>
+		<defName>1_3_65</defName>
+		<label>Vehicle Framework Compat Fix</label>
+		<description>Fixes an issue where joining a manual battle with a vehicle and never dismounting can result in both the vehicle and the pawns within being swallowed and spat into the void upon battle conclusion.</description>
 		<releaseDate>2026-05-20</releaseDate>
 		<patchNoteType>Patch</patchNoteType>
 		<patchNoteLines>
-		<li>Use faction.HasTrait() to check for mercantile, not faction.HasPolicy(). I knew keeping traits and policies as the same deftype would bite me in the ass one day</li>
+		<li>When checking if it&apos;s safe to delete a map, check AllPawnsSpawned with a faction filter, rather than checking FreeColonistsSpawned</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_66</defName>
+		<label>HAR Compatability Fix</label>
+		<description>A military unit that is created with a HAR race will lose that race when saving the game. This is a side-effect of how Empire handles pawnkinds.\n\nThis update fixes that bug.</description>
+		<releaseDate>2026-05-22</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Store a direct reference to the unit&apos;s race in MilUnitFC, so that when we load the unit, we can restore the correct pawnKind</li>
 		</patchNoteLines>
 		<authors>
 		<li>Matathias</li>
