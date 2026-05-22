@@ -921,4 +921,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_67</defName>
+		<label>Races Fixes 2</label>
+		<description>Fixes an issue where, if a race is set to 0 weight in the xenotype/race filter, then any mercs created with that race will have their race silently swapped later on.</description>
+		<releaseDate>2026-05-22</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>If a designed unit has a set race, then always use that race, even if it has weight 0 in the faction&apos;s xenotype filter</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

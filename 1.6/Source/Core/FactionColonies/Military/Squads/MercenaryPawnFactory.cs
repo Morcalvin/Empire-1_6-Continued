@@ -74,7 +74,10 @@ namespace FactionColonies
             PawnKindDef raceChoice = race;
             FactionFC factionFc = FindFC.FactionComp;
 
-            if (race == null || factionFc.xenotypeFilter.GetRaceWeight(raceChoice.race) <= 0)
+            // Fall back to Human only when no race was requested. Race weight controls
+            // random race selection (e.g. for default fighters); designed loadouts are
+            // explicit player choices and must be respected even at weight 0.
+            if (race == null)
             {
                 raceChoice = PawnKindTemplateUtil.GetFighterForRace(ThingDefOf.Human);
             }
