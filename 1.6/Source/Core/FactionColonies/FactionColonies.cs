@@ -71,6 +71,7 @@ namespace FactionColonies
         public const bool DEFAULT_DISABLE_RANDOM_EVENTS = false;
         public const bool DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS = true;
         public const float DEFAULT_EVENT_OPTION_DELAY_SECONDS = 1.0f;
+        public const float DEFAULT_EVENT_SILVER_COST_MULTIPLIER = 1.0f;
         public const bool DEFAULT_USE_THREADED_ROAD_COMPUTATION = true;
         public const int DEFAULT_EDGES_PER_ROAD_TICK = 5;
         public const BattleMode DEFAULT_BATTLE_MODE = BattleMode.Auto;
@@ -109,6 +110,7 @@ namespace FactionColonies
         public static bool disableRandomEvents = DEFAULT_DISABLE_RANDOM_EVENTS;
         public static bool disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
         public static float eventOptionDelaySeconds = DEFAULT_EVENT_OPTION_DELAY_SECONDS;
+        public static float eventSilverCostMultiplier = DEFAULT_EVENT_SILVER_COST_MULTIPLIER;
         public static bool useThreadedRoadComputation = DEFAULT_USE_THREADED_ROAD_COMPUTATION;
         public static int edgesPerRoadTick = DEFAULT_EDGES_PER_ROAD_TICK;
         public static BattleMode battleMode = DEFAULT_BATTLE_MODE;
@@ -310,6 +312,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref disableRandomEvents, "disableRandomEvents", DEFAULT_DISABLE_RANDOM_EVENTS);
             Scribe_Values.Look(ref disableForcedPausingDuringEvents, "disableForcedPausingDuringEvents", DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS);
             Scribe_Values.Look(ref eventOptionDelaySeconds, "eventOptionDelaySeconds", DEFAULT_EVENT_OPTION_DELAY_SECONDS);
+            Scribe_Values.Look(ref eventSilverCostMultiplier, "eventSilverCostMultiplier", DEFAULT_EVENT_SILVER_COST_MULTIPLIER);
             Scribe_Values.Look(ref forcedTaxDeliveryMode, "forcedTaxDeliveryMode", DEFAULT_TAX_DELIVERY_MODE);
             Scribe_Values.Look(ref taxNotificationMode, "taxNotificationMode", DEFAULT_TAX_NOTIFICATION_MODE);
             Scribe_Values.Look(ref useThreadedRoadComputation, "useThreadedRoadComputation", DEFAULT_USE_THREADED_ROAD_COMPUTATION);
@@ -770,6 +773,7 @@ namespace FactionColonies
                 battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
                 battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
                 disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
+                eventSilverCostMultiplier = DEFAULT_EVENT_SILVER_COST_MULTIPLIER;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
                 difficultyLevel = DEFAULT_DIFFICULTY_LEVEL;
@@ -798,6 +802,11 @@ namespace FactionColonies
                 "FCSettingEventOptionDelay".Translate(eventOptionDelaySeconds.ToString("0.0")),
                 eventOptionDelaySeconds, 0f, 2f);
             eventOptionDelaySeconds = (float)Math.Round(eventOptionDelaySeconds, 1);
+
+            eventSilverCostMultiplier = ls.SliderLabeled(
+                "FCSettingEventSilverCostMultiplier".Translate(eventSilverCostMultiplier.ToString("0.0")),
+                eventSilverCostMultiplier, 0f, 10f);
+            eventSilverCostMultiplier = (float)Math.Round(eventSilverCostMultiplier, 1);
 
             ls.Gap(5f);
 

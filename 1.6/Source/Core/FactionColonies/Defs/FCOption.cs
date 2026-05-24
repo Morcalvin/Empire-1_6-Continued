@@ -27,6 +27,11 @@ namespace FactionColonies
         public FCEventDef failEvent = null;
         public List<FCPolicyDef> requiredPolicies = new List<FCPolicyDef>();
         public FCRequirementMode requirementMode = FCRequirementMode.All;
+
+        public int EffectiveSilverCost
+        {
+            get { return Math.Max(0, (int)Math.Round(silverCost * FCSettings.eventSilverCostMultiplier, MidpointRounding.AwayFromZero)); }
+        }
     }
 
     public class FCOptionWindow : Window
@@ -276,8 +281,8 @@ namespace FactionColonies
                 if (i > 0) optY += OptionSpacing;
 
                 FCOptionDef opt = options[i];
-                bool affordable = currentSilver >= opt.silverCost;
-                bool isFree = opt.silverCost <= 0;
+                bool affordable = currentSilver >= opt.EffectiveSilverCost;
+                bool isFree = opt.EffectiveSilverCost <= 0;
                 string requirementFailReason;
                 bool meetsRequirements = MeetsPolicyRequirements(opt, out requirementFailReason);
                 string handlerUnavailableReason = null;
@@ -361,7 +366,7 @@ namespace FactionColonies
                     else
                     {
                         Text.Font = GameFont.Small;
-                        costAreaWidth = Text.CalcSize(opt.silverCost.ToString()).x + SilverIconSize + 2f;
+                        costAreaWidth = Text.CalcSize(opt.EffectiveSilverCost.ToString()).x + SilverIconSize + 2f;
                     }
 
                     Text.Font = GameFont.Tiny;
@@ -389,7 +394,7 @@ namespace FactionColonies
                 {
                     // Draw silver icon + cost text
                     GUI.color = available ? Color.white : AccentUtil.Expense;
-                    string costStr = opt.silverCost.ToString();
+                    string costStr = opt.EffectiveSilverCost.ToString();
                     float costTextW = Text.CalcSize(costStr).x;
                     Rect costTextRect = new Rect(metaRect.xMax - costTextW, metaRect.y, costTextW, metaRect.height);
                     Widgets.Label(costTextRect, costStr);
@@ -436,7 +441,7 @@ namespace FactionColonies
                     if (available)
                     {
                         SoundDefOf.Click.PlayOneShotOnCamera();
-                        PaymentUtil.PaySilver(opt.silverCost, PaymentUtil.Reason_EventOption);
+                        PaymentUtil.PaySilver(opt.EffectiveSilverCost, PaymentUtil.Reason_EventOption);
                         FCEventMaker.CalculateSuccess(opt, parentEvent);
                         Find.WindowStack.TryRemove(this);
                     }
