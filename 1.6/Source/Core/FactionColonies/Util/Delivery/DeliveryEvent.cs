@@ -56,6 +56,17 @@ namespace FactionColonies.util
         {
             try
             {
+                /* All Send* paths dereference FindFC.TaxMap on entry; if it's null we
+                   must not invoke them. Tax-spot placement is null-safe (PaymentUtil
+                   warns + destroys the Thing rather than crash). */
+                if (FindFC.TaxMap is null)
+                {
+                    LogUtil.Warning("DeliveryEvent.Action: no tax map available; routing to tax-spot placement. "
+                        + "Set a capital tile and a tax map on the faction main tab.");
+                    DeliveryLogistics.SpawnOnTaxSpot(evt);
+                    return;
+                }
+
                 TaxDeliveryMode taxDeliveryMode = evt.deliveryMode != TaxDeliveryMode.None
                     ? evt.deliveryMode
                     : DeliveryLogistics.TaxDeliveryModeForSettlement(canUseShuttle, evt.source);
