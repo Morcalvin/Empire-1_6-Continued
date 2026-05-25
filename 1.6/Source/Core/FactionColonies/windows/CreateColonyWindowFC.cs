@@ -374,31 +374,35 @@ namespace FactionColonies
             {
                 if (!CanCreateSettlementHere()) return button.yMax;
 
+                // Snapshot so the amount paid matches what the user clicked/confirmed,
+                // even if settlementCreationCost is recomputed (or stops being recomputed)
+                // between the click and the confirmation callback firing.
+                int costToPay = settlementCreationCost;
                 if (FCSettings.showSettleConfirm)
                 {
                     Find.WindowStack.Add(new FCWindow_ConfirmSettle(
                         currentSettlementType,
-                        settlementCreationCost,
+                        costToPay,
                         () =>
                         {
-                            DoFoundSettlement();
+                            DoFoundSettlement(costToPay);
                             Close();
                         },
                         dontShow => FCSettings.showSettleConfirm = !dontShow));
                 }
                 else
                 {
-                    DoFoundSettlement();
+                    DoFoundSettlement(costToPay);
                 }
             }
             return button.yMax;
         }
 
-        private void DoFoundSettlement()
+        private void DoFoundSettlement(int costToPay)
         {
             LogUtil.Message($"DrawCreateSettlementButton: creating settleNewColony event");
 
-            PaymentUtil.PaySilver(settlementCreationCost, PaymentUtil.Reason_SettlementCreation);
+            PaymentUtil.PaySilver(costToPay, PaymentUtil.Reason_SettlementCreation);
             FoundingValidatorRegistry.NotifyFounded(currentTileSelected, currentSettlementType);
 
             //create settle event

@@ -2123,6 +2123,9 @@ namespace FactionColonies
 
             foreach (FCEvent evt in Events)
             {
+                // FCEventMaker.ProcessEvents already warns and skips null-def events;
+                // skip them here too to avoid an NRE that would abort daily validation.
+                if (evt.def == null) continue;
                 if (evt.def.defName == "settleNewColony")
                 {
                     if (settlementCaravansList.Contains(evt.location))

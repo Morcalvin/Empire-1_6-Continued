@@ -935,4 +935,34 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_69</defName>
+		<label>Tax Spot Delivery Fix</label>
+		<description>Fixes an issue where getting taxes delivered without an active tax spot may cause errors and send all of your tax items into the void.</description>
+		<releaseDate>2026-05-24</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>When finding the tax map, don&apos;t clobber an already-found map with a null value just because CheckForActiveTaxDeliverySpot returned false</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_70</defName>
+		<label>Settlement Cost Fixes</label>
+		<description>The SettlementTypeExtension would cache a reference to the main world component, but never invalidate it. This could lead to things like settlement cost evaluations referring to the wrong world component. This update fixes that, and a couple of other minor issues.</description>
+		<releaseDate>2026-05-25</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Don&apos;t cache the FactionFC WorldComponent in SettlementTypeExtension</li>
+		<li>Skip invalid events in ValidateSettlementCaravansList()</li>
+		<li>Snapshot settlement cost in the settle confirmation dialog so the actual cost paid matches what the user sees in all cases</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
