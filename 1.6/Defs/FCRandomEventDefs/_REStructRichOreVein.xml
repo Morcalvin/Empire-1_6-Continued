@@ -105,7 +105,7 @@
     <label>Rich Ore Vein (Rights Sold)</label>
     <desc>The mining rights are sold to outside interests for immediate profit.</desc>
     <category>EC_Economy</category>
-    <timeTillTrigger>1500</timeTillTrigger>
+    <timeTillTrigger>60000</timeTillTrigger>
     <rangeSettlementsAffected>1~3</rangeSettlementsAffected>
     <incompatibleEvents>
       <li>struckRichOreVein_0</li>
