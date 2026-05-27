@@ -470,7 +470,7 @@ namespace FactionColonies
             if (opt.baseChanceOfSuccess < 100f) return null;
 
             FCEventDef resultEvent = opt.successEvent;
-            if (resultEvent == null || resultEvent == FCEventDefOf.Null) return null;
+            if (resultEvent == null) return null;
 
             List<string> tempParts = new List<string>();
             List<string> permParts = new List<string>();
