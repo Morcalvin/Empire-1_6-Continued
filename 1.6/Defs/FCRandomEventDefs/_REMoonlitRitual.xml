@@ -108,7 +108,7 @@
       <li>moonlitRitual_2-1_1</li>
       <li>moonlitRitual_2-1_2</li>
     </options>
-    <optionDescription>The investigator reports back that the group returned again. They continued the same activities as the night prior- however, after not leaving, he observed that the group brought out an ornate chest with religious-looking symbols. He stepped closer for a better look, but after stepping on a dead leaf, the group heard him. He fled before they could find him.</optionDescription>
+    <optionDescription>The investigator reports back that the group returned again. They continued the same activities as the night prior — however, after not leaving, he observed that the group brought out an ornate chest with religious-looking symbols. He stepped closer for a better look, but after stepping on a dead leaf, the group heard him. He fled before they could find him.</optionDescription>
   </FactionColonies.FCEventDef>
 
   <FactionColonies.FCOptionDef>
@@ -161,7 +161,9 @@
   <FactionColonies.FCEventDef>
     <defName>moonlitRitual_4-1</defName>
     <label>A Moonlit Ritual</label>
-    <desc>After not reporting back, a search for the investigator was conducted. He was found dead. His body was stripped, his chest cavity split, and his skin carved with runic symbols. The group, whoever they were, were not seen again. Dread falls upon us all.\n\nCoincidentally, this week's harvests seem to have spoiled...</desc>
+    <desc>After not reporting back, a search for the investigator was conducted. He was found dead. His body was stripped, his chest cavity split, and his skin carved with runic symbols. The group, whoever they were, were not seen again. Dread falls upon us all.
+
+Coincidentally, this week's harvests seem to have spoiled...</desc>
     <category>EC_Other</category>
     <timeTillTrigger>300000</timeTillTrigger>
     <timeTillTriggerMax>480000</timeTillTriggerMax>
