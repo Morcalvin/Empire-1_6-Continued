@@ -31,8 +31,9 @@
     <defName>drugTrade_0_1</defName>
     <label>Find the source of this drug trade!</label>
     <parentEvent>drugTrade_0</parentEvent>
-    <baseChanceOfSuccess>100</baseChanceOfSuccess>
+    <baseChanceOfSuccess>50</baseChanceOfSuccess>
     <successEvent>drugTrade-investigation_50</successEvent>
+    <failEvent>drugTrade-investigation_50</failEvent>
   </FactionColonies.FCOptionDef>
 
   <FactionColonies.FCOptionDef>
