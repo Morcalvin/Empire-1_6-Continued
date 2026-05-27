@@ -13,6 +13,8 @@ namespace FactionColonies
     {
         public static void CalculateSuccess(FCOptionDef option, FCEvent parentEvent)
         {
+            if (option.successEvent is null) return;
+
             float baseChance = option.baseChanceOfSuccess;
             int roll = Rand.Range(1, 100);
 
