@@ -45,7 +45,7 @@ namespace FactionColonies
                 }
             }
 
-            if (tempEvent.def != null)
+            if (tempEvent != null)
             {
                 FindFC.EventManager.AddEvent(tempEvent);
 
