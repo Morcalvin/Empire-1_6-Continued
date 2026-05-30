@@ -194,11 +194,14 @@ namespace FactionColonies
             op.defender.faction = FindFC.EmpireFaction;
             if (targetSettlement is object)
             {
-                op.defender.homeSettlement = targetSettlement;
                 // Squad-first defense: pick the strongest available squad billeted at the target,
                 // and project its squad-derived force. Empty billets still defend at half-power so
                 // the settlement isn't defenseless; cap-0 settlements (structurally non-military)
                 // produce null and rely entirely on auto-defender selection / external defenders.
+                // The force computed here is a forecast value used by the warning letter; the actual
+                // battle-time force is re-sampled in MilitaryOperation.BeginEngagement so post-warning
+                // changes (new buildings, policy shifts, event stat modifiers) apply to the fight.
+                op.defender.homeSettlement = targetSettlement;
                 op.defender.squad = PickPrimaryDefendingSquad(targetSettlement);
                 op.defender.force = op.defender.squad is object
                     ? MilitaryForce.CreateMilitaryForceFromSquad(op.defender.squad)

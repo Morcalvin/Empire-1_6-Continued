@@ -205,4 +205,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_13</defName>
+		<label>Minor Military Changes</label>
+		<description>Before, the strength of a settlement&apos;s defending force was snapshot at the moment a warning letter is sent, and that snapshot is carried forward into the battle. This means that any changes to military level or combat efficiency during the warning window wouldn&apos;t actually apply to the coming battle.\n\nThis update changes that. Now, the defending force&apos;s strength is recalculated at battle start.</description>
+		<releaseDate>2026-05-29</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Recalculate defender strength at the start of a defense battle</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

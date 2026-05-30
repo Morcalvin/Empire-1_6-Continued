@@ -189,8 +189,22 @@ namespace FactionColonies
             }
             else if (defender.force is object)
             {
-                // Defender force was set out-of-band (defensive op with a pre-set squad force);
-                // just apply battle modifiers, don't re-sample.
+                // Refresh from current state for defensive ops with a player-controlled
+                // defender, so post-warning changes (new buildings, policy shifts, event
+                // stat modifiers, intervening squad casualties) reflect in the battle.
+                // External auto-defenders keep their snapshot since their CreateDefendingForce
+                // may carry custom logic that isn't a pure read of current stats.
+                if (IsDefensive && externalDefenderSource is null)
+                {
+                    MilitaryForce refreshed = null;
+                    if (defender.squad is object)
+                        refreshed = MilitaryForce.CreateMilitaryForceFromSquad(defender.squad, isAttacking: false);
+                    else if (defender.homeSettlement is object)
+                        refreshed = MilitaryForce.CreateMilitaryForceFromUnstaffedBillet(defender.homeSettlement);
+                    if (refreshed is object)
+                        defender.force = refreshed;
+                }
+
                 enemyPower?.ApplyBattleModifiers(ctx, defender.force, isAttacker: false);
             }
 
