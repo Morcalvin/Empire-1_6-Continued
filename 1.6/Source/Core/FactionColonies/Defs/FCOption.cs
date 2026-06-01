@@ -593,6 +593,29 @@ namespace FactionColonies
                 if (result.Length > 0) result += ", ";
                 result += string.Join(", ", permParts);
             }
+
+            // Follow-up indicator: note when the success event chains into a further event.
+            // One-hop lookahead only. Possible = split branch may be null (chain may terminate);
+            // certain covers both unsplit and split-with-both-branches-defined.
+            if (resultEvent.eventFollows)
+            {
+                bool hasBranch1 = resultEvent.followingEvent is object;
+                bool hasBranch2 = resultEvent.followingEvent2 is object;
+                if (resultEvent.splitEventFollows && (!hasBranch1 || !hasBranch2))
+                {
+                    if (hasBranch1 || hasBranch2)
+                    {
+                        if (result.Length > 0) result += "\n";
+                        result += "FCOption_Followup_Possible".Translate();
+                    }
+                }
+                else if (hasBranch1)
+                {
+                    if (result.Length > 0) result += "\n";
+                    result += "FCOption_Followup_Certain".Translate();
+                }
+            }
+
             return result.Length > 0 ? result : null;
         }
 

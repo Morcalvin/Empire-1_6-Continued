@@ -26,6 +26,8 @@
 	<FCEventSuccessRisky>Success: Risky</FCEventSuccessRisky>
 	<FCEffectPreviewReward>reward worth ~{0} silver</FCEffectPreviewReward>
 	<FCEffectPreviewDuration>({0} days)</FCEffectPreviewDuration>
+	<FCOption_Followup_Certain>(Triggers a follow-up event)</FCOption_Followup_Certain>
+	<FCOption_Followup_Possible>(May trigger a follow-up event)</FCOption_Followup_Possible>
 
 	<!-- Option Cost Breakdown Tooltip -->
 	<FCOptionCostBase>Base: {0}</FCOptionCostBase>
