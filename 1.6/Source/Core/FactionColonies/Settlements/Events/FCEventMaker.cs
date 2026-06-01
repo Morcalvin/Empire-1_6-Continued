@@ -17,33 +17,18 @@ namespace FactionColonies
 
             float baseChance = option.baseChanceOfSuccess;
             int roll = Rand.Range(1, 100);
+            FCEventDef chosen = roll <= baseChance ? option.successEvent : option.failEvent;
+            if (chosen is null) return;
 
-            FCEvent tempEvent = new FCEvent(true);
+            /* Tainted chain -> silent drop. The current event (with options) already ran its course.
+             * Filter must precede MakeRandomEvent: that call would open a window itself for
+             * activateAtStart && options.Count > 0 defs. */
+            if (FCSettings.disableEventsWithOptions) return;
 
-
-            if (roll <= baseChance)
-            {
-                //if success
-                if (option.parentEvent.settlementsCarryOver)
-                {
-                    tempEvent = MakeRandomEvent(option.successEvent, parentEvent.settlementTraitLocations);
-                }
-                else
-                {
-                    tempEvent = MakeRandomEvent(option.successEvent, null);
-                }
-            }
-            else
-            {
-                if (option.parentEvent.settlementsCarryOver)
-                {
-                    tempEvent = MakeRandomEvent(option.failEvent, parentEvent.settlementTraitLocations);
-                }
-                else
-                {
-                    tempEvent = MakeRandomEvent(option.failEvent, null);
-                }
-            }
+            List<WorldSettlementFC> settlements = option.parentEvent.settlementsCarryOver
+                ? parentEvent.settlementTraitLocations
+                : null;
+            FCEvent tempEvent = MakeRandomEvent(chosen, settlements);
 
             if (tempEvent != null)
             {
@@ -174,6 +159,9 @@ namespace FactionColonies
 
             foreach (FCEventDef eventDef in FactionCache.AllRandomEventDefs)
             {
+                if (FCSettings.disableEventsWithOptions
+                    && FactionCache.EventDefNamesWithOptionsInChain.Contains(eventDef.defName))
+                    continue;
                 if (IsValidRandomEvent(eventDef))
                 {
                     for (int i = 0; i < eventDef.weight; i++)
@@ -641,59 +629,39 @@ namespace FactionColonies
                     //if has following event
                     if (evt.def.eventFollows)
                     {
-                        FCEvent tempEvent = new FCEvent(true);
-                        if (evt.def.splitEventFollows) //if a split event
+                        FCEventDef target;
+                        if (evt.def.splitEventFollows)
                         {
-                            //remove null settlement references
-                            float baseChance = evt.def.splitEventChance;
                             int roll = Rand.Range(1, 100);
-                            if (evt.def.settlementsCarryOver)
-                            {
-                                //if settlements carry
-                                if (roll <= baseChance)
-                                {
-                                    //first event
-                                    tempEvent = MakeRandomEvent(evt.def.followingEvent, evt.settlementTraitLocations);
-                                }
-                                else
-                                {
-                                    //if second event
-                                    tempEvent = MakeRandomEvent(evt.def.followingEvent2, evt.settlementTraitLocations);
-                                }
-                            }
-                            else
-                            {
-                                if (roll <= baseChance)
-                                {
-                                    //first event
-                                    tempEvent = MakeRandomEvent(evt.def.followingEvent, null);
-                                }
-                                else
-                                {
-                                    //if second event
-                                    tempEvent = MakeRandomEvent(evt.def.followingEvent2, null);
-                                }
-                            }
+                            target = roll <= evt.def.splitEventChance
+                                ? evt.def.followingEvent
+                                : evt.def.followingEvent2;
                         }
                         else
                         {
-                            if (evt.def.settlementsCarryOver)
-                            {
-                                //if settlements carry
-                                tempEvent = MakeRandomEvent(evt.def.followingEvent, evt.settlementTraitLocations);
-                            }
-                            else
-                            {
-                                tempEvent = MakeRandomEvent(evt.def.followingEvent, null);
-                            }
+                            target = evt.def.followingEvent;
                         }
 
+                        /* Silent-drop guard: if the next link in the chain leads to options and the
+                         * setting is on, the chain ends here. Must precede MakeRandomEvent: that call
+                         * would open a window itself for activateAtStart && options.Count > 0 defs. */
+                        bool drop = target is null
+                            || (FCSettings.disableEventsWithOptions
+                                && FactionCache.EventDefNamesWithOptionsInChain.Contains(target.defName));
 
-                        if (tempEvent != null)
+                        if (!drop)
                         {
-                            faction.eventManager.AddEvent(tempEvent);
+                            List<WorldSettlementFC> settlements = evt.def.settlementsCarryOver
+                                ? evt.settlementTraitLocations
+                                : null;
+                            FCEvent tempEvent = MakeRandomEvent(target, settlements);
 
-                            Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
+                            if (tempEvent != null)
+                            {
+                                faction.eventManager.AddEvent(tempEvent);
+
+                                Find.LetterStack.ReceiveLetter(tempEvent.def.label, BuildEventLetterBody(tempEvent), LetterDefOf.NeutralEvent);
+                            }
                         }
                     }
 

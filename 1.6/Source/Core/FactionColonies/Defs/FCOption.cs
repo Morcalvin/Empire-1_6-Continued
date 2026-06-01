@@ -91,13 +91,14 @@ namespace FactionColonies
 
         public FCOptionWindow(FCEventDef evt, FCEvent parentEvent)
         {
-            this.forcePause = !FCSettings.disableForcedPausingDuringEvents;
+            this.forcePause = true;
             this.draggable = true;
             this.doCloseX = false;
             this.preventCameraMotion = false;
             this.closeOnAccept = false;
             this.closeOnCancel = false;
             this.closeOnClickedOutside = false;
+            this.preventSave = true;
 
             this.header = evt.label;
             this.options = evt.options;
