@@ -176,7 +176,7 @@ namespace FactionColonies
             Text.Font = GameFont.Tiny;
             for (int i = 0; i < options.Count; i++)
             {
-                cachedEffectPreviews[i] = GetEffectPreview(options[i]);
+                cachedEffectPreviews[i] = GetEffectPreview(options[i], parentEvent);
                 if (cachedEffectPreviews[i] != null)
                 {
                     cachedEffectPreviewHeights[i] = Text.CalcHeight(cachedEffectPreviews[i], labelWidth);
@@ -503,7 +503,7 @@ namespace FactionColonies
             GUI.color = colorBefore;
         }
 
-        private static string GetEffectPreview(FCOptionDef opt)
+        private static string GetEffectPreview(FCOptionDef opt, FCEvent parentEvent)
         {
             if (opt.baseChanceOfSuccess < 100f) return null;
 
@@ -543,10 +543,17 @@ namespace FactionColonies
                 }
             }
 
-            // Item rewards (delivered, not permanent)
+            // Item rewards (delivered, not permanent). When the success event will inherit the
+            // parent's settlement targets, show the scaled value the player will actually receive;
+            // otherwise we can't know the future event's target count and fall back to the base.
             if (resultEvent.randomThingValue > 0 && resultEvent.randomThingRewardDef != null)
             {
-                tempParts.Add("FCEffectPreviewReward".Translate(resultEvent.randomThingValue));
+                int previewValue = resultEvent.randomThingValue;
+                if (resultEvent.settlementsCarryOver && parentEvent != null)
+                {
+                    previewValue *= FCEventScalingUtil.CountAffectedSettlements(parentEvent);
+                }
+                tempParts.Add("FCEffectPreviewReward".Translate(previewValue));
             }
 
             if (tempParts.Count == 0 && permParts.Count == 0) return null;

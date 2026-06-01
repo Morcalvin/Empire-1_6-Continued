@@ -585,7 +585,11 @@ namespace FactionColonies
                                         // Undefined event: optionally awards a random thing reward.
                                         if (evt.def.randomThingValue > 0 && evt.def.randomThingRewardDef != null)
                                         {
-                                            List<Thing> list = PaymentUtil.GenerateRewardThings(evt.def.randomThingValue, evt.def.randomThingRewardDef);
+                                            /* Scale reward value by the number of affected settlements so multi-target events
+                                             * deliver reward magnitude proportional to their scope. Matches FCOptionCostUtil's
+                                             * cost scaling — same Max(1, liveTargets) rule via the shared helper. */
+                                            int scaledValue = evt.def.randomThingValue * FCEventScalingUtil.CountAffectedSettlements(evt);
+                                            List<Thing> list = PaymentUtil.GenerateRewardThings(scaledValue, evt.def.randomThingRewardDef);
 
                                             string str = "FCGoodsReceivedFollowing".Translate(evt.def.label);
 

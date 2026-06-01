@@ -63,7 +63,7 @@ namespace FactionColonies.util
         private static double ComputeRaw(FCOptionDef opt, FCEvent evt, List<string> lines)
         {
             int baseCost = Math.Max(0, opt.silverCost);
-            int affected = CountAffectedSettlements(evt);
+            int affected = FCEventScalingUtil.CountAffectedSettlements(evt);
 
             double total = (double)baseCost * affected;
             if (lines != null)
@@ -111,19 +111,6 @@ namespace FactionColonies.util
             }
 
             return total;
-        }
-
-        private static int CountAffectedSettlements(FCEvent evt)
-        {
-            int count = 0;
-            if (evt.settlementTraitLocations is object)
-            {
-                foreach (WorldSettlementFC s in evt.settlementTraitLocations)
-                {
-                    if (s is object) count++;
-                }
-            }
-            return Math.Max(1, count);
         }
 
         private static double ComputeIncome(FCEvent evt, FCIncomeCostScope scope)
