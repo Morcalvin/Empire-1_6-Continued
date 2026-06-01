@@ -21,6 +21,10 @@ namespace FactionColonies
         public int buildingSlot = -1;
         public BuildingFCDef building;
         public List<WorldSettlementFC> settlementTraitLocations = new List<WorldSettlementFC>();
+        /* Per-option scaled silver cost, keyed by FCOptionDef.defName. Null until the options
+         * window first opens; populated by FCOptionWindow so the price shown is the price paid
+         * and survives save/reload. Recomputes lazily for legacy events that never snapshotted. */
+        public Dictionary<string, int> optionCostSnapshots;
         public List<Thing> goods = new List<Thing>();
         public bool hasCustomDescription;
         public string customDescription = "";
@@ -135,6 +139,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref source, "source");
             Scribe_Values.Look(ref hasDestination, "hasDestination");
             Scribe_Collections.Look(ref settlementTraitLocations, "settlementTraitLocations", LookMode.Reference);
+            Scribe_Collections.Look(ref optionCostSnapshots, "optionCostSnapshots", LookMode.Value, LookMode.Value);
             Scribe_Collections.Look(ref goods, "goods", LookMode.Deep);
             Scribe_Values.Look(ref loadID, "loadID");
 

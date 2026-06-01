@@ -1,4 +1,5 @@
-﻿using RimWorld;
+﻿using FactionColonies.util;
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,6 +32,19 @@ namespace FactionColonies
         public int EffectiveSilverCost
         {
             get { return Math.Max(0, (int)Math.Round(silverCost * FCSettings.eventSilverCostMultiplier, MidpointRounding.AwayFromZero)); }
+        }
+
+        /* Event-aware cost lookup. Returns the snapshotted value on the FCEvent when present
+         * (set by FCOptionWindow at first construction so the displayed price matches the
+         * payment). Falls back to a fresh compute for callers without a snapshot — and to the
+         * parameterless EffectiveSilverCost when there's no event context at all. */
+        public int GetEffectiveSilverCost(FCEvent evt)
+        {
+            if (evt is null) return EffectiveSilverCost;
+            if (evt.optionCostSnapshots is object
+                && evt.optionCostSnapshots.TryGetValue(this.defName, out int snapped))
+                return snapped;
+            return FCOptionCostUtil.ComputeScaledCost(this, evt);
         }
     }
 
@@ -111,6 +125,19 @@ namespace FactionColonies
                     {
                         affectedSettlements.Add(s);
                     }
+                }
+            }
+
+            /* Snapshot per-option scaled costs onto the parent FCEvent the first time the window
+             * opens. Locks the price shown == price paid, survives save/reload. Subsequent reopens
+             * reuse the snapshot. Must happen before MeasureLayout — cost width feeds layout. */
+            if (parentEvent != null && parentEvent.optionCostSnapshots is null && this.options != null)
+            {
+                parentEvent.optionCostSnapshots = new Dictionary<string, int>();
+                foreach (FCOptionDef opt in this.options)
+                {
+                    if (opt is null) continue;
+                    parentEvent.optionCostSnapshots[opt.defName] = FCOptionCostUtil.ComputeScaledCost(opt, parentEvent);
                 }
             }
 
@@ -281,8 +308,9 @@ namespace FactionColonies
                 if (i > 0) optY += OptionSpacing;
 
                 FCOptionDef opt = options[i];
-                bool affordable = currentSilver >= opt.EffectiveSilverCost;
-                bool isFree = opt.EffectiveSilverCost <= 0;
+                int effectiveCost = opt.GetEffectiveSilverCost(parentEvent);
+                bool affordable = currentSilver >= effectiveCost;
+                bool isFree = effectiveCost <= 0;
                 string requirementFailReason;
                 bool meetsRequirements = MeetsPolicyRequirements(opt, out requirementFailReason);
                 string handlerUnavailableReason = null;
@@ -366,7 +394,7 @@ namespace FactionColonies
                     else
                     {
                         Text.Font = GameFont.Small;
-                        costAreaWidth = Text.CalcSize(opt.EffectiveSilverCost.ToString()).x + SilverIconSize + 2f;
+                        costAreaWidth = Text.CalcSize(effectiveCost.ToString()).x + SilverIconSize + 2f;
                     }
 
                     Text.Font = GameFont.Tiny;
@@ -394,7 +422,7 @@ namespace FactionColonies
                 {
                     // Draw silver icon + cost text
                     GUI.color = available ? Color.white : AccentUtil.Expense;
-                    string costStr = opt.EffectiveSilverCost.ToString();
+                    string costStr = effectiveCost.ToString();
                     float costTextW = Text.CalcSize(costStr).x;
                     Rect costTextRect = new Rect(metaRect.xMax - costTextW, metaRect.y, costTextW, metaRect.height);
                     Widgets.Label(costTextRect, costStr);
@@ -407,6 +435,16 @@ namespace FactionColonies
                     GUI.color = available ? Color.white : new Color(0.5f, 0.5f, 0.5f);
                     GUI.DrawTexture(iconRect, ThingDefOf.Silver.uiIcon);
                     GUI.color = colorBefore;
+
+                    /* Show a per-contribution breakdown on hover when the cost was actually scaled
+                     * (multi-settlement multiplier or extension axes). BuildCostBreakdown returns
+                     * null for the unscaled base-only case, so this is a no-op then. */
+                    string costBreakdown = FCOptionCostUtil.BuildCostBreakdown(opt, parentEvent);
+                    if (costBreakdown != null)
+                    {
+                        Rect costAreaRect = new Rect(iconRect.x, metaRect.y, costTextRect.xMax - iconRect.x, metaRect.height);
+                        TooltipHandler.TipRegion(costAreaRect, costBreakdown);
+                    }
 
                     if (!affordable)
                     {
@@ -441,7 +479,7 @@ namespace FactionColonies
                     if (available)
                     {
                         SoundDefOf.Click.PlayOneShotOnCamera();
-                        PaymentUtil.PaySilver(opt.EffectiveSilverCost, PaymentUtil.Reason_EventOption);
+                        PaymentUtil.PaySilver(effectiveCost, PaymentUtil.Reason_EventOption);
                         FCEventMaker.CalculateSuccess(opt, parentEvent);
                         Find.WindowStack.TryRemove(this);
                     }

@@ -27,6 +27,14 @@
 	<FCEffectPreviewReward>reward worth ~{0} silver</FCEffectPreviewReward>
 	<FCEffectPreviewDuration>({0} days)</FCEffectPreviewDuration>
 
+	<!-- Option Cost Breakdown Tooltip -->
+	<FCOptionCostBase>Base: {0}</FCOptionCostBase>
+	<FCOptionCostPerSettlement>× {0} affected settlements: {1}</FCOptionCostPerSettlement>
+	<FCOptionCostIncome>+ {0}% of empire income: {1}</FCOptionCostIncome>
+	<FCOptionCostResource>+ {0} scaling ({1} produced): {2}</FCOptionCostResource>
+	<FCOptionCostMultiplier>× {0} (global cost setting)</FCOptionCostMultiplier>
+	<FCOptionCostTotal>Total: {0}</FCOptionCostTotal>
+
 	<!-- Building Events -->
 	<FCBuildingEventDesc>{0} is under construction at {1}. Estimated completion: {2}.</FCBuildingEventDesc>
 	<FCBuildingEventCompletedMsg>{0} has been constructed at {1}!</FCBuildingEventCompletedMsg>
