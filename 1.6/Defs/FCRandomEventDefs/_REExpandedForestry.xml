@@ -93,7 +93,7 @@
       <li>expandedForestry_0</li>
       <li>forestFire_0</li>
     </incompatibleEvents>
-    <randomThingValue>500</randomThingValue>
+    <randomThingValue>1200</randomThingValue>
     <randomThingRewardDef>RERD_Silver</randomThingRewardDef>
   </FactionColonies.FCEventDef>
 

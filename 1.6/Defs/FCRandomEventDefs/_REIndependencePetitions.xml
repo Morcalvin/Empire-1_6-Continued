@@ -43,8 +43,13 @@ How will you address the dissent?</desc>
     <label>Address their grievances — distribute aid to the discontented.</label>
     <parentEvent>independencePetitions_0</parentEvent>
     <baseChanceOfSuccess>100</baseChanceOfSuccess>
-    <silverCost>500</silverCost>
+    <silverCost>800</silverCost>
     <successEvent>independencePetitions_1-2</successEvent>
+    <modExtensions>
+      <li Class="FactionColonies.FCDynamicCostExtension">
+        <costPerEmpireIncomeUnit>0.05</costPerEmpireIncomeUnit>
+      </li>
+    </modExtensions>
   </FactionColonies.FCOptionDef>
 
   <FactionColonies.FCOptionDef>

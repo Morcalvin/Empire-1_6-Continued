@@ -41,7 +41,7 @@
 		<label>Join the parade and rally the people.</label>
 		<parentEvent>loyaltyParade_0</parentEvent>
 		<baseChanceOfSuccess>100</baseChanceOfSuccess>
-		<silverCost>300</silverCost>
+		<silverCost>250</silverCost>
 		<successEvent>loyaltyParade_1-2</successEvent>
 		<failEvent></failEvent>
 	</FactionColonies.FCOptionDef>

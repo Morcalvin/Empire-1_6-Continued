@@ -48,7 +48,7 @@
     <label>Send hunting parties further afield.</label>
     <parentEvent>sparseWildlife_0</parentEvent>
     <baseChanceOfSuccess>100</baseChanceOfSuccess>
-    <silverCost>250</silverCost>
+    <silverCost>500</silverCost>
     <successEvent>sparseWildlife_1-2</successEvent>
   </FactionColonies.FCOptionDef>
 
@@ -57,7 +57,7 @@
     <label>Shift focus to farming the land instead.</label>
     <parentEvent>sparseWildlife_0</parentEvent>
     <baseChanceOfSuccess>100</baseChanceOfSuccess>
-    <silverCost>150</silverCost>
+    <silverCost>700</silverCost>
     <successEvent>sparseWildlife_1-3</successEvent>
   </FactionColonies.FCOptionDef>
 

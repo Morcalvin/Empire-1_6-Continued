@@ -37,8 +37,13 @@
     <label>Fold the militias into our settlement garrisons.</label>
     <parentEvent>localMilitiasForm_0</parentEvent>
     <baseChanceOfSuccess>100</baseChanceOfSuccess>
-    <silverCost>400</silverCost>
+    <silverCost>500</silverCost>
     <successEvent>localMilitiasForm_1-2</successEvent>
+    <modExtensions>
+      <li Class="FactionColonies.FCDynamicCostExtension">
+        <costPerEmpireIncomeUnit>0.03</costPerEmpireIncomeUnit>
+      </li>
+    </modExtensions>
   </FactionColonies.FCOptionDef>
 
   <FactionColonies.FCOptionDef>

@@ -34,10 +34,10 @@
 
   <FactionColonies.FCOptionDef>
     <defName>armorerInspiration_0_2</defName>
-    <label>A modest commission — 500 silver should suffice.</label>
+    <label>A modest bag of silver for a modest commission.</label>
     <parentEvent>armorerInspiration_0</parentEvent>
     <baseChanceOfSuccess>100</baseChanceOfSuccess>
-    <silverCost>500</silverCost>
+    <silverCost>250</silverCost>
     <successEvent>armorerInspiration-working_good</successEvent>
   </FactionColonies.FCOptionDef>
 
