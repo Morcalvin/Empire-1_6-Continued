@@ -965,4 +965,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_71</defName>
+		<label>Save-Load Bugfix</label>
+		<description>Fixes a bug where an entirely-derived list is still saved and loaded, introducing the possibility for a corrupted save or weird behavior to null it out. This then causes crashes and issues later on.</description>
+		<releaseDate>2026-06-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Don&apos;t scribe FactionFC.factionResources. It&apos;s always fully rebuilt after loading, so saving it is pointless</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

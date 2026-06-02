@@ -323,9 +323,6 @@ namespace FactionColonies
             Scribe_Collections.Look(ref resourcePools, "resourcePools", LookMode.Deep);
             Scribe_References.Look(ref powerOutput, "powerOutput");
 
-            //save resources
-            Scribe_Collections.Look(ref factionResources, "factionResources", LookMode.Deep);
-
             Scribe_Deep.Look(ref xenotypeFilter, "xenotypeFilter");
             Scribe_Deep.Look(ref animalFilter, "animalFilter");
 
