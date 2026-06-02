@@ -36,7 +36,7 @@
     <defName>woundedAnimal_0_2</defName>
     <label>We shall take care of it. Surely it cannot be of harm to us.</label>
     <parentEvent>woundedAnimal_0</parentEvent>
-    <baseChanceOfSuccess>50</baseChanceOfSuccess>
+    <baseChanceOfSuccess>70</baseChanceOfSuccess>
     <successEvent>woundedAnimal_1-1</successEvent>
     <failEvent>woundedAnimal_1-2</failEvent>
   </FactionColonies.FCOptionDef>

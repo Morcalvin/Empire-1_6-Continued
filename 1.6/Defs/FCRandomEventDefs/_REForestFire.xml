@@ -52,7 +52,7 @@
 		<label>Organize firefighting crews to contain the blaze.</label>
 		<parentEvent>forestFire_0</parentEvent>
 		<baseChanceOfSuccess>60</baseChanceOfSuccess>
-		<silverCost>200</silverCost>
+		<silverCost>500</silverCost>
 		<successEvent>forestFire_1-2s</successEvent>
 		<failEvent>forestFire_1-2f</failEvent>
 	</FactionColonies.FCOptionDef>

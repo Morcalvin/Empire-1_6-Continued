@@ -111,7 +111,7 @@
       <li>struckRichOreVein_0</li>
       <li>emptyMines_0</li>
     </incompatibleEvents>
-    <randomThingValue>600</randomThingValue>
+    <randomThingValue>1400</randomThingValue>
     <randomThingRewardDef>RERD_Silver</randomThingRewardDef>
   </FactionColonies.FCEventDef>
 

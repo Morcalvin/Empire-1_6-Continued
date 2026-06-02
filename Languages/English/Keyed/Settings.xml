@@ -26,7 +26,7 @@ By default, this computation runs on a background thread to avoid freezing the g
 		
 Spreading out the computation will reduce the impact on performance, but no roads will build until the MST is fully constructed. So the more you throttle the algorithm, the longer it will take for your roads to start building.</FCSettingRoadBuilderDesc>
 	<FCSettingEnableAllEvents>Enable All Events</FCSettingEnableAllEvents>
-	<FCSettingForcedPausing>Disable Forced Pausing During Events</FCSettingForcedPausing>
+	<FCSettingDisableEventsWithOptions>Disable Events With Options</FCSettingDisableEventsWithOptions>
 	<FCSettingEventOptionDelay>Event option misclick protection: {0}s</FCSettingEventOptionDelay>
 	<FCSettingEventSilverCostMultiplier>Event option silver cost multiplier: {0}x</FCSettingEventSilverCostMultiplier>
 	<FCSettingBattleMode>Battle Mode: </FCSettingBattleMode>

@@ -42,7 +42,7 @@
     <label>Hire prospectors to search for untapped deposits.</label>
     <parentEvent>emptyMines_0</parentEvent>
     <baseChanceOfSuccess>60</baseChanceOfSuccess>
-    <silverCost>400</silverCost>
+    <silverCost>300</silverCost>
     <successEvent>emptyMines-searching_success</successEvent>
     <failEvent>emptyMines-searching_fail</failEvent>
   </FactionColonies.FCOptionDef>

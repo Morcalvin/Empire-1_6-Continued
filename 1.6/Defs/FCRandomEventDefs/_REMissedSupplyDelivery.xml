@@ -44,12 +44,17 @@
 		<label>Source replacement supplies from local traders.</label>
 		<parentEvent>missedSupplyDelivery_0</parentEvent>
 		<baseChanceOfSuccess>100</baseChanceOfSuccess>
-		<silverCost>300</silverCost>
+		<silverCost>500</silverCost>
 		<successEvent>missedSupplyDelivery_1-2</successEvent>
 		<failEvent></failEvent>
 		<requiredPolicies>
 			<li>mercantile</li>
 		</requiredPolicies>
+		<modExtensions>
+			<li Class="FactionColonies.FCDynamicCostExtension">
+				<costPerEmpireIncomeUnit>0.015</costPerEmpireIncomeUnit>
+			</li>
+		</modExtensions>
 	</FactionColonies.FCOptionDef>
 
 	<FactionColonies.FCOptionDef>
@@ -70,8 +75,8 @@
 		<timeTillTrigger>300000</timeTillTrigger>
 		<timeTillTriggerMax>480000</timeTillTriggerMax>
 		<statModifiers>
-			<li><stat>RTD_Weapons_ProductionAdditive</stat><value>-0.5</value></li>
-			<li><stat>RTD_Apparel_ProductionAdditive</stat><value>-0.5</value></li>
+			<li><stat>RTD_Weapons_ProductionAdditive</stat><value>-0.3</value></li>
+			<li><stat>RTD_Apparel_ProductionAdditive</stat><value>-0.3</value></li>
 		</statModifiers>
 		<incompatibleEvents>
 			<li>missedSupplyDelivery_0</li>

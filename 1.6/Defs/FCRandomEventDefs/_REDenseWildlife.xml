@@ -127,7 +127,7 @@
       <li>denseWildlife_0</li>
       <li>sparseWildlife_0</li>
     </incompatibleEvents>
-    <randomThingValue>750</randomThingValue>
+    <randomThingValue>2200</randomThingValue>
     <randomThingRewardDef>RERD_Animals</randomThingRewardDef>
   </FactionColonies.FCEventDef>
 

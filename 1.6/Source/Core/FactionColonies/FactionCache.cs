@@ -50,6 +50,7 @@ namespace FactionColonies
         private static HashSet<string> _cachedEventFollowUpDefNames = null;
         private static List<FCEventDef> _cachedRandomRollableEvents = null;
         private static List<FCEventDef> _cachedAllRandomEventDefs = null;
+        private static HashSet<string> _cachedEventDefNamesWithOptionsInChain = null;
         private static HashSet<BiomeResourceDef> _cachedBiomeResourceDefSet = null;
         private static Dictionary<TechLevel, List<BuildingFCDef>> _cachedBuildingDefsByTechLevel = null;
 
@@ -699,6 +700,38 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>
+        /// defNames of events whose reachable chain (following <c>eventFollows</c> / <c>followingEvent</c>
+        /// / <c>followingEvent2</c>) contains at least one event with options. A def with its own options
+        /// is trivially tainted. Used to gate chains when <c>FCSettings.disableEventsWithOptions</c> is on.
+        /// </summary>
+        public static HashSet<string> EventDefNamesWithOptionsInChain
+        {
+            get
+            {
+                if (_cachedEventDefNamesWithOptionsInChain is null)
+                {
+                    _cachedEventDefNamesWithOptionsInChain = new HashSet<string>();
+                    foreach (FCEventDef def in DefDatabase<FCEventDef>.AllDefsListForReading)
+                    {
+                        if (ChainHasOptions(def, new HashSet<FCEventDef>()))
+                            _cachedEventDefNamesWithOptionsInChain.Add(def.defName);
+                    }
+                }
+                return _cachedEventDefNamesWithOptionsInChain;
+            }
+        }
+
+        private static bool ChainHasOptions(FCEventDef def, HashSet<FCEventDef> visited)
+        {
+            if (def is null || !visited.Add(def)) return false;
+            if (def.options is object && def.options.Count > 0) return true;
+            if (!def.eventFollows) return false;
+            if (ChainHasOptions(def.followingEvent, visited)) return true;
+            if (def.splitEventFollows && ChainHasOptions(def.followingEvent2, visited)) return true;
+            return false;
+        }
+
         public static HashSet<BiomeResourceDef> BiomeResourceDefSet => _cachedBiomeResourceDefSet ??
                                                                        (_cachedBiomeResourceDefSet = new HashSet<BiomeResourceDef>(DefDatabase<BiomeResourceDef>.AllDefsListForReading));
 
@@ -766,6 +799,7 @@ namespace FactionColonies
             _cachedEventFollowUpDefNames = null;
             _cachedRandomRollableEvents = null;
             _cachedAllRandomEventDefs = null;
+            _cachedEventDefNamesWithOptionsInChain = null;
             _cachedBiomeResourceDefSet = null;
             _cachedBuildingDefsByTechLevel = null;
 

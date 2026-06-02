@@ -38,8 +38,13 @@
     <label>Hold a public memorial to honor their legacy.</label>
     <parentEvent>deathInTheFamily_0</parentEvent>
     <baseChanceOfSuccess>100</baseChanceOfSuccess>
-    <silverCost>500</silverCost>
+    <silverCost>400</silverCost>
     <successEvent>deathInTheFamily-1b_memorial</successEvent>
+    <modExtensions>
+      <li Class="FactionColonies.FCDynamicCostExtension">
+        <costPerEmpireIncomeUnit>0.02</costPerEmpireIncomeUnit>
+      </li>
+    </modExtensions>
   </FactionColonies.FCOptionDef>
 
   <FactionColonies.FCOptionDef>
@@ -47,7 +52,7 @@
     <label>Investigate the assassination — someone will answer for this.</label>
     <parentEvent>deathInTheFamily_0</parentEvent>
     <baseChanceOfSuccess>70</baseChanceOfSuccess>
-    <silverCost>250</silverCost>
+    <silverCost>500</silverCost>
     <successEvent>deathInTheFamily-1c_investigation_good</successEvent>
     <failEvent>deathInTheFamily-1d_investigation_bad</failEvent>
   </FactionColonies.FCOptionDef>

@@ -69,7 +69,7 @@ namespace FactionColonies
         /* Defaults for Events & Military settings */
         public const bool DEFAULT_DISABLE_HOSTILE_MILITARY_ACTIONS = false;
         public const bool DEFAULT_DISABLE_RANDOM_EVENTS = false;
-        public const bool DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS = true;
+        public const bool DEFAULT_DISABLE_EVENTS_WITH_OPTIONS = false;
         public const float DEFAULT_EVENT_OPTION_DELAY_SECONDS = 1.0f;
         public const float DEFAULT_EVENT_SILVER_COST_MULTIPLIER = 1.0f;
         public const bool DEFAULT_USE_THREADED_ROAD_COMPUTATION = true;
@@ -108,7 +108,7 @@ namespace FactionColonies
         public static bool mirrorPlayerTechLevel = DEFAULT_MIRROR_PLAYER_TECH_LEVEL;
         public static bool disableHostileMilitaryActions = DEFAULT_DISABLE_HOSTILE_MILITARY_ACTIONS;
         public static bool disableRandomEvents = DEFAULT_DISABLE_RANDOM_EVENTS;
-        public static bool disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
+        public static bool disableEventsWithOptions = DEFAULT_DISABLE_EVENTS_WITH_OPTIONS;
         public static float eventOptionDelaySeconds = DEFAULT_EVENT_OPTION_DELAY_SECONDS;
         public static float eventSilverCostMultiplier = DEFAULT_EVENT_SILVER_COST_MULTIPLIER;
         public static bool useThreadedRoadComputation = DEFAULT_USE_THREADED_ROAD_COMPUTATION;
@@ -310,7 +310,7 @@ namespace FactionColonies
             Scribe_Values.Look(ref mirrorPlayerTechLevel, "mirrorPlayerTechLevel", DEFAULT_MIRROR_PLAYER_TECH_LEVEL);
             Scribe_Values.Look(ref disableHostileMilitaryActions, "disableHostileMilitaryActions", DEFAULT_DISABLE_HOSTILE_MILITARY_ACTIONS);
             Scribe_Values.Look(ref disableRandomEvents, "disableRandomEvents", DEFAULT_DISABLE_RANDOM_EVENTS);
-            Scribe_Values.Look(ref disableForcedPausingDuringEvents, "disableForcedPausingDuringEvents", DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS);
+            Scribe_Values.Look(ref disableEventsWithOptions, "disableEventsWithOptions", DEFAULT_DISABLE_EVENTS_WITH_OPTIONS);
             Scribe_Values.Look(ref eventOptionDelaySeconds, "eventOptionDelaySeconds", DEFAULT_EVENT_OPTION_DELAY_SECONDS);
             Scribe_Values.Look(ref eventSilverCostMultiplier, "eventSilverCostMultiplier", DEFAULT_EVENT_SILVER_COST_MULTIPLIER);
             Scribe_Values.Look(ref forcedTaxDeliveryMode, "forcedTaxDeliveryMode", DEFAULT_TAX_DELIVERY_MODE);
@@ -772,7 +772,7 @@ namespace FactionColonies
                 geneValueMaxFactor       = DEFAULT_GENE_MAX_FACTOR;
                 battleArchiveMaxEntries = DEFAULT_BATTLE_ARCHIVE_MAX_ENTRIES;
                 battleArchiveUnlimited = DEFAULT_BATTLE_ARCHIVE_UNLIMITED;
-                disableForcedPausingDuringEvents = DEFAULT_DISABLE_FORCED_PAUSING_DURING_EVENTS;
+                disableEventsWithOptions = DEFAULT_DISABLE_EVENTS_WITH_OPTIONS;
                 eventSilverCostMultiplier = DEFAULT_EVENT_SILVER_COST_MULTIPLIER;
                 forcedTaxDeliveryMode = DEFAULT_TAX_DELIVERY_MODE;
                 taxNotificationMode = DEFAULT_TAX_NOTIFICATION_MODE;
@@ -797,7 +797,7 @@ namespace FactionColonies
             ls.Begin(listRect);
 
             ls.CheckboxLabeled("FCSettingDisableRandomEvents".Translate(), ref disableRandomEvents);
-            ls.CheckboxLabeled("FCSettingForcedPausing".Translate(), ref disableForcedPausingDuringEvents);
+            ls.CheckboxLabeled("FCSettingDisableEventsWithOptions".Translate(), ref disableEventsWithOptions);
             eventOptionDelaySeconds = ls.SliderLabeled(
                 "FCSettingEventOptionDelay".Translate(eventOptionDelaySeconds.ToString("0.0")),
                 eventOptionDelaySeconds, 0f, 2f);

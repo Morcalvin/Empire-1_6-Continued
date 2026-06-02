@@ -17,7 +17,6 @@
   <FCSettingsTabMilitary>Военные</FCSettingsTabMilitary>
   <FCSettingEnableAllEvents>Включить все события</FCSettingEnableAllEvents>
   <FCSettingDeadPawnsIncreaseMilCooldown>Мертвые персонажи увеличивают перезарядку военных</FCSettingDeadPawnsIncreaseMilCooldown>
-  <FCSettingForcedPausing>Отключить принудительную паузу во время событий</FCSettingForcedPausing>
   <FCSettingBattleMode>Режим битвы: </FCSettingBattleMode>
   <FCBattleModeAuto>Авто-разрешение</FCBattleModeAuto>
   <FCBattleModeAutoDesc>Все битвы разрешаются автоматически.</FCBattleModeAutoDesc>

@@ -219,4 +219,20 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_14</defName>
+		<label>Events Balance Pass</label>
+		<description>A broad balance pass to make events harder to cheese: when an event has options, the game auto-pauses and can&apos;t be unpaused or saved until an option is chosen. Additionally, the base cost of event options now scales by the number of settlements affected, among other things.</description>
+		<releaseDate>2026-06-01</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Force-pause the game when an event with options pops</li>
+		<li>Scale event option costs by the number of affected settlements, as well as optionally by faction income or resource production</li>
+		<li>General balance and editing pass for all events</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
