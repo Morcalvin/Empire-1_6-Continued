@@ -1008,18 +1008,18 @@ namespace FactionColonies
             while (inhabitants.Count < targetCount && spawnAttempts < targetCount * 2)
             {
                 spawnAttempts++;
-                Pawn civilian = PawnGenerator.GeneratePawn(FCPawnGenerator.CivilianRequest());
-                IntVec3 loc;
-                if (!CellFinder.TryFindRandomCellNear(map.Center, map, 15, c => c.Standable(map), out loc))
-                    loc = map.Center;
                 try
                 {
+                    Pawn civilian = PawnGenerator.GeneratePawn(FCPawnGenerator.CivilianRequest());
+                    IntVec3 loc;
+                    if (!CellFinder.TryFindRandomCellNear(map.Center, map, 15, c => c.Standable(map), out loc))
+                        loc = map.Center;
                     GenSpawn.Spawn(civilian, loc, map);
                     inhabitants.Add(civilian);
                 }
                 catch (Exception e)
                 {
-                    LogUtil.Warning($"Failed to spawn civilian (likely a mod conflict): {e}");
+                    LogUtil.Warning($"Failed to generate/spawn civilian (likely a mod conflict): {e}");
                 }
             }
 
