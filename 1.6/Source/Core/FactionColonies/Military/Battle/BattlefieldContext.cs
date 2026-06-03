@@ -415,6 +415,38 @@ namespace FactionColonies
             return map;
         }
 
+        /* Removes hostile-faction Things spawned by vanilla landmark / tile-mutator map
+           generation (ancient turrets, drone-trap dispensers, dormant mech/insect clusters,
+           hives, insect lair entrances, etc.) so they don't attack the Empire's defenders
+           and the incoming raid alike. Defense-only -- manual offensive battles on enemy
+           settlements legitimately want this content active, so this is intentionally
+           NOT called from GenerateMap() itself. */
+        private void StripLandmarkHostiles()
+        {
+            if (map is null) return;
+
+            Faction player = Faction.OfPlayer;
+            Faction empireFaction = FindFC.EmpireFaction;
+            if (player is null) return;
+
+            List<Thing> toDestroy = new List<Thing>();
+            foreach (Thing thing in map.listerThings.AllThings)
+            {
+                if (thing.Faction is null) continue;
+                if (thing.Faction == empireFaction) continue;
+                if (!thing.Faction.HostileTo(player)) continue;
+                toDestroy.Add(thing);
+            }
+
+            foreach (Thing thing in toDestroy)
+            {
+                if (!thing.Destroyed) thing.Destroy(DestroyMode.Vanish);
+            }
+
+            if (toDestroy.Count > 0)
+                LogUtil.Message($"StripLandmarkHostiles: removed {toDestroy.Count} hostile pre-existing thing(s) from defense map at tile {map.Tile}");
+        }
+
         /* -*-*-*-*- Battle entry: StartDefense -*-*-*-*-
          * Called from op.OnEventFired's defensive branch (or via comp.StartDefence's facade) once
          * the warning event fires. Drives the three paths: add to existing battle, auto-resolve,
@@ -548,7 +580,11 @@ namespace FactionColonies
 
             LongEventHandler.QueueLongEvent(() =>
             {
-                if (map == null) GenerateMap();
+                if (map == null)
+                {
+                    GenerateMap();
+                    StripLandmarkHostiles();
+                }
                 ZoomIntoTile(op);
                 SetupAttack(op);
                 after?.Invoke();

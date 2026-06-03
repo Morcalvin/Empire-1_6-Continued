@@ -249,4 +249,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_16</defName>
+		<label>No 3rd-party hostiles in manual defense</label>
+		<description>When generating a manual defense battle, we now loop through all things and destroy any that are hostile to the player. This loop runs before adding hostiles, and is necessary to clean the map of third-party hostiles such as if the settlement was founded on a Launch Point landmark.</description>
+		<releaseDate>2026-06-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>When setting up a defense battle in BattlefieldContext.StartDefense, strip third-party hostiles after generating the map but before setting up the actual attack</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
