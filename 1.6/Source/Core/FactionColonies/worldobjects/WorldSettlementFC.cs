@@ -164,6 +164,67 @@ namespace FactionColonies
         private Dictionary<FCStatDef, double> cachedStatValues = new Dictionary<FCStatDef, double>();
         private Dictionary<FCStatDef, string> cachedStatDescs = new Dictionary<FCStatDef, string>();
 
+        /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+         * ~          Ticking comp filter        ~ *
+         *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+        /* RimWorld's WorldObject.Tick() calls CompTick() on every comp every tick, with no per-comp
+         * opt-out. Comps that exist only to provide settlement data (e.g. IResourceProductionModifier)
+         * never override CompTick, so that per-tick virtual call is pure overhead. We override Tick()
+         * to call CompTick only on comps that actually override it. TickInterval is left to base
+         * (Settlement/MapParent override it with real work; it's throttled, not the hot path). */
+
+        // Per-comp-Type "does it override CompTick?" result. One reflection call per comp class, ever.
+        private static readonly Dictionary<Type, bool> tickOverrideCache = new Dictionary<Type, bool>();
+
+        // Comps on this settlement that actually override CompTick. Lazy; rebuilt when the comp set changes.
+        [Unsaved] private List<WorldObjectComp> tickingComps;
+
+        internal static bool OverridesCompTick(Type compType)
+        {
+            if (tickOverrideCache.TryGetValue(compType, out bool result)) return result;
+            MethodInfo m = compType.GetMethod("CompTick",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, Type.EmptyTypes, null);
+            result = m is object && m.DeclaringType != typeof(WorldObjectComp);
+            tickOverrideCache[compType] = result;
+            return result;
+        }
+
+        private void RebuildTickingComps()
+        {
+            tickingComps = new List<WorldObjectComp>();
+            List<WorldObjectComp> all = AllComps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (OverridesCompTick(all[i].GetType()))
+                    tickingComps.Add(all[i]);
+            }
+        }
+
+        protected override void Tick()
+        {
+            if (tickingComps is null) RebuildTickingComps();
+            for (int i = 0; i < tickingComps.Count; i++)
+            {
+                tickingComps[i].CompTick();
+            }
+        }
+
+        internal void DebugLogTickingComps()
+        {
+            if (tickingComps is null) RebuildTickingComps();
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"Ticking comps for settlement '{Name}' (Lv{settlementLevel}): "
+                + $"{tickingComps.Count} ticking / {AllComps.Count} total");
+            List<WorldObjectComp> all = AllComps;
+            for (int i = 0; i < all.Count; i++)
+            {
+                bool ticks = OverridesCompTick(all[i].GetType());
+                sb.AppendLine($"  {(ticks ? "[tick]" : "[skip]")} {all[i].GetType().Name}");
+            }
+            LogUtil.MessageForce(sb.ToString());
+        }
+
         /* Legacy save migration: prisoner data lived on the settlement under the
          * "prisonerList" XML key until WorldObjectComp_SettlementPrisoners took ownership.
          * Filled only during LoadingVars and drained into PrisonerComp.prisonerList during
@@ -1098,6 +1159,9 @@ namespace FactionColonies
                     }
                 }
             }
+
+            // Comp set changed; rebuild the ticking-comp filter on the next tick.
+            tickingComps = null;
         }
 
         public double GainUnrestWithReason(Message message, double amount)

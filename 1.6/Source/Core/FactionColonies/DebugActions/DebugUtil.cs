@@ -443,6 +443,10 @@ namespace FactionColonies
         [DebugAction("Empire", "De-Level Player Settlement", allowedGameStates = AllowedGameStates.Playing)]
         private static void DelevelPlayerSettlement() => UpgradePlayerSettlement(-1);
 
+        [DebugAction("Empire", "Dump settlement ticking comps", allowedGameStates = AllowedGameStates.Playing)]
+        private static void DumpTickingComps()
+            => WithSettlementChoice(s => s.DebugLogTickingComps());
+
         [DebugAction("Empire", "Reset All Military Squads", allowedGameStates = AllowedGameStates.Playing)]
         private static void ResetMilitarySquads()
         {
