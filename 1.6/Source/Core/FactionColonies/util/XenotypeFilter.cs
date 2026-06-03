@@ -622,6 +622,8 @@ namespace FactionColonies.util
                 LogUtil.Error("RefreshPawnGroupMakers: combat pawnGroupMaker has no options after template population");
             if (!faction.pawnGroupMakers[1].traders.Any())
                 LogUtil.Error("RefreshPawnGroupMakers: trader pawnGroupMaker has no traders after template population");
+            if (!faction.pawnGroupMakers[1].carriers.Any())
+                LogUtil.Error("RefreshPawnGroupMakers: trader pawnGroupMaker has no carriers after pack-animal population");
             if (!faction.pawnGroupMakers[3].options.Any())
                 LogUtil.Error("RefreshPawnGroupMakers: peaceful pawnGroupMaker has no options after template population");
             if (faction.baseTraderKinds is null || !faction.baseTraderKinds.Any())
@@ -703,7 +705,6 @@ namespace FactionColonies.util
             }
 
             SetPawnGroupMakers();
-            ValidatePawnGroupMakers();
 
             // Add pack animals for caravans
             var packPool = factionFc?.animalFilter?.AllowedPackAnimals ?? FactionCache.AllPackAnimalKinds;
@@ -711,6 +712,19 @@ namespace FactionColonies.util
             {
                 faction.pawnGroupMakers[1].carriers.Add(new PawnGenOption { kind = animalKindDef, selectionWeight = 1 });
             }
+
+            ValidatePawnGroupMakers();
+
+            /* MessageForce so we can observe whether Refresh ran on this session in
+               player logs that have PrintDebug disabled — the entry-point log at
+               line ~997 is Message-level and otherwise invisible. */
+            LogUtil.MessageForce("RefreshPawnGroupMakers complete | "
+                + "combat.opt=" + faction.pawnGroupMakers[0].options.Count
+                + " trader.trd=" + faction.pawnGroupMakers[1].traders.Count
+                + " trader.car=" + faction.pawnGroupMakers[1].carriers.Count
+                + " trader.grd=" + faction.pawnGroupMakers[1].guards.Count
+                + " settlement.opt=" + faction.pawnGroupMakers[2].options.Count
+                + " peaceful.opt=" + faction.pawnGroupMakers[3].options.Count);
 
             RefreshMercenaryPawnGenOptions();
         }

@@ -979,4 +979,19 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_73</defName>
+		<label>Added Diag</label>
+		<description>Adds some diagnostic logging for the failure case of failing to spawn a Mercantile caravan. The added logging fires only when a caravan fails to spawn, which happens at maximum once every 2 days.</description>
+		<releaseDate>2026-06-02</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Add BuildPawnGroupMakerDiagnostic for increased diag logging when a mercantile caravan fails to spawn</li>
+		<li>XenotypeFilter.ValidatePawnGroupMakers now also validates that trader makers have valid carriers</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
