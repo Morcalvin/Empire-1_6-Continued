@@ -796,7 +796,7 @@ namespace FactionColonies
             if (target is object) return target;
             foreach (IRaidTarget rt in RaidTargetRegistry.Targets)
             {
-                if (rt?.WorldObject is object && rt.Tile == tile.tileId) return rt.WorldObject;
+                if (rt?.WorldObject is object && rt.Tile == tile) return rt.WorldObject;
             }
             return null;
         }

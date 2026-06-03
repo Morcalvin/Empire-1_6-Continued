@@ -14,7 +14,7 @@ namespace FactionColonies
         /// <summary>The world object this target wraps (for serialization and <see cref="LookTargets"/>).</summary>
         WorldObject WorldObject { get; }
         string Name { get; }
-        int Tile { get; }
+        PlanetTile Tile { get; }
         /// <summary>Virtual military level used for targeting weight and auto-defend comparison.</summary>
         int MilitaryLevel { get; }
         /// <summary>Set by the attack system to prevent duplicate attacks. Cleared on resolution.</summary>

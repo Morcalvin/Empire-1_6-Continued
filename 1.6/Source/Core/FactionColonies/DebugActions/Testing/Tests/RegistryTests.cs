@@ -1074,7 +1074,7 @@ namespace FactionColonies
             public StubRaidTarget(WorldObject obj = null) { _obj = obj; }
             public WorldObject WorldObject => _obj;
             public string Name => "TestRaidTarget";
-            public int Tile => 0;
+            public PlanetTile Tile => PlanetTile.Invalid;
             public int MilitaryLevel => 1;
             public bool IsUnderAttack { get; set; }
             public void OnRaidWon(BattleResult result) { }
@@ -1085,7 +1085,7 @@ namespace FactionColonies
         {
             public WorldObject WorldObject => throw new InvalidOperationException("test");
             public string Name => throw new InvalidOperationException("test");
-            public int Tile => throw new InvalidOperationException("test");
+            public PlanetTile Tile => throw new InvalidOperationException("test");
             public int MilitaryLevel => throw new InvalidOperationException("test");
             public bool IsUnderAttack { get => throw new InvalidOperationException("test"); set => throw new InvalidOperationException("test"); }
             public void OnRaidWon(BattleResult result) { }
