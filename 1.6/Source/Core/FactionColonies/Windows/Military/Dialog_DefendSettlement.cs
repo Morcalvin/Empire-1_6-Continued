@@ -23,6 +23,8 @@ namespace FactionColonies
         private readonly FCEvent evt;
         private readonly MilitaryOperation op;
         private readonly WorldSettlementFC homeSettlement;
+        private readonly WorldObject targetObject;
+        private readonly PlanetTile targetTile;
         private readonly Faction enemy;
         private readonly MilitaryForce attackerForce;
 
@@ -47,6 +49,8 @@ namespace FactionColonies
             this.attackerForce = op?.aggressor?.force;
             this.enemy = op?.aggressor?.faction;
             this.homeSettlement = FindFC.FactionComp?.ReturnSettlementByLocation(evt?.location ?? PlanetTile.Invalid);
+            this.targetObject = op?.targetObject ?? homeSettlement;
+            this.targetTile = op?.targetTile ?? evt?.location ?? PlanetTile.Invalid;
 
             doCloseX = true;
             forcePause = true;
@@ -63,7 +67,7 @@ namespace FactionColonies
 
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
-            string titleText = "FCDefenderPickerTitle".Translate(homeSettlement?.Name ?? "?");
+            string titleText = "FCDefenderPickerTitle".Translate(homeSettlement?.Name ?? targetObject?.LabelCap ?? "?");
             Widgets.Label(new Rect(8f, 0, inRect.width - 16f, TitleH), titleText);
 
             UIUtil.DrawColoredHorizontalLine(0, TitleH, inRect.width, Color.gray);
@@ -179,7 +183,7 @@ namespace FactionColonies
 
             FactionFC fc = FindFC.FactionComp;
             List<MercenarySquadFC> pool = fc?.military?.mercenarySquads;
-            if (pool is null || homeSettlement is null || attackerForce is null)
+            if (pool is null || !targetTile.Valid || attackerForce is null)
             {
                 rowsDirty = false;
                 return;
@@ -194,11 +198,14 @@ namespace FactionColonies
                 if (availableOnly && !available) continue;
 
                 // Filter by defense validators (e.g. road / range gates) for foreign squads.
-                if (squad.settlement != homeSettlement
+                // Skip the gate entirely when there's no home settlement (target is an external
+                // raid target like a VOE outpost) — validators are settlement-scoped today.
+                if (homeSettlement is object
+                    && squad.settlement != homeSettlement
                     && !DefenseValidatorRegistry.CanDefend(squad.settlement, homeSettlement))
                     continue;
 
-                int travelTicks = TravelUtil.ReturnTicksToArrive(squad.settlement.Tile, homeSettlement.Tile);
+                int travelTicks = TravelUtil.ReturnTicksToArrive(squad.settlement.Tile, targetTile);
 
                 MilitaryForce defenderForce = MilitaryForce.CreateMilitaryForceFromSquad(squad);
 
@@ -211,8 +218,8 @@ namespace FactionColonies
                     BattleForceContext rowCtx = new BattleForceContext
                     {
                         kind = op.kind,
-                        targetTile = homeSettlement.Tile,
-                        targetObject = homeSettlement,
+                        targetTile = targetTile,
+                        targetObject = targetObject,
                         aggressor = new MilitaryOperationParticipant { faction = enemy, force = attackerForce },
                         defender = new MilitaryOperationParticipant
                         {
@@ -266,7 +273,7 @@ namespace FactionColonies
             {
                 if (defender?.WorldObject is null) continue;
                 if (!defender.CanAutoDefend) continue;
-                int distance = Find.WorldGrid.TraversalDistanceBetween(defender.WorldObject.Tile, homeSettlement.Tile);
+                int distance = Find.WorldGrid.TraversalDistanceBetween(defender.WorldObject.Tile, targetTile);
                 if (distance > defender.Range) continue;
 
                 MilitaryForce extForce = defender.CreateDefendingForce();
