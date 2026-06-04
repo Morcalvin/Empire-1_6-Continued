@@ -291,4 +291,19 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_19</defName>
+		<label>Performance Update</label>
+		<description>Changes some of the Tick functions to exclude comps that don&apos;t tick. This has an actual (albeit small) performance improvement for as &quot;few&quot; as 20-30 Empire Settlements.</description>
+		<releaseDate>2026-06-03</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Change FactionFC.TickActions to only tick policybehaviors that tick</li>
+		<li>Override both Tick and TickInterval in WorldSettlementFC to exclude WorldObjectComps that haven&apos;t defined their own Ticks (and thus, don&apos;t need to tick)</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

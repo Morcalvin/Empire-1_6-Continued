@@ -37,18 +37,4 @@ namespace FactionColonies
                 FindFC.RoadBuilder?.FlagUpdateRoadQueues();
         }
     }
-
-    /// <summary>
-    /// Prevents vanilla from treating WorldSettlementFC as a defeated enemy
-    /// settlement when its map is removed. Without this, CheckDefeated spawns
-    /// DestroyedSettlement objects and crashes in TimedDetectionRaids.CopyFrom.
-    /// </summary>
-    [HarmonyPatch(typeof(SettlementDefeatUtility), nameof(SettlementDefeatUtility.CheckDefeated))]
-    class SettlementDefeatUtilityPatch
-    {
-        static bool Prefix(Settlement factionBase)
-        {
-            return !(factionBase is WorldSettlementFC);
-        }
-    }
 }

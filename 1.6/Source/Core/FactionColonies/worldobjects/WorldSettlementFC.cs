@@ -164,6 +164,101 @@ namespace FactionColonies
         private Dictionary<FCStatDef, double> cachedStatValues = new Dictionary<FCStatDef, double>();
         private Dictionary<FCStatDef, string> cachedStatDescs = new Dictionary<FCStatDef, string>();
 
+        /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+         * ~          Ticking comp filter        ~ *
+         *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+        /* RimWorld's WorldObject.Tick() and WorldObject.TickInterval(delta) both dispatch to EVERY comp
+         * (CompTick / CompTickInterval) with no per-comp opt-out. Comps that exist only to provide
+         * settlement data (e.g. IResourceProductionModifier) never override those, so the virtual call
+         * is pure overhead. We override both to dispatch only to comps that actually override the
+         * matching method. For TickInterval we additionally re-inline the rest of the base chain
+         * (MapParent + Settlement work) so no base behavior is lost — see TickInterval below. */
+
+        // Comps that actually override CompTick / CompTickInterval. Lazy; rebuilt when the comp set
+        // changes. The "does this type override X?" test is cached centrally in TickOverrideUtil.
+        [Unsaved] private List<WorldObjectComp> tickingComps;
+        [Unsaved] private List<WorldObjectComp> tickIntervalComps;
+
+        private void RebuildTickingComps()
+        {
+            tickingComps = new List<WorldObjectComp>();
+            List<WorldObjectComp> all = AllComps;
+            foreach (WorldObjectComp comp in all)
+            {
+                if (TickOverrideUtil.Overrides(comp.GetType(), "CompTick", typeof(WorldObjectComp)))
+                    tickingComps.Add(comp);
+            }
+        }
+
+        private void RebuildTickIntervalComps()
+        {
+            tickIntervalComps = new List<WorldObjectComp>();
+            List<WorldObjectComp> all = AllComps;
+            foreach (WorldObjectComp comp in all)
+            {
+                if (TickOverrideUtil.Overrides(comp.GetType(), "CompTickInterval", typeof(WorldObjectComp), typeof(int)))
+                    tickIntervalComps.Add(comp);
+            }
+        }
+
+        protected override void Tick()
+        {
+            if (tickingComps is null) RebuildTickingComps();
+            for (int i = 0; i < tickingComps.Count; i++)
+            {
+                tickingComps[i].CompTick();
+            }
+        }
+
+        /* Overriding TickInterval means we no longer call base, so we must replicate the parent chain
+         * (Settlement -> MapParent -> WorldObject) here, swapping only WorldObject's unconditional comp
+         * loop for the filtered one. Mirror of base bodies as of RimWorld 1.6 — revisit if they change.
+         * 
+         * The purpose of overriding TickInterval is so we can choose to only call CompTickInterval on
+         * WorldObjectComps that have actually defined it, and thus need to tick. Basic testing shows that
+         * skipping non-ticking WorldObjectComps can have an actual performance benefit with as few as 20-30
+         * Empire Settlements (though the benefit is admittedly small).
+         */
+        protected override void TickInterval(int delta)
+        {
+            // WorldObject.TickInterval: dispatch only to comps that override CompTickInterval.
+            if (tickIntervalComps is null) RebuildTickIntervalComps();
+            foreach (WorldObjectComp comp in tickIntervalComps)
+            {
+                comp.CompTickInterval(delta);
+            }
+
+            // MapParent.TickInterval: remove the map when our ShouldRemoveMapNow override says so.
+            CheckRemoveMapNow();
+
+            // Settlement.TickInterval: trader restock/tick.
+            if (trader != null)
+            {
+                trader.TraderTrackerTick();
+            }
+            // CheckDefeated(this) is INTENTIONALLY omitted here. Vanilla Settlement.TickInterval calls it,
+            // but for a WorldSettlementFC it spawns DestroyedSettlement objects and crashes in
+            // TimedDetectionRaids.CopyFrom. We used to suppress that with a Harmony prefix on
+            // SettlementDefeatUtility.CheckDefeated; now that this override is the sole tick path for our
+            // settlements and never calls it, the call and that patch have both been removed. Map teardown
+            // is handled by CheckRemoveMapNow() above.
+        }
+
+        internal void DebugLogTickingComps()
+        {
+            if (tickingComps is null) RebuildTickingComps();
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"Ticking comps for settlement '{Name}' (Lv{settlementLevel}): "
+                + $"{tickingComps.Count} ticking / {AllComps.Count} total");
+            List<WorldObjectComp> all = AllComps;
+            foreach (WorldObjectComp comp in all)
+            {
+                bool ticks = TickOverrideUtil.Overrides(comp.GetType(), "CompTick", typeof(WorldObjectComp));
+                sb.AppendLine($"  {(ticks ? "[tick]" : "[skip]")} {comp.GetType().Name}");
+            }
+            LogUtil.MessageForce(sb.ToString());
+        }
+
         /* Legacy save migration: prisoner data lived on the settlement under the
          * "prisonerList" XML key until WorldObjectComp_SettlementPrisoners took ownership.
          * Filled only during LoadingVars and drained into PrisonerComp.prisonerList during
@@ -1098,6 +1193,9 @@ namespace FactionColonies
                     }
                 }
             }
+
+            // Comp set changed; rebuild the ticking-comp filter on the next tick.
+            tickingComps = null;
         }
 
         public double GainUnrestWithReason(Message message, double amount)

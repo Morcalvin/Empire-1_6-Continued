@@ -331,7 +331,7 @@ namespace FactionColonies
 
         public override void CompTick()
         {
-            base.CompTick();
+            // base.CompTick() is empty in Rimworld 1.6.
             Battlefield?.Tick();
         }
 

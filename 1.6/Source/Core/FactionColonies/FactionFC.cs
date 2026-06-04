@@ -928,8 +928,8 @@ namespace FactionColonies
 
         public void TickActions()
         {
-            // Dispatch Tick to all active behavior instances
-            policyManager.ForEachBehavior(b => b.Tick(this));
+            // Dispatch Tick only to behaviors that override it (no per-tick closure/no-op virtual calls).
+            policyManager.TickBehaviors(this);
         }
 
         #endregion
