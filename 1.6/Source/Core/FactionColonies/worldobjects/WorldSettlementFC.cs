@@ -212,7 +212,13 @@ namespace FactionColonies
 
         /* Overriding TickInterval means we no longer call base, so we must replicate the parent chain
          * (Settlement -> MapParent -> WorldObject) here, swapping only WorldObject's unconditional comp
-         * loop for the filtered one. Mirror of base bodies as of RimWorld 1.6 — revisit if they change. */
+         * loop for the filtered one. Mirror of base bodies as of RimWorld 1.6 — revisit if they change.
+         * 
+         * The purpose of overriding TickInterval is so we can choose to only call CompTickInterval on
+         * WorldObjectComps that have actually defined it, and thus need to tick. Basic testing shows that
+         * skipping non-ticking WorldObjectComps can have an actual performance benefit with as few as 20-30
+         * Empire Settlements (though the benefit is admittedly small).
+         */
         protected override void TickInterval(int delta)
         {
             // WorldObject.TickInterval: dispatch only to comps that override CompTickInterval.
@@ -225,14 +231,17 @@ namespace FactionColonies
             // MapParent.TickInterval: remove the map when our ShouldRemoveMapNow override says so.
             CheckRemoveMapNow();
 
-            // Settlement.TickInterval: trader restock/tick, then the defeat check.
+            // Settlement.TickInterval: trader restock/tick.
             if (trader != null)
             {
                 trader.TraderTrackerTick();
             }
-            // Empire's SettlementDefeatUtilityPatch prefixes CheckDefeated to a no-op for WorldSettlementFC;
-            // kept here to mirror base behavior exactly (and stay correct if that patch is ever removed).
-            SettlementDefeatUtility.CheckDefeated(this);
+            // CheckDefeated(this) is INTENTIONALLY omitted here. Vanilla Settlement.TickInterval calls it,
+            // but for a WorldSettlementFC it spawns DestroyedSettlement objects and crashes in
+            // TimedDetectionRaids.CopyFrom. We used to suppress that with a Harmony prefix on
+            // SettlementDefeatUtility.CheckDefeated; now that this override is the sole tick path for our
+            // settlements and never calls it, the call and that patch have both been removed. Map teardown
+            // is handled by CheckRemoveMapNow() above.
         }
 
         internal void DebugLogTickingComps()
