@@ -70,7 +70,7 @@ namespace FactionColonies
 
         public override void Tick()
         {
-            base.Tick();
+            // base.Tick() is empty (SettlementBuildingComp) as of Empire Refactored 1.5.x.
 
             if (lastShuttleUsesRefreshTick + shuttleRefreshInterval <= Find.TickManager.TicksGame)
             {

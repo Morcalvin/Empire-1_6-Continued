@@ -23,6 +23,8 @@ namespace FactionColonies
 
         /* Transient caches (not scribed) */
         private List<FCPolicyBehavior> _cachedBehaviors;
+        // Subset of _cachedBehaviors whose type actually overrides Tick(FactionFC). Rebuilt alongside _cachedBehaviors.
+        private List<FCPolicyBehavior> _tickingBehaviors;
         private HashSet<FCActionType> _cachedBlockedActions;
         private HashSet<FCActionType> _cachedEnabledActions;
         private HashSet<MilitaryJobDef> _cachedBlockedJobs;
@@ -115,6 +117,14 @@ namespace FactionColonies
                     _cachedBehaviors.Add(edict.behavior);
             }
 
+            // Cache the subset that actually overrides Tick, so the per-tick dispatch skips no-op behaviors.
+            _tickingBehaviors = new List<FCPolicyBehavior>();
+            foreach (FCPolicyBehavior b in _cachedBehaviors)
+            {
+                if (TickOverrideUtil.Overrides(b.GetType(), "Tick", typeof(FCPolicyBehavior), typeof(FactionFC)))
+                    _tickingBehaviors.Add(b);
+            }
+
             RebuildActionCache();
 
             // Policy/trait changes affect faction-level stat values and behavior ModifyStat results
@@ -153,6 +163,26 @@ namespace FactionColonies
             }
             _cachedEnabledActions.ExceptWith(_cachedBlockedActions);
             _cachedEnabledJobs.ExceptWith(_cachedBlockedJobs);
+        }
+
+        /// <summary>
+        /// Per-tick behavior dispatch. Iterates only behaviors that override Tick (no closure allocation,
+        /// no no-op virtual calls). Called every game tick from <see cref="FactionFC.TickActions"/>.
+        /// </summary>
+        public void TickBehaviors(FactionFC faction)
+        {
+            if (_tickingBehaviors is null) RebuildBehaviorCache();
+            foreach (FCPolicyBehavior behavior in _tickingBehaviors)
+            {
+                try
+                {
+                    behavior.Tick(faction);
+                }
+                catch (Exception e)
+                {
+                    LogUtil.Error($"Policy behavior tick error: {e}");
+                }
+            }
         }
 
         public void ForEachBehavior(Action<FCPolicyBehavior> action)

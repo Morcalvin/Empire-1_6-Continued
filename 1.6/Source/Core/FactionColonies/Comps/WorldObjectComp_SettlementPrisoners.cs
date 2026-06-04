@@ -73,7 +73,7 @@ namespace FactionColonies
 
         public override void CompTick()
         {
-            base.CompTick();
+            // base.CompTick() is empty in Rimworld 1.6.
             if (Find.TickManager.TicksGame % GenDate.TicksPerDay == 0)
             {
                 AdvanceDailyHealth();

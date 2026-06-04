@@ -1,4 +1,5 @@
-﻿using RimWorld;
+﻿using FactionColonies.util;
+using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
@@ -59,6 +60,10 @@ namespace FactionColonies
         }
         private List<BuildingFC> buildings = new List<BuildingFC>();
         private List<SettlementBuildingComp> settlementBuildingComps = new List<SettlementBuildingComp>();
+        // Subset of settlementBuildingComps whose type overrides Tick(). Derived, not scribed; kept in
+        // lockstep with settlementBuildingComps via AddComp/RemoveComp/RebuildTickingList so CompTick can
+        // iterate it directly without dispatching to no-op (data-only) building comps.
+        [Unsaved] private List<SettlementBuildingComp> settlementBuildingComps_Ticking = new List<SettlementBuildingComp>();
 
         public List<BuildingFC> Buildings => buildings;
 
@@ -360,7 +365,7 @@ namespace FactionColonies
                     {
                         LogUtil.Warning($"Recovering missing SettlementBuildingComp {ext.compClass.Name} for building {def.defName} in slot {i}");
                         comp = MakeSettlementBuildingComp(ext.compClass, WorldSettlement);
-                        settlementBuildingComps.Add(comp);
+                        AddComp(comp);
                     }
 
                     if (!comp.buildingSlots.Contains(i))
@@ -386,7 +391,7 @@ namespace FactionColonies
                         if (comp == null)
                         {
                             comp = MakeSettlementBuildingComp(ext.compClass, WorldSettlement);
-                            settlementBuildingComps.Add(comp);
+                            AddComp(comp);
                         }
 
                         comp.OnConstruct(buildingSlot);
@@ -463,7 +468,7 @@ namespace FactionColonies
 
                             if (comp.CanDestroy)
                             {
-                                settlementBuildingComps.Remove(comp);
+                                RemoveComp(comp);
                             }
                         }
                     }
@@ -635,12 +640,38 @@ namespace FactionColonies
             return filters[i].predicate(building);
         }
 
+        /* Comp list management. All membership changes to settlementBuildingComps must go through these
+         * so settlementBuildingComps_Ticking stays in lockstep. */
+
+        private void AddComp(SettlementBuildingComp comp)
+        {
+            settlementBuildingComps.Add(comp);
+            if (TickOverrideUtil.Overrides(comp.GetType(), "Tick", typeof(SettlementBuildingComp)))
+                settlementBuildingComps_Ticking.Add(comp);
+        }
+
+        private void RemoveComp(SettlementBuildingComp comp)
+        {
+            settlementBuildingComps.Remove(comp);
+            settlementBuildingComps_Ticking.Remove(comp);
+        }
+
+        // Recovery point after bulk prunes / on load (where the [Unsaved] ticking list starts empty).
+        private void RebuildTickingList()
+        {
+            settlementBuildingComps_Ticking.Clear();
+            foreach (SettlementBuildingComp comp in settlementBuildingComps)
+            {
+                if (TickOverrideUtil.Overrides(comp.GetType(), "Tick", typeof(SettlementBuildingComp)))
+                    settlementBuildingComps_Ticking.Add(comp);
+            }
+        }
+
         public override void CompTick()
         {
-            base.CompTick();
-            if (settlementBuildingComps.NullOrEmpty()) return;
-
-            foreach (SettlementBuildingComp comp in settlementBuildingComps)
+            // base.CompTick() is empty in Rimworld 1.6
+            List<SettlementBuildingComp> ticking = settlementBuildingComps_Ticking;
+            foreach (SettlementBuildingComp comp in ticking)
             {
                 comp.Tick();
             }
@@ -676,6 +707,7 @@ namespace FactionColonies
             }
             settlementBuildingComps.RemoveAll(comp => comp.CanDestroy);
             ReinitBuildings();
+            RebuildTickingList();
         }
 
         private void RecoverCompsOnLoad()
@@ -690,6 +722,7 @@ namespace FactionColonies
             settlementBuildingComps.RemoveAll(comp => comp.CanDestroy);
             RecoverMissingBuildingComps();
             ReinitBuildings();
+            RebuildTickingList();
         }
 
         public override IEnumerable<Gizmo> GetGizmos()

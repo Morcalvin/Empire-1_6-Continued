@@ -173,31 +173,18 @@ namespace FactionColonies
          * to call CompTick only on comps that actually override it. TickInterval is left to base
          * (Settlement/MapParent override it with real work; it's throttled, not the hot path). */
 
-        // Per-comp-Type "does it override CompTick?" result. One reflection call per comp class, ever.
-        private static readonly Dictionary<Type, bool> tickOverrideCache = new Dictionary<Type, bool>();
-
         // Comps on this settlement that actually override CompTick. Lazy; rebuilt when the comp set changes.
+        // The "does this type override CompTick?" test is cached centrally in TickOverrideUtil.
         [Unsaved] private List<WorldObjectComp> tickingComps;
-
-        internal static bool OverridesCompTick(Type compType)
-        {
-            if (tickOverrideCache.TryGetValue(compType, out bool result)) return result;
-            MethodInfo m = compType.GetMethod("CompTick",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null, Type.EmptyTypes, null);
-            result = m is object && m.DeclaringType != typeof(WorldObjectComp);
-            tickOverrideCache[compType] = result;
-            return result;
-        }
 
         private void RebuildTickingComps()
         {
             tickingComps = new List<WorldObjectComp>();
             List<WorldObjectComp> all = AllComps;
-            for (int i = 0; i < all.Count; i++)
+            foreach (WorldObjectComp comp in all)
             {
-                if (OverridesCompTick(all[i].GetType()))
-                    tickingComps.Add(all[i]);
+                if (TickOverrideUtil.Overrides(comp.GetType(), "CompTick", typeof(WorldObjectComp)))
+                    tickingComps.Add(comp);
             }
         }
 
@@ -217,10 +204,10 @@ namespace FactionColonies
             sb.AppendLine($"Ticking comps for settlement '{Name}' (Lv{settlementLevel}): "
                 + $"{tickingComps.Count} ticking / {AllComps.Count} total");
             List<WorldObjectComp> all = AllComps;
-            for (int i = 0; i < all.Count; i++)
+            foreach (WorldObjectComp comp in all)
             {
-                bool ticks = OverridesCompTick(all[i].GetType());
-                sb.AppendLine($"  {(ticks ? "[tick]" : "[skip]")} {all[i].GetType().Name}");
+                bool ticks = TickOverrideUtil.Overrides(comp.GetType(), "CompTick", typeof(WorldObjectComp));
+                sb.AppendLine($"  {(ticks ? "[tick]" : "[skip]")} {comp.GetType().Name}");
             }
             LogUtil.MessageForce(sb.ToString());
         }
