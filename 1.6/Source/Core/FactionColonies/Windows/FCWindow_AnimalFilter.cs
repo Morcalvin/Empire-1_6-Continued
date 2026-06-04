@@ -74,6 +74,10 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
+            // Biome where trade caravans are delivered (tax spot -> capital -> main colony).
+            // Drives pack-badge gray-out and the uncovered-biome warning. May be null pre-game.
+            BiomeDef deliveryBiome = AnimalBiomeUtil.GetCaravanDeliveryBiome();
+
             // Header
             Text.Font = GameFont.Medium;
             Text.Anchor = TextAnchor.MiddleLeft;
@@ -158,6 +162,25 @@ namespace FactionColonies
                 bottomY -= (errorBox.height + margin);
             }
 
+            // Delivery biome not covered by any allowed pack animal (player has packs, but none reach it).
+            // Informational only - the player may keep the selection; they just won't get trade caravans.
+            bool biomeUncovered = deliveryBiome is object
+                && filter.AllowedPackAnimals.Count > 0
+                && !AnimalBiomeUtil.SelectionCoversBiome(filter, deliveryBiome);
+            if (biomeUncovered)
+            {
+                string warnText = "FCAnimalFilterBiomeUncoveredWarning".Translate(deliveryBiome.LabelCap);
+                float textHeight = Text.CalcHeight(warnText, inRect.width - (smallMargin * 2));
+                Rect warnBox = new Rect(inRect.x, bottomY - textHeight - (smallMargin * 2), inRect.width, textHeight + (smallMargin * 2));
+                Rect warnLabel = new Rect(warnBox.x + smallMargin, warnBox.y + smallMargin, warnBox.width - (smallMargin * 2), textHeight);
+
+                Widgets.DrawHighlight(warnBox);
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.MiddleLeft;
+                Widgets.Label(warnLabel, warnText.Colorize(Color.red));
+                bottomY -= (warnBox.height + margin);
+            }
+
             // Enable All / Disable All / Defaults buttons
             float btnWidth = inRect.width / 3f;
             Rect enableButton = new Rect(inRect.x, bottomY - bigRowHeight, btnWidth, bigRowHeight);
@@ -223,13 +246,27 @@ namespace FactionColonies
 
                 if (isPack)
                 {
-                    float tagW = Text.CalcSize("FCAnimalTagPack".Translate()).x + 8f;
+                    IReadOnlyList<BiomeDef> supportedBiomes = AnimalBiomeUtil.BiomesForPackAnimal(animal);
+                    bool packGrayed = deliveryBiome is object && !deliveryBiome.IsPackAnimalAllowed(animal.race);
+
+                    // Inline biome count, e.g. "Pack 12"
+                    string packLabel = "FCAnimalTagPack".Translate() + " " + supportedBiomes.Count.ToString();
+                    float tagW = Text.CalcSize(packLabel).x + 8f;
                     tagX -= tagW;
                     Rect tagRect = new Rect(tagX, row.y + 4f, tagW, RowHeight - 8f);
-                    Widgets.DrawBoxSolid(tagRect, new Color(0.2f, 0.4f, 0.55f, 0.6f));
+
+                    Color boxColor = packGrayed
+                        ? new Color(0.32f, 0.32f, 0.32f, 0.6f)
+                        : new Color(0.2f, 0.4f, 0.55f, 0.6f);
+                    Widgets.DrawBoxSolid(tagRect, boxColor);
+
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(tagRect, "FCAnimalTagPack".Translate());
+                    if (packGrayed) GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                    Widgets.Label(tagRect, packLabel);
+                    GUI.color = Color.white;
+
+                    TooltipHandler.TipRegion(tagRect, BuildPackBiomeTooltip(supportedBiomes, packGrayed ? deliveryBiome : null));
                     tagX -= 3f;
                 }
 
@@ -276,6 +313,23 @@ namespace FactionColonies
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
+        }
+
+        private static string BuildPackBiomeTooltip(IReadOnlyList<BiomeDef> supportedBiomes, BiomeDef unsupportedDeliveryBiome)
+        {
+            string list = supportedBiomes.Count == 0
+                ? (string)"FCAnimalBiomeNone".Translate()
+                : string.Join("\n", supportedBiomes.Select(b => b.LabelCap.ToString()).ToArray());
+
+            string body = "FCAnimalTagPackTooltipHeader".Translate() + "\n" + list;
+
+            // When grayed out, lead with why (the current delivery biome isn't supported).
+            if (unsupportedDeliveryBiome is object)
+            {
+                body = "FCAnimalTagPackUnsupportedNote".Translate(unsupportedDeliveryBiome.LabelCap) + "\n\n" + body;
+            }
+
+            return body;
         }
 
         private static string GetNonCombatReasons(PawnKindDef animal)

@@ -17,6 +17,8 @@ namespace FactionColonies
                 {
                     // Disable other tax spots when enabling this one
                     DisableOtherTaxSpots();
+                    // Warn if no allowed pack animal can reach this new delivery biome.
+                    AnimalBiomeUtil.WarnIfDeliveryBiomeUncovered(Map?.Biome, "FCAnimalBiomeLetterDescTaxSpot");
                 }
                 isActiveTaxDeliverySpot = value;
             }
