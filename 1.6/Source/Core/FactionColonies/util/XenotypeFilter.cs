@@ -1,4 +1,5 @@
 using RimWorld;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
@@ -628,6 +629,43 @@ namespace FactionColonies.util
                 LogUtil.Error("RefreshPawnGroupMakers: peaceful pawnGroupMaker has no options after template population");
             if (faction.baseTraderKinds is null || !faction.baseTraderKinds.Any())
                 LogUtil.Error("RefreshPawnGroupMakers: faction has no baseTraderKinds after refresh");
+            DiagnoseCarrierForActiveColony();
+        }
+
+        /* Independent check against the player's active colony biome specifically. If no carrier is
+           valid there, every trade caravan to that colony fails ("no usable PawnGroupMakers for Trader").
+           Skipped silently when no player home map is loaded yet (e.g. during world gen / early load).
+           Exception-safe: a diagnostic must never break a refresh. */
+        private void DiagnoseCarrierForActiveColony()
+        {
+            try
+            {
+                List<PawnGenOption> carriers = faction.pawnGroupMakers[1].carriers;
+                if (carriers is null || !carriers.Any()) return; // empty case already reported above
+
+                Map colony = (Find.CurrentMap is object && Find.CurrentMap.IsPlayerHome)
+                    ? Find.CurrentMap
+                    : Find.AnyPlayerHomeMap;
+                if (colony is null) return; // no active colony loaded; nothing to check
+
+                BiomeDef biome = colony.Biome;
+                if (biome is null) return;
+
+                bool anyValid = carriers.Any(c =>
+                    c.kind is object && c.kind.race is object && biome.IsPackAnimalAllowed(c.kind.race));
+
+                if (!anyValid)
+                    LogUtil.Warning("RefreshPawnGroupMakers: none of the trader carriers are allowed in the "
+                        + "active colony's biome (" + biome.defName + ") - trade caravans to it will fail vanilla "
+                        + "CanGenerateFrom (\"no usable PawnGroupMakers for Trader\").");
+                else
+                    LogUtil.Message("RefreshPawnGroupMakers: trader carriers cover the active colony biome ("
+                        + biome.defName + ").");
+            }
+            catch (Exception e)
+            {
+                LogUtil.Warning("DiagnoseCarrierForActiveColony threw, skipping active-colony carrier diagnostic: " + e);
+            }
         }
         private void SetPawnGroupMakers()
         {

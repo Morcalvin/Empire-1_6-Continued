@@ -994,4 +994,19 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_3_74</defName>
+		<label>Empire Trade Caravan Diagnostics</label>
+		<description>Adds a little bit of diagnostic logging for Empire trade caravans. The logging runs rarely, and should not impact performance.</description>
+		<releaseDate>2026-06-04</releaseDate>
+		<patchNoteType>Patch</patchNoteType>
+		<patchNoteLines>
+		<li>Adds diagnostic logging showing when a player&apos;s selection of animal carriers doesn&apos;t cover the biome of their colony</li>
+		<li>Also adds a small patch for RimWar to force Vassal status on the Empire faction</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
