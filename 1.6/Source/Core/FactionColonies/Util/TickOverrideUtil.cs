@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using HarmonyLib;
 
 namespace FactionColonies.util
 {
@@ -24,9 +25,11 @@ namespace FactionColonies.util
             string key = type.FullName + "|" + methodName;
             if (cache.TryGetValue(key, out bool result)) return result;
 
-            MethodInfo m = type.GetMethod(methodName,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null, paramTypes ?? Type.EmptyTypes, null);
+            // AccessTools.Method walks base types, so the base's own declaration is always found
+            // (never null here); DeclaringType != baseType is what tells us a subclass actually overrode it.
+            // Must be Method (inheritance-walking), not DeclaredMethod, so a C : B : A chain where B
+            // overrides is still detected as ticking.
+            MethodInfo m = AccessTools.Method(type, methodName, paramTypes);
             result = m is object && m.DeclaringType != baseType;
 
             cache[key] = result;
