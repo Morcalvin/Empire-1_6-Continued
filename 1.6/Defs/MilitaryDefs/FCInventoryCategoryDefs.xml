@@ -20,6 +20,11 @@
       <li>Pemmican</li>
       <li>Kibble</li>
     </things>
+    <excludeThings>
+      <!-- One-shot strategic consumables that the categories above would otherwise allow. -->
+      <li MayRequire="Ludeon.RimWorld.Biotech">DeathrestCapacitySerum</li>
+      <li MayRequire="Ludeon.RimWorld.Odyssey">SentienceCatalyst</li>
+    </excludeThings>
   </FactionColonies.FCInventoryCategoryDef>
 
 </Defs>

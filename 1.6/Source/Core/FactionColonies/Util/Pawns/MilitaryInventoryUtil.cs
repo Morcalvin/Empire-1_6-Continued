@@ -21,6 +21,7 @@ namespace FactionColonies
             if (allowedCache != null) return allowedCache;
 
             HashSet<ThingDef> set = new HashSet<ThingDef>();
+            HashSet<ThingDef> excluded = new HashSet<ThingDef>();
             foreach (FCInventoryCategoryDef def in DefDatabase<FCInventoryCategoryDef>.AllDefs)
             {
                 if (def.categories != null)
@@ -32,7 +33,20 @@ namespace FactionColonies
                     foreach (ThingDef t in def.things)
                         if (t != null)
                             set.Add(t);
+
+                if (def.excludeCategories != null)
+                    foreach (ThingCategoryDef cat in def.excludeCategories)
+                        if (cat != null)
+                            foreach (ThingDef t in cat.DescendantThingDefs)
+                                excluded.Add(t);
+                if (def.excludeThings != null)
+                    foreach (ThingDef t in def.excludeThings)
+                        if (t != null)
+                            excluded.Add(t);
             }
+
+            // Blacklists win over whitelists, across all defs.
+            set.ExceptWith(excluded);
 
             allowedCache = set;
             return set;

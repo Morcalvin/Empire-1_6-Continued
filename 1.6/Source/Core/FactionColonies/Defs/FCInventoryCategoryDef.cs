@@ -18,5 +18,12 @@ namespace FactionColonies
 
         /// <summary>Individual items to allow that aren't covered by <see cref="categories"/>.</summary>
         public List<ThingDef> things = new List<ThingDef>();
+
+        /// <summary>Whole categories to block — every descendant ThingDef is removed from the pool,
+        /// even if a <see cref="categories"/> entry would otherwise allow it.</summary>
+        public List<ThingCategoryDef> excludeCategories = new List<ThingCategoryDef>();
+
+        /// <summary>Individual items to block. Wins over <see cref="categories"/> / <see cref="things"/>.</summary>
+        public List<ThingDef> excludeThings = new List<ThingDef>();
     }
 }
