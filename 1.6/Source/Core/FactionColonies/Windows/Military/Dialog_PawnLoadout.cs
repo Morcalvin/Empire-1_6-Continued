@@ -31,6 +31,9 @@ namespace FactionColonies
         private readonly MercenarySquadFC squad;
         private readonly Mercenary merc;
         private Vector2 apparelScroll;
+        private Vector2 inventoryScroll;
+        private Vector2 implantScroll;
+        private LoadoutTab activeTab = LoadoutTab.Apparel;
 
         /* Buffered edits. null = "inherits from squad template" (same semantics as
          * Mercenary.ownedLoadout being null). Apply writes this onto merc.ownedLoadout. */
@@ -144,7 +147,7 @@ namespace FactionColonies
             Rect rightPanel = new Rect(inRect.x + leftW + 10f, topY, inRect.width - leftW - 10f, leftPanel.height);
 
             DrawLeftPanel(leftPanel);
-            DrawApparelPanel(rightPanel);
+            DrawLoadoutPanel(rightPanel);
 
             // Bottom: [Pick] [Reset]               [Apply] [Close]
             Rect bottomRect = new Rect(inRect.x, inRect.yMax - bottomBtnH, inRect.width, bottomBtnH);
@@ -255,16 +258,46 @@ namespace FactionColonies
             }
         }
 
-        // --- Right panel: apparel list (shared widget) ---
+        // --- Right panel: tabbed loadout (Apparel / Inventory / Implants) ---
 
-        private void DrawApparelPanel(Rect rect)
+        /* Implant note: edits go to the buffered workingLoadout and apply on the next real
+         * outfit pass. The duplicator-clone preview portrait re-equips apparel/weapons live but
+         * does NOT live-rebuild health, so implant graphics changes are not reflected here (most
+         * implants are invisible anyway). */
+        private void DrawLoadoutPanel(Rect rect)
         {
-            ApparelListWidget.Draw(rect, DisplayLoadout, ref apparelScroll, new ApparelListWidget.Options
+            Rect tabRow = new Rect(rect.x, rect.y, rect.width, LoadoutTabStrip.TabHeight);
+            LoadoutTabStrip.Draw(tabRow, ref activeTab);
+            Rect content = new Rect(rect.x, tabRow.yMax + 4f, rect.width, rect.height - LoadoutTabStrip.TabHeight - 4f);
+
+            if (activeTab == LoadoutTab.Apparel)
             {
-                canEdit = true,
-                showHeaderButtons = true,
-                getEditTarget = EnsureWorkingLoadout,
-            });
+                ApparelListWidget.Draw(content, DisplayLoadout, ref apparelScroll, new ApparelListWidget.Options
+                {
+                    canEdit = true,
+                    showHeaderButtons = true,
+                    getEditTarget = EnsureWorkingLoadout,
+                });
+            }
+            else if (activeTab == LoadoutTab.Inventory)
+            {
+                InventoryListWidget.Draw(content, DisplayLoadout, ref inventoryScroll, new InventoryListWidget.Options
+                {
+                    canEdit = true,
+                    showHeaderButtons = true,
+                    getEditTarget = EnsureWorkingLoadout,
+                });
+            }
+            else
+            {
+                ImplantListWidget.Draw(content, DisplayLoadout, ref implantScroll, new ImplantListWidget.Options
+                {
+                    canEdit = true,
+                    showHeaderButtons = true,
+                    getEditTarget = EnsureWorkingLoadout,
+                    getDisplayUnit = () => DisplayLoadout,
+                });
+            }
         }
 
         // --- Pickers ---

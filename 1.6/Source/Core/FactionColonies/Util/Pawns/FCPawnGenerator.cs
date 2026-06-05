@@ -24,18 +24,18 @@ namespace FactionColonies.util
             }
         }
 
-        public static PawnGenerationRequest WorkerOrMilitaryRequest(PawnKindDef pawnKindDef = null, XenotypeDef xenotypeDef = null)
+        public static PawnGenerationRequest WorkerOrMilitaryRequest(PawnKindDef pawnKindDef = null, XenotypeDef xenotypeDef = null, Gender? fixedGender = null)
         {
             PawnKindDef kindDef = pawnKindDef ?? GetDefaultFighter();
 
-            return HumanlikeRequest(kindDef, mustBeViolent: true, xenotypeDef: xenotypeDef);
+            return HumanlikeRequest(kindDef, mustBeViolent: true, xenotypeDef: xenotypeDef, fixedGender: fixedGender);
         }
 
-        public static PawnGenerationRequest WorkerOrMilitaryRequest(PawnKindDef pawnKindDef, CustomXenotype customXenotype)
+        public static PawnGenerationRequest WorkerOrMilitaryRequest(PawnKindDef pawnKindDef, CustomXenotype customXenotype, Gender? fixedGender = null)
         {
             PawnKindDef kindDef = pawnKindDef ?? GetDefaultFighter();
 
-            return HumanlikeRequest(kindDef, mustBeViolent: true, customXenotype: customXenotype);
+            return HumanlikeRequest(kindDef, mustBeViolent: true, customXenotype: customXenotype, fixedGender: fixedGender);
         }
 
         /// <summary>
@@ -48,10 +48,10 @@ namespace FactionColonies.util
             {
                 CustomXenotype custom = unit.ResolveCustomXenotype();
                 if (custom != null)
-                    return WorkerOrMilitaryRequest(unit.pawnKind, custom);
-                return WorkerOrMilitaryRequest(unit.pawnKind, (XenotypeDef)null);
+                    return WorkerOrMilitaryRequest(unit.pawnKind, custom, unit.forcedGender);
+                return WorkerOrMilitaryRequest(unit.pawnKind, (XenotypeDef)null, unit.forcedGender);
             }
-            return WorkerOrMilitaryRequest(unit.pawnKind, unit.xenotype);
+            return WorkerOrMilitaryRequest(unit.pawnKind, unit.xenotype, unit.forcedGender);
         }
 
         public static PawnGenerationRequest CivilianRequest(PawnKindDef pawnKindDef = null, XenotypeDef xenotypeDef = null)
@@ -84,7 +84,8 @@ namespace FactionColonies.util
         private static PawnGenerationRequest HumanlikeRequest(PawnKindDef pawnKindDef = null,
                                                               bool mustBeViolent = true,
                                                               XenotypeDef xenotypeDef = null,
-                                                              CustomXenotype customXenotype = null)
+                                                              CustomXenotype customXenotype = null,
+                                                              Gender? fixedGender = null)
         {
             if (pawnKindDef is null)
             {
@@ -108,6 +109,10 @@ namespace FactionColonies.util
                 LogUtil.Warning($"Failed to get reasonable age for {TextUtil.GetDefModInfo(pawnKindDef)}: {ex.Message}");
                 fixedAge = null;
             }
+
+            // Normalize Gender.None (== "any") to null so PawnGenerator randomizes.
+            Gender? resolvedGender = (fixedGender.HasValue && fixedGender.Value != Gender.None)
+                ? fixedGender : (Gender?)null;
 
             return new PawnGenerationRequest(
                 kind: pawnKindDef,
@@ -138,7 +143,8 @@ namespace FactionColonies.util
                 forcedXenotype: xenotypeDef,
                 forcedCustomXenotype: customXenotype,
                 fixedBiologicalAge: fixedAge,
-                fixedChronologicalAge: fixedAge
+                fixedChronologicalAge: fixedAge,
+                fixedGender: resolvedGender
             );
         }
 

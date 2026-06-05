@@ -208,7 +208,7 @@ namespace FactionColonies
                 // FillEmptySlots / Upgrade when the player assigns a real unit later.
                 if (slot != null && !slot.isBlank)
                 {
-                    MercenaryPawnFactory.CreateNewPawn(this, ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName, slot);
                     if (placeholder.pawn == null)
                     {
                         LogUtil.Warning($"Failed to create mercenary {k + 1}/{slotCount} for unit {slot.name ?? "unknown"}; leaving slot empty.");
@@ -307,7 +307,7 @@ namespace FactionColonies
                     MilUnitFC blueprint = m.BlueprintLoadout;
                     if (blueprint is null || blueprint.isBlank) continue;
                     Mercenary slot = m;
-                    MercenaryPawnFactory.CreateNewPawn(this, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName, blueprint);
                     if (slot.pawn != null) Equipment.EquipPawn(slot, blueprint);
                     // Sync currentLoadout with what we just equipped — re-snap from the blueprint.
                     slot.currentLoadout = blueprint.Clone();

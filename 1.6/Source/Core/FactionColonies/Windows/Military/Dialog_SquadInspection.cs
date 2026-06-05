@@ -677,7 +677,7 @@ namespace FactionColonies
             }
             if (cost > 0) PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadFillSlot, squad.settlement);
             Mercenary slot = merc;
-            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName, blueprint);
             if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
             FindFC.Military?.RebuildMercenaryPawnSet();
@@ -760,7 +760,7 @@ namespace FactionColonies
             target.loadout = blueprint;
             target.ownedLoadout = null;
             Mercenary slot = target;
-            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName, blueprint);
             if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
 

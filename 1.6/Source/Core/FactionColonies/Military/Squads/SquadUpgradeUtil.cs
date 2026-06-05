@@ -283,7 +283,7 @@ namespace FactionColonies
                 else
                 {
                     merc = new Mercenary(true);
-                    MercenaryPawnFactory.CreateNewPawn(squad, ref merc, slotUnit.pawnKind, slotUnit.xenotype, slotUnit.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(squad, ref merc, slotUnit.pawnKind, slotUnit.xenotype, slotUnit.customXenotypeName, slotUnit);
                     if (merc.pawn == null)
                     {
                         LogUtil.Warning($"UpgradeToTemplate: failed to generate fresh pawn for slot {dec.slotIndex}");

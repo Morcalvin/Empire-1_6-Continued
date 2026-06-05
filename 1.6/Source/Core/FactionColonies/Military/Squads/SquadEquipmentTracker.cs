@@ -64,7 +64,7 @@ namespace FactionColonies
                     while (squad.mercenaries.Count <= count)
                     {
                         Mercenary newMerc = new Mercenary(true);
-                        MercenaryPawnFactory.CreateNewPawn(squad, ref newMerc, loadout?.pawnKind, loadout?.xenotype, loadout?.customXenotypeName);
+                        MercenaryPawnFactory.CreateNewPawn(squad, ref newMerc, loadout?.pawnKind, loadout?.xenotype, loadout?.customXenotypeName, loadout);
                         if (newMerc?.pawn != null)
                         {
                             squad.mercenaries.Add(newMerc);
@@ -87,7 +87,7 @@ namespace FactionColonies
                     if (squad.mercenaries[count].pawn.kindDef != loadout.pawnKind || squad.mercenaries[count].pawn.Dead)
                     {
                         Mercenary pawn = new Mercenary(true);
-                        MercenaryPawnFactory.CreateNewPawn(squad, ref pawn, loadout.pawnKind, loadout.xenotype, loadout.customXenotypeName);
+                        MercenaryPawnFactory.CreateNewPawn(squad, ref pawn, loadout.pawnKind, loadout.xenotype, loadout.customXenotypeName, loadout);
                         // Only replace if new pawn was successfully created
                         if (pawn?.pawn != null)
                         {
@@ -161,6 +161,27 @@ namespace FactionColonies
                 }
             }
 
+            // Carried inventory. Populate BEFORE CE auto-loads the weapon so CE can draw on
+            // player-chosen ammo already in the pack. Counts above the item's stack limit are
+            // split across multiple stacks.
+            if (merc.pawn.inventory?.innerContainer != null && loadout.inventory != null)
+            {
+                foreach (SavedThing invDef in loadout.inventory)
+                {
+                    if (invDef.thing == null) continue;
+                    int remaining = Mathf.Max(1, invDef.count);
+                    int stackLimit = Mathf.Max(1, invDef.thing.stackLimit);
+                    while (remaining > 0)
+                    {
+                        int take = Mathf.Min(remaining, stackLimit);
+                        Thing invThing = new SavedThing(invDef.thing, invDef.stuff, take).CreateThing();
+                        if (invThing == null) break;
+                        merc.pawn.inventory.innerContainer.TryAdd(invThing, true);
+                        remaining -= take;
+                    }
+                }
+            }
+
             if (merc.pawn.equipment != null)
             {
                 foreach (SavedThing weaponDef in loadout.weapons)
@@ -174,12 +195,12 @@ namespace FactionColonies
 
                 if (CombatExtendedUtil.IsCELoaded && merc.pawn.equipment.Primary != null)
                 {
-                    if (loadout.preferredAmmo != null)
-                        CombatExtendedUtil.EquipWeaponWithSpecificAmmo(merc.pawn, merc.pawn.equipment.Primary, loadout.preferredAmmo);
-                    else
-                        CombatExtendedUtil.EquipWeaponWithAmmo(merc.pawn, merc.pawn.equipment.Primary);
+                    CombatExtendedUtil.EquipWeaponWithAmmo(merc.pawn, merc.pawn.equipment.Primary);
                 }
             }
+
+            // Let CE re-index the pawn's inventory/ammo after we populated it.
+            CombatExtendedUtil.UpdateInventory(merc.pawn);
 
             // Snapshot the equipped items so RemoveDroppedEquipment can find them after a battle.
             if (UsedWeaponList == null) UsedWeaponList = new List<ThingWithComps>();

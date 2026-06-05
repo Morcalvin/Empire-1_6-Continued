@@ -138,6 +138,8 @@ namespace FactionColonies
                             unit.xenotype = XenotypeDefOf.Baseliner;
                     }
                     unit.RerollPreviewPawn();
+                    // Drop implants that the new race's body can no longer accept.
+                    unit.OnRaceChanged();
                     Close();
                 }
             }
