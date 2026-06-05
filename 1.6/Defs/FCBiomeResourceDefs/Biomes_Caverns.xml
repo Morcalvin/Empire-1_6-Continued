@@ -20,7 +20,7 @@
 			<li>
 				<resourceDef>RTD_Mining</resourceDef>
 				<additive>1.5</additive>
-				<multiplier>1.1</multiplier>
+				<multiplier>1.25</multiplier>
 			</li>
 			<li>
 				<resourceDef>RTD_Research</resourceDef>
@@ -28,7 +28,7 @@
 			</li>
 			<li>
 				<resourceDef>RTD_Power</resourceDef>
-				<multiplier>0.75</multiplier>
+				<additive>0.75</additive>
 			</li>
 		</resources>
 	</FactionColonies.BiomeResourceDef>
@@ -52,12 +52,12 @@
 			</li>
 			<li>
 				<resourceDef>RTD_Mining</resourceDef>
-				<additive>1.75</additive>
-				<multiplier>1.25</multiplier>
+				<additive>2</additive>
+				<multiplier>1.5</multiplier>
 			</li>
 			<li>
 				<resourceDef>RTD_Power</resourceDef>
-				<multiplier>1.25</multiplier>
+				<additive>2</additive>
 			</li>
 			<li>
 				<resourceDef>RTD_Medicine</resourceDef>
@@ -68,6 +68,28 @@
 				<additive>1.5</additive>
 			</li>
 		</resources>
+		<statModifiers>
+			<li>
+				<stat>happinessGainedMultiplier</stat>
+				<value>0.5</value>
+			</li>
+			<li>
+				<stat>happinessLostMultiplier</stat>
+				<value>2</value>
+			</li>
+			<li>
+				<stat>unrestGainedMultiplier</stat>
+				<value>2</value>
+			</li>
+			<li>
+				<stat>unrestLostMultiplier</stat>
+				<value>0.5</value>
+			</li>
+			<li>
+				<stat>settlementCostMultiplier</stat>
+				<value>1.5</value>
+			</li>
+		</statModifiers>
 	</FactionColonies.BiomeResourceDef>
 
 	<FactionColonies.BiomeResourceDef MayRequire="biomesteam.biomescaverns">
@@ -97,7 +119,7 @@
 			</li>
 			<li>
 				<resourceDef>RTD_Mining</resourceDef>
-				<multiplier>1.2</multiplier>
+				<additive>1.2</additive>
 			</li>
 		</resources>
 	</FactionColonies.BiomeResourceDef>
