@@ -53,6 +53,9 @@ namespace FactionColonies
                 lastKnownTile = newTile;
 
                 LogUtil.Message($"Capital Building: Set Empire capital to tile {newTile}");
+
+                // Warn if no allowed pack animal can reach this new capital's biome.
+                AnimalBiomeUtil.WarnIfDeliveryBiomeUncovered(Map.Biome, "FCAnimalBiomeLetterDescCapital");
             }
             else
             {
@@ -93,6 +96,9 @@ namespace FactionColonies
                             "FCCapitalRelocatedDesc".Translate(),
                             LetterDefOf.NeutralEvent
                         );
+
+                        // Warn if no allowed pack animal can reach the relocated capital's biome.
+                        AnimalBiomeUtil.WarnIfDeliveryBiomeUncovered(Map.Biome, "FCAnimalBiomeLetterDescCapital");
                     }
                     else
                     {

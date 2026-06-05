@@ -306,4 +306,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_20</defName>
+		<label>Animal Selection Fixes</label>
+		<description>Changes the list of pack animals to be the list of animals that are allowed in at least one biome&apos;s allowedPackAnimals list. Further, the number of biomes that a pack animal supports is shown in their Pack badge on the animal filter. And if the player doesn&apos;t select any pack animals that support the biome they&apos;re playing in, then the filter will warn them that they won&apos;t recieve any Empire trading caravans.</description>
+		<releaseDate>2026-06-04</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Various augments to the animal filter to reduce the likelihood of the player encountering Empire caravans that fail to spawn due to not having any animal carriers that support the player&apos;s biome</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

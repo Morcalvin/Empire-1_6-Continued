@@ -86,12 +86,17 @@ namespace FactionColonies
         }
 
         /// <summary>
-        /// Checks if a given <c>PawnKindDef</c> <paramref name="pawnKindDef"/> is a valid pack animal.
+        /// Checks if a given <c>PawnKindDef</c> <paramref name="pawnKindDef"/> is a valid caravan pack
+        /// animal. Eligibility is the biome whitelist (the animal's race appears in at least one biome's
+        /// allowedPackAnimals), NOT RaceProps.packAnimal: that flag is about player-caravan cargo
+        /// capacity, whereas trade/delivery-caravan carrier generation is gated purely by the biome
+        /// whitelist. An animal usable in zero biomes (e.g. Horse, Donkey, Bison, Yak, Mastodon - none
+        /// of which any vanilla biome or base-game trader uses as a carrier) is not a usable pack animal.
         /// </summary>
         public static bool IsPackAnimal(this PawnKindDef pawnKindDef)
         {
             return pawnKindDef.IsAnimalAndAllowed()
-                && pawnKindDef.RaceProps.packAnimal;
+                && AnimalBiomeUtil.BiomesForPackAnimal(pawnKindDef).Count > 0;
         }
 
 

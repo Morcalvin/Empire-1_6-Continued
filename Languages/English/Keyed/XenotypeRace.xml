@@ -48,4 +48,13 @@
 	<FCAnimalFilterShowCombat>Combat</FCAnimalFilterShowCombat>
 	<FCAnimalFilterShowPack>Pack</FCAnimalFilterShowPack>
 
+	<!-- Animal Filter: pack-animal biome coverage -->
+	<FCAnimalTagPackTooltipHeader>Usable as a caravan pack animal in:</FCAnimalTagPackTooltipHeader>
+	<FCAnimalTagPackUnsupportedNote>Not usable at your current delivery location ({0}).</FCAnimalTagPackUnsupportedNote>
+	<FCAnimalBiomeNone>(none)</FCAnimalBiomeNone>
+	<FCAnimalFilterBiomeUncoveredWarning>None of your allowed pack animals can travel to your delivery biome ({0}). You will not receive trade caravans there.</FCAnimalFilterBiomeUncoveredWarning>
+	<FCAnimalBiomeLetterLabel>No supported pack animals</FCAnimalBiomeLetterLabel>
+	<FCAnimalBiomeLetterDescTaxSpot>Your new tax spot is in {0}, which none of your allowed pack animals can travel to. You will not receive trade caravans there until you enable a compatible pack animal in the Animal Selection menu.</FCAnimalBiomeLetterDescTaxSpot>
+	<FCAnimalBiomeLetterDescCapital>Your new capital is in {0}, which none of your allowed pack animals can travel to. You will not receive trade caravans there until you enable a compatible pack animal in the Animal Selection menu.</FCAnimalBiomeLetterDescCapital>
+
 </LanguageData>
