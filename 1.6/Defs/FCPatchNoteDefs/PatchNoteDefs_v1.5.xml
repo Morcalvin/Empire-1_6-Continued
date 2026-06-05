@@ -320,4 +320,18 @@
 		<li>Matathias</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_21</defName>
+		<label>Biomes! Caverns support</label>
+		<description>Adds official support for the biomes from Biomes! Caverns.</description>
+		<releaseDate>2026-06-04</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Adds support for crystalline caverns, earthen depths, and fungal forest from Biomes! Caverns</li>
+		</patchNoteLines>
+		<authors>
+		<li>Pecha</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>
