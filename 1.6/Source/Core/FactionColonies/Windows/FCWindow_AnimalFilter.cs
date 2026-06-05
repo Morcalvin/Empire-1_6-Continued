@@ -241,7 +241,7 @@ namespace FactionColonies
 
                 // Tags (combat/pack) - drawn right-to-left before checkbox
                 bool isCombat = animal.IsCombatAnimal();
-                bool isPack = animal.RaceProps.packAnimal;
+                bool isPack = animal.IsPackAnimal();
                 float tagX = checkRect.x - margin;
 
                 if (isPack)
@@ -249,8 +249,8 @@ namespace FactionColonies
                     IReadOnlyList<BiomeDef> supportedBiomes = AnimalBiomeUtil.BiomesForPackAnimal(animal);
                     bool packGrayed = deliveryBiome is object && !deliveryBiome.IsPackAnimalAllowed(animal.race);
 
-                    // Inline biome count, e.g. "Pack 12"
-                    string packLabel = "FCAnimalTagPack".Translate() + " " + supportedBiomes.Count.ToString();
+                    // Inline biome count, e.g. "Pack (12)"
+                    string packLabel = "FCAnimalTagPack".Translate() + " (" + supportedBiomes.Count.ToString() + ")";
                     float tagW = Text.CalcSize(packLabel).x + 8f;
                     tagX -= tagW;
                     Rect tagRect = new Rect(tagX, row.y + 4f, tagW, RowHeight - 8f);
@@ -379,7 +379,7 @@ namespace FactionColonies
             }
             else if (viewFilter == 2)
             {
-                source = source.Where(a => a.RaceProps.packAnimal);
+                source = source.Where(a => a.IsPackAnimal());
             }
 
             filteredAnimals = source.ToList();

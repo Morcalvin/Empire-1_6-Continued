@@ -24,34 +24,30 @@ namespace FactionColonies
     {
         private static readonly BiomeDef[] EmptyBiomes = new BiomeDef[0];
 
-        /* PawnKindDef -> biomes (sorted by label) whose allowedPackAnimals include the animal's race.
-           Biome and animal defs are static after load, so this is built once and never invalidated,
-           matching FactionCache.AllPackAnimalKinds. */
-        private static Dictionary<PawnKindDef, List<BiomeDef>> _packAnimalBiomes;
+        /* kind -> biomes (sorted by label) whose allowedPackAnimals include the animal's race.
+           Built lazily per kind and never invalidated (biome/animal defs are static after load).
+           Lazy-per-kind (rather than prebuilding from FactionCache.AllPackAnimalKinds) is deliberate:
+           IsPackAnimal() calls this to decide pack eligibility, and AllPackAnimalKinds is built from
+           IsPackAnimal() - prebuilding off that list would recurse. */
+        private static readonly Dictionary<PawnKindDef, List<BiomeDef>> _packAnimalBiomes =
+            new Dictionary<PawnKindDef, List<BiomeDef>>();
 
-        /// <summary>The biomes in which the given pack animal can serve as a caravan carrier.</summary>
+        /// <summary>The biomes in which the given animal can serve as a caravan carrier (its race is
+        /// in that biome's allowedPackAnimals). This is the criterion vanilla trade-caravan generation
+        /// uses, and the real test of whether an animal is a usable caravan pack animal.</summary>
         public static IReadOnlyList<BiomeDef> BiomesForPackAnimal(PawnKindDef kind)
         {
-            if (kind is null) return EmptyBiomes;
-            EnsureBiomeCache();
+            if (kind?.race is null) return EmptyBiomes;
             List<BiomeDef> biomes;
-            return _packAnimalBiomes.TryGetValue(kind, out biomes) ? (IReadOnlyList<BiomeDef>)biomes : EmptyBiomes;
-        }
-
-        private static void EnsureBiomeCache()
-        {
-            if (_packAnimalBiomes is object) return;
-
-            List<BiomeDef> allBiomes = DefDatabase<BiomeDef>.AllDefsListForReading;
-            _packAnimalBiomes = new Dictionary<PawnKindDef, List<BiomeDef>>();
-            foreach (PawnKindDef kind in FactionCache.AllPackAnimalKinds)
+            if (!_packAnimalBiomes.TryGetValue(kind, out biomes))
             {
-                if (kind?.race is null) continue;
-                _packAnimalBiomes[kind] = allBiomes
+                biomes = DefDatabase<BiomeDef>.AllDefsListForReading
                     .Where(b => b.IsPackAnimalAllowed(kind.race))
                     .OrderBy(b => b.LabelCap.ToString(), StringComparer.OrdinalIgnoreCase)
                     .ToList();
+                _packAnimalBiomes[kind] = biomes;
             }
+            return biomes;
         }
 
         /// <summary>
