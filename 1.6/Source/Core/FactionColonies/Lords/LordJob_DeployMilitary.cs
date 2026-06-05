@@ -288,6 +288,11 @@ namespace FactionColonies
 
             if (squad is object)
             {
+                // Clear the player-issued order so it can't carry into the next deployment.
+                // MilitaryOrder is persistent squad state; a stale RecoverWoundedAndLeave would
+                // otherwise make the next deploy's lord leave immediately.
+                squad.Deployment.MilitaryOrder = MilitaryOrder.Undefined;
+
                 // Find the deploy op and complete it. This schedules the cooldown event linked
                 // to the op (which on fire transitions the op to Resolved and unregisters it),
                 // and fires LifecycleRegistry.OnBattleResolved -> OnOperationResolved.
