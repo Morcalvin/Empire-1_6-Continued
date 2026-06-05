@@ -266,9 +266,11 @@ namespace FactionColonies
         public PawnKindDef pawnKind;
         public List<SavedThing> weapons;
         public List<SavedThing> apparel;
+        public List<SavedThing> inventory;
+        public List<SavedImplant> implants;
         public XenotypeDef xenotype;
         public string customXenotypeName;
-        public ThingDef preferredAmmo;
+        public Gender? forcedGender;
 
         // Set during load when defs fail to resolve (e.g. mod removed). Not serialized.
         public bool isDegraded;
@@ -281,11 +283,13 @@ namespace FactionColonies
             name = unit.name;
             weapons = new List<SavedThing>(unit.weapons);
             apparel = new List<SavedThing>(unit.apparel);
+            inventory = new List<SavedThing>(unit.inventory ?? new List<SavedThing>());
+            implants = new List<SavedImplant>(unit.implants ?? new List<SavedImplant>());
             animal = unit.animal;
             pawnKind = unit.pawnKind;
             xenotype = unit.xenotype;
             customXenotypeName = unit.customXenotypeName;
-            preferredAmmo = unit.preferredAmmo;
+            forcedGender = unit.forcedGender;
         }
 
         public MilUnitFC CreateMilUnit()
@@ -308,9 +312,11 @@ namespace FactionColonies
             unit.pawnKind = resolvedKind;
             unit.xenotype = xenotype;
             unit.customXenotypeName = customXenotypeName;
-            unit.preferredAmmo = preferredAmmo;
+            unit.forcedGender = forcedGender;
             unit.weapons = weapons?.Where(w => w.thing != null).ToList() ?? new List<SavedThing>();
             unit.apparel = apparel?.Where(a => a.thing != null).ToList() ?? new List<SavedThing>();
+            unit.inventory = inventory?.Where(i => i.thing != null).ToList() ?? new List<SavedThing>();
+            unit.implants = implants?.Where(im => im.recipe != null).ToList() ?? new List<SavedImplant>();
 
             unit.LoadFromSaved(this);
             unit.ChangeTick();
@@ -343,9 +349,19 @@ namespace FactionColonies
             Scribe_Defs.Look(ref pawnKind, "pawnKind");
             Scribe_Defs.Look(ref xenotype, "xenotype");
             Scribe_Values.Look(ref customXenotypeName, "customXenotypeName");
-            Scribe_Defs.Look(ref preferredAmmo, "preferredAmmo");
             Scribe_Collections.Look(ref weapons, "weapons", LookMode.Deep);
             Scribe_Collections.Look(ref apparel, "apparel", LookMode.Deep);
+            Scribe_Collections.Look(ref inventory, "inventory", LookMode.Deep);
+            Scribe_Collections.Look(ref implants, "implants", LookMode.Deep);
+
+            // forcedGender nullable — save only if set
+            bool hasGender = forcedGender.HasValue;
+            Gender genderVal = forcedGender ?? Gender.None;
+            Scribe_Values.Look(ref hasGender, "hasForcedGender", false);
+            if (hasGender)
+                Scribe_Values.Look(ref genderVal, "forcedGender", Gender.None);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+                forcedGender = hasGender ? genderVal : (Gender?)null;
 
             if (xmlParent != null)
             {
@@ -360,12 +376,15 @@ namespace FactionColonies
             CheckDef(xmlParent, "pawnKind", pawnKind, missing);
             CheckDef(xmlParent, "animal", animal, missing);
             CheckDef(xmlParent, "xenotype", xenotype, missing);
-            CheckDef(xmlParent, "preferredAmmo", preferredAmmo, missing);
 
             int nullWeapons = weapons?.Count(w => w.thing == null) ?? 0;
             int nullApparel = apparel?.Count(a => a.thing == null) ?? 0;
+            int nullInventory = inventory?.Count(i => i.thing == null) ?? 0;
+            int nullImplants = implants?.Count(im => im.recipe == null) ?? 0;
             if (nullWeapons > 0) missing.Add($"{nullWeapons} weapon(s)");
             if (nullApparel > 0) missing.Add($"{nullApparel} apparel item(s)");
+            if (nullInventory > 0) missing.Add($"{nullInventory} inventory item(s)");
+            if (nullImplants > 0) missing.Add($"{nullImplants} implant(s)");
 
             if (missing.Count > 0)
             {
@@ -549,6 +568,7 @@ namespace FactionColonies
         public QualityCategory? quality; // null = not specified (future feature)
         public Color color;
         public bool hasColor;
+        public int count; // stack count — always 1 for weapons/apparel, may be >1 for inventory
 
         public SavedThing(Thing t)
         {
@@ -557,6 +577,7 @@ namespace FactionColonies
             quality = t.TryGetQuality(out QualityCategory q) ? q : (QualityCategory?)null;
             color = Color.white;
             hasColor = false;
+            count = Mathf.Max(1, t.stackCount);
         }
 
         public SavedThing(ThingDef thing, ThingDef stuff)
@@ -566,24 +587,40 @@ namespace FactionColonies
             this.quality = null;
             this.color = Color.white;
             this.hasColor = false;
+            this.count = 1;
         }
 
+        public SavedThing(ThingDef thing, ThingDef stuff, int count)
+        {
+            this.thing = thing;
+            this.stuff = stuff;
+            this.quality = null;
+            this.color = Color.white;
+            this.hasColor = false;
+            this.count = Mathf.Max(1, count);
+        }
+
+        /* Creates a single Thing capped to one stack. For inventory counts larger than
+         * the item's stack limit, callers (e.g. SquadEquipmentTracker.EquipPawn) split
+         * the total across multiple CreateThing calls. */
         public Thing CreateThing()
         {
             if (thing == null) return null;
             Thing t = ThingMaker.MakeThing(thing, stuff);
             if (quality.HasValue)
                 t.TryGetComp<CompQuality>()?.SetQuality(quality.Value, null);
+            t.stackCount = Mathf.Clamp(count <= 0 ? 1 : count, 1, Mathf.Max(1, thing.stackLimit));
             return t;
         }
 
         public float MarketValue =>
-            thing != null ? CraftUtil.ThingValue(thing, stuff, quality ?? QualityCategory.Normal) : 0f;
+            thing != null ? CraftUtil.ThingValue(thing, stuff, quality ?? QualityCategory.Normal) * Mathf.Max(1, count) : 0f;
 
         public void ExposeData()
         {
             Scribe_Defs.Look(ref thing, "thing");
             Scribe_Defs.Look(ref stuff, "stuff");
+            Scribe_Values.Look(ref count, "count", 1);
             // quality is nullable — save only if set
             QualityCategory qualityVal = quality ?? QualityCategory.Normal;
             bool hasQuality = quality.HasValue;
@@ -607,6 +644,32 @@ namespace FactionColonies
             {
                 color = Color.white;
             }
+        }
+    }
+
+    /* A surgically-installed implant chosen for a unit design. Stored by (recipe, bodyPart,
+     * occurrence index) so the concrete BodyPartRecord can be re-resolved against any pawn of
+     * the unit's body via recipe.Worker.GetPartsToApplyOn (deterministic ordering). bodyPart is
+     * null and bodyPartIndex is 0 for whole-body / non-targeted implants (recipe.targetsBodyPart
+     * == false). Future ability/psycast picking would live in a parallel list, not on this struct. */
+    public struct SavedImplant : IExposable
+    {
+        public RecipeDef recipe;
+        public BodyPartDef bodyPart;
+        public int bodyPartIndex;
+
+        public SavedImplant(RecipeDef recipe, BodyPartDef bodyPart, int bodyPartIndex)
+        {
+            this.recipe = recipe;
+            this.bodyPart = bodyPart;
+            this.bodyPartIndex = bodyPartIndex;
+        }
+
+        public void ExposeData()
+        {
+            Scribe_Defs.Look(ref recipe, "recipe");
+            Scribe_Defs.Look(ref bodyPart, "bodyPart");
+            Scribe_Values.Look(ref bodyPartIndex, "bodyPartIndex", 0);
         }
     }
 }

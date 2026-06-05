@@ -19,6 +19,9 @@ namespace FactionColonies
         private Vector2 unitListScrollPos;
         private string unitSearchTerm = "";
         private Vector2 apparelListScrollPos;
+        private Vector2 inventoryListScrollPos;
+        private Vector2 implantListScrollPos;
+        private LoadoutTab activeTab = LoadoutTab.Apparel;
 
         // Layout sizing constants
         private const float SidebarWidth = 250f;
@@ -83,9 +86,9 @@ namespace FactionColonies
 
                 DrawGearPanel(gearRect);
 
-                Rect apparelRect = new Rect(gearRect.xMax + 10f, gearRect.y,
+                Rect loadoutRect = new Rect(gearRect.xMax + 10f, gearRect.y,
                     rightEdge - gearRect.xMax - 10f, gearRect.height);
-                DrawApparelList(apparelRect, selectedUnit);
+                DrawLoadoutPanel(loadoutRect, selectedUnit);
             }
 
             Text.Font = fontBefore;
@@ -320,13 +323,6 @@ namespace FactionColonies
             Rect AnimalCompanion = new Rect(slotsStartX, slotsY, slotSize, slotSize);
             Rect EquipmentWeapon = new Rect(slotsStartX + slotSize + 20f, slotsY, slotSize, slotSize);
 
-            // CE ammo slot below weapon
-            Rect AmmoSlot = new Rect(EquipmentWeapon.x, EquipmentWeapon.yMax + 20f, slotSize, slotSize);
-            bool showAmmoSlot = CombatExtendedUtil.IsCELoaded
-                && selectedUnit != null
-                && selectedUnit.HasWeapon
-                && CombatExtendedUtil.GetAmmoOptionsForWeapon(selectedUnit.weapons[0].thing).Count > 0;
-
             // --- Always drawn: slot backgrounds and labels ---
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
@@ -337,12 +333,6 @@ namespace FactionColonies
             Widgets.DrawMenuSection(AnimalCompanion);
             Widgets.Label(new Rect(EquipmentWeapon.x, EquipmentWeapon.y - 15f, EquipmentWeapon.width, 18f), "fcLabelWeapon".Translate());
             Widgets.DrawMenuSection(EquipmentWeapon);
-
-            if (showAmmoSlot)
-            {
-                Widgets.Label(new Rect(AmmoSlot.x, AmmoSlot.y - 15f, AmmoSlot.width, 15f), "fcLabelAmmo".Translate());
-                Widgets.DrawMenuSection(AmmoSlot);
-            }
 
             Text.Font = fontBefore;
             Text.Anchor = anchorBefore;
@@ -386,42 +376,6 @@ namespace FactionColonies
                 ));
             }
 
-            // --- CE Ammo Slot ---
-            if (showAmmoSlot)
-            {
-                if (Widgets.ButtonInvisible(AmmoSlot))
-                {
-                    var ammoOptions = CombatExtendedUtil.GetAmmoOptionsForWeapon(selectedUnit.weapons[0].thing);
-                    var menuOptions = new List<FloatMenuOption>
-                    {
-                        new FloatMenuOption("fcAmmoAny".Translate(), () => selectedUnit.ClearPreferredAmmo())
-                    };
-                    foreach (ThingDef ammo in ammoOptions)
-                    {
-                        ThingDef captured = ammo;
-                        menuOptions.Add(new FloatMenuOption(
-                            captured.LabelCap,
-                            () => selectedUnit.SetPreferredAmmo(captured),
-                            captured.uiIcon,
-                            Color.white));
-                    }
-                    Find.WindowStack.Add(new FloatMenu(menuOptions));
-                }
-
-                if (selectedUnit.preferredAmmo != null)
-                {
-                    GUI.DrawTexture(AmmoSlot, selectedUnit.preferredAmmo.uiIcon);
-                }
-                else
-                {
-                    Text.Font = GameFont.Tiny;
-                    Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(AmmoSlot, "fcAmmoAny".Translate());
-                    Text.Font = fontBefore;
-                    Text.Anchor = anchorBefore;
-                }
-            }
-
             // Animal icon
             if (selectedUnit.animal != null)
             {
@@ -433,18 +387,73 @@ namespace FactionColonies
             {
                 Widgets.ButtonImage(EquipmentWeapon, selectedUnit.weapons[0].thing.uiIcon);
             }
+
+            // --- Gender control (below the slots) ---
+            float genderY = EquipmentWeapon.yMax + 25f;
+            Rect genderLabelRect = new Rect(slotsStartX, genderY, slotsWidth, 16f);
+            Rect genderBtnRect = new Rect(slotsStartX, genderLabelRect.yMax, slotsWidth, 28f);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.UpperCenter;
+            Widgets.Label(genderLabelRect, "fcUnitGender".Translate());
+            Text.Anchor = anchorBefore;
+            Text.Font = GameFont.Small;
+            if (Widgets.ButtonText(genderBtnRect, GenderLabel(selectedUnit.forcedGender)))
+            {
+                MilUnitFC captured = selectedUnit;
+                List<FloatMenuOption> opts = new List<FloatMenuOption>
+                {
+                    new FloatMenuOption("fcGenderAny".Translate(), () => captured.SetForcedGender(null)),
+                    new FloatMenuOption("fcGenderMale".Translate(), () => captured.SetForcedGender(Gender.Male)),
+                    new FloatMenuOption("fcGenderFemale".Translate(), () => captured.SetForcedGender(Gender.Female)),
+                };
+                Find.WindowStack.Add(new FloatMenu(opts));
+            }
+            Text.Font = fontBefore;
+            Text.Anchor = anchorBefore;
         }
 
-        // --- Apparel List ---
-
-        private void DrawApparelList(Rect rect, MilUnitFC unit)
+        private static string GenderLabel(Gender? g)
         {
-            ApparelListWidget.Draw(rect, unit, ref apparelListScrollPos, new ApparelListWidget.Options
+            if (!g.HasValue || g.Value == Gender.None) return "fcGenderAny".Translate();
+            return g.Value == Gender.Male ? "fcGenderMale".Translate() : "fcGenderFemale".Translate();
+        }
+
+        // --- Loadout Panel (tabbed: Apparel / Inventory / Implants) ---
+
+        private void DrawLoadoutPanel(Rect rect, MilUnitFC unit)
+        {
+            Rect content;
+            activeTab = LoadoutTabStrip.Draw(rect, activeTab, out content);
+            content = content.ContractedBy(4f);
+
+            if (activeTab == LoadoutTab.Apparel)
             {
-                canEdit = true,
-                showHeaderButtons = true,
-                getEditTarget = () => unit,
-            });
+                ApparelListWidget.Draw(content, unit, ref apparelListScrollPos, new ApparelListWidget.Options
+                {
+                    canEdit = true,
+                    showHeaderButtons = true,
+                    getEditTarget = () => unit,
+                });
+            }
+            else if (activeTab == LoadoutTab.Inventory)
+            {
+                InventoryListWidget.Draw(content, unit, ref inventoryListScrollPos, new InventoryListWidget.Options
+                {
+                    canEdit = true,
+                    showHeaderButtons = true,
+                    getEditTarget = () => unit,
+                });
+            }
+            else
+            {
+                ImplantListWidget.Draw(content, unit, ref implantListScrollPos, new ImplantListWidget.Options
+                {
+                    canEdit = true,
+                    showHeaderButtons = true,
+                    getEditTarget = () => unit,
+                    getDisplayUnit = () => unit,
+                });
+            }
         }
     }
 }

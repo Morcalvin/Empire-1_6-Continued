@@ -29,10 +29,12 @@ namespace FactionColonies
         // Def-based equipment storage
         public List<SavedThing> weapons = new List<SavedThing>();
         public List<SavedThing> apparel = new List<SavedThing>();
+        public List<SavedThing> inventory = new List<SavedThing>();
+        public List<SavedImplant> implants = new List<SavedImplant>();
         public bool HasWeapon => weapons.Any(w => w.thing != null);
 
-        // CE ammo preference (null = equip random ammo)
-        public ThingDef preferredAmmo;
+        // Forced gender for spawned pawns (null = any).
+        public Gender? forcedGender;
 
         // Lazy preview pawn for UI rendering only — not serialized
         private Pawn previewPawn;
@@ -139,6 +141,7 @@ namespace FactionColonies
             customXenotypeName = null;
             pawnIdentityDirty = true;
             pawnEquipmentDirty = true;
+            RevalidateImplants();
             ChangeTick();
             MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
         }
@@ -150,8 +153,20 @@ namespace FactionColonies
             FactionCache.EnsureInGameDatabase(custom);
             pawnIdentityDirty = true;
             pawnEquipmentDirty = true;
+            RevalidateImplants();
             ChangeTick();
             MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+        }
+
+        /// <summary>
+        /// Marks the preview pawn for a full regeneration (new PawnGenerator call). Use when
+        /// identity-affecting state changes (race, xenotype, gender, implants) — distinct from
+        /// <see cref="MarkEquipmentDirty"/>, which only re-applies apparel/weapons.
+        /// </summary>
+        public void MarkIdentityDirty()
+        {
+            pawnIdentityDirty = true;
+            pawnEquipmentDirty = true;
         }
 
         public virtual void ExposeData()
@@ -173,12 +188,24 @@ namespace FactionColonies
             // Def-based equipment storage
             Scribe_Collections.Look(ref weapons, "weapons", LookMode.Deep);
             Scribe_Collections.Look(ref apparel, "apparel", LookMode.Deep);
-            Scribe_Defs.Look(ref preferredAmmo, "preferredAmmo");
+            Scribe_Collections.Look(ref inventory, "inventory", LookMode.Deep);
+            Scribe_Collections.Look(ref implants, "implants", LookMode.Deep);
+
+            // forcedGender nullable — save only if set
+            bool hasGender = forcedGender.HasValue;
+            Gender genderVal = forcedGender ?? Gender.None;
+            Scribe_Values.Look(ref hasGender, "hasForcedGender", false);
+            if (hasGender)
+                Scribe_Values.Look(ref genderVal, "forcedGender", Gender.None);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+                forcedGender = hasGender ? genderVal : (Gender?)null;
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (weapons == null) weapons = new List<SavedThing>();
                 if (apparel == null) apparel = new List<SavedThing>();
+                if (inventory == null) inventory = new List<SavedThing>();
+                if (implants == null) implants = new List<SavedImplant>();
                 // Mutual exclusivity: prefer XenotypeDef if both are set
                 if (xenotype != null && customXenotypeName != null)
                     customXenotypeName = null;
@@ -241,6 +268,12 @@ namespace FactionColonies
                     if (empireFaction != null)
                         previewPawn.SetFaction(empireFaction);
                 }
+
+                // Implants change the pawn's health/identity, so they are applied here at
+                // generation time (not in RefreshPreviewEquipment, which runs on equipment-only
+                // changes and would otherwise double-install).
+                if (previewPawn != null)
+                    ApplyImplantsToPawn(previewPawn, this);
             }
             catch (Exception ex)
             {
@@ -303,6 +336,145 @@ namespace FactionColonies
             }
         }
 
+        /* Installs this unit's chosen implants on the target pawn, reusing the base game's own
+         * surgery validation/application (Recipe_InstallImplant.ApplyOnPawn with a null billDoer
+         * skips the fail/tale path and adds the hediff). The concrete BodyPartRecord is resolved
+         * from the stored (recipe, index) against the target's body via GetPartsToApplyOn, whose
+         * ordering is deterministic. Invalid entries (part missing / slot taken / incompatible on
+         * this body) are silently skipped. Used by the preview pawn and the real spawned pawn. */
+        public static void ApplyImplantsToPawn(Pawn target, MilUnitFC source)
+        {
+            if (target is null || source?.implants is null) return;
+            if (target.health is null || target.Dead || target.Destroyed) return;
+
+            foreach (SavedImplant im in source.implants)
+            {
+                if (im.recipe is null) continue;
+                try
+                {
+                    BodyPartRecord part;
+                    if (TryResolveImplant(target, im, out part))
+                        im.recipe.Worker.ApplyOnPawn(target, part, null, null, null);
+                }
+                catch (Exception ex)
+                {
+                    LogUtil.Warning($"Failed to apply implant {im.recipe?.defName} to {target.LabelShortCap}: {ex.Message}");
+                }
+            }
+        }
+
+        /* Resolves the body part a stored implant should install on, and whether it's currently
+         * installable. The part is located by its STABLE occurrence index within body.AllParts —
+         * NOT an index into the filtered GetPartsToApplyOn list, which shifts with the pawn's
+         * health state (battle injuries, other implants). This is what lets an implant chosen in
+         * the designer (against a clean preview) install reliably on a real, possibly battle-worn
+         * pawn. Validity (part present, slot free, recipe-compatible, AvailableOnNow) is still
+         * delegated to the base game. Returns false (skip) for whole-body implants already present
+         * or parts that aren't a legal target right now. */
+        private static bool TryResolveImplant(Pawn pawn, SavedImplant im, out BodyPartRecord part)
+        {
+            part = null;
+            if (pawn?.health is null || im.recipe?.addsHediff is null) return false;
+
+            if (!im.recipe.targetsBodyPart)
+            {
+                if (pawn.health.hediffSet.HasHediff(im.recipe.addsHediff)) return false;
+                return im.recipe.Worker.AvailableOnNow(pawn, null);
+            }
+
+            if (im.bodyPart is null) return false;
+            part = NthBodyPartOfDef(pawn, im.bodyPart, im.bodyPartIndex);
+            if (part is null) return false;
+
+            // The resolved part must be a legal target for this recipe right now (not missing,
+            // slot not already filled, no incompatible hediff) — GetPartsToApplyOn enforces that.
+            bool legalTarget = false;
+            foreach (BodyPartRecord p in im.recipe.Worker.GetPartsToApplyOn(pawn, im.recipe))
+            {
+                if (p == part) { legalTarget = true; break; }
+            }
+            if (!legalTarget) return false;
+
+            return im.recipe.Worker.AvailableOnNow(pawn, part);
+        }
+
+        /// <summary>Occurrence index of <paramref name="part"/> among same-def parts in the body's
+        /// AllParts order. Stable regardless of installed hediffs. -1 if not found.</summary>
+        public static int BodyPartOccurrenceIndex(Pawn pawn, BodyPartRecord part)
+        {
+            if (pawn?.RaceProps?.body is null || part is null) return -1;
+            int occ = 0;
+            foreach (BodyPartRecord p in pawn.RaceProps.body.AllParts)
+            {
+                if (p == part) return occ;
+                if (p.def == part.def) occ++;
+            }
+            return -1;
+        }
+
+        private static BodyPartRecord NthBodyPartOfDef(Pawn pawn, BodyPartDef def, int n)
+        {
+            if (pawn?.RaceProps?.body is null || def is null) return null;
+            int occ = 0;
+            foreach (BodyPartRecord p in pawn.RaceProps.body.AllParts)
+            {
+                if (p.def == def)
+                {
+                    if (occ == n) return p;
+                    occ++;
+                }
+            }
+            return null;
+        }
+
+        /* Removes the given implants from a pawn, restoring the natural body part. Borrows the
+         * base game's Pawn_HealthTracker.RestorePart (the same call behind the dev "heal" action
+         * and surgery) which recursively strips every hediff off the part and its children — so
+         * the added bionic part disappears and the natural part comes back. The actual installed
+         * hediff is located by its addsHediff def (not by stored index, which shifts once a slot
+         * is filled). Whole-body implants (no targeted part) are removed directly. */
+        public static void RemoveImplantsFromPawn(Pawn target, List<SavedImplant> implants)
+        {
+            if (target?.health is null || implants is null) return;
+            if (target.Dead || target.Destroyed) return;
+
+            foreach (SavedImplant im in implants)
+            {
+                if (im.recipe?.addsHediff is null) continue;
+                try
+                {
+                    Hediff found = null;
+                    List<Hediff> hediffs = target.health.hediffSet.hediffs;
+                    for (int i = 0; i < hediffs.Count; i++)
+                    {
+                        if (hediffs[i].def == im.recipe.addsHediff) { found = hediffs[i]; break; }
+                    }
+                    if (found is null) continue;
+
+                    if (found.Part != null)
+                        target.health.RestorePart(found.Part);
+                    else
+                        target.health.RemoveHediff(found);
+                }
+                catch (Exception ex)
+                {
+                    LogUtil.Warning($"Failed to remove implant {im.recipe?.defName} from {target.LabelShortCap}: {ex.Message}");
+                }
+            }
+        }
+
+        /* Brings a live pawn's installed implants in line with the desired loadout WITHOUT
+         * regenerating the pawn (identity preserved): clears the previously-applied set back to a
+         * clean body via RestorePart, then re-applies the desired set on the clean base — which is
+         * exactly the index semantics the designer preview uses, so additions and removals are both
+         * handled. Used by the squad-upgrade paths when only implants changed. */
+        public static void ReconcileImplantsOnPawn(Pawn target, MilUnitFC desired, MilUnitFC previous)
+        {
+            if (target?.health is null || target.Dead || target.Destroyed) return;
+            if (previous != null) RemoveImplantsFromPawn(target, previous.implants);
+            if (desired != null) ApplyImplantsToPawn(target, desired);
+        }
+
         // --- Equipment Mutation Methods ---
 
         public void ChangeTick()
@@ -316,7 +488,6 @@ namespace FactionColonies
         {
             weapons.Clear();
             weapons.Add(new SavedThing(def, stuff));
-            preferredAmmo = null;
             pawnEquipmentDirty = true;
             ChangeTick();
             MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
@@ -325,22 +496,9 @@ namespace FactionColonies
         public void ClearWeapon()
         {
             weapons.Clear();
-            preferredAmmo = null;
             pawnEquipmentDirty = true;
             ChangeTick();
             MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
-        }
-
-        public void SetPreferredAmmo(ThingDef ammo)
-        {
-            preferredAmmo = ammo;
-            ChangeTick();
-        }
-
-        public void ClearPreferredAmmo()
-        {
-            preferredAmmo = null;
-            ChangeTick();
         }
 
         public void SetApparel(ThingDef def, ThingDef stuff)
@@ -367,8 +525,188 @@ namespace FactionColonies
         {
             weapons.Clear();
             apparel.Clear();
-            preferredAmmo = null;
+            inventory.Clear();
+            implants.Clear();
             pawnEquipmentDirty = true;
+            pawnIdentityDirty = true; // implants cleared — preview pawn must regenerate
+            ChangeTick();
+            MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+        }
+
+        // --- Inventory ---
+
+        /* Adds (or tops up) a carried inventory entry. Hard-blocks the add when it would push
+         * total carried mass over the unit's 70% carry cap (see CarryCapacity) — the player can
+         * never overload a designed unit. Returns false (with a message) when rejected. */
+        public bool AddInventory(ThingDef def, ThingDef stuff, int count)
+        {
+            if (def is null || count <= 0) return false;
+
+            float addedMass = MassOf(def, stuff) * count;
+            if (CurrentInventoryMass + addedMass > CarryCapacity + 0.0001f)
+            {
+                Messages.Message("fcInventoryOverweight".Translate(), MessageTypeDefOf.RejectInput, false);
+                return false;
+            }
+
+            // Merge with an existing matching row (same thing + stuff, no specified quality).
+            for (int i = 0; i < inventory.Count; i++)
+            {
+                SavedThing existing = inventory[i];
+                if (existing.thing == def && existing.stuff == stuff && !existing.quality.HasValue)
+                {
+                    existing.count = Mathf.Max(1, existing.count) + count;
+                    inventory[i] = existing;
+                    pawnEquipmentDirty = true;
+                    ChangeTick();
+                    MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+                    return true;
+                }
+            }
+
+            inventory.Add(new SavedThing(def, stuff, count));
+            pawnEquipmentDirty = true;
+            ChangeTick();
+            MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+            return true;
+        }
+
+        public void SetInventoryCount(int index, int count)
+        {
+            if (index < 0 || index >= inventory.Count) return;
+            if (count <= 0) { RemoveInventory(index); return; }
+
+            SavedThing item = inventory[index];
+            // Compute prospective mass excluding this row, then re-add at the requested count.
+            float massWithout = CurrentInventoryMass - MassOf(item.thing, item.stuff) * Mathf.Max(1, item.count);
+            float prospective = massWithout + MassOf(item.thing, item.stuff) * count;
+            if (prospective > CarryCapacity + 0.0001f)
+            {
+                Messages.Message("fcInventoryOverweight".Translate(), MessageTypeDefOf.RejectInput, false);
+                return;
+            }
+
+            item.count = count;
+            inventory[index] = item;
+            pawnEquipmentDirty = true;
+            ChangeTick();
+            MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+        }
+
+        public void RemoveInventory(int index)
+        {
+            if (index < 0 || index >= inventory.Count) return;
+            inventory.RemoveAt(index);
+            pawnEquipmentDirty = true;
+            ChangeTick();
+            MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+        }
+
+        private static float MassOf(ThingDef def, ThingDef stuff)
+        {
+            if (def is null) return 0f;
+            return def.GetStatValueAbstract(StatDefOf.Mass, stuff);
+        }
+
+        /// <summary>Carry cap = 70% of a typical pawn-of-this-xenotype's carrying capacity.</summary>
+        public float CarryCapacity
+        {
+            get
+            {
+                Pawn p = PreviewPawn;
+                return p != null ? MassUtility.Capacity(p) * 0.7f : 0f;
+            }
+        }
+
+        /// <summary>Total carried mass counted against the cap: inventory items plus the equipped
+        /// weapon(s). Worn apparel is excluded (it's worn, not carried).</summary>
+        public float CurrentInventoryMass
+        {
+            get
+            {
+                float total = 0f;
+                foreach (SavedThing i in inventory)
+                    total += MassOf(i.thing, i.stuff) * Mathf.Max(1, i.count);
+                foreach (SavedThing w in weapons)
+                    total += MassOf(w.thing, w.stuff) * Mathf.Max(1, w.count);
+                return total;
+            }
+        }
+
+        // --- Implants ---
+
+        public void AddImplant(RecipeDef recipe, BodyPartDef bodyPart, int bodyPartIndex)
+        {
+            if (recipe is null) return;
+            implants.Add(new SavedImplant(recipe, bodyPart, bodyPartIndex));
+            MarkIdentityDirty();
+            ChangeTick();
+            MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+        }
+
+        public void RemoveImplant(int index)
+        {
+            if (index < 0 || index >= implants.Count) return;
+            implants.RemoveAt(index);
+            MarkIdentityDirty();
+            ChangeTick();
+            MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
+        }
+
+        /* Drops stored implants that no longer resolve to a valid slot on the current body
+         * (e.g. after a race/xenotype change removed or altered the target part). Validation
+         * is delegated to the base game via a freshly-built preview pawn. */
+        public void RevalidateImplants()
+        {
+            if (implants.Count == 0) return;
+
+            // Force a clean preview pawn WITHOUT implants so we can test each one independently.
+            pawnIdentityDirty = true;
+            List<SavedImplant> snapshot = implants;
+            implants = new List<SavedImplant>();
+            Pawn testPawn = PreviewPawn; // rebuilt with no implants
+            implants = snapshot;
+
+            if (testPawn is null) return;
+
+            List<SavedImplant> kept = new List<SavedImplant>();
+            foreach (SavedImplant im in snapshot)
+            {
+                if (im.recipe is null) continue;
+                try
+                {
+                    BodyPartRecord part;
+                    if (!TryResolveImplant(testPawn, im, out part)) continue;
+
+                    // Install on the test pawn so later implants validate against a cumulative body.
+                    im.recipe.Worker.ApplyOnPawn(testPawn, part, null, null, null);
+                    kept.Add(im);
+                }
+                catch (Exception ex)
+                {
+                    LogUtil.Warning($"RevalidateImplants: dropping implant {im.recipe?.defName}: {ex.Message}");
+                }
+            }
+
+            implants = kept;
+            pawnIdentityDirty = true; // preview must rebuild with the surviving implants
+        }
+
+        // --- Gender ---
+
+        public void SetForcedGender(Gender? gender)
+        {
+            forcedGender = gender;
+            MarkIdentityDirty();
+            ChangeTick();
+        }
+
+        /* Re-marks identity dirty and revalidates implants after a race change. Called by the
+         * race picker, which writes pawnKind directly. */
+        public void OnRaceChanged()
+        {
+            MarkIdentityDirty();
+            RevalidateImplants();
             ChangeTick();
             MilSquadFC.UpdateEquipmentTotalCostOfSquadsContaining(this);
         }
@@ -476,10 +814,35 @@ namespace FactionColonies
             foreach (SavedThing w in weapons)
                 totalCost += w.MarketValue;
 
+            foreach (SavedThing inv in inventory)
+                totalCost += inv.MarketValue;
+
+            foreach (SavedImplant im in implants)
+                totalCost += ImplantCost(im.recipe);
+
             if (animal != null)
                 totalCost += Math.Floor(animal.race.BaseMarketValue * FCSettings.militaryAnimalCostMultiplier);
 
             equipmentTotalCost = Math.Ceiling(totalCost);
+        }
+
+        /* Approximate cost of an implant from its install recipe: the market value of the fixed
+         * ingredient(s) it consumes (the implant item), falling back to the produced thing. */
+        public static float ImplantCost(RecipeDef recipe)
+        {
+            if (recipe is null) return 0f;
+            float cost = 0f;
+            if (recipe.ingredients != null)
+            {
+                foreach (IngredientCount ing in recipe.ingredients)
+                {
+                    if (ing.IsFixedIngredient && ing.FixedIngredient != null)
+                        cost += ing.FixedIngredient.BaseMarketValue * ing.GetBaseCount();
+                }
+            }
+            if (cost <= 0f && recipe.ProducedThingDef != null)
+                cost += recipe.ProducedThingDef.BaseMarketValue;
+            return cost;
         }
 
         // --- Subclass-Aware Export/Import ---
@@ -513,9 +876,11 @@ namespace FactionColonies
             copy.xenotype = xenotype;
             copy.customXenotypeName = customXenotypeName;
             copy.animal = animal;
-            copy.preferredAmmo = preferredAmmo;
+            copy.forcedGender = forcedGender;
             copy.weapons = new List<SavedThing>(weapons ?? new List<SavedThing>());
             copy.apparel = new List<SavedThing>(apparel ?? new List<SavedThing>());
+            copy.inventory = new List<SavedThing>(inventory ?? new List<SavedThing>());
+            copy.implants = new List<SavedImplant>(implants ?? new List<SavedImplant>());
             CopyExtraFieldsTo(copy);
             copy.ChangeTick();
             copy.UpdateEquipmentTotalCost();

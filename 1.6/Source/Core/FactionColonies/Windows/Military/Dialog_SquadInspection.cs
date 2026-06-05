@@ -658,11 +658,16 @@ namespace FactionColonies
             if (cost > 0) PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadUpgrade, squad.settlement);
             // ownedLoadout and loadout are preserved — assigned loadout is unchanged,
             // only the pawn's equipped state is being synced to it.
+            MilUnitFC prior = merc.currentLoadout;
+            bool implantsChanged = LoadoutUpgradeUtil.ImplantsChanged(target, prior);
             merc.currentLoadout = target.Clone();
             squad.Equipment.StripPawn(merc);
             squad.Equipment.EquipPawn(merc, merc.currentLoadout);
-            // EquipPawn handles apparel + weapons only — sync the companion animal too so
-            // an animal-only personalization actually takes effect.
+            // EquipPawn handles apparel + weapons + inventory only. Implants are surgically
+            // applied, so reconcile them in place (preserving the pawn) when they changed, and
+            // sync the companion animal too.
+            if (implantsChanged)
+                MilUnitFC.ReconcileImplantsOnPawn(merc.pawn, target, prior);
             squad.Equipment.ReconcileAnimal(merc, target);
         }
 
@@ -677,7 +682,7 @@ namespace FactionColonies
             }
             if (cost > 0) PaymentUtil.PaySilver(cost, PaymentUtil.Reason_SquadFillSlot, squad.settlement);
             Mercenary slot = merc;
-            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName, blueprint);
             if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
             FindFC.Military?.RebuildMercenaryPawnSet();
@@ -760,7 +765,7 @@ namespace FactionColonies
             target.loadout = blueprint;
             target.ownedLoadout = null;
             Mercenary slot = target;
-            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+            MercenaryPawnFactory.CreateNewPawn(squad, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName, blueprint);
             if (slot.pawn != null) squad.Equipment.EquipPawn(slot, blueprint);
             slot.currentLoadout = blueprint.Clone();
 

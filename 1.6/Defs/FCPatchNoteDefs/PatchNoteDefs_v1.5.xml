@@ -334,4 +334,19 @@
 		<li>Pecha</li>
 		</authors>
 	</FactionColonies.PatchNoteDef>
+
+	<FactionColonies.PatchNoteDef ParentName="EmpirePatchBase">
+		<defName>1_5_22</defName>
+		<label>Squad Updates: Inventory and Implants!</label>
+		<description>Adds the ability to set a military unit&apos;s inventory and implants.</description>
+		<releaseDate>2026-06-05</releaseDate>
+		<patchNoteType>Minor</patchNoteType>
+		<patchNoteLines>
+		<li>Augment the unit designer and edit pawn windows to let the player specify the unit&apos;s inventory and implants</li>
+		<li>Fix a bug where squads, on deployment, would immediately try to follow the last order they were given on their previous deployment</li>
+		</patchNoteLines>
+		<authors>
+		<li>Matathias</li>
+		</authors>
+	</FactionColonies.PatchNoteDef>
 </Defs>

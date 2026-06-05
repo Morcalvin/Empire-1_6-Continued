@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <!--
+    Items a designed military unit may carry. The inventory picker shows the union of every
+    FCInventoryCategoryDef. Submods extend the pool by adding their own def or PatchOperation-ing
+    this one. The Weapons category also covers Combat Extended ammo (CE's "Ammo" category is a
+    child of "Weapons"). FoodMeals covers cooked meals + survival/paste; pemmican and kibble sit
+    directly under the parent Foods category, so they're listed explicitly to keep raw food out.
+  -->
+  <FactionColonies.FCInventoryCategoryDef>
+    <defName>Empire_DefaultInventory</defName>
+    <categories>
+      <li>Weapons</li>
+      <li>Medicine</li>
+      <li>Drugs</li>
+      <li>FoodMeals</li>
+    </categories>
+    <things>
+      <li>Pemmican</li>
+      <li>Kibble</li>
+    </things>
+    <excludeThings>
+      <!-- One-shot strategic consumables that the categories above would otherwise allow. -->
+      <li MayRequire="Ludeon.RimWorld.Biotech">DeathrestCapacitySerum</li>
+      <li MayRequire="Ludeon.RimWorld.Odyssey">SentienceCatalyst</li>
+    </excludeThings>
+  </FactionColonies.FCInventoryCategoryDef>
+
+</Defs>

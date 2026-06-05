@@ -25,6 +25,10 @@ namespace FactionColonies
                 foreach (SavedThing a in unit.apparel) total += a.MarketValue;
             if (unit.weapons != null)
                 foreach (SavedThing w in unit.weapons) total += w.MarketValue;
+            if (unit.inventory != null)
+                foreach (SavedThing inv in unit.inventory) total += inv.MarketValue;
+            if (unit.implants != null)
+                foreach (SavedImplant im in unit.implants) total += MilUnitFC.ImplantCost(im.recipe);
             return total;
         }
 
@@ -57,7 +61,58 @@ namespace FactionColonies
             if (target.animal != current.animal) return true;
             if (!ApparelEquivalent(target.apparel, current.apparel)) return true;
             if (!WeaponsEquivalent(target.weapons, current.weapons)) return true;
+            if (!InventoryEquivalent(target.inventory, current.inventory)) return true;
+            if (!ImplantsEquivalent(target.implants, current.implants)) return true;
             return false;
+        }
+
+        /// <summary>True when the implant set differs between <paramref name="target"/> and
+        /// <paramref name="current"/>. Re-equipping (apparel/weapons/inventory) doesn't touch
+        /// surgically-applied implants, so the upgrade paths additionally run an in-place implant
+        /// reconcile (<see cref="MilUnitFC.ReconcileImplantsOnPawn"/>) when this is true — no pawn
+        /// regeneration, identity preserved.</summary>
+        public static bool ImplantsChanged(MilUnitFC target, MilUnitFC current)
+        {
+            if (target is null) return false;
+            if (current is null) return true;
+            return !ImplantsEquivalent(target.implants, current.implants);
+        }
+
+        /* Order-independent equality over inventory rows (thing + stuff + quality + count). */
+        public static bool InventoryEquivalent(List<SavedThing> a, List<SavedThing> b)
+        {
+            int an = a == null ? 0 : a.Count(x => x.thing != null);
+            int bn = b == null ? 0 : b.Count(x => x.thing != null);
+            if (an != bn) return false;
+            if (an == 0) return true;
+            List<SavedThing> sa = a.Where(x => x.thing != null).OrderBy(x => x.thing.defName).ThenBy(x => x.count).ToList();
+            List<SavedThing> sb = b.Where(x => x.thing != null).OrderBy(x => x.thing.defName).ThenBy(x => x.count).ToList();
+            for (int i = 0; i < an; i++)
+            {
+                if (!SavedThingEquivalent(sa[i], sb[i])) return false;
+                if (sa[i].count != sb[i].count) return false;
+            }
+            return true;
+        }
+
+        /* Order-independent equality over implants (recipe + body part + occurrence index). */
+        public static bool ImplantsEquivalent(List<SavedImplant> a, List<SavedImplant> b)
+        {
+            int an = a == null ? 0 : a.Count(x => x.recipe != null);
+            int bn = b == null ? 0 : b.Count(x => x.recipe != null);
+            if (an != bn) return false;
+            if (an == 0) return true;
+            List<SavedImplant> sa = a.Where(x => x.recipe != null)
+                .OrderBy(x => x.recipe.defName).ThenBy(x => x.bodyPart?.defName ?? "").ThenBy(x => x.bodyPartIndex).ToList();
+            List<SavedImplant> sb = b.Where(x => x.recipe != null)
+                .OrderBy(x => x.recipe.defName).ThenBy(x => x.bodyPart?.defName ?? "").ThenBy(x => x.bodyPartIndex).ToList();
+            for (int i = 0; i < an; i++)
+            {
+                if (sa[i].recipe != sb[i].recipe) return false;
+                if (sa[i].bodyPart != sb[i].bodyPart) return false;
+                if (sa[i].bodyPartIndex != sb[i].bodyPartIndex) return false;
+            }
+            return true;
         }
 
         public static bool ApparelEquivalent(List<SavedThing> a, List<SavedThing> b)

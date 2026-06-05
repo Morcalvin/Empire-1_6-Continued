@@ -31,13 +31,8 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Header label
-            Rect headerRect = new Rect(rect.x, rect.y, rect.width, headerHeight);
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(headerRect, "fcEquippedApparel".Translate());
-
-            float btnY = rect.y + headerHeight + 3f;
+            // Button row sits at the top — the selected tab already labels this panel.
+            float btnY = rect.y;
             float btnW = (rect.width - 4f) / 3f;
 
             // Header buttons row
@@ -84,7 +79,7 @@ namespace FactionColonies
             }
 
             // List
-            Rect listOutRect = new Rect(rect.x, btnY + headerHeight + 2f, rect.width, rect.height - (2 * (headerHeight + 2f)));
+            Rect listOutRect = new Rect(rect.x, btnY + headerHeight + 2f, rect.width, rect.height - headerHeight - 4f);
 
             List<SavedThing> sortedApparel = displayUnit?.apparel
                 ?.Where(a => a.thing != null)

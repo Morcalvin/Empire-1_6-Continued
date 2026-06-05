@@ -84,6 +84,11 @@ namespace FactionColonies
             }
 
             equippedPawns.ForEach(pawn => pawn.ApplyIdeologyRitualWounds());
+            // Start the deployment from a clean order. MilitaryOrder is persistent squad state, so
+            // a leftover order from a PRIOR deployment (e.g. RecoverWoundedAndLeave from a dismiss)
+            // would otherwise make this new lord execute it the moment it's ready — the squad would
+            // turn around and leave as soon as it arrived.
+            squad.Deployment.MilitaryOrder = MilitaryOrder.Undefined;
             squad.Deployment.OrderLocation = dropPosition;
             // Squad-first: name the deployed squad and its home settlement. When a deployment-cost
             // bill was created, also surface the cost and payment deadline; otherwise omit that

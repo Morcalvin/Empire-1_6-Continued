@@ -33,8 +33,10 @@
 	<fcLabelPants>Pants</fcLabelPants>
 	<fcLabelWeapon>Weapon</fcLabelWeapon>
 	<fcLabelAnimal>Animal</fcLabelAnimal>
-	<fcLabelAmmo>Ammo</fcLabelAmmo>
-	<fcAmmoAny>Any</fcAmmoAny>
+	<fcUnitGender>Gender</fcUnitGender>
+	<fcGenderAny>Any</fcGenderAny>
+	<fcGenderMale>Male</fcGenderMale>
+	<fcGenderFemale>Female</fcGenderFemale>
 
 	<!-- Unit Buttons -->
 	<FCRenameUnit>Rename Unit</FCRenameUnit>
@@ -63,6 +65,23 @@
 	<fcPickerSummary>Selected: {0} - Cost: {1}</fcPickerSummary>
 	<fcPickerSelectItem>Select an item first</fcPickerSelectItem>
 	<fcPickerSelectStuff>Select a material for this item</fcPickerSelectStuff>
+
+	<!-- Loadout Tabs -->
+	<fcTabApparel>Apparel</fcTabApparel>
+	<fcTabInventory>Inventory</fcTabInventory>
+	<fcTabImplants>Implants</fcTabImplants>
+
+	<!-- Inventory -->
+	<fcAddInventoryItem>+ Add Item</fcAddInventoryItem>
+	<fcPickInventoryItem>Select Inventory Item</fcPickInventoryItem>
+	<fcInventoryCount>Count:</fcInventoryCount>
+	<fcInventoryMass>{0} / {1} kg</fcInventoryMass>
+	<fcInventoryOverweight>That would exceed the unit's carry weight limit.</fcInventoryOverweight>
+	<fcInventoryWeaponSuffix>(weapon)</fcInventoryWeaponSuffix>
+
+	<!-- Implants -->
+	<fcAddImplant>+ Add Implant</fcAddImplant>
+	<fcPickImplant>Select Implant</fcPickImplant>
 
 	<!-- Unit Race/PawnKind Errors -->
 	<FCChangeUnitRaceNoRaces>No available races</FCChangeUnitRaceNoRaces>

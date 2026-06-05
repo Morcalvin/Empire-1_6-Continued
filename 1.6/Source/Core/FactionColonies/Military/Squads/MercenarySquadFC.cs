@@ -133,10 +133,11 @@ namespace FactionColonies
             EquippedMercenaries.Select(merc => merc.pawn).Concat(EquippedAnimalMercenaries);
 
         /// <summary>Equipped mercs and animals that are eligible to be spawned into a battle map,
-        /// excluding pawns that are currently downed.
-        /// Used by Deploy, defense initial spawn, and defense reinforcement.</summary>
+        /// excluding pawns that are currently downed, dead, destroyed, or already on a map (a
+        /// stale pawn from a prior deploy that wasn't cleaned up would otherwise fail to spawn and
+        /// break the deployed lord). Used by Deploy, defense initial spawn, and reinforcement.</summary>
         public IEnumerable<Pawn> SpawnableMercenaryPawns =>
-            AllEquippedMercenaryPawns.Where(p => p is object && !p.Downed);
+            AllEquippedMercenaryPawns.Where(p => p is object && !p.Downed && !p.Dead && !p.Destroyed && !p.Spawned);
 
         public IEnumerable<Pawn> AllDeployedMercenaryPawns =>
             DeployedMercenaries.Select(merc => merc.pawn)
@@ -208,7 +209,7 @@ namespace FactionColonies
                 // FillEmptySlots / Upgrade when the player assigns a real unit later.
                 if (slot != null && !slot.isBlank)
                 {
-                    MercenaryPawnFactory.CreateNewPawn(this, ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref placeholder, slot.pawnKind, slot.xenotype, slot.customXenotypeName, slot);
                     if (placeholder.pawn == null)
                     {
                         LogUtil.Warning($"Failed to create mercenary {k + 1}/{slotCount} for unit {slot.name ?? "unknown"}; leaving slot empty.");
@@ -307,7 +308,7 @@ namespace FactionColonies
                     MilUnitFC blueprint = m.BlueprintLoadout;
                     if (blueprint is null || blueprint.isBlank) continue;
                     Mercenary slot = m;
-                    MercenaryPawnFactory.CreateNewPawn(this, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName);
+                    MercenaryPawnFactory.CreateNewPawn(this, ref slot, blueprint.pawnKind, blueprint.xenotype, blueprint.customXenotypeName, blueprint);
                     if (slot.pawn != null) Equipment.EquipPawn(slot, blueprint);
                     // Sync currentLoadout with what we just equipped — re-snap from the blueprint.
                     slot.currentLoadout = blueprint.Clone();

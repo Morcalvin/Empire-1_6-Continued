@@ -16,15 +16,19 @@ namespace FactionColonies
     {
         private readonly List<ThingDef> items;
         private readonly Action<ThingDef, ThingDef> onConfirm;
+        private readonly Action<ThingDef, ThingDef, int> onConfirmWithCount;
         private readonly Action onUnequip;
         private readonly string titleKey;
         private readonly Func<ThingDef, string> conflictTooltipFunc;
+        private readonly bool showCount;
 
         private ThingDef selectedItem;
         private ThingDef selectedStuff;
         private QualityCategory? selectedQuality = null;
         private QualityCategory SelectedQuality => selectedQuality ?? QualityCategory.Normal;
         private List<ThingDef> currentStuffs = new List<ThingDef>();
+        private int selectedCount = 1;
+        private string countBuffer;
 
         private string itemSearchTerm = "";
         private string stuffSearchTerm = "";
@@ -52,13 +56,20 @@ namespace FactionColonies
             string titleKey = "fcPickItem",
             ThingDef initialItem = null,
             ThingDef initialStuff = null,
-            Func<ThingDef, string> conflictTooltipFunc = null)
+            Func<ThingDef, string> conflictTooltipFunc = null,
+            bool showCount = false,
+            int initialCount = 1,
+            Action<ThingDef, ThingDef, int> onConfirmWithCount = null)
         {
             this.items = items;
             this.onConfirm = onConfirm;
+            this.onConfirmWithCount = onConfirmWithCount;
             this.onUnequip = onUnequip;
             this.titleKey = titleKey;
             this.conflictTooltipFunc = conflictTooltipFunc;
+            this.showCount = showCount;
+            this.selectedCount = Mathf.Max(1, initialCount);
+            this.countBuffer = this.selectedCount.ToString();
 
             if (initialItem != null)
             {
@@ -348,9 +359,44 @@ namespace FactionColonies
             if (selectedStuff != null)
                 itemName += " (" + selectedStuff.LabelCap + ")";
 
-            float cost = CraftUtil.ThingValue(selectedItem, selectedStuff, SelectedQuality);
+            float perUnit = CraftUtil.ThingValue(selectedItem, selectedStuff, SelectedQuality);
 
-            Widgets.Label(rect, "fcPickerSummary".Translate(itemName, cost.ToString("F0")));
+            // Count picker (inventory only): "Count: [ - ][ 12 ][ + ]" on the right.
+            Rect labelRect = rect;
+            if (showCount)
+            {
+                const float countBlockW = 170f;
+                labelRect = new Rect(rect.x, rect.y, rect.width - countBlockW - 8f, rect.height);
+
+                float x = rect.xMax - countBlockW;
+                Rect lblRect = new Rect(x, rect.y, 50f, rect.height);
+                Text.Anchor = TextAnchor.MiddleLeft;
+                Widgets.Label(lblRect, "fcInventoryCount".Translate());
+                x += 52f;
+
+                Rect minusRect = new Rect(x, rect.y + 1f, 24f, rect.height - 2f);
+                if (Widgets.ButtonText(minusRect, "-"))
+                {
+                    selectedCount = Mathf.Max(1, selectedCount - 1);
+                    countBuffer = selectedCount.ToString();
+                }
+                x += 26f;
+
+                Rect fieldRect = new Rect(x, rect.y + 1f, 40f, rect.height - 2f);
+                Widgets.TextFieldNumeric(fieldRect, ref selectedCount, ref countBuffer, 1, 99999);
+                x += 42f;
+
+                Rect plusRect = new Rect(x, rect.y + 1f, 24f, rect.height - 2f);
+                if (Widgets.ButtonText(plusRect, "+"))
+                {
+                    selectedCount++;
+                    countBuffer = selectedCount.ToString();
+                }
+            }
+
+            float cost = perUnit * (showCount ? Mathf.Max(1, selectedCount) : 1);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(labelRect, "fcPickerSummary".Translate(itemName, cost.ToString("F0")));
         }
 
         private void DrawButtons(Rect bar)
@@ -389,7 +435,10 @@ namespace FactionColonies
                 }
                 else
                 {
-                    onConfirm(selectedItem, selectedStuff);
+                    if (onConfirmWithCount != null)
+                        onConfirmWithCount(selectedItem, selectedStuff, Mathf.Max(1, selectedCount));
+                    else
+                        onConfirm(selectedItem, selectedStuff);
                     Close();
                 }
             }

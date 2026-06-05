@@ -427,7 +427,7 @@ Please report this if you don't get your colonists sent to defend back, or your 
 	<FCDialogPawnLoadoutDivergedSubtitle>Personal loadout (template association broken)</FCDialogPawnLoadoutDivergedSubtitle>
 	<FCDialogPawnLoadoutPickFromPool>Pick from unit template...</FCDialogPawnLoadoutPickFromPool>
 	<FCDialogPawnLoadoutResetToPool>Reset to unit template</FCDialogPawnLoadoutResetToPool>
-	<FCDialogPawnLoadoutApply>Apply</FCDialogPawnLoadoutApply>
+	<FCDialogPawnLoadoutApply>Save</FCDialogPawnLoadoutApply>
 	<FCDialogPawnLoadoutClose>Close</FCDialogPawnLoadoutClose>
 
 	<FCNoUnitAvailable>No units available</FCNoUnitAvailable>

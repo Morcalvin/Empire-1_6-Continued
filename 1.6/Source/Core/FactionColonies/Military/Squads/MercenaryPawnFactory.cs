@@ -68,10 +68,11 @@ namespace FactionColonies
             }
         }
 
-        public static void CreateNewPawn(MercenarySquadFC squad, ref Mercenary merc, PawnKindDef race, XenotypeDef _xenotype, string _customXenotypeName = null)
+        public static void CreateNewPawn(MercenarySquadFC squad, ref Mercenary merc, PawnKindDef race, XenotypeDef _xenotype, string _customXenotypeName = null, MilUnitFC loadout = null)
         {
             XenotypeDef xenotypeChoice = _xenotype;
             PawnKindDef raceChoice = race;
+            Gender? fixedGender = loadout?.forcedGender;
             FactionFC factionFc = FindFC.FactionComp;
 
             // Fall back to Human only when no race was requested. Race weight controls
@@ -93,16 +94,16 @@ namespace FactionColonies
                     FactionCache.CustomXenotypesDecoder?.TryGetValue(_customXenotypeName, out custom);
 
                     if (custom != null)
-                        request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, custom);
+                        request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, custom, fixedGender);
                     else
                     {
                         LogUtil.Warning($"Custom xenotype '{_customXenotypeName}' not found, falling back to Baseliner");
-                        request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, XenotypeDefOf.Baseliner);
+                        request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, XenotypeDefOf.Baseliner, fixedGender);
                     }
                 }
                 else
                 {
-                    request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, xenotypeChoice);
+                    request = FCPawnGenerator.WorkerOrMilitaryRequest(raceChoice, xenotypeChoice, fixedGender);
                 }
                 newPawn = FCPawnGenerator.GenerateWithForcedXenotype(request);
 
@@ -217,6 +218,12 @@ namespace FactionColonies
 
             newPawn.apparel?.DestroyAll();
             newPawn.equipment?.DestroyAllEquipment();
+
+            // Install the designed implants (bionics/prosthetics/etc.) before the pawn is used.
+            // Skipped on the degraded fallbacks only if the loadout is absent.
+            if (loadout != null)
+                MilUnitFC.ApplyImplantsToPawn(newPawn, loadout);
+
             merc.squad = squad;
             merc.settlement = squad?.settlement;
             merc.pawn = newPawn;
