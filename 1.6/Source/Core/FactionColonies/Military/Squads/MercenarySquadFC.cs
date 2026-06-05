@@ -133,10 +133,11 @@ namespace FactionColonies
             EquippedMercenaries.Select(merc => merc.pawn).Concat(EquippedAnimalMercenaries);
 
         /// <summary>Equipped mercs and animals that are eligible to be spawned into a battle map,
-        /// excluding pawns that are currently downed.
-        /// Used by Deploy, defense initial spawn, and defense reinforcement.</summary>
+        /// excluding pawns that are currently downed, dead, destroyed, or already on a map (a
+        /// stale pawn from a prior deploy that wasn't cleaned up would otherwise fail to spawn and
+        /// break the deployed lord). Used by Deploy, defense initial spawn, and reinforcement.</summary>
         public IEnumerable<Pawn> SpawnableMercenaryPawns =>
-            AllEquippedMercenaryPawns.Where(p => p is object && !p.Downed);
+            AllEquippedMercenaryPawns.Where(p => p is object && !p.Downed && !p.Dead && !p.Destroyed && !p.Spawned);
 
         public IEnumerable<Pawn> AllDeployedMercenaryPawns =>
             DeployedMercenaries.Select(merc => merc.pawn)

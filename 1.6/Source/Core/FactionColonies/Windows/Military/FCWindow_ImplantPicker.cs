@@ -163,7 +163,10 @@ namespace FactionColonies
                     Option o = new Option();
                     o.recipe = recipe;
                     o.bodyPartDef = part != null ? part.def : null;
-                    o.bodyPartIndex = idx;
+                    // Store the STABLE occurrence index in body.AllParts (not the filtered-list
+                    // index), so the implant resolves to the same part on any pawn of this body
+                    // regardless of its current health state. See MilUnitFC.TryResolveImplant.
+                    o.bodyPartIndex = MilUnitFC.BodyPartOccurrenceIndex(pawn, part);
                     string lbl = recipe.Worker.GetLabelWhenUsedOn(pawn, part).CapitalizeFirst();
                     if (part != null && !recipe.hideBodyPartNames)
                         lbl = lbl + " (" + part.Label + ")";

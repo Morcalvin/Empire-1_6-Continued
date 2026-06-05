@@ -345,33 +345,86 @@ namespace FactionColonies
         public static void ApplyImplantsToPawn(Pawn target, MilUnitFC source)
         {
             if (target is null || source?.implants is null) return;
-            if (target.health is null) return;
+            if (target.health is null || target.Dead || target.Destroyed) return;
 
             foreach (SavedImplant im in source.implants)
             {
                 if (im.recipe is null) continue;
                 try
                 {
-                    List<BodyPartRecord> parts = new List<BodyPartRecord>(im.recipe.Worker.GetPartsToApplyOn(target, im.recipe));
                     BodyPartRecord part;
-                    if (im.recipe.targetsBodyPart)
-                    {
-                        if (im.bodyPartIndex < 0 || im.bodyPartIndex >= parts.Count) continue;
-                        part = parts[im.bodyPartIndex];
-                    }
-                    else
-                    {
-                        part = parts.Count > 0 ? parts[0] : null;
-                    }
-
-                    if (!im.recipe.Worker.AvailableOnNow(target, part)) continue;
-                    im.recipe.Worker.ApplyOnPawn(target, part, null, null, null);
+                    if (TryResolveImplant(target, im, out part))
+                        im.recipe.Worker.ApplyOnPawn(target, part, null, null, null);
                 }
                 catch (Exception ex)
                 {
                     LogUtil.Warning($"Failed to apply implant {im.recipe?.defName} to {target.LabelShortCap}: {ex.Message}");
                 }
             }
+        }
+
+        /* Resolves the body part a stored implant should install on, and whether it's currently
+         * installable. The part is located by its STABLE occurrence index within body.AllParts —
+         * NOT an index into the filtered GetPartsToApplyOn list, which shifts with the pawn's
+         * health state (battle injuries, other implants). This is what lets an implant chosen in
+         * the designer (against a clean preview) install reliably on a real, possibly battle-worn
+         * pawn. Validity (part present, slot free, recipe-compatible, AvailableOnNow) is still
+         * delegated to the base game. Returns false (skip) for whole-body implants already present
+         * or parts that aren't a legal target right now. */
+        private static bool TryResolveImplant(Pawn pawn, SavedImplant im, out BodyPartRecord part)
+        {
+            part = null;
+            if (pawn?.health is null || im.recipe?.addsHediff is null) return false;
+
+            if (!im.recipe.targetsBodyPart)
+            {
+                if (pawn.health.hediffSet.HasHediff(im.recipe.addsHediff)) return false;
+                return im.recipe.Worker.AvailableOnNow(pawn, null);
+            }
+
+            if (im.bodyPart is null) return false;
+            part = NthBodyPartOfDef(pawn, im.bodyPart, im.bodyPartIndex);
+            if (part is null) return false;
+
+            // The resolved part must be a legal target for this recipe right now (not missing,
+            // slot not already filled, no incompatible hediff) — GetPartsToApplyOn enforces that.
+            bool legalTarget = false;
+            foreach (BodyPartRecord p in im.recipe.Worker.GetPartsToApplyOn(pawn, im.recipe))
+            {
+                if (p == part) { legalTarget = true; break; }
+            }
+            if (!legalTarget) return false;
+
+            return im.recipe.Worker.AvailableOnNow(pawn, part);
+        }
+
+        /// <summary>Occurrence index of <paramref name="part"/> among same-def parts in the body's
+        /// AllParts order. Stable regardless of installed hediffs. -1 if not found.</summary>
+        public static int BodyPartOccurrenceIndex(Pawn pawn, BodyPartRecord part)
+        {
+            if (pawn?.RaceProps?.body is null || part is null) return -1;
+            int occ = 0;
+            foreach (BodyPartRecord p in pawn.RaceProps.body.AllParts)
+            {
+                if (p == part) return occ;
+                if (p.def == part.def) occ++;
+            }
+            return -1;
+        }
+
+        private static BodyPartRecord NthBodyPartOfDef(Pawn pawn, BodyPartDef def, int n)
+        {
+            if (pawn?.RaceProps?.body is null || def is null) return null;
+            int occ = 0;
+            foreach (BodyPartRecord p in pawn.RaceProps.body.AllParts)
+            {
+                if (p.def == def)
+                {
+                    if (occ == n) return p;
+                    occ++;
+                }
+            }
+            return null;
         }
 
         /* Removes the given implants from a pawn, restoring the natural body part. Borrows the
@@ -383,6 +436,7 @@ namespace FactionColonies
         public static void RemoveImplantsFromPawn(Pawn target, List<SavedImplant> implants)
         {
             if (target?.health is null || implants is null) return;
+            if (target.Dead || target.Destroyed) return;
 
             foreach (SavedImplant im in implants)
             {
@@ -416,7 +470,7 @@ namespace FactionColonies
          * handled. Used by the squad-upgrade paths when only implants changed. */
         public static void ReconcileImplantsOnPawn(Pawn target, MilUnitFC desired, MilUnitFC previous)
         {
-            if (target?.health is null) return;
+            if (target?.health is null || target.Dead || target.Destroyed) return;
             if (previous != null) RemoveImplantsFromPawn(target, previous.implants);
             if (desired != null) ApplyImplantsToPawn(target, desired);
         }
@@ -621,18 +675,8 @@ namespace FactionColonies
                 if (im.recipe is null) continue;
                 try
                 {
-                    List<BodyPartRecord> parts = new List<BodyPartRecord>(im.recipe.Worker.GetPartsToApplyOn(testPawn, im.recipe));
                     BodyPartRecord part;
-                    if (im.recipe.targetsBodyPart)
-                    {
-                        if (im.bodyPartIndex < 0 || im.bodyPartIndex >= parts.Count) continue;
-                        part = parts[im.bodyPartIndex];
-                    }
-                    else
-                    {
-                        part = parts.Count > 0 ? parts[0] : null;
-                    }
-                    if (!im.recipe.Worker.AvailableOnNow(testPawn, part)) continue;
+                    if (!TryResolveImplant(testPawn, im, out part)) continue;
 
                     // Install on the test pawn so later implants validate against a cumulative body.
                     im.recipe.Worker.ApplyOnPawn(testPawn, part, null, null, null);

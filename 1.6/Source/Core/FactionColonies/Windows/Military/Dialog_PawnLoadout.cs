@@ -144,7 +144,8 @@ namespace FactionColonies
 
             float leftW = 220f;
             Rect leftPanel = new Rect(inRect.x, topY, leftW, inRect.height - (topY - inRect.y) - bottomBtnH - 8f);
-            Rect rightPanel = new Rect(inRect.x + leftW + 10f, topY, inRect.width - leftW - 10f, leftPanel.height);
+            // Pull the right edge in a few px so the tab box's right border isn't clipped by the window frame.
+            Rect rightPanel = new Rect(inRect.x + leftW + 10f, topY, inRect.width - leftW - 10f - 3f, leftPanel.height);
 
             DrawLeftPanel(leftPanel);
             DrawLoadoutPanel(rightPanel);

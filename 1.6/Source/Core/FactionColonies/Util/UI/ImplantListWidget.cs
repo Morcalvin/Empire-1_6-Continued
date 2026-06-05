@@ -99,7 +99,9 @@ namespace FactionColonies
                 Rect labelRect = new Rect(iconRect.xMax + 6f, row.y, costRect.x - iconRect.xMax - 10f, rowHeight);
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(labelRect, label);
+                string shownLabel = Text.ClampTextWithEllipsis(labelRect, label);
+                Widgets.Label(labelRect, shownLabel);
+                if (shownLabel != label) TooltipHandler.TipRegion(labelRect, label);
             }
 
             ScrollUtil.EndScrollView();

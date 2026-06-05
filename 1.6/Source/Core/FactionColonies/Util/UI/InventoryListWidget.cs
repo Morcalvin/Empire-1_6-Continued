@@ -169,7 +169,9 @@ namespace FactionColonies
                 ? (string)(item.thing.LabelCap + " (" + item.stuff.LabelCap + ")")
                 : item.thing.LabelCap.ToString();
             if (!string.IsNullOrEmpty(suffix)) label = label + "  " + suffix;
-            Widgets.Label(labelRect, label);
+            string shown = Text.ClampTextWithEllipsis(labelRect, label);
+            Widgets.Label(labelRect, shown);
+            if (shown != label) TooltipHandler.TipRegion(labelRect, label);
         }
 
         private static void OpenInventoryPicker(MilUnitFC displayUnit, Options opts)
