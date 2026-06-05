@@ -374,6 +374,53 @@ namespace FactionColonies
             }
         }
 
+        /* Removes the given implants from a pawn, restoring the natural body part. Borrows the
+         * base game's Pawn_HealthTracker.RestorePart (the same call behind the dev "heal" action
+         * and surgery) which recursively strips every hediff off the part and its children — so
+         * the added bionic part disappears and the natural part comes back. The actual installed
+         * hediff is located by its addsHediff def (not by stored index, which shifts once a slot
+         * is filled). Whole-body implants (no targeted part) are removed directly. */
+        public static void RemoveImplantsFromPawn(Pawn target, List<SavedImplant> implants)
+        {
+            if (target?.health is null || implants is null) return;
+
+            foreach (SavedImplant im in implants)
+            {
+                if (im.recipe?.addsHediff is null) continue;
+                try
+                {
+                    Hediff found = null;
+                    List<Hediff> hediffs = target.health.hediffSet.hediffs;
+                    for (int i = 0; i < hediffs.Count; i++)
+                    {
+                        if (hediffs[i].def == im.recipe.addsHediff) { found = hediffs[i]; break; }
+                    }
+                    if (found is null) continue;
+
+                    if (found.Part != null)
+                        target.health.RestorePart(found.Part);
+                    else
+                        target.health.RemoveHediff(found);
+                }
+                catch (Exception ex)
+                {
+                    LogUtil.Warning($"Failed to remove implant {im.recipe?.defName} from {target.LabelShortCap}: {ex.Message}");
+                }
+            }
+        }
+
+        /* Brings a live pawn's installed implants in line with the desired loadout WITHOUT
+         * regenerating the pawn (identity preserved): clears the previously-applied set back to a
+         * clean body via RestorePart, then re-applies the desired set on the clean base — which is
+         * exactly the index semantics the designer preview uses, so additions and removals are both
+         * handled. Used by the squad-upgrade paths when only implants changed. */
+        public static void ReconcileImplantsOnPawn(Pawn target, MilUnitFC desired, MilUnitFC previous)
+        {
+            if (target?.health is null) return;
+            if (previous != null) RemoveImplantsFromPawn(target, previous.implants);
+            if (desired != null) ApplyImplantsToPawn(target, desired);
+        }
+
         // --- Equipment Mutation Methods ---
 
         public void ChangeTick()
@@ -517,6 +564,8 @@ namespace FactionColonies
             }
         }
 
+        /// <summary>Total carried mass counted against the cap: inventory items plus the equipped
+        /// weapon(s). Worn apparel is excluded (it's worn, not carried).</summary>
         public float CurrentInventoryMass
         {
             get
@@ -524,6 +573,8 @@ namespace FactionColonies
                 float total = 0f;
                 foreach (SavedThing i in inventory)
                     total += MassOf(i.thing, i.stuff) * Mathf.Max(1, i.count);
+                foreach (SavedThing w in weapons)
+                    total += MassOf(w.thing, w.stuff) * Mathf.Max(1, w.count);
                 return total;
             }
         }

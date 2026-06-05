@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Verse;
 
@@ -12,40 +13,23 @@ namespace FactionColonies
         Implants
     }
 
-    /* Small horizontal tab-button row drawn above the loadout panel. Matches the
-     * button-row idiom used elsewhere in Empire's windows rather than base-game TabDrawer. */
+    /* Draws the loadout tab row using the shared ButtonFlat tab drawer (UIUtil.DrawTabRow) and
+     * returns the bordered content area below the tabs. */
     public static class LoadoutTabStrip
     {
         public const float TabHeight = 28f;
 
-        private static readonly LoadoutTab[] tabs =
-            { LoadoutTab.Apparel, LoadoutTab.Inventory, LoadoutTab.Implants };
-
-        private static readonly string[] tabKeys =
-            { "fcTabApparel", "fcTabInventory", "fcTabImplants" };
-
-        public static void Draw(Rect row, ref LoadoutTab selected)
+        public static LoadoutTab Draw(Rect boundingBox, LoadoutTab selected, out Rect contentRect)
         {
-            GameFont fontBefore = Text.Font;
-            TextAnchor anchorBefore = Text.Anchor;
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleCenter;
-
-            const float gap = 2f;
-            float btnW = (row.width - gap * (tabs.Length - 1)) / tabs.Length;
-
-            for (int i = 0; i < tabs.Length; i++)
+            List<string> labels = new List<string>
             {
-                Rect tabRect = new Rect(row.x + i * (btnW + gap), row.y, btnW, row.height);
-                bool clicked = Widgets.ButtonText(tabRect, tabKeys[i].Translate(), drawBackground: true, doMouseoverSound: true);
-                if (selected == tabs[i])
-                    Widgets.DrawHighlightSelected(tabRect);
-                if (clicked)
-                    selected = tabs[i];
-            }
-
-            Text.Font = fontBefore;
-            Text.Anchor = anchorBefore;
+                "fcTabApparel".Translate(),
+                "fcTabInventory".Translate(),
+                "fcTabImplants".Translate()
+            };
+            int idx = UIUtil.DrawTabRow(boundingBox, labels, (int)selected, out contentRect,
+                tabHeight: TabHeight, minTabWidth: 70f);
+            return (LoadoutTab)idx;
         }
     }
 }

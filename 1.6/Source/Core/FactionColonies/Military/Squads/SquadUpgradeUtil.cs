@@ -272,8 +272,13 @@ namespace FactionColonies
                 if (dec.claim != null)
                 {
                     merc = dec.claim;
+                    MilUnitFC prior = merc.currentLoadout;
+                    bool implantsChanged = LoadoutUpgradeUtil.ImplantsChanged(target, prior);
                     squad.Equipment.StripPawn(merc);
                     squad.Equipment.EquipPawn(merc, target);
+                    // Implants are surgical — reconcile them in place (no regeneration) when changed.
+                    if (implantsChanged)
+                        MilUnitFC.ReconcileImplantsOnPawn(merc.pawn, target, prior);
                     /* Re-sync the pool pointer to the live template slot (repairs a stale
                        'loadout' after a SwapTemplate). ownedLoadout is deliberately left
                        intact — a bulk upgrade APPLIES personalization, it doesn't discard it. */

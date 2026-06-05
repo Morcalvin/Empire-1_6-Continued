@@ -33,12 +33,8 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            Rect headerRect = new Rect(rect.x, rect.y, rect.width, headerHeight);
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(headerRect, "fcTabImplants".Translate());
-
-            float btnY = rect.y + headerHeight + 3f;
+            // Add button at the top-right — the tab labels the panel, no title needed.
+            float btnY = rect.y;
 
             if (opts.canEdit && opts.showHeaderButtons && displayUnit != null)
             {
@@ -53,7 +49,7 @@ namespace FactionColonies
                 }
             }
 
-            Rect listOutRect = new Rect(rect.x, btnY + headerHeight + 2f, rect.width, rect.height - (2 * (headerHeight + 2f)));
+            Rect listOutRect = new Rect(rect.x, btnY + headerHeight + 2f, rect.width, rect.height - headerHeight - 4f);
 
             List<SavedImplant> items = displayUnit?.implants ?? new List<SavedImplant>();
             float viewHeight = items.Count * rowHeight;

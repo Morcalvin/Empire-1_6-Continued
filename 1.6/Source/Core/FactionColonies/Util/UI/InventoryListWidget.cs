@@ -32,15 +32,8 @@ namespace FactionColonies
             GameFont fontBefore = Text.Font;
             TextAnchor anchorBefore = Text.Anchor;
 
-            // Header: title + mass usage
-            Rect headerRect = new Rect(rect.x, rect.y, rect.width, headerHeight);
-            Text.Font = GameFont.Small;
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(headerRect, "fcTabInventory".Translate());
-
-            float btnY = rect.y + headerHeight + 3f;
-
-            // Mass usage line
+            // Top row: mass usage (left) + Add button (right). No title — the tab labels the panel.
+            float btnY = rect.y;
             if (displayUnit != null)
             {
                 float cur = displayUnit.CurrentInventoryMass;
@@ -53,10 +46,9 @@ namespace FactionColonies
                 Widgets.Label(massRect, "fcInventoryMass".Translate(cur.ToString("F1"), cap.ToString("F1")));
                 GUI.color = colorBefore;
 
-                // Add button (right side of the mass line)
                 if (opts.canEdit && opts.showHeaderButtons)
                 {
-                    float addW = 100f;
+                    float addW = 110f;
                     Rect addBtnRect = new Rect(rect.xMax - addW, btnY, addW, headerHeight);
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleCenter;
@@ -66,28 +58,39 @@ namespace FactionColonies
             }
 
             // List
-            Rect listOutRect = new Rect(rect.x, btnY + headerHeight + 2f, rect.width, rect.height - (2 * (headerHeight + 2f)));
+            Rect listOutRect = new Rect(rect.x, btnY + headerHeight + 2f, rect.width, rect.height - headerHeight - 4f);
 
+            List<SavedThing> weapons = displayUnit?.weapons ?? new List<SavedThing>();
             List<SavedThing> items = displayUnit?.inventory ?? new List<SavedThing>();
-            float viewHeight = items.Count * rowHeight;
+
+            int weaponRows = 0;
+            foreach (SavedThing w in weapons) if (w.thing != null) weaponRows++;
+
+            float viewHeight = (weaponRows + items.Count) * rowHeight;
             Rect scrollViewRect = ScrollUtil.BeginScrollView(listOutRect, ref scrollPos, viewHeight);
 
+            int drawn = 0;
+
+            // Equipped weapon(s): shown here so their carried weight is visible; highlighted and
+            // read-only (managed via the weapon slot, not editable from this list).
+            foreach (SavedThing w in weapons)
+            {
+                if (w.thing == null) continue;
+                Rect row = new Rect(scrollViewRect.x, scrollViewRect.y + drawn * rowHeight, scrollViewRect.width, rowHeight);
+                Widgets.DrawHighlightSelected(row);
+                DrawItemRowCommon(row, w, "fcInventoryWeaponSuffix".Translate());
+                drawn++;
+            }
+
+            // Carried inventory: editable.
             for (int i = 0; i < items.Count; i++)
             {
                 SavedThing item = items[i];
                 if (item.thing == null) continue;
                 int index = i;
-                Rect row = new Rect(scrollViewRect.x, scrollViewRect.y + i * rowHeight, scrollViewRect.width, rowHeight);
-                if (i % 2 == 0) Widgets.DrawHighlight(row);
-
-                // Icon
-                Rect iconRect = new Rect(row.x + 2f, row.y + 2f, IconSize, IconSize);
-                Widgets.ThingIcon(iconRect, item.thing, item.stuff);
-
-                // Info button
-                const float infoBtnSize = 24f;
-                Rect infoRect = new Rect(iconRect.xMax + 2f, row.y + (rowHeight - infoBtnSize) / 2f, infoBtnSize, infoBtnSize);
-                Widgets.InfoCardButton(infoRect.x, infoRect.y, item.thing, item.stuff);
+                Rect row = new Rect(scrollViewRect.x, scrollViewRect.y + drawn * rowHeight, scrollViewRect.width, rowHeight);
+                if (drawn % 2 == 0) Widgets.DrawHighlight(row);
+                drawn++;
 
                 // Remove button (far right)
                 Rect removeRect = Rect.zero;
@@ -132,21 +135,7 @@ namespace FactionColonies
                     Widgets.Label(countArea, "x" + item.count);
                 }
 
-                // Mass + value
-                float massVal = item.thing.GetStatValueAbstract(StatDefOf.Mass, item.stuff) * Mathf.Max(1, item.count);
-                Rect valueRect = new Rect(countArea.x - 100f, row.y, 96f, rowHeight);
-                Text.Font = GameFont.Tiny;
-                Text.Anchor = TextAnchor.MiddleRight;
-                Widgets.Label(valueRect, massVal.ToString("F1") + " kg  $" + item.MarketValue.ToString("F0"));
-
-                // Label
-                Rect labelRect = new Rect(infoRect.xMax + 4f, row.y, valueRect.x - infoRect.xMax - 8f, rowHeight);
-                Text.Font = GameFont.Tiny;
-                Text.Anchor = TextAnchor.MiddleLeft;
-                string label = item.stuff != null
-                    ? (string)(item.thing.LabelCap + " (" + item.stuff.LabelCap + ")")
-                    : item.thing.LabelCap.ToString();
-                Widgets.Label(labelRect, label);
+                DrawItemRowCommon(new Rect(row.x, row.y, countArea.x - row.x, row.height), item, null);
             }
 
             ScrollUtil.EndScrollView();
@@ -155,15 +144,38 @@ namespace FactionColonies
             Text.Anchor = anchorBefore;
         }
 
+        /* Draws icon + info button + label + (mass / value) into the given rect. The mass/value
+         * block hugs the right edge of the rect, so callers reserve space on the right (e.g. for
+         * count/remove controls) by passing a narrowed rect. */
+        private static void DrawItemRowCommon(Rect row, SavedThing item, string suffix)
+        {
+            Rect iconRect = new Rect(row.x + 2f, row.y + 2f, IconSize, IconSize);
+            Widgets.ThingIcon(iconRect, item.thing, item.stuff);
+
+            const float infoBtnSize = 24f;
+            Rect infoRect = new Rect(iconRect.xMax + 2f, row.y + (row.height - infoBtnSize) / 2f, infoBtnSize, infoBtnSize);
+            Widgets.InfoCardButton(infoRect.x, infoRect.y, item.thing, item.stuff);
+
+            float massVal = item.thing.GetStatValueAbstract(StatDefOf.Mass, item.stuff) * Mathf.Max(1, item.count);
+            Rect valueRect = new Rect(row.xMax - 100f, row.y, 96f, row.height);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(valueRect, massVal.ToString("F1") + " kg  $" + item.MarketValue.ToString("F0"));
+
+            Rect labelRect = new Rect(infoRect.xMax + 4f, row.y, valueRect.x - infoRect.xMax - 8f, row.height);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            string label = item.stuff != null
+                ? (string)(item.thing.LabelCap + " (" + item.stuff.LabelCap + ")")
+                : item.thing.LabelCap.ToString();
+            if (!string.IsNullOrEmpty(suffix)) label = label + "  " + suffix;
+            Widgets.Label(labelRect, label);
+        }
+
         private static void OpenInventoryPicker(MilUnitFC displayUnit, Options opts)
         {
-            List<ThingDef> defs = DefDatabase<ThingDef>.AllDefs
-                .Where(t => t.category == ThingCategory.Item
-                    && t.EverHaulable
-                    && !t.IsCorpse
-                    && t.BaseMarketValue > 0f)
-                .OrderBy(t => t.label)
-                .ToList();
+            // Def-driven whitelist (weapons/food/medicine/drugs/ammo), gated by research.
+            List<ThingDef> defs = MilitaryInventoryUtil.AvailableItems();
 
             Find.WindowStack.Add(new FCWindow_ItemStuffPicker(
                 defs,

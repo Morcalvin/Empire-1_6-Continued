@@ -266,9 +266,9 @@ namespace FactionColonies
          * implants are invisible anyway). */
         private void DrawLoadoutPanel(Rect rect)
         {
-            Rect tabRow = new Rect(rect.x, rect.y, rect.width, LoadoutTabStrip.TabHeight);
-            LoadoutTabStrip.Draw(tabRow, ref activeTab);
-            Rect content = new Rect(rect.x, tabRow.yMax + 4f, rect.width, rect.height - LoadoutTabStrip.TabHeight - 4f);
+            Rect content;
+            activeTab = LoadoutTabStrip.Draw(rect, activeTab, out content);
+            content = content.ContractedBy(4f);
 
             if (activeTab == LoadoutTab.Apparel)
             {

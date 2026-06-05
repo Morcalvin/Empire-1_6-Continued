@@ -77,6 +77,7 @@
 	<fcInventoryCount>Count:</fcInventoryCount>
 	<fcInventoryMass>{0} / {1} kg</fcInventoryMass>
 	<fcInventoryOverweight>That would exceed the unit's carry weight limit.</fcInventoryOverweight>
+	<fcInventoryWeaponSuffix>(weapon)</fcInventoryWeaponSuffix>
 
 	<!-- Implants -->
 	<fcAddImplant>+ Add Implant</fcAddImplant>
