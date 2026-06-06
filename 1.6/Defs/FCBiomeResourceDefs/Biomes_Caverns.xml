@@ -30,6 +30,12 @@
 				<additive>0.75</additive>
 			</li>
 		</resources>
+		<statModifiers>
+			<li>
+				<stat>militaryLevelBonusDefending</stat>
+				<value>1.5</value>
+			</li>
+		</statModifiers>
 	</FactionColonies.BiomeResourceDef>
 
 	<FactionColonies.BiomeResourceDef MayRequire="biomesteam.biomescaverns">
@@ -66,6 +72,7 @@
 				<additive>1.5</additive>
 			</li>
 		</resources>
+		
 		<statModifiers>
 			<li>
 				<stat>happinessGainedMultiplier</stat>
@@ -73,7 +80,7 @@
 			</li>
 			<li>
 				<stat>happinessLostMultiplier</stat>
-				<value>1.5</value>
+				<value>2</value>
 			</li>
 			<li>
 				<stat>unrestGainedMultiplier</stat>
@@ -89,7 +96,7 @@
 			</li>
 			<li>
 				<stat>militaryLevelBonusDefending</stat>
-				<value>1.5</value>
+				<value>2</value>
 			</li>
 		</statModifiers>
 	</FactionColonies.BiomeResourceDef>
@@ -124,5 +131,11 @@
 				<additive>1.2</additive>
 			</li>
 		</resources>
+		<statModifiers>
+			<li>
+				<stat>militaryLevelBonusDefending</stat>
+				<value>1.5</value>
+			</li>
+		</statModifiers>
 	</FactionColonies.BiomeResourceDef>
 </Defs>
