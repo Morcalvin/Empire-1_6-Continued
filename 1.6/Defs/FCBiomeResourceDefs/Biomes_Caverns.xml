@@ -73,7 +73,7 @@
 			</li>
 			<li>
 				<stat>happinessLostMultiplier</stat>
-				<value>2</value>
+				<value>1.5</value>
 			</li>
 			<li>
 				<stat>unrestGainedMultiplier</stat>
@@ -85,6 +85,10 @@
 			</li>
 			<li>
 				<stat>settlementCostMultiplier</stat>
+				<value>1.5</value>
+			</li>
+			<li>
+				<stat>militaryLevelBonusDefending</stat>
 				<value>1.5</value>
 			</li>
 		</statModifiers>
